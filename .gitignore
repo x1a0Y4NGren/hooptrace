@@ -154,6 +154,7 @@ vite.config.ts.timestamp-*
 build/
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
+lib/app/l10n/app_localizations*.dart
 
 # Codex / planning scratch
 .superpowers/
