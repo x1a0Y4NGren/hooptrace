@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
 
 GoRouter buildAppRouter() {
   return GoRouter(
@@ -17,6 +18,8 @@ class _HomePageShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -25,12 +28,12 @@ class _HomePageShell extends StatelessWidget {
             children: [
               FilledButton(
                 onPressed: () {},
-                child: const Text('寮€濮嬭鍒?'),
+                child: Text(l10n.startScoring),
               ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: () {},
-                child: const Text('澶嶇洏鍘嗗彶'),
+                child: Text(l10n.replayHistory),
               ),
             ],
           ),
