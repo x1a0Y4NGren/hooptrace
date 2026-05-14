@@ -1,0 +1,8 @@
+{
+  "@@locale": "en",
+  "appName": "HoopTrace",
+  "startScoring": "Start",
+  "replayHistory": "Replay History",
+  "settings": "Settings",
+  "projectDetails": "Project"
+}

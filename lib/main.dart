@@ -1,20 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/hoop_trace_app.dart';
 
 void main() {
-  runApp(const PlaceholderApp());
-}
-
-class PlaceholderApp extends StatelessWidget {
-  const PlaceholderApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('HoopTrace'),
-        ),
-      ),
-    );
-  }
+  runApp(const HoopTraceApp());
 }
