@@ -67,4 +67,41 @@ void main() {
     expect(controller.state.shotLocations.single.side, TeamSide.blue);
     expect(controller.state.shotLocations.single.isLocked, isTrue);
   });
+
+  testWidgets('tapping score while pending shows a resolve prompt', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'match-1');
+
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    await tester.tap(find.byKey(const Key('red-score-2')));
+    await tester.pump();
+    await tester.tap(find.text(scoringMarkText));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('blue-score-3')));
+    await tester.pump();
+
+    expect(find.text(scoringResolvePendingText), findsOneWidget);
+    expect(controller.state.score.redScore, 2);
+    expect(controller.state.score.blueScore, 0);
+  });
+
+  testWidgets('scoring page swaps injected controllers when rebuilt', (
+    tester,
+  ) async {
+    final first = ScoringController(matchId: 'match-1');
+    final second = ScoringController(matchId: 'match-2');
+
+    await tester.pumpWidget(MaterialApp(home: ScoringPage(controller: first)));
+    await tester.pumpWidget(MaterialApp(home: ScoringPage(controller: second)));
+
+    await tester.tap(find.byKey(const Key('red-score-1')));
+    await tester.pump();
+
+    expect(first.state.events, isEmpty);
+    expect(second.state.score.redScore, 1);
+  });
 }

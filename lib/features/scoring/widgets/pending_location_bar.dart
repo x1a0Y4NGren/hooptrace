@@ -23,8 +23,11 @@ class PendingLocationBar extends StatelessWidget {
       elevation: 4,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             FilledButton.icon(
               key: const Key('confirm-location'),
@@ -32,12 +35,10 @@ class PendingLocationBar extends StatelessWidget {
               icon: const Icon(Icons.check),
               label: const Text(confirmLocationText),
             ),
-            const SizedBox(width: 8),
             OutlinedButton(
               onPressed: onSkip,
               child: const Text(skipLocationText),
             ),
-            const SizedBox(width: 8),
             TextButton.icon(
               onPressed: onUndo,
               icon: const Icon(Icons.undo),

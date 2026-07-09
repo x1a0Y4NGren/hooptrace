@@ -10,6 +10,7 @@ const scoringMarkShotDialogTitle = '标记投篮位置？';
 const scoringMarkShotDialogContent = '可在球场上点选或拖动圆点后确认。';
 const scoringDoNotMarkText = '不标记';
 const scoringMarkText = '标记';
+const scoringResolvePendingText = '请先确认、跳过或撤销当前落点';
 
 class ScoringPage extends StatefulWidget {
   const ScoringPage({
@@ -28,25 +29,44 @@ class ScoringPage extends StatefulWidget {
 }
 
 class _ScoringPageState extends State<ScoringPage> {
-  late final ScoringController _controller;
+  late ScoringController _controller;
   bool _ownsController = false;
 
   @override
   void initState() {
     super.initState();
+    _attachController();
+  }
+
+  @override
+  void didUpdateWidget(covariant ScoringPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller ||
+        oldWidget.matchId != widget.matchId ||
+        oldWidget.setup != widget.setup) {
+      _detachController();
+      _attachController();
+    }
+  }
+
+  @override
+  void dispose() {
+    _detachController();
+    super.dispose();
+  }
+
+  void _attachController() {
     _controller = widget.controller ??
         ScoringController(matchId: widget.matchId, setup: widget.setup);
     _ownsController = widget.controller == null;
     _controller.addListener(_handleStateChanged);
   }
 
-  @override
-  void dispose() {
+  void _detachController() {
     _controller.removeListener(_handleStateChanged);
     if (_ownsController) {
       _controller.dispose();
     }
-    super.dispose();
   }
 
   void _handleStateChanged() {
@@ -137,11 +157,14 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _scoreAndAskLocation(TeamSide side, int points) async {
-    if (_controller.state.pendingLocation != null) {
+    final accepted = _controller.addScore(side: side, points: points);
+    if (!accepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(scoringResolvePendingText)),
+      );
       return;
     }
 
-    _controller.addScore(side: side, points: points);
     final markLocation = await showDialog<bool>(
       context: context,
       builder: (context) {

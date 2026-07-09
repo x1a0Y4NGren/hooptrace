@@ -8,6 +8,7 @@ const pregameFreeScoringText = '自由计分';
 const pregameElevenPointText = '11 分制';
 const pregameTwentyOnePointText = '21 分制';
 const pregameTimerText = '计时';
+const pregameWinByTwoText = '领先 2 分获胜';
 const pregameAdvancedText = '高级设置';
 const pregameTargetScoreText = '目标分';
 const pregameTimeLimitText = '时间限制';
@@ -121,6 +122,14 @@ class _PregamePageState extends State<PregamePage> {
               title: const Text(pregameTimerText),
               onChanged: (value) {
                 setState(() => _controller.setTimerEnabled(value));
+              },
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _controller.state.winByTwo,
+              title: const Text(pregameWinByTwoText),
+              onChanged: (value) {
+                setState(() => _controller.setWinByTwo(value));
               },
             ),
             ExpansionTile(

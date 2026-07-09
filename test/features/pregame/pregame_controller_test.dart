@@ -16,7 +16,8 @@ void main() {
       ..setRedName('A Li')
       ..setBlueName('Bo')
       ..setTargetScore(21)
-      ..setTimerEnabled(true);
+      ..setTimerEnabled(true)
+      ..setWinByTwo(true);
 
     final setup = controller.createMatchSetup();
 
@@ -25,5 +26,6 @@ void main() {
     expect(setup.blueName, 'Bo');
     expect(setup.targetScore, 21);
     expect(setup.timerEnabled, isTrue);
+    expect(setup.winByTwo, isTrue);
   });
 }

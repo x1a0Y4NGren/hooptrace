@@ -10,6 +10,7 @@ class MatchSetup {
     required this.targetScore,
     required this.timerEnabled,
     required this.timeLimitMinutes,
+    required this.winByTwo,
   });
 
   final String matchId;
@@ -19,6 +20,7 @@ class MatchSetup {
   final int targetScore;
   final bool timerEnabled;
   final int timeLimitMinutes;
+  final bool winByTwo;
 }
 
 class PregameState {
@@ -29,6 +31,7 @@ class PregameState {
     this.timerEnabled = false,
     this.targetScore = 11,
     this.timeLimitMinutes = 10,
+    this.winByTwo = false,
     this.advancedExpanded = false,
   });
 
@@ -38,6 +41,7 @@ class PregameState {
   final bool timerEnabled;
   final int targetScore;
   final int timeLimitMinutes;
+  final bool winByTwo;
   final bool advancedExpanded;
 
   PregameState copyWith({
@@ -47,6 +51,7 @@ class PregameState {
     bool? timerEnabled,
     int? targetScore,
     int? timeLimitMinutes,
+    bool? winByTwo,
     bool? advancedExpanded,
   }) {
     return PregameState(
@@ -56,6 +61,7 @@ class PregameState {
       timerEnabled: timerEnabled ?? this.timerEnabled,
       targetScore: targetScore ?? this.targetScore,
       timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
+      winByTwo: winByTwo ?? this.winByTwo,
       advancedExpanded: advancedExpanded ?? this.advancedExpanded,
     );
   }
@@ -87,6 +93,10 @@ class PregameController {
     _state = _state.copyWith(timerEnabled: value);
   }
 
+  void setWinByTwo(bool value) {
+    _state = _state.copyWith(winByTwo: value);
+  }
+
   void setTargetScore(int value) {
     _state = _state.copyWith(targetScore: value.clamp(1, 99));
   }
@@ -108,6 +118,7 @@ class PregameController {
       targetScore: _state.targetScore,
       timerEnabled: _state.timerEnabled,
       timeLimitMinutes: _state.timeLimitMinutes,
+      winByTwo: _state.winByTwo,
     );
   }
 
