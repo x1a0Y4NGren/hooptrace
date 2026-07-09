@@ -14,6 +14,8 @@ void main() {
 
     expect(find.text('蓝方'), findsOneWidget);
     expect(find.text('红方'), findsOneWidget);
+    expect(find.text('犯规 0'), findsNWidgets(2));
+    expect(find.text('犯规'), findsNWidgets(2));
     expect(find.text('+1'), findsNWidgets(2));
     expect(find.text('+2'), findsNWidgets(2));
     expect(find.text('+3'), findsNWidgets(2));
@@ -31,6 +33,8 @@ void main() {
 
     await tester.tap(find.byKey(const Key('red-score-2')));
     await tester.pump();
+    expect(find.text('标记投篮位置？'), findsOneWidget);
+    expect(find.text('可在球场上点选或拖动圆点后确认。'), findsOneWidget);
     await tester.tap(find.text('不标记'));
     await tester.pump();
 
@@ -52,6 +56,9 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('标记'));
     await tester.pump();
+    expect(find.text('确认落点'), findsOneWidget);
+    expect(find.text('跳过落点'), findsOneWidget);
+    expect(find.text('撤销'), findsOneWidget);
     await tester.tap(find.byKey(const Key('confirm-location')));
     await tester.pump();
 

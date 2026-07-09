@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
+const foulText = '犯规';
+
 class ScoreSidePanel extends StatelessWidget {
   const ScoreSidePanel({
     required this.side,
@@ -54,7 +56,7 @@ class ScoreSidePanel extends StatelessWidget {
               ),
             ),
             Text(
-              '犯规 $fouls',
+              '$foulText $fouls',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelLarge,
             ),
@@ -74,7 +76,7 @@ class ScoreSidePanel extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onFoul,
               icon: const Icon(Icons.flag_outlined),
-              label: const Text('犯规'),
+              label: const Text(foulText),
             ),
           ],
         ),

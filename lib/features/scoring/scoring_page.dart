@@ -6,6 +6,11 @@ import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
+const scoringMarkShotDialogTitle = '标记投篮位置？';
+const scoringMarkShotDialogContent = '可在球场上点选或拖动圆点后确认。';
+const scoringDoNotMarkText = '不标记';
+const scoringMarkText = '标记';
+
 class ScoringPage extends StatefulWidget {
   const ScoringPage({
     this.matchId,
@@ -141,16 +146,16 @@ class _ScoringPageState extends State<ScoringPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('标记投篮位置？'),
-          content: const Text('可在球场上点选或拖动圆点后确认。'),
+          title: const Text(scoringMarkShotDialogTitle),
+          content: const Text(scoringMarkShotDialogContent),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('不标记'),
+              child: const Text(scoringDoNotMarkText),
             ),
             FilledButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('标记'),
+              child: const Text(scoringMarkText),
             ),
           ],
         );

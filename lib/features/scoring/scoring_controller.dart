@@ -104,8 +104,8 @@ class ScoringController extends ChangeNotifier {
     MatchSetup? setup,
   }) : _state = MatchScoringState(
           matchId: setup?.matchId ?? matchId ?? 'match-local',
-          redName: setup?.redName ?? '红方',
-          blueName: setup?.blueName ?? '蓝方',
+          redName: setup?.redName ?? defaultRedPlayerName,
+          blueName: setup?.blueName ?? defaultBluePlayerName,
           events: const [],
           score: const ScoreState.zero(),
           shotLocations: const [],

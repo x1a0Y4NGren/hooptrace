@@ -1,3 +1,6 @@
+const defaultRedPlayerName = '红方';
+const defaultBluePlayerName = '蓝方';
+
 class MatchSetup {
   const MatchSetup({
     required this.matchId,
@@ -20,8 +23,8 @@ class MatchSetup {
 
 class PregameState {
   const PregameState({
-    this.redName = '红方',
-    this.blueName = '蓝方',
+    this.redName = defaultRedPlayerName,
+    this.blueName = defaultBluePlayerName,
     this.ruleTemplateId = 'free',
     this.timerEnabled = false,
     this.targetScore = 11,
@@ -67,11 +70,13 @@ class PregameController {
   PregameState get state => _state;
 
   void setRedName(String value) {
-    _state = _state.copyWith(redName: _fallbackName(value, '红方'));
+    _state =
+        _state.copyWith(redName: _fallbackName(value, defaultRedPlayerName));
   }
 
   void setBlueName(String value) {
-    _state = _state.copyWith(blueName: _fallbackName(value, '蓝方'));
+    _state =
+        _state.copyWith(blueName: _fallbackName(value, defaultBluePlayerName));
   }
 
   void setRuleTemplateId(String value) {

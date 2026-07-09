@@ -1,6 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
+const pregameTitleText = '赛前设置';
+const pregamePlayersText = '球员';
+const pregameRuleTemplateText = '规则模板';
+const pregameFreeScoringText = '自由计分';
+const pregameElevenPointText = '11 分制';
+const pregameTwentyOnePointText = '21 分制';
+const pregameTimerText = '计时';
+const pregameAdvancedText = '高级设置';
+const pregameTargetScoreText = '目标分';
+const pregameTimeLimitText = '时间限制';
+const pregameMinuteText = '分钟';
+const pregamePointText = '分';
+const pregameStartMatchText = '开始比赛';
+
 class PregamePage extends StatefulWidget {
   const PregamePage({
     this.onStartMatch,
@@ -39,13 +53,13 @@ class _PregamePageState extends State<PregamePage> {
     final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('赛前设置')),
+      appBar: AppBar(title: const Text(pregameTitleText)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
             Text(
-              '球员',
+              pregamePlayersText,
               style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
@@ -55,7 +69,7 @@ class _PregamePageState extends State<PregamePage> {
               key: const Key('pregame-red-name'),
               controller: _redNameController,
               decoration: const InputDecoration(
-                labelText: '红方',
+                labelText: defaultRedPlayerName,
                 border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.next,
@@ -66,7 +80,7 @@ class _PregamePageState extends State<PregamePage> {
               key: const Key('pregame-blue-name'),
               controller: _blueNameController,
               decoration: const InputDecoration(
-                labelText: '蓝方',
+                labelText: defaultBluePlayerName,
                 border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.done,
@@ -76,13 +90,22 @@ class _PregamePageState extends State<PregamePage> {
             DropdownButtonFormField<String>(
               initialValue: _controller.state.ruleTemplateId,
               decoration: const InputDecoration(
-                labelText: '规则模板',
+                labelText: pregameRuleTemplateText,
                 border: OutlineInputBorder(),
               ),
               items: const [
-                DropdownMenuItem(value: 'free', child: Text('自由计分')),
-                DropdownMenuItem(value: 'eleven', child: Text('11 分制')),
-                DropdownMenuItem(value: 'twenty_one', child: Text('21 分制')),
+                DropdownMenuItem(
+                  value: 'free',
+                  child: Text(pregameFreeScoringText),
+                ),
+                DropdownMenuItem(
+                  value: 'eleven',
+                  child: Text(pregameElevenPointText),
+                ),
+                DropdownMenuItem(
+                  value: 'twenty_one',
+                  child: Text(pregameTwentyOnePointText),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -95,27 +118,27 @@ class _PregamePageState extends State<PregamePage> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _controller.state.timerEnabled,
-              title: const Text('计时'),
+              title: const Text(pregameTimerText),
               onChanged: (value) {
                 setState(() => _controller.setTimerEnabled(value));
               },
             ),
             ExpansionTile(
               tilePadding: EdgeInsets.zero,
-              title: const Text('高级设置'),
+              title: const Text(pregameAdvancedText),
               initiallyExpanded: _controller.state.advancedExpanded,
               onExpansionChanged: _controller.setAdvancedExpanded,
               children: [
                 _NumberSetting(
-                  label: '目标分',
+                  label: pregameTargetScoreText,
                   value: _controller.state.targetScore,
                   onChanged: (value) {
                     setState(() => _controller.setTargetScore(value));
                   },
                 ),
                 _NumberSetting(
-                  label: '时间限制',
-                  suffix: '分钟',
+                  label: pregameTimeLimitText,
+                  suffix: pregameMinuteText,
                   value: _controller.state.timeLimitMinutes,
                   onChanged: (value) {
                     setState(() => _controller.setTimeLimitMinutes(value));
@@ -133,7 +156,7 @@ class _PregamePageState extends State<PregamePage> {
                     ..setBlueName(_blueNameController.text);
                   widget.onStartMatch?.call(_controller.createMatchSetup());
                 },
-                child: const Text('开始比赛'),
+                child: const Text(pregameStartMatchText),
               ),
             ),
           ],
@@ -148,7 +171,7 @@ class _NumberSetting extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
-    this.suffix = '分',
+    this.suffix = pregamePointText,
   });
 
   final String label;

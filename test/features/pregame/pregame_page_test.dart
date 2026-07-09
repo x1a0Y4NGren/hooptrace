@@ -9,11 +9,22 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: PregamePage()));
 
     expect(find.text('赛前设置'), findsOneWidget);
+    expect(find.text('球员'), findsOneWidget);
     expect(find.text('红方'), findsWidgets);
     expect(find.text('蓝方'), findsWidgets);
     expect(find.text('规则模板'), findsOneWidget);
+    expect(find.text('自由计分'), findsOneWidget);
     expect(find.text('高级设置'), findsOneWidget);
+    expect(find.text('计时'), findsOneWidget);
     expect(find.text('开始比赛'), findsOneWidget);
+
+    await tester.tap(find.text('高级设置'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('目标分'), findsOneWidget);
+    expect(find.text('时间限制'), findsOneWidget);
+    expect(find.text('11分'), findsOneWidget);
+    expect(find.text('10分钟'), findsOneWidget);
   });
 
   testWidgets('pre-game page accepts player names and starts match', (
@@ -42,5 +53,17 @@ void main() {
 
     expect(startedRedName, 'Red A');
     expect(startedBlueName, 'Blue B');
+  });
+
+  testWidgets('pre-game page exposes Chinese rule template options', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+
+    await tester.tap(find.text('自由计分'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('11 分制'), findsOneWidget);
+    expect(find.text('21 分制'), findsOneWidget);
   });
 }
