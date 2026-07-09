@@ -12,7 +12,7 @@ enum MatchEventType {
 }
 
 class MatchEvent {
-  const MatchEvent({
+  MatchEvent({
     required this.id,
     required this.matchId,
     required this.type,
@@ -22,7 +22,16 @@ class MatchEvent {
     this.note,
     this.customType,
     this.isDeleted = false,
-  });
+  }) {
+    if (type == MatchEventType.score) {
+      if (side == null) {
+        throw ArgumentError('Score events require a side.');
+      }
+      if (points <= 0) {
+        throw ArgumentError('Score points must be positive.');
+      }
+    }
+  }
 
   factory MatchEvent.score({
     required String id,

@@ -37,37 +37,35 @@ class RuleEngine {
         score.redScore + (scoringSide == TeamSide.red ? scoringPoints : 0);
     final newBlue =
         score.blueScore + (scoringSide == TeamSide.blue ? scoringPoints : 0);
-    final currentSideScore =
-        scoringSide == TeamSide.red ? score.redScore : score.blueScore;
     final sideScore = scoringSide == TeamSide.red ? newRed : newBlue;
     final opponentScore = scoringSide == TeamSide.red ? newBlue : newRed;
     final hints = <RuleHint>[];
 
-    if (currentSideScore == targetScore - 1 || sideScore == targetScore - 1) {
+    if (sideScore >= targetScore) {
+      if (template.winByTwo && sideScore - opponentScore < 2) {
+        return const [
+          RuleHint(
+            type: RuleHintType.winByTwoRequired,
+            message: 'Win by two required',
+          ),
+        ];
+      }
+
+      return const [
+        RuleHint(
+          type: RuleHintType.targetReached,
+          message: 'Target score reached',
+        ),
+      ];
+    }
+
+    if (sideScore == targetScore - 1) {
       hints.add(
         const RuleHint(
           type: RuleHintType.matchPoint,
           message: 'Match point',
         ),
       );
-    }
-
-    if (sideScore >= targetScore) {
-      if (template.winByTwo && sideScore - opponentScore < 2) {
-        hints.add(
-          const RuleHint(
-            type: RuleHintType.winByTwoRequired,
-            message: 'Win by two required',
-          ),
-        );
-      } else {
-        hints.add(
-          const RuleHint(
-            type: RuleHintType.targetReached,
-            message: 'Target score reached',
-          ),
-        );
-      }
     }
 
     return hints;

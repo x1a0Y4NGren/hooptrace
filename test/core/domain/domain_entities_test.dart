@@ -23,4 +23,31 @@ void main() {
     expect(event.points, 2);
     expect(event.type, MatchEventType.score);
   });
+
+  test('score event requires side and positive points from base constructor',
+      () {
+    expect(
+      () => MatchEvent(
+        id: 'event-2',
+        matchId: 'match-1',
+        type: MatchEventType.score,
+        side: null,
+        points: 2,
+        occurredAt: DateTime.utc(2026, 5, 12, 12),
+      ),
+      throwsArgumentError,
+    );
+
+    expect(
+      () => MatchEvent(
+        id: 'event-3',
+        matchId: 'match-1',
+        type: MatchEventType.score,
+        side: TeamSide.red,
+        points: 0,
+        occurredAt: DateTime.utc(2026, 5, 12, 12),
+      ),
+      throwsArgumentError,
+    );
+  });
 }

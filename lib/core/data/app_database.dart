@@ -40,6 +40,11 @@ class MatchEvents extends Table {
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+
+  @override
+  List<String> get customConstraints => [
+        "CHECK (type != 'score' OR (side IS NOT NULL AND points > 0))",
+      ];
 }
 
 class ShotLocations extends Table {

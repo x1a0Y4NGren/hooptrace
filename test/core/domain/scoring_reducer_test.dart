@@ -4,7 +4,7 @@ import 'package:hooptrace/core/domain/scoring/scoring_reducer.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 void main() {
-  test('score is derived from non-deleted score events', () {
+  test('score is derived from non-deleted score events only', () {
     final events = [
       MatchEvent.score(
         id: 'r1',
@@ -18,6 +18,23 @@ void main() {
         matchId: 'm1',
         side: TeamSide.blue,
         points: 3,
+        occurredAt: DateTime.utc(2026),
+      ),
+      MatchEvent(
+        id: 'deleted-score',
+        matchId: 'm1',
+        type: MatchEventType.score,
+        side: TeamSide.red,
+        points: 100,
+        occurredAt: DateTime.utc(2026),
+        isDeleted: true,
+      ),
+      MatchEvent(
+        id: 'foul',
+        matchId: 'm1',
+        type: MatchEventType.foul,
+        side: TeamSide.blue,
+        points: 100,
         occurredAt: DateTime.utc(2026),
       ),
     ];

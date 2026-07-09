@@ -54,19 +54,31 @@ class MatchRepository {
       ..orderBy([(event) => OrderingTerm.asc(event.occurredAt)]);
 
     return query.watch().map((rows) {
-      return rows.map((row) {
-        return MatchEvent(
-          id: row.id,
-          matchId: row.matchId,
-          type: MatchEventType.values.byName(row.type),
-          side: row.side == null ? null : TeamSide.values.byName(row.side!),
-          points: row.points,
-          occurredAt: row.occurredAt,
-          note: row.note,
-          customType: row.customEventType,
-          isDeleted: row.isDeleted,
-        );
-      }).toList();
+      return rows.map(mapEventRow).toList();
     });
+  }
+
+  static MatchEvent mapEventRow(MatchEventRow row) {
+    final type = MatchEventType.values.byName(row.type);
+    final side = row.side == null ? null : TeamSide.values.byName(row.side!);
+
+    if (type == MatchEventType.score && (side == null || row.points <= 0)) {
+      throw StateError(
+        'Invalid persisted score event ${row.id}: score events require side '
+        'and positive points.',
+      );
+    }
+
+    return MatchEvent(
+      id: row.id,
+      matchId: row.matchId,
+      type: type,
+      side: side,
+      points: row.points,
+      occurredAt: row.occurredAt,
+      note: row.note,
+      customType: row.customEventType,
+      isDeleted: row.isDeleted,
+    );
   }
 }

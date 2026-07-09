@@ -30,4 +30,55 @@ void main() {
     expect(events.single.points, 2);
     expect(events.single.side, TeamSide.red);
   });
+
+  test('match repository row mapper fails clearly when score row is invalid',
+      () {
+    final row = MatchEventRow(
+      id: 'invalid-score',
+      matchId: 'match-1',
+      type: MatchEventType.score.name,
+      side: null,
+      points: 0,
+      occurredAt: DateTime.utc(2026),
+      note: null,
+      customEventType: null,
+      isDeleted: false,
+    );
+
+    expect(
+      () => MatchRepository.mapEventRow(row),
+      throwsA(
+        isA<StateError>().having(
+          (error) => error.message,
+          'message',
+          contains('Invalid persisted score event invalid-score'),
+        ),
+      ),
+    );
+  });
+
+  test('database rejects persisted score rows without side and points',
+      () async {
+    final database = AppDatabase.inMemory();
+    addTearDown(database.close);
+
+    final repository = MatchRepository(database);
+    await repository.createMinimalMatch(
+      id: 'match-1',
+      redName: 'Red',
+      blueName: 'Blue',
+      createdAt: DateTime.utc(2026),
+    );
+    final invalidInsert = database.into(database.matchEvents).insert(
+          MatchEventsCompanion.insert(
+            id: 'invalid-score',
+            matchId: 'match-1',
+            type: MatchEventType.score.name,
+            occurredAt: DateTime.utc(2026),
+          ),
+        );
+    // Existing v1 databases and raw imports are additionally guarded by the
+    // repository mapper, but new writes should fail at SQLite level.
+    await expectLater(invalidInsert, throwsException);
+  });
 }
