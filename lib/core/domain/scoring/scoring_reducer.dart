@@ -1,0 +1,26 @@
+import 'package:hooptrace/core/domain/entities/match_event.dart';
+import 'package:hooptrace/core/domain/scoring/score_state.dart';
+import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+
+class ScoringReducer {
+  ScoreState reduce(Iterable<MatchEvent> events) {
+    var red = 0;
+    var blue = 0;
+
+    for (final event in events) {
+      if (event.isDeleted || event.type != MatchEventType.score) {
+        continue;
+      }
+      switch (event.side) {
+        case TeamSide.red:
+          red += event.points;
+        case TeamSide.blue:
+          blue += event.points;
+        case null:
+          break;
+      }
+    }
+
+    return ScoreState(redScore: red, blueScore: blue);
+  }
+}
