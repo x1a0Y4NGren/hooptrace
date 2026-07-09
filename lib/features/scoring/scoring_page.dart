@@ -104,52 +104,64 @@ class _ScoringPageState extends State<ScoringPage> {
               ),
             ),
             Expanded(
-              child: Row(
+              child: Stack(
                 children: [
-                  SizedBox(
-                    width: 122,
-                    child: ScoreSidePanel(
-                      side: TeamSide.blue,
-                      name: state.blueName,
-                      score: state.score.blueScore,
-                      fouls: state.blueFouls,
-                      onScore: (points) =>
-                          _scoreAndAskLocation(TeamSide.blue, points),
-                      onFoul: () => _controller.addFoul(TeamSide.blue),
-                    ),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 122,
+                        child: ScoreSidePanel(
+                          side: TeamSide.blue,
+                          name: state.blueName,
+                          score: state.score.blueScore,
+                          fouls: state.blueFouls,
+                          onScore: (points) =>
+                              _scoreAndAskLocation(TeamSide.blue, points),
+                          onFoul: () => _controller.addFoul(TeamSide.blue),
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: CourtView(
+                            shotLocations: state.shotLocations,
+                            pendingLocation: state.pendingLocation,
+                            onPendingLocationChanged:
+                                _controller.updatePendingLocation,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 122,
+                        child: ScoreSidePanel(
+                          side: TeamSide.red,
+                          name: state.redName,
+                          score: state.score.redScore,
+                          fouls: state.redFouls,
+                          onScore: (points) =>
+                              _scoreAndAskLocation(TeamSide.red, points),
+                          onFoul: () => _controller.addFoul(TeamSide.red),
+                        ),
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(10),
-                      child: CourtView(
-                        shotLocations: state.shotLocations,
-                        pendingLocation: state.pendingLocation,
-                        onPendingLocationChanged:
-                            _controller.updatePendingLocation,
+                  if (state.pendingLocation != null)
+                    Positioned(
+                      left: 138,
+                      right: 138,
+                      bottom: 8,
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: PendingLocationBar(
+                          onConfirm: _controller.confirmPendingLocation,
+                          onSkip: _controller.skipPendingLocation,
+                          onUndo: _controller.undoLastEvent,
+                        ),
                       ),
                     ),
-                  ),
-                  SizedBox(
-                    width: 122,
-                    child: ScoreSidePanel(
-                      side: TeamSide.red,
-                      name: state.redName,
-                      score: state.score.redScore,
-                      fouls: state.redFouls,
-                      onScore: (points) =>
-                          _scoreAndAskLocation(TeamSide.red, points),
-                      onFoul: () => _controller.addFoul(TeamSide.red),
-                    ),
-                  ),
                 ],
               ),
             ),
-            if (state.pendingLocation != null)
-              PendingLocationBar(
-                onConfirm: _controller.confirmPendingLocation,
-                onSkip: _controller.skipPendingLocation,
-                onUndo: _controller.undoLastEvent,
-              ),
           ],
         ),
       ),

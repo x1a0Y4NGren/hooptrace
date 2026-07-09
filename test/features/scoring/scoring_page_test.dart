@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
@@ -51,6 +52,26 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
+    expect(find.text(confirmLocationText), findsOneWidget);
+  });
+
+  testWidgets('pending location controls do not resize the court', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1095, 616));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = ScoringController(matchId: 'match-1');
+
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+    final sizeBeforePending = tester.getSize(find.byType(CourtView));
+
+    controller.addScore(side: TeamSide.red, points: 2);
+    await tester.pump();
+    final sizeWithPending = tester.getSize(find.byType(CourtView));
+
+    expect(sizeWithPending, sizeBeforePending);
     expect(find.text(confirmLocationText), findsOneWidget);
   });
 

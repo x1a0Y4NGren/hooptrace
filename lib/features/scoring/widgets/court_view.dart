@@ -6,10 +6,7 @@ import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 enum CourtViewMode { readOnly, editable }
 
 CourtPoint pointFromLocal(Offset local, Size size) {
-  return CourtPoint(
-    x: (local.dx / size.width).clamp(0, 1).toDouble(),
-    y: (local.dy / size.height).clamp(0, 1).toDouble(),
-  );
+  return HalfCourtGeometry.pointFromLocal(local, size);
 }
 
 class CourtView extends StatelessWidget {
@@ -43,27 +40,12 @@ class CourtView extends StatelessWidget {
           behavior: HitTestBehavior.opaque,
           onTapDown: (details) => handlePosition(details.localPosition),
           onPanUpdate: (details) => handlePosition(details.localPosition),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+          child: CustomPaint(
+            painter: CourtPainter(
+              shotLocations: shotLocations,
+              pendingLocation: pendingLocation,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: CustomPaint(
-                painter: CourtPainter(
-                  shotLocations: shotLocations,
-                  pendingLocation: pendingLocation,
-                ),
-                child: const SizedBox.expand(),
-              ),
-            ),
+            child: const SizedBox.expand(),
           ),
         );
       },
