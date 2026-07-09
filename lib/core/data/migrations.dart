@@ -1,0 +1,1 @@
+const firstReleaseSchemaVersion = 1;
