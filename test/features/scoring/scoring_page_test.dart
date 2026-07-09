@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
+import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 void main() {
   testWidgets('scoring page shows court-first landscape controls', (
@@ -20,6 +22,36 @@ void main() {
     expect(find.text('+2'), findsNWidgets(2));
     expect(find.text('+3'), findsNWidgets(2));
     expect(find.byType(CustomPaint), findsWidgets);
+  });
+
+  testWidgets('scoring page does not overflow on emulator landscape size', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'match-1')),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(foulText), findsNWidgets(2));
+  });
+
+  testWidgets('scoring page does not overflow while pending bar is visible', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = ScoringController(matchId: 'match-1')
+      ..addScore(side: TeamSide.red, points: 2);
+
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(confirmLocationText), findsOneWidget);
   });
 
   testWidgets('choosing not to mark a shot records score immediately', (
