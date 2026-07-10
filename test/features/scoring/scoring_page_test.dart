@@ -157,4 +157,33 @@ void main() {
     expect(first.state.events, isEmpty);
     expect(second.state.score.redScore, 1);
   });
+
+  testWidgets('replay entry opens only after pending location is resolved', (
+    tester,
+  ) async {
+    var openCount = 0;
+    final controller = ScoringController(matchId: 'match-1');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          onOpenReplay: () => openCount++,
+        ),
+      ),
+    );
+
+    await tester.tap(find.text(scoringReplayText));
+    expect(openCount, 1);
+
+    await tester.tap(find.byKey(const Key('red-score-1')));
+    await tester.pump();
+    await tester.tap(find.text(scoringMarkText));
+    await tester.pump();
+    await tester.tap(find.text(scoringReplayText));
+    await tester.pump();
+
+    expect(openCount, 1);
+    expect(find.text(scoringResolvePendingText), findsOneWidget);
+  });
 }

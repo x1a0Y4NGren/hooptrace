@@ -129,7 +129,7 @@ class ScoringController extends ChangeNotifier {
       return false;
     }
 
-    final eventId = 'event-${_state.events.length + 1}';
+    final eventId = '${_state.matchId}-event-${_state.events.length + 1}';
     final hints = _ruleEngine.evaluate(
       template: _state.ruleTemplate,
       score: _state.score,
@@ -175,7 +175,7 @@ class ScoringController extends ChangeNotifier {
     }
     final confirmedPoint = point ?? pending.point;
     final marker = ScoringShotLocation(
-      id: 'shot-${_state.shotLocations.length + 1}',
+      id: '${_state.matchId}-shot-${_state.shotLocations.length + 1}',
       eventId: pending.eventId,
       side: pending.side,
       points: pending.points,
@@ -221,7 +221,7 @@ class ScoringController extends ChangeNotifier {
 
   void addFoul(TeamSide side) {
     final event = MatchEvent(
-      id: 'event-${_state.events.length + 1}',
+      id: '${_state.matchId}-event-${_state.events.length + 1}',
       matchId: _state.matchId,
       type: MatchEventType.foul,
       side: side,
@@ -241,7 +241,11 @@ class ScoringController extends ChangeNotifier {
   static RuleTemplate _ruleTemplateFromSetup(MatchSetup? setup) {
     return RuleTemplate(
       id: setup?.ruleTemplateId ?? 'free',
-      name: setup?.ruleTemplateId ?? 'free',
+      name: switch (setup?.ruleTemplateId) {
+        'eleven' => '11 分制',
+        'twenty_one' => '21 分制',
+        _ => '自由计分',
+      },
       scoreButtons: const [1, 2, 3],
       targetScore: setup == null || setup.ruleTemplateId == 'free'
           ? null

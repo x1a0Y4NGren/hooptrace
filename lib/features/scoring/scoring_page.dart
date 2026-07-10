@@ -11,18 +11,21 @@ const scoringMarkShotDialogContent = '可在球场上点选或拖动圆点后确
 const scoringDoNotMarkText = '不标记';
 const scoringMarkText = '标记';
 const scoringResolvePendingText = '请先确认、跳过或撤销当前落点';
+const scoringReplayText = '复盘';
 
 class ScoringPage extends StatefulWidget {
   const ScoringPage({
     this.matchId,
     this.setup,
     this.controller,
+    this.onOpenReplay,
     super.key,
   }) : assert(matchId != null || setup != null || controller != null);
 
   final String? matchId;
   final MatchSetup? setup;
   final ScoringController? controller;
+  final VoidCallback? onOpenReplay;
 
   @override
   State<ScoringPage> createState() => _ScoringPageState();
@@ -93,6 +96,12 @@ class _ScoringPageState extends State<ScoringPage> {
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const Spacer(),
+                  TextButton.icon(
+                    onPressed: widget.onOpenReplay == null ? null : _openReplay,
+                    icon: const Icon(Icons.query_stats, size: 20),
+                    label: const Text(scoringReplayText),
+                  ),
+                  const SizedBox(width: 8),
                   const Text('00:00'),
                   const Spacer(),
                   Text(
@@ -200,5 +209,15 @@ class _ScoringPageState extends State<ScoringPage> {
     if (markLocation == false) {
       _controller.skipPendingLocation();
     }
+  }
+
+  void _openReplay() {
+    if (_controller.state.pendingLocation != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(scoringResolvePendingText)),
+      );
+      return;
+    }
+    widget.onOpenReplay?.call();
   }
 }
