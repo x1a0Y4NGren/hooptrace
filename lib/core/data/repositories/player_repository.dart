@@ -20,22 +20,37 @@ class PlayerRepository {
         );
   }
 
+  Future<Player?> getById(String id) async {
+    final query = _database.select(_database.players)
+      ..where((player) => player.id.equals(id));
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _mapRow(row);
+  }
+
+  Future<void> delete(String id) async {
+    await (_database.delete(_database.players)
+          ..where((player) => player.id.equals(id)))
+        .go();
+  }
+
   Stream<List<Player>> watchAll() {
     final query = _database.select(_database.players)
       ..orderBy([(player) => OrderingTerm.asc(player.createdAt)]);
 
-    return query.watch().map((rows) {
-      return rows.map((row) {
-        return Player(
-          id: row.id,
-          nickname: row.nickname,
-          createdAt: row.createdAt,
-          preferredSide: row.preferredSide == null
-              ? null
-              : TeamSide.values.byName(row.preferredSide!),
-          note: row.note,
+    return query.watch().map(
+          (rows) => rows.map(_mapRow).toList(growable: false),
         );
-      }).toList();
-    });
+  }
+
+  static Player _mapRow(PlayerRow row) {
+    return Player(
+      id: row.id,
+      nickname: row.nickname,
+      createdAt: row.createdAt,
+      preferredSide: row.preferredSide == null
+          ? null
+          : TeamSide.values.byName(row.preferredSide!),
+      note: row.note,
+    );
   }
 }

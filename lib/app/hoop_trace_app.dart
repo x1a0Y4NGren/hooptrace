@@ -10,6 +10,7 @@ import 'package:hooptrace/app/match_session_coordinator.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/app_database_provider.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
+import 'package:hooptrace/core/data/repositories/player_repository.dart';
 
 class HoopTraceApp extends StatefulWidget {
   const HoopTraceApp({this.database, super.key});
@@ -32,7 +33,10 @@ class _HoopTraceAppState extends State<HoopTraceApp> {
     _ownsDatabase = widget.database == null;
     _database = widget.database ?? openAppDatabase();
     _matchSessions = MatchSessionCoordinator(MatchRepository(_database));
-    _router = buildAppRouter(_matchSessions);
+    _router = buildAppRouter(
+      _matchSessions,
+      PlayerRepository(_database),
+    );
   }
 
   @override

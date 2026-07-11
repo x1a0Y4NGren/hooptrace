@@ -17,6 +17,9 @@ void main() {
 
     expect(find.text('\u5f00\u59cb\u8ba1\u5206'), findsOneWidget);
     expect(find.text('\u590d\u76d8\u5386\u53f2'), findsOneWidget);
+    expect(find.byTooltip('球员'), findsOneWidget);
+    expect(find.byTooltip('设置'), findsOneWidget);
+    expect(find.byTooltip('项目详情'), findsOneWidget);
   });
 
   testWidgets('start scoring route enters landscape scoring shell', (
