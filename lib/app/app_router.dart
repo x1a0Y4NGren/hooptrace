@@ -4,15 +4,23 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/match_session_coordinator.dart';
 import 'package:hooptrace/app/match_view_data_mapper.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
+import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
+import 'package:hooptrace/features/players/player_editor_page.dart';
+import 'package:hooptrace/features/players/player_list_page.dart';
+import 'package:hooptrace/features/project/project_details_page.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/settings/settings_page.dart';
 
-GoRouter buildAppRouter(MatchSessionCoordinator matchSessions) {
+GoRouter buildAppRouter(
+  MatchSessionCoordinator matchSessions,
+  PlayerRepository playerRepository,
+) {
   return GoRouter(
     routes: [
       GoRoute(
@@ -52,6 +60,40 @@ GoRouter buildAppRouter(MatchSessionCoordinator matchSessions) {
         ),
       ),
       GoRoute(
+        path: '/players',
+        builder: (context, state) => PlayerListPage(
+          repository: playerRepository,
+          onCreate: () => context.push('/players/new'),
+          onEdit: (player) => context.push('/players/${player.id}/edit'),
+        ),
+      ),
+      GoRoute(
+        path: '/players/new',
+        builder: (context, state) => PlayerEditorPage(
+          repository: playerRepository,
+          onSaved: () => context.pop(),
+        ),
+      ),
+      GoRoute(
+        path: '/players/:playerId/edit',
+        builder: (context, state) => PlayerEditorPage(
+          repository: playerRepository,
+          playerId: state.pathParameters['playerId']!,
+          onSaved: () => context.pop(),
+          onDeleted: () => context.pop(),
+        ),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => SettingsPage(
+          onOpenProject: () => context.push('/project'),
+        ),
+      ),
+      GoRoute(
+        path: '/project',
+        builder: (context, state) => const ProjectDetailsPage(),
+      ),
+      GoRoute(
         path: '/matches/:matchId/replay',
         builder: (context, state) => _ReplayRoute(
           matchSessions: matchSessions,
@@ -70,6 +112,27 @@ class _HomePageShell extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('HoopTrace'),
+        actions: [
+          IconButton(
+            onPressed: () => context.push('/players'),
+            tooltip: '球员',
+            icon: const Icon(Icons.people_outline),
+          ),
+          IconButton(
+            onPressed: () => context.push('/settings'),
+            tooltip: '设置',
+            icon: const Icon(Icons.settings_outlined),
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: () => context.push('/project'),
+        tooltip: '项目详情',
+        child: const Icon(Icons.info_outline),
+      ),
       body: SafeArea(
         child: Center(
           child: Column(
