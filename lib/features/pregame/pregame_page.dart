@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
 const pregameTitleText = '赛前设置';
@@ -19,10 +21,14 @@ const pregameStartMatchText = '开始比赛';
 class PregamePage extends StatefulWidget {
   const PregamePage({
     this.onStartMatch,
+    this.templates = RuleTemplateRepository.builtIns,
+    this.onManageRules,
     super.key,
   });
 
   final ValueChanged<MatchSetup>? onStartMatch;
+  final List<RuleTemplate> templates;
+  final VoidCallback? onManageRules;
 
   @override
   State<PregamePage> createState() => _PregamePageState();
@@ -36,10 +42,18 @@ class _PregamePageState extends State<PregamePage> {
   @override
   void initState() {
     super.initState();
-    _controller = PregameController();
+    _controller = PregameController(templates: widget.templates);
     _redNameController = TextEditingController(text: _controller.state.redName);
     _blueNameController =
         TextEditingController(text: _controller.state.blueName);
+  }
+
+  @override
+  void didUpdateWidget(covariant PregamePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.templates != widget.templates) {
+      _controller.setTemplates(widget.templates);
+    }
   }
 
   @override
@@ -94,19 +108,16 @@ class _PregamePageState extends State<PregamePage> {
                 labelText: pregameRuleTemplateText,
                 border: OutlineInputBorder(),
               ),
-              items: const [
-                DropdownMenuItem(
-                  value: 'free',
-                  child: Text(pregameFreeScoringText),
-                ),
-                DropdownMenuItem(
-                  value: 'eleven',
-                  child: Text(pregameElevenPointText),
-                ),
-                DropdownMenuItem(
-                  value: 'twenty_one',
-                  child: Text(pregameTwentyOnePointText),
-                ),
+              items: [
+                for (final template in widget.templates)
+                  DropdownMenuItem(
+                    value: template.id,
+                    child: Text(
+                      template.id == 'eleven_win_by_two'
+                          ? pregameElevenPointText
+                          : template.name,
+                    ),
+                  ),
               ],
               onChanged: (value) {
                 if (value == null) {
@@ -115,6 +126,18 @@ class _PregamePageState extends State<PregamePage> {
                 setState(() => _controller.setRuleTemplateId(value));
               },
             ),
+            if (widget.onManageRules != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SizedBox(
+                  height: 48,
+                  child: TextButton.icon(
+                    onPressed: widget.onManageRules,
+                    icon: const Icon(Icons.tune),
+                    label: const Text('管理规则模板'),
+                  ),
+                ),
+              ),
             const SizedBox(height: 8),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,

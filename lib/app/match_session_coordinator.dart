@@ -56,6 +56,7 @@ class MatchSessionCoordinator extends ChangeNotifier {
   }
 
   Future<void> saveCurrent(String matchId) async {
+    if (_finishedMatches.contains(matchId)) return;
     final session = _sessions[matchId];
     if (session == null) {
       return;

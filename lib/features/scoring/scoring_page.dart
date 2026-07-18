@@ -127,6 +127,7 @@ class _ScoringPageState extends State<ScoringPage> {
                           onScore: (points) =>
                               _scoreAndAskLocation(TeamSide.blue, points),
                           onFoul: () => _controller.addFoul(TeamSide.blue),
+                          scoreButtons: state.ruleTemplate.scoreButtons,
                         ),
                       ),
                       Expanded(
@@ -150,6 +151,7 @@ class _ScoringPageState extends State<ScoringPage> {
                           onScore: (points) =>
                               _scoreAndAskLocation(TeamSide.red, points),
                           onFoul: () => _controller.addFoul(TeamSide.red),
+                          scoreButtons: state.ruleTemplate.scoreButtons,
                         ),
                       ),
                     ],
@@ -171,6 +173,27 @@ class _ScoringPageState extends State<ScoringPage> {
                 ],
               ),
             ),
+            if (state.ruleHints.isNotEmpty)
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                color: Theme.of(context).colorScheme.secondaryContainer,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.info_outline, size: 18),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        state.ruleHints.map((hint) => hint.message).join(' · '),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

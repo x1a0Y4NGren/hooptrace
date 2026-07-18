@@ -9,6 +9,41 @@ class RuleTemplateRepository {
 
   final AppDatabase _database;
 
+  static const builtIns = [
+    RuleTemplate(
+      id: 'free',
+      name: '自由计分',
+      scoreButtons: [1, 2, 3],
+    ),
+    RuleTemplate(
+      id: 'eleven_win_by_two',
+      name: '11 分制（领先 2 分）',
+      scoreButtons: [1, 2, 3],
+      targetScore: 11,
+      winByTwo: true,
+    ),
+    RuleTemplate(
+      id: 'twenty_one',
+      name: '21 分制',
+      scoreButtons: [1, 2, 3],
+      targetScore: 21,
+    ),
+    RuleTemplate(
+      id: 'timed_ten',
+      name: '10 分钟计时',
+      scoreButtons: [1, 2, 3],
+      timeLimitSeconds: 600,
+    ),
+  ];
+
+  Future<void> ensureBuiltIns() async {
+    await _database.transaction(() async {
+      for (final template in builtIns) {
+        await save(template, isBuiltIn: true);
+      }
+    });
+  }
+
   Future<void> save(RuleTemplate template, {bool isBuiltIn = false}) {
     return _database.into(_database.ruleTemplates).insertOnConflictUpdate(
           RuleTemplatesCompanion.insert(
@@ -19,7 +54,12 @@ class RuleTemplateRepository {
             timeLimitSeconds: Value(template.timeLimitSeconds),
             winByTwo: Value(template.winByTwo),
             foulLimit: Value(template.foulLimit),
-            customEventTypesJson: Value(jsonEncode(template.customEventTypes)),
+            customEventTypesJson: Value(
+              jsonEncode({
+                'eventTypes': template.customEventTypes,
+                'possessionHintEnabled': template.possessionHintEnabled,
+              }),
+            ),
             isBuiltIn: Value(isBuiltIn),
           ),
         );
@@ -30,23 +70,56 @@ class RuleTemplateRepository {
       ..orderBy([(template) => OrderingTerm.desc(template.isBuiltIn)]);
 
     return query.watch().map((rows) {
-      return rows.map((row) {
-        return RuleTemplate(
-          id: row.id,
-          name: row.name,
-          scoreButtons: (jsonDecode(row.scoreButtonsJson) as List<Object?>)
-              .cast<num>()
-              .map((value) => value.toInt())
-              .toList(),
-          targetScore: row.targetScore,
-          timeLimitSeconds: row.timeLimitSeconds,
-          winByTwo: row.winByTwo,
-          foulLimit: row.foulLimit,
-          customEventTypes:
-              (jsonDecode(row.customEventTypesJson) as List<Object?>)
-                  .cast<String>(),
-        );
-      }).toList();
+      return rows.map(_mapRow).toList();
     });
+  }
+
+  Future<List<RuleTemplate>> listAll() async {
+    final query = _database.select(_database.ruleTemplates)
+      ..orderBy([
+        (template) => OrderingTerm.desc(template.isBuiltIn),
+        (template) => OrderingTerm.asc(template.name),
+      ]);
+    return (await query.get()).map(_mapRow).toList(growable: false);
+  }
+
+  Future<RuleTemplate?> getById(String id) async {
+    final query = _database.select(_database.ruleTemplates)
+      ..where((template) => template.id.equals(id));
+    final row = await query.getSingleOrNull();
+    return row == null ? null : _mapRow(row);
+  }
+
+  Future<void> deleteCustom(String id) {
+    return (_database.delete(_database.ruleTemplates)
+          ..where(
+            (template) => template.id.equals(id) & template.isBuiltIn.not(),
+          ))
+        .go();
+  }
+
+  static RuleTemplate _mapRow(RuleTemplateRow row) {
+    final metadata = jsonDecode(row.customEventTypesJson);
+    final customEventTypes = metadata is List
+        ? metadata.cast<String>()
+        : ((metadata as Map)['eventTypes'] as List<Object?>? ?? const [])
+            .cast<String>();
+    final possessionHintEnabled = metadata is Map
+        ? metadata['possessionHintEnabled'] as bool? ?? false
+        : false;
+    return RuleTemplate(
+      id: row.id,
+      name: row.name,
+      scoreButtons: (jsonDecode(row.scoreButtonsJson) as List<Object?>)
+          .cast<num>()
+          .map((value) => value.toInt())
+          .toList(),
+      targetScore: row.targetScore,
+      timeLimitSeconds: row.timeLimitSeconds,
+      winByTwo: row.winByTwo,
+      foulLimit: row.foulLimit,
+      possessionHintEnabled: possessionHintEnabled,
+      customEventTypes: customEventTypes,
+    );
   }
 }

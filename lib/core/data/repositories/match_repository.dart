@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/audit/audit_diff.dart';
+import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/domain/entities/match.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
@@ -11,11 +13,13 @@ import 'package:hooptrace/core/domain/entities/shot_location.dart' as domain;
 import 'package:hooptrace/core/domain/scoring/scoring_reducer.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:uuid/uuid.dart';
 
 class MatchRepository {
   MatchRepository(this._database);
 
   final AppDatabase _database;
+  static const _uuid = Uuid();
 
   Future<void> createMinimalMatch({
     required String id,
@@ -165,6 +169,156 @@ class MatchRepository {
       throw StateError('Cannot finish missing match $matchId.');
     }
   }
+
+  Future<void> moveShotLocation({
+    required String locationId,
+    required CourtPoint point,
+    String? reason,
+  }) {
+    return _database.transaction(() async {
+      final query = _database.select(_database.shotLocations)
+        ..where((location) => location.id.equals(locationId));
+      final before = await query.getSingleOrNull();
+      if (before == null) {
+        throw StateError('Missing shot location $locationId.');
+      }
+      if (!before.isConfirmed) {
+        throw StateError('Only confirmed shot locations can be moved.');
+      }
+      await (_database.update(_database.shotLocations)
+            ..where((location) => location.id.equals(locationId)))
+          .write(ShotLocationsCompanion(x: Value(point.x), y: Value(point.y)));
+      await _writeAudit(
+        matchId: before.matchId,
+        targetId: locationId,
+        action: AuditAction.edit,
+        before: _locationJson(before),
+        after: {..._locationJson(before), ...point.toJson()},
+        reason: reason,
+      );
+    });
+  }
+
+  Future<void> softDeleteEvent({required String eventId, String? reason}) {
+    return _database.transaction(() async {
+      final before = await _eventRow(eventId);
+      if (before == null) throw StateError('Missing event $eventId.');
+      if (before.isDeleted) return;
+      await (_database.update(_database.matchEvents)
+            ..where((event) => event.id.equals(eventId)))
+          .write(const MatchEventsCompanion(isDeleted: Value(true)));
+      await _writeAudit(
+        matchId: before.matchId,
+        targetId: eventId,
+        action: AuditAction.delete,
+        before: _eventJson(before),
+        after: {..._eventJson(before), 'isDeleted': true},
+        reason: reason,
+      );
+    });
+  }
+
+  Future<void> updateEventNote({
+    required String eventId,
+    required String note,
+    String? reason,
+  }) {
+    return _database.transaction(() async {
+      final before = await _eventRow(eventId);
+      if (before == null) throw StateError('Missing event $eventId.');
+      await (_database.update(_database.matchEvents)
+            ..where((event) => event.id.equals(eventId)))
+          .write(MatchEventsCompanion(note: Value(note.trim())));
+      await _writeAudit(
+        matchId: before.matchId,
+        targetId: eventId,
+        action: AuditAction.edit,
+        before: _eventJson(before),
+        after: {..._eventJson(before), 'note': note.trim()},
+        reason: reason,
+      );
+    });
+  }
+
+  Future<List<AuditLogEntry>> listAuditLogs(String matchId) async {
+    final query = _database.select(_database.auditLogs)
+      ..where((log) => log.matchId.equals(matchId))
+      ..orderBy([
+        (log) => OrderingTerm.desc(log.createdAt),
+        (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
+      ]);
+    return (await query.get())
+        .map(
+          (row) => AuditLogEntry(
+            id: row.id,
+            matchId: row.matchId,
+            targetId: row.targetId,
+            action: AuditAction.values.byName(row.action),
+            createdAt: row.createdAt.toUtc(),
+            reason: row.reason,
+            diff: AuditDiff(
+              before:
+                  (jsonDecode(row.beforeJson) as Map).cast<String, Object?>(),
+              after: (jsonDecode(row.afterJson) as Map).cast<String, Object?>(),
+            ),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  Future<MatchEventRow?> _eventRow(String eventId) {
+    final query = _database.select(_database.matchEvents)
+      ..where((event) => event.id.equals(eventId));
+    return query.getSingleOrNull();
+  }
+
+  Future<void> _writeAudit({
+    required String matchId,
+    required String targetId,
+    required AuditAction action,
+    required Map<String, Object?> before,
+    required Map<String, Object?> after,
+    String? reason,
+  }) {
+    return _database.into(_database.auditLogs).insert(
+          AuditLogsCompanion.insert(
+            id: _uuid.v4(),
+            matchId: matchId,
+            targetId: targetId,
+            action: action.name,
+            beforeJson: jsonEncode(before),
+            afterJson: jsonEncode(after),
+            reason: Value(_normalizeReason(reason)),
+            createdAt: DateTime.now().toUtc(),
+          ),
+        );
+  }
+
+  static String? _normalizeReason(String? reason) {
+    final value = reason?.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
+  static Map<String, Object?> _eventJson(MatchEventRow row) => {
+        'id': row.id,
+        'matchId': row.matchId,
+        'type': row.type,
+        'side': row.side,
+        'points': row.points,
+        'occurredAt': row.occurredAt.toUtc().toIso8601String(),
+        'note': row.note,
+        'customEventType': row.customEventType,
+        'isDeleted': row.isDeleted,
+      };
+
+  static Map<String, Object?> _locationJson(ShotLocation row) => {
+        'id': row.id,
+        'matchId': row.matchId,
+        'eventId': row.eventId,
+        'x': row.x,
+        'y': row.y,
+        'isConfirmed': row.isConfirmed,
+      };
 
   Stream<List<MatchEvent>> watchEvents(String matchId) {
     final query = _database.select(_database.matchEvents)
@@ -384,6 +538,7 @@ class MatchRepository {
       'timeLimitSeconds': template.timeLimitSeconds,
       'winByTwo': template.winByTwo,
       'foulLimit': template.foulLimit,
+      'possessionHintEnabled': template.possessionHintEnabled,
       'customEventTypes': template.customEventTypes,
     };
   }
@@ -401,6 +556,7 @@ class MatchRepository {
       timeLimitSeconds: (json['timeLimitSeconds'] as num?)?.toInt(),
       winByTwo: json['winByTwo'] as bool? ?? false,
       foulLimit: (json['foulLimit'] as num?)?.toInt(),
+      possessionHintEnabled: json['possessionHintEnabled'] as bool? ?? false,
       customEventTypes: (json['customEventTypes'] as List<Object?>? ?? const [])
           .cast<String>(),
     );

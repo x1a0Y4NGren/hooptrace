@@ -101,4 +101,22 @@ void main() {
 
     expect(controller.state.ruleHints.single.type, RuleHintType.targetReached);
   });
+
+  test('preserves the selected rule name in the scoring snapshot', () {
+    final controller = ScoringController(
+      setup: const MatchSetup(
+        matchId: 'match-custom',
+        redName: 'Red',
+        blueName: 'Blue',
+        ruleTemplateId: 'custom-15',
+        ruleTemplateName: 'Custom 15',
+        targetScore: 15,
+        timerEnabled: false,
+        timeLimitMinutes: 10,
+        winByTwo: false,
+      ),
+    );
+
+    expect(controller.state.ruleTemplate.name, 'Custom 15');
+  });
 }

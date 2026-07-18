@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
@@ -46,6 +47,119 @@ class _ReplayPageState extends State<ReplayPage> {
     if (mounted) setState(() {});
   }
 
+  Future<void> _showAuditHistory() async {
+    final logs = await widget.controller.loadAuditLogs?.call();
+    if (!mounted || logs == null) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => _AuditHistorySheet(logs: logs),
+    );
+  }
+
+  Future<void> _showEventEditor(ReplayEventData event) async {
+    final controller = widget.controller;
+    if (!controller.isEditing) return;
+    controller.selectEvent(event.id);
+    final note = TextEditingController(text: event.note ?? '');
+    final reason = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('编辑事件', style: Theme.of(sheetContext).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            TextField(
+              controller: note,
+              decoration: const InputDecoration(
+                labelText: '备注',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reason,
+              decoration: const InputDecoration(
+                labelText: '修改原因（可选）',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final confirmed = await showDialog<bool>(
+                          context: sheetContext,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('删除这条事件？'),
+                            content: const Text('事件将被标记为已删除，并保留完整审计记录。'),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, false),
+                                child: const Text('取消'),
+                              ),
+                              FilledButton(
+                                onPressed: () =>
+                                    Navigator.pop(dialogContext, true),
+                                child: const Text('确认删除'),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirmed != true) return;
+                        await controller.deleteSelectedEvent(
+                          reason: reason.text,
+                        );
+                        if (sheetContext.mounted) Navigator.pop(sheetContext);
+                      },
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text('软删除'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        await controller.updateSelectedNote(
+                          note.text,
+                          reason: reason.text,
+                        );
+                        if (sheetContext.mounted) Navigator.pop(sheetContext);
+                      },
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('保存备注'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    note.dispose();
+    reason.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
@@ -53,6 +167,26 @@ class _ReplayPageState extends State<ReplayPage> {
       appBar: AppBar(
         title: const Text('比赛复盘'),
         actions: [
+          if (controller.loadAuditLogs != null)
+            IconButton(
+              key: const Key('replay-audit-history'),
+              tooltip: '审计历史',
+              onPressed: _showAuditHistory,
+              icon: const Icon(Icons.history),
+            ),
+          SizedBox(
+            height: 48,
+            child: TextButton.icon(
+              key: const Key('replay-edit-toggle'),
+              onPressed: controller.canEdit
+                  ? () => controller.setEditing(!controller.isEditing)
+                  : null,
+              icon: Icon(
+                controller.isEditing ? Icons.lock_open : Icons.lock_outline,
+              ),
+              label: Text(controller.isEditing ? '编辑模式' : '只读模式'),
+            ),
+          ),
           if (widget.onFinishMatch != null)
             Padding(
               padding: const EdgeInsets.only(right: 12),
@@ -99,7 +233,10 @@ class _ReplayPageState extends State<ReplayPage> {
                         const VerticalDivider(width: 1),
                         Expanded(
                           flex: 4,
-                          child: _TimelinePanel(controller: controller),
+                          child: _TimelinePanel(
+                            controller: controller,
+                            onEventTap: _showEventEditor,
+                          ),
                         ),
                       ],
                     );
@@ -111,7 +248,11 @@ class _ReplayPageState extends State<ReplayPage> {
                       children: [
                         _ReplayOverview(controller: controller),
                         const SizedBox(height: 24),
-                        _TimelinePanel(controller: controller, embedded: true),
+                        _TimelinePanel(
+                          controller: controller,
+                          embedded: true,
+                          onEventTap: _showEventEditor,
+                        ),
                       ],
                     ),
                   );
@@ -237,12 +378,32 @@ class _ReplayOverview extends StatelessWidget {
                 height: height,
                 child: CourtView(
                   shotLocations: controller.shotLocations,
-                  mode: CourtViewMode.readOnly,
+                  pendingLocation: controller.pendingShotLocation,
+                  onPendingLocationChanged: controller.isEditing
+                      ? controller.updatePendingShotPoint
+                      : null,
+                  onShotLocationTap:
+                      controller.isEditing ? controller.selectLocation : null,
+                  mode: controller.isEditing
+                      ? CourtViewMode.editable
+                      : CourtViewMode.readOnly,
                 ),
               ),
             );
           },
         ),
+        if (controller.pendingShotLocation != null) ...[
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 48,
+            child: FilledButton.icon(
+              key: const Key('replay-save-location'),
+              onPressed: () => _saveLocation(context),
+              icon: const Icon(Icons.save_outlined),
+              label: const Text('保存落点位置'),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         const _SectionTitle(title: '总览', icon: Icons.assessment_outlined),
         const SizedBox(height: 10),
@@ -261,6 +422,37 @@ class _ReplayOverview extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _saveLocation(BuildContext context) async {
+    final reason = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('保存落点修改'),
+        content: TextField(
+          controller: reason,
+          decoration: const InputDecoration(
+            labelText: '修改原因（可选）',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await controller.saveSelectedShot(reason: reason.text);
+    }
+    reason.dispose();
   }
 }
 
@@ -297,10 +489,15 @@ class _Metric extends StatelessWidget {
 }
 
 class _TimelinePanel extends StatelessWidget {
-  const _TimelinePanel({required this.controller, this.embedded = false});
+  const _TimelinePanel({
+    required this.controller,
+    required this.onEventTap,
+    this.embedded = false,
+  });
 
   final ReplayController controller;
   final bool embedded;
+  final ValueChanged<ReplayEventData> onEventTap;
 
   @override
   Widget build(BuildContext context) {
@@ -319,7 +516,11 @@ class _TimelinePanel extends StatelessWidget {
           )
         else if (embedded)
           ...controller.visibleEvents.map(
-            (event) => _TimelineEvent(event: event, data: controller.data),
+            (event) => _TimelineEvent(
+              event: event,
+              data: controller.data,
+              onTap: controller.isEditing ? () => onEventTap(event) : null,
+            ),
           )
         else
           Expanded(
@@ -328,6 +529,9 @@ class _TimelinePanel extends StatelessWidget {
               itemBuilder: (context, index) => _TimelineEvent(
                 event: controller.visibleEvents[index],
                 data: controller.data,
+                onTap: controller.isEditing
+                    ? () => onEventTap(controller.visibleEvents[index])
+                    : null,
               ),
             ),
           ),
@@ -430,10 +634,11 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _TimelineEvent extends StatelessWidget {
-  const _TimelineEvent({required this.event, required this.data});
+  const _TimelineEvent({required this.event, required this.data, this.onTap});
 
   final ReplayEventData event;
   final ReplayMatchData data;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -453,52 +658,111 @@ class _TimelineEvent extends StatelessWidget {
       ReplayEventKind.miss => '投篮未中',
       ReplayEventKind.other => '记录',
     };
-    return Container(
+    return InkWell(
       key: Key('replay-event-${event.id}'),
-      constraints: const BoxConstraints(minHeight: 64),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom:
-              BorderSide(color: HoopTraceColors.ink.withValues(alpha: 0.12)),
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 64),
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: HoopTraceColors.ink.withValues(alpha: 0.12),
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 52,
+              child: Text(
+                _formatDuration(event.elapsed),
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ),
+            Container(width: 4, height: 32, color: sideColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$sideName · $action',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  if (event.note != null && event.note!.isNotEmpty)
+                    Text(
+                      event.note!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(Icons.edit_outlined, size: 20),
+              )
+            else if (event.shotPoint != null)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(Icons.location_on_outlined, size: 20),
+              ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 52,
-            child: Text(
-              _formatDuration(event.elapsed),
-              style: Theme.of(context).textTheme.labelLarge,
+    );
+  }
+}
+
+class _AuditHistorySheet extends StatelessWidget {
+  const _AuditHistorySheet({required this.logs});
+
+  final List<AuditLogEntry> logs;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SizedBox(
+        height: math.min(MediaQuery.sizeOf(context).height * 0.75, 560),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Text(
+                '审计历史',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
             ),
-          ),
-          Container(width: 4, height: 32, color: sideColor),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$sideName · $action',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                ),
-                if (event.note != null && event.note!.isNotEmpty)
-                  Text(
-                    event.note!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
+            Expanded(
+              child: logs.isEmpty
+                  ? const Center(child: Text('暂无编辑记录'))
+                  : ListView.separated(
+                      itemCount: logs.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final log = logs[index];
+                        return ListTile(
+                          minTileHeight: 64,
+                          leading: Icon(
+                            log.action == AuditAction.delete
+                                ? Icons.delete_outline
+                                : Icons.edit_outlined,
+                          ),
+                          title: Text('${log.action.name} · ${log.targetId}'),
+                          subtitle: Text(
+                            log.reason == null ? '未填写原因' : '原因：${log.reason}',
+                          ),
+                        );
+                      },
+                    ),
             ),
-          ),
-          if (event.shotPoint != null)
-            const Padding(
-              padding: EdgeInsets.only(left: 8),
-              child: Icon(Icons.location_on_outlined, size: 20),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

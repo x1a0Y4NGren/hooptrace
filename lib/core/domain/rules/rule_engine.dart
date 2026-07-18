@@ -28,9 +28,18 @@ class RuleEngine {
     required TeamSide scoringSide,
     required int scoringPoints,
   }) {
+    final hints = <RuleHint>[];
+    if (template.possessionHintEnabled) {
+      hints.add(
+        RuleHint(
+          type: RuleHintType.possessionChange,
+          message: '${scoringSide == TeamSide.red ? '蓝方' : '红方'}球权',
+        ),
+      );
+    }
     final targetScore = template.targetScore;
     if (targetScore == null) {
-      return const [];
+      return hints;
     }
 
     final newRed =
@@ -39,20 +48,20 @@ class RuleEngine {
         score.blueScore + (scoringSide == TeamSide.blue ? scoringPoints : 0);
     final sideScore = scoringSide == TeamSide.red ? newRed : newBlue;
     final opponentScore = scoringSide == TeamSide.red ? newBlue : newRed;
-    final hints = <RuleHint>[];
-
     if (sideScore >= targetScore) {
       if (template.winByTwo && sideScore - opponentScore < 2) {
-        return const [
-          RuleHint(
+        return [
+          ...hints,
+          const RuleHint(
             type: RuleHintType.winByTwoRequired,
             message: 'Win by two required',
           ),
         ];
       }
 
-      return const [
-        RuleHint(
+      return [
+        ...hints,
+        const RuleHint(
           type: RuleHintType.targetReached,
           message: 'Target score reached',
         ),
