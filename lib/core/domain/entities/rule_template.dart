@@ -7,6 +7,7 @@ class RuleTemplate {
     this.timeLimitSeconds,
     this.winByTwo = false,
     this.foulLimit,
+    this.possessionHintEnabled = false,
     this.customEventTypes = const [],
   });
 
@@ -17,5 +18,41 @@ class RuleTemplate {
   final int? timeLimitSeconds;
   final bool winByTwo;
   final int? foulLimit;
+  final bool possessionHintEnabled;
   final List<String> customEventTypes;
+
+  @override
+  bool operator ==(Object other) {
+    return other is RuleTemplate &&
+        other.id == id &&
+        other.name == name &&
+        _listsEqual(other.scoreButtons, scoreButtons) &&
+        other.targetScore == targetScore &&
+        other.timeLimitSeconds == timeLimitSeconds &&
+        other.winByTwo == winByTwo &&
+        other.foulLimit == foulLimit &&
+        other.possessionHintEnabled == possessionHintEnabled &&
+        _listsEqual(other.customEventTypes, customEventTypes);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+        id,
+        name,
+        Object.hashAll(scoreButtons),
+        targetScore,
+        timeLimitSeconds,
+        winByTwo,
+        foulLimit,
+        possessionHintEnabled,
+        Object.hashAll(customEventTypes),
+      );
+
+  static bool _listsEqual<T>(List<T> left, List<T> right) {
+    if (left.length != right.length) return false;
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) return false;
+    }
+    return true;
+  }
 }

@@ -5,6 +5,7 @@ import 'package:hooptrace/app/match_session_coordinator.dart';
 import 'package:hooptrace/app/match_view_data_mapper.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
+import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
@@ -14,12 +15,14 @@ import 'package:hooptrace/features/players/player_list_page.dart';
 import 'package:hooptrace/features/project/project_details_page.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
+import 'package:hooptrace/features/rules/rule_template_list_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
 GoRouter buildAppRouter(
   MatchSessionCoordinator matchSessions,
   PlayerRepository playerRepository,
+  RuleTemplateRepository ruleTemplates,
 ) {
   return GoRouter(
     routes: [
@@ -29,13 +32,22 @@ GoRouter buildAppRouter(
       ),
       GoRoute(
         path: '/pregame',
-        builder: (context, state) {
-          return PregamePage(
+        builder: (context, state) => StreamBuilder(
+          stream: ruleTemplates.watchAll(),
+          builder: (context, snapshot) => PregamePage(
+            templates: snapshot.data ?? RuleTemplateRepository.builtIns,
+            onManageRules: () => context.push('/settings/rules'),
             onStartMatch: (setup) {
               context.go('/scoring/${setup.matchId}', extra: setup);
             },
-          );
-        },
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/settings/rules',
+        builder: (context, state) => RuleTemplateListPage(
+          repository: ruleTemplates,
+        ),
       ),
       GoRoute(
         path: '/scoring/:matchId',
@@ -87,6 +99,7 @@ GoRouter buildAppRouter(
         path: '/settings',
         builder: (context, state) => SettingsPage(
           onOpenProject: () => context.push('/project'),
+          onOpenRules: () => context.push('/settings/rules'),
         ),
       ),
       GoRoute(
@@ -95,10 +108,14 @@ GoRouter buildAppRouter(
       ),
       GoRoute(
         path: '/matches/:matchId/replay',
-        builder: (context, state) => _ReplayRoute(
-          matchSessions: matchSessions,
-          matchId: state.pathParameters['matchId']!,
-        ),
+        builder: (context, state) {
+          final matchId = state.pathParameters['matchId']!;
+          return _ReplayRoute(
+            key: ValueKey('replay-$matchId'),
+            matchSessions: matchSessions,
+            matchId: matchId,
+          );
+        },
       ),
     ],
   );
@@ -221,6 +238,7 @@ class _ReplayRoute extends StatefulWidget {
   const _ReplayRoute({
     required this.matchSessions,
     required this.matchId,
+    super.key,
   });
 
   final MatchSessionCoordinator matchSessions;
@@ -247,8 +265,51 @@ class _ReplayRouteState extends State<_ReplayRoute> {
     if (detail == null) {
       return null;
     }
-    return _ownedController =
-        ReplayController(data: replayDataFromDetail(detail));
+    final editable = !widget.matchSessions.isActive(widget.matchId);
+    late ReplayController controller;
+    Future<void> refreshData() async {
+      final refreshed =
+          await widget.matchSessions.repository.getMatchDetail(widget.matchId);
+      if (refreshed != null) {
+        controller.replaceData(replayDataFromDetail(refreshed));
+      }
+    }
+
+    controller = ReplayController(
+      data: replayDataFromDetail(detail),
+      onMoveShotLocation: editable
+          ? (locationId, point, reason) async {
+              await widget.matchSessions.repository.moveShotLocation(
+                locationId: locationId,
+                point: point,
+                reason: reason,
+              );
+              await refreshData();
+            }
+          : null,
+      onSoftDeleteEvent: editable
+          ? (eventId, reason) async {
+              await widget.matchSessions.repository.softDeleteEvent(
+                eventId: eventId,
+                reason: reason,
+              );
+              await refreshData();
+            }
+          : null,
+      onUpdateEventNote: editable
+          ? (eventId, note, reason) async {
+              await widget.matchSessions.repository.updateEventNote(
+                eventId: eventId,
+                note: note,
+                reason: reason,
+              );
+              await refreshData();
+            }
+          : null,
+      loadAuditLogs: () =>
+          widget.matchSessions.repository.listAuditLogs(widget.matchId),
+    );
+    return _ownedController = controller;
   }
 
   @override

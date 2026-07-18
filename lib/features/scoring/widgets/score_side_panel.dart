@@ -12,6 +12,7 @@ class ScoreSidePanel extends StatelessWidget {
     required this.fouls,
     required this.onScore,
     required this.onFoul,
+    this.scoreButtons = const [1, 2, 3],
     super.key,
   });
 
@@ -21,6 +22,7 @@ class ScoreSidePanel extends StatelessWidget {
   final int fouls;
   final ValueChanged<int> onScore;
   final VoidCallback onFoul;
+  final List<int> scoreButtons;
 
   @override
   Widget build(BuildContext context) {
@@ -92,7 +94,7 @@ class ScoreSidePanel extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (final points in const [1, 2, 3]) ...[
+                        for (final points in scoreButtons) ...[
                           SizedBox(
                             height: buttonHeight,
                             child: FilledButton(

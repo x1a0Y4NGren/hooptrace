@@ -14,6 +14,7 @@ class CourtView extends StatelessWidget {
     required this.shotLocations,
     this.pendingLocation,
     this.onPendingLocationChanged,
+    this.onShotLocationTap,
     this.mode = CourtViewMode.editable,
     super.key,
   });
@@ -21,6 +22,7 @@ class CourtView extends StatelessWidget {
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
   final ValueChanged<CourtPoint>? onPendingLocationChanged;
+  final ValueChanged<String>? onShotLocationTap;
   final CourtViewMode mode;
 
   @override
@@ -36,9 +38,29 @@ class CourtView extends StatelessWidget {
           onPendingLocationChanged?.call(pointFromLocal(local, size));
         }
 
+        void handleTap(Offset local) {
+          if (mode == CourtViewMode.readOnly) return;
+          if (pendingLocation != null) {
+            handlePosition(local);
+            return;
+          }
+          ScoringShotLocation? closest;
+          var closestDistance = 28.0;
+          for (final location in shotLocations) {
+            final center =
+                HalfCourtGeometry.pointToOffset(location.point, size);
+            final distance = (center - local).distance;
+            if (distance <= closestDistance) {
+              closest = location;
+              closestDistance = distance;
+            }
+          }
+          if (closest != null) onShotLocationTap?.call(closest.id);
+        }
+
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTapDown: (details) => handlePosition(details.localPosition),
+          onTapDown: (details) => handleTap(details.localPosition),
           onPanUpdate: (details) => handlePosition(details.localPosition),
           child: CustomPaint(
             painter: CourtPainter(

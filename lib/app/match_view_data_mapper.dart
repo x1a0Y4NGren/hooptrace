@@ -8,7 +8,7 @@ import 'package:hooptrace/features/replay/replay_controller.dart';
 ReplayMatchData replayDataFromDetail(MatchDetail detail) {
   final locationsByEvent = {
     for (final location in detail.shotLocations)
-      if (location.isConfirmed) location.eventId: location.point,
+      if (location.isConfirmed) location.eventId: location,
   };
   final startedAt = detail.match.startedAt ?? detail.match.createdAt;
 
@@ -31,7 +31,8 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
             points: event.points,
             elapsed: _nonNegativeDifference(event.occurredAt, startedAt),
             note: event.note,
-            shotPoint: locationsByEvent[event.id],
+            locationId: locationsByEvent[event.id]?.id,
+            shotPoint: locationsByEvent[event.id]?.point,
           ),
     ],
   );

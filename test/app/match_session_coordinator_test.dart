@@ -37,4 +37,35 @@ void main() {
     expect(detail.redScore, 0);
     expect(detail.blueScore, 3);
   });
+
+  test('finished sessions do not overwrite later replay edits', () async {
+    final database = AppDatabase.inMemory();
+    addTearDown(database.close);
+    final repository = MatchRepository(database);
+    final coordinator = MatchSessionCoordinator(repository);
+    addTearDown(coordinator.dispose);
+    const setup = MatchSetup(
+      matchId: 'finished-session',
+      redName: 'Red',
+      blueName: 'Blue',
+      ruleTemplateId: 'free',
+      targetScore: null,
+      timerEnabled: false,
+      timeLimitMinutes: 10,
+      winByTwo: false,
+    );
+    final controller = coordinator.beginMatch(setup);
+    controller.addScore(side: TeamSide.red, points: 2);
+    controller.skipPendingLocation();
+    await coordinator.finishMatch(setup.matchId);
+    await repository.updateEventNote(
+      eventId: 'finished-session-event-1',
+      note: 'Reviewed',
+    );
+
+    await coordinator.saveCurrent(setup.matchId);
+
+    final detail = (await repository.getMatchDetail(setup.matchId))!;
+    expect(detail.events.single.note, 'Reviewed');
+  });
 }

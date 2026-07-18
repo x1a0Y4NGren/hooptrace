@@ -241,15 +241,18 @@ class ScoringController extends ChangeNotifier {
   static RuleTemplate _ruleTemplateFromSetup(MatchSetup? setup) {
     return RuleTemplate(
       id: setup?.ruleTemplateId ?? 'free',
-      name: switch (setup?.ruleTemplateId) {
-        'eleven' => '11 分制',
-        'twenty_one' => '21 分制',
-        _ => '自由计分',
-      },
-      scoreButtons: const [1, 2, 3],
-      targetScore: setup == null || setup.ruleTemplateId == 'free'
-          ? null
-          : setup.targetScore,
+      name: setup?.ruleTemplateName ??
+          switch (setup?.ruleTemplateId) {
+            'eleven' || 'eleven_win_by_two' => '11 分制',
+            'twenty_one' => '21 分制',
+            'timed_ten' => '10 分钟计时',
+            _ => '自由计分',
+          },
+      scoreButtons: setup?.scoreButtons ?? const [1, 2, 3],
+      foulLimit: setup?.foulLimit,
+      possessionHintEnabled: setup?.possessionHintEnabled ?? false,
+      customEventTypes: setup?.customEventTypes ?? const [],
+      targetScore: setup?.targetScore,
       timeLimitSeconds:
           setup?.timerEnabled == true ? setup!.timeLimitMinutes * 60 : null,
       winByTwo: setup?.winByTwo ?? false,

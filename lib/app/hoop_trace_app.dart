@@ -11,6 +11,7 @@ import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/app_database_provider.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
+import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 
 class HoopTraceApp extends StatefulWidget {
   const HoopTraceApp({this.database, super.key});
@@ -25,6 +26,7 @@ class _HoopTraceAppState extends State<HoopTraceApp> {
   late final AppDatabase _database;
   late final GoRouter _router;
   late final MatchSessionCoordinator _matchSessions;
+  late final RuleTemplateRepository _ruleTemplates;
   late final bool _ownsDatabase;
 
   @override
@@ -33,9 +35,12 @@ class _HoopTraceAppState extends State<HoopTraceApp> {
     _ownsDatabase = widget.database == null;
     _database = widget.database ?? openAppDatabase();
     _matchSessions = MatchSessionCoordinator(MatchRepository(_database));
+    _ruleTemplates = RuleTemplateRepository(_database);
+    unawaited(_ruleTemplates.ensureBuiltIns());
     _router = buildAppRouter(
       _matchSessions,
       PlayerRepository(_database),
+      _ruleTemplates,
     );
   }
 

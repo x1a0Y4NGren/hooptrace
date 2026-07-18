@@ -61,4 +61,53 @@ void main() {
     expect(replay.events.single.shotPoint?.x, 0.2);
     expect(replay.events.single.shotPoint?.y, 0.7);
   });
+
+  test('omits soft-deleted events and their locations from replay data', () {
+    final startedAt = DateTime.utc(2026, 7, 10, 10);
+    final detail = MatchDetail(
+      match: Match(
+        id: 'match-1',
+        createdAt: startedAt,
+        startedAt: startedAt,
+        status: MatchStatus.finished,
+        redName: 'Red',
+        blueName: 'Blue',
+        ruleTemplateSnapshot: const RuleTemplate(
+          id: 'free',
+          name: 'Free scoring',
+          scoreButtons: [1, 2, 3],
+        ),
+      ),
+      events: [
+        MatchEvent(
+          id: 'deleted-score',
+          matchId: 'match-1',
+          type: MatchEventType.score,
+          side: TeamSide.red,
+          points: 2,
+          occurredAt: startedAt.add(const Duration(seconds: 12)),
+          isDeleted: true,
+        ),
+      ],
+      shotLocations: [
+        ShotLocation(
+          id: 'deleted-shot',
+          matchId: 'match-1',
+          eventId: 'deleted-score',
+          point: CourtPoint(x: 0.2, y: 0.7),
+          isConfirmed: true,
+        ),
+      ],
+      redScore: 0,
+      blueScore: 0,
+      redFouls: 0,
+      blueFouls: 0,
+      shotAttemptCount: 0,
+      locatedShotCount: 0,
+    );
+
+    final replay = replayDataFromDetail(detail);
+
+    expect(replay.events, isEmpty);
+  });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
 void main() {
@@ -27,5 +28,15 @@ void main() {
     expect(setup.targetScore, 21);
     expect(setup.timerEnabled, isTrue);
     expect(setup.winByTwo, isTrue);
+  });
+
+  test('timed template keeps a null target score in match setup', () {
+    final controller = PregameController(
+      templates: RuleTemplateRepository.builtIns,
+    )..setRuleTemplateId('timed_ten');
+
+    final setup = controller.createMatchSetup();
+
+    expect(setup.targetScore, isNull);
   });
 }

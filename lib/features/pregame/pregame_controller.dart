@@ -1,3 +1,5 @@
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
+
 const defaultRedPlayerName = '红方';
 const defaultBluePlayerName = '蓝方';
 
@@ -7,20 +9,30 @@ class MatchSetup {
     required this.redName,
     required this.blueName,
     required this.ruleTemplateId,
+    this.ruleTemplateName,
     required this.targetScore,
     required this.timerEnabled,
     required this.timeLimitMinutes,
     required this.winByTwo,
+    this.scoreButtons = const [1, 2, 3],
+    this.foulLimit,
+    this.possessionHintEnabled = false,
+    this.customEventTypes = const [],
   });
 
   final String matchId;
   final String redName;
   final String blueName;
   final String ruleTemplateId;
-  final int targetScore;
+  final String? ruleTemplateName;
+  final int? targetScore;
   final bool timerEnabled;
   final int timeLimitMinutes;
   final bool winByTwo;
+  final List<int> scoreButtons;
+  final int? foulLimit;
+  final bool possessionHintEnabled;
+  final List<String> customEventTypes;
 }
 
 class PregameState {
@@ -68,12 +80,25 @@ class PregameState {
 }
 
 class PregameController {
-  PregameController({PregameState state = const PregameState()})
-      : _state = state;
+  PregameController({
+    PregameState state = const PregameState(),
+    List<RuleTemplate> templates = const [],
+  })  : _state = state,
+        _templates = List.of(templates);
 
   PregameState _state;
+  List<RuleTemplate> _templates;
 
   PregameState get state => _state;
+
+  void setTemplates(List<RuleTemplate> templates) {
+    _templates = List.of(templates);
+    if (_templates.any((item) => item.id == _state.ruleTemplateId)) return;
+    final fallback =
+        _templates.where((item) => item.id == 'free').firstOrNull ??
+            _templates.firstOrNull;
+    if (fallback != null) setRuleTemplateId(fallback.id);
+  }
 
   void setRedName(String value) {
     _state =
@@ -86,7 +111,16 @@ class PregameController {
   }
 
   void setRuleTemplateId(String value) {
-    _state = _state.copyWith(ruleTemplateId: value);
+    final selected = _templates.where((item) => item.id == value).firstOrNull;
+    _state = _state.copyWith(
+      ruleTemplateId: value,
+      targetScore: selected?.targetScore ?? _state.targetScore,
+      timerEnabled: selected?.timeLimitSeconds != null,
+      timeLimitMinutes: selected?.timeLimitSeconds == null
+          ? _state.timeLimitMinutes
+          : selected!.timeLimitSeconds! ~/ 60,
+      winByTwo: selected?.winByTwo ?? false,
+    );
   }
 
   void setTimerEnabled(bool value) {
@@ -110,15 +144,23 @@ class PregameController {
   }
 
   MatchSetup createMatchSetup() {
+    final selected = _templates
+        .where((item) => item.id == _state.ruleTemplateId)
+        .firstOrNull;
     return MatchSetup(
       matchId: 'match-${DateTime.now().microsecondsSinceEpoch}',
       redName: _state.redName,
       blueName: _state.blueName,
       ruleTemplateId: _state.ruleTemplateId,
-      targetScore: _state.targetScore,
+      ruleTemplateName: selected?.name,
+      targetScore: selected == null ? _state.targetScore : selected.targetScore,
       timerEnabled: _state.timerEnabled,
       timeLimitMinutes: _state.timeLimitMinutes,
       winByTwo: _state.winByTwo,
+      scoreButtons: selected?.scoreButtons ?? const [1, 2, 3],
+      foulLimit: selected?.foulLimit,
+      possessionHintEnabled: selected?.possessionHintEnabled ?? false,
+      customEventTypes: selected?.customEventTypes ?? const [],
     );
   }
 

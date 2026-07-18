@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({this.onOpenProject, super.key});
+  const SettingsPage({this.onOpenProject, this.onOpenRules, super.key});
 
   final VoidCallback? onOpenProject;
+  final VoidCallback? onOpenRules;
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +21,17 @@ class SettingsPage extends StatelessWidget {
                   icon: Icons.tune,
                   title: '默认计分规则',
                   subtitle: '当前沿用赛前设置',
+                ),
+              ],
+            ),
+            _SettingsSection(
+              title: '比赛规则',
+              children: [
+                _SettingTile(
+                  icon: Icons.tune,
+                  title: '规则模板',
+                  subtitle: '内置模板与自定义比赛规则',
+                  onTap: onOpenRules,
                 ),
               ],
             ),
