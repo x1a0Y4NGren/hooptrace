@@ -62,103 +62,15 @@ class _ReplayPageState extends State<ReplayPage> {
     final controller = widget.controller;
     if (!controller.isEditing) return;
     controller.selectEvent(event.id);
-    final note = TextEditingController(text: event.note ?? '');
-    final reason = TextEditingController();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          4,
-          20,
-          MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('编辑事件', style: Theme.of(sheetContext).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            TextField(
-              controller: note,
-              decoration: const InputDecoration(
-                labelText: '备注',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reason,
-              decoration: const InputDecoration(
-                labelText: '修改原因（可选）',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final confirmed = await showDialog<bool>(
-                          context: sheetContext,
-                          builder: (dialogContext) => AlertDialog(
-                            title: const Text('删除这条事件？'),
-                            content: const Text('事件将被标记为已删除，并保留完整审计记录。'),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.pop(dialogContext, false),
-                                child: const Text('取消'),
-                              ),
-                              FilledButton(
-                                onPressed: () =>
-                                    Navigator.pop(dialogContext, true),
-                                child: const Text('确认删除'),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirmed != true) return;
-                        await controller.deleteSelectedEvent(
-                          reason: reason.text,
-                        );
-                        if (sheetContext.mounted) Navigator.pop(sheetContext);
-                      },
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('软删除'),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: FilledButton.icon(
-                      onPressed: () async {
-                        await controller.updateSelectedNote(
-                          note.text,
-                          reason: reason.text,
-                        );
-                        if (sheetContext.mounted) Navigator.pop(sheetContext);
-                      },
-                      icon: const Icon(Icons.save_outlined),
-                      label: const Text('保存备注'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+      builder: (_) => _EventEditorSheet(
+        controller: controller,
+        event: event,
       ),
     );
-    note.dispose();
-    reason.dispose();
   }
 
   @override
@@ -264,6 +176,127 @@ class _ReplayPageState extends State<ReplayPage> {
         ),
       ),
     );
+  }
+}
+
+class _EventEditorSheet extends StatefulWidget {
+  const _EventEditorSheet({required this.controller, required this.event});
+
+  final ReplayController controller;
+  final ReplayEventData event;
+
+  @override
+  State<_EventEditorSheet> createState() => _EventEditorSheetState();
+}
+
+class _EventEditorSheetState extends State<_EventEditorSheet> {
+  late final TextEditingController _note;
+  late final TextEditingController _reason;
+
+  @override
+  void initState() {
+    super.initState();
+    _note = TextEditingController(text: widget.event.note ?? '');
+    _reason = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _note.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        4,
+        20,
+        MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('编辑事件', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _note,
+            decoration: const InputDecoration(
+              labelText: '备注',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _reason,
+            decoration: const InputDecoration(
+              labelText: '修改原因（可选）',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: _deleteEvent,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('软删除'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton.icon(
+                    onPressed: _saveNote,
+                    icon: const Icon(Icons.save_outlined),
+                    label: const Text('保存备注'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteEvent() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('删除这条事件？'),
+        content: const Text('事件将被标记为已删除，并保留完整审计记录。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('确认删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.controller.deleteSelectedEvent(reason: _reason.text);
+    if (mounted) Navigator.pop(context);
+  }
+
+  Future<void> _saveNote() async {
+    await widget.controller.updateSelectedNote(
+      _note.text,
+      reason: _reason.text,
+    );
+    if (mounted) Navigator.pop(context);
   }
 }
 
@@ -434,34 +467,55 @@ class _ReplayOverview extends StatelessWidget {
   }
 
   Future<void> _saveLocation(BuildContext context) async {
-    final reason = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final reason = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('保存落点修改'),
-        content: TextField(
-          controller: reason,
-          decoration: const InputDecoration(
-            labelText: '修改原因（可选）',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
+      builder: (_) => const _ShotLocationReasonDialog(),
     );
-    if (confirmed == true) {
-      await controller.saveSelectedShot(reason: reason.text);
+    if (reason != null) {
+      await controller.saveSelectedShot(reason: reason);
     }
-    reason.dispose();
+  }
+}
+
+class _ShotLocationReasonDialog extends StatefulWidget {
+  const _ShotLocationReasonDialog();
+
+  @override
+  State<_ShotLocationReasonDialog> createState() =>
+      _ShotLocationReasonDialogState();
+}
+
+class _ShotLocationReasonDialogState extends State<_ShotLocationReasonDialog> {
+  final _reason = TextEditingController();
+
+  @override
+  void dispose() {
+    _reason.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('保存落点修改'),
+      content: TextField(
+        controller: _reason,
+        decoration: const InputDecoration(
+          labelText: '修改原因（可选）',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _reason.text),
+          child: const Text('保存'),
+        ),
+      ],
+    );
   }
 }
 
