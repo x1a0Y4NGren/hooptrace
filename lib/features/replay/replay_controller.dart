@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
+import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
@@ -56,6 +57,7 @@ class ReplayMatchData {
     required this.blueScore,
     required this.duration,
     required List<ReplayEventData> events,
+    this.analytics,
     this.isFinished = true,
   }) : events = List.unmodifiable(events);
 
@@ -67,6 +69,7 @@ class ReplayMatchData {
   final Duration duration;
   final bool isFinished;
   final List<ReplayEventData> events;
+  final MatchAnalytics? analytics;
 }
 
 class ReplayController extends ChangeNotifier {

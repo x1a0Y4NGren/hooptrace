@@ -6,6 +6,7 @@ import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
+import 'package:hooptrace/features/replay/widgets/replay_analytics_summary.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 
 class ReplayPage extends StatefulWidget {
@@ -420,6 +421,14 @@ class _ReplayOverview extends StatelessWidget {
             _Metric(label: '落点完整度', value: '$completeness%'),
           ],
         ),
+        if (controller.data.analytics case final analytics?) ...[
+          const SizedBox(height: 24),
+          ReplayAnalyticsSummary(
+            analytics: analytics,
+            redName: controller.data.redName,
+            blueName: controller.data.blueName,
+          ),
+        ],
       ],
     );
   }
@@ -501,44 +510,58 @@ class _TimelinePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: embedded ? MainAxisSize.min : MainAxisSize.max,
-      children: [
-        const _SectionTitle(title: '事件时间线', icon: Icons.timeline),
-        const SizedBox(height: 10),
-        _ReplayFilters(controller: controller),
-        const SizedBox(height: 12),
-        if (controller.visibleEvents.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 32),
-            child: Center(child: Text('没有符合筛选条件的事件')),
-          )
-        else if (embedded)
-          ...controller.visibleEvents.map(
-            (event) => _TimelineEvent(
-              event: event,
-              data: controller.data,
-              onTap: controller.isEditing ? () => onEventTap(event) : null,
-            ),
-          )
-        else
-          Expanded(
-            child: ListView.builder(
-              itemCount: controller.visibleEvents.length,
-              itemBuilder: (context, index) => _TimelineEvent(
-                event: controller.visibleEvents[index],
+    Widget buildContent({required bool inlineEvents}) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: inlineEvents ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          const _SectionTitle(title: '事件时间线', icon: Icons.timeline),
+          const SizedBox(height: 10),
+          _ReplayFilters(controller: controller),
+          const SizedBox(height: 12),
+          if (controller.visibleEvents.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(child: Text('没有符合筛选条件的事件')),
+            )
+          else if (inlineEvents)
+            ...controller.visibleEvents.map(
+              (event) => _TimelineEvent(
+                event: event,
                 data: controller.data,
-                onTap: controller.isEditing
-                    ? () => onEventTap(controller.visibleEvents[index])
-                    : null,
+                onTap: controller.isEditing ? () => onEventTap(event) : null,
+              ),
+            )
+          else
+            Expanded(
+              child: ListView.builder(
+                itemCount: controller.visibleEvents.length,
+                itemBuilder: (context, index) => _TimelineEvent(
+                  event: controller.visibleEvents[index],
+                  data: controller.data,
+                  onTap: controller.isEditing
+                      ? () => onEventTap(controller.visibleEvents[index])
+                      : null,
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      );
+    }
+
+    if (embedded) return buildContent(inlineEvents: true);
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compactHeight = constraints.maxHeight < 280;
+          final content = buildContent(inlineEvents: compactHeight);
+          return compactHeight
+              ? SingleChildScrollView(child: content)
+              : content;
+        },
+      ),
     );
-    if (embedded) return content;
-    return Padding(padding: const EdgeInsets.all(20), child: content);
   }
 }
 

@@ -1,4 +1,5 @@
 import 'package:hooptrace/core/domain/entities/match.dart';
+import 'package:hooptrace/core/domain/analytics/match_analytics_calculator.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
@@ -19,6 +20,11 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
     redScore: detail.redScore,
     blueScore: detail.blueScore,
     duration: detail.duration ?? _elapsedSince(startedAt),
+    analytics: MatchAnalyticsCalculator().calculate(
+      detail.events,
+      targetScore: detail.match.ruleTemplateSnapshot.targetScore,
+      winByTwo: detail.match.ruleTemplateSnapshot.winByTwo,
+    ),
     isFinished: detail.match.status == MatchStatus.finished ||
         detail.match.status == MatchStatus.archived,
     events: [
