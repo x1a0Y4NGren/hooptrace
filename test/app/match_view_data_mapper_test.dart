@@ -60,6 +60,8 @@ void main() {
     expect(replay.events.single.elapsed, const Duration(seconds: 12));
     expect(replay.events.single.shotPoint?.x, 0.2);
     expect(replay.events.single.shotPoint?.y, 0.7);
+    expect(replay.analytics?.madeShotCount, 1);
+    expect(replay.analytics?.scoringFlow.single.eventId, 'score-1');
   });
 
   test('omits soft-deleted events and their locations from replay data', () {
