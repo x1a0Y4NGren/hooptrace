@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
@@ -37,6 +38,33 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text(foulText), findsNWidgets(2));
+  });
+
+  testWidgets('compact header accommodates long player names', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(731, 411));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final controller = ScoringController(
+      setup: const MatchSetup(
+        matchId: 'compact-header',
+        redName: '集成测试红方长名称',
+        blueName: '集成测试蓝方长名称',
+        ruleTemplateId: 'free',
+        targetScore: null,
+        timerEnabled: false,
+        timeLimitMinutes: 10,
+        winByTwo: false,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(controller: controller, onOpenReplay: () {}),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('集成测试蓝方长名称 0'), findsOneWidget);
+    expect(find.text('0 集成测试红方长名称'), findsOneWidget);
   });
 
   testWidgets('scoring page does not overflow while pending bar is visible', (

@@ -2481,7 +2481,7 @@ git commit -m "feat: add automatic local backup"
 - Create: `integration_test/main_loop_test.dart`
 - Modify: `pubspec.yaml`
 
-- [ ] **Step 1: Write integration test**
+- [x] **Step 1: Write integration test**
 
 Create `integration_test/main_loop_test.dart`:
 
@@ -2517,7 +2517,7 @@ void main() {
 }
 ```
 
-- [ ] **Step 2: Run integration test and verify failure**
+- [x] **Step 2: Run integration test and verify failure**
 
 Run:
 
@@ -2527,7 +2527,7 @@ flutter test integration_test/main_loop_test.dart
 
 Expected: FAIL until routes and flow are wired end-to-end.
 
-- [ ] **Step 3: Wire missing route transitions**
+- [x] **Step 3: Wire missing route transitions**
 
 Ensure:
 
@@ -2536,7 +2536,7 @@ Ensure:
 - Scoring replay button opens replay.
 - Replay can load the current match from repository.
 
-- [ ] **Step 4: Verify main loop**
+- [x] **Step 4: Verify main loop**
 
 Run:
 
@@ -2549,10 +2549,10 @@ flutter analyze
 
 Expected: all commands exit with code 0.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```powershell
-git add lib integration_test pubspec.yaml pubspec.lock
+git add lib integration_test test/features/scoring/scoring_page_test.dart
 git commit -m "test: cover main scoring loop"
 ```
 
@@ -2566,7 +2566,7 @@ git commit -m "test: cover main scoring loop"
 - Create: `docs/release/fdroid-notes.md`
 - Create: `.github/workflows/flutter-ci.yml`
 
-- [ ] **Step 1: Write release docs**
+- [x] **Step 1: Write release docs**
 
 `README.md` must include:
 
@@ -2580,7 +2580,7 @@ git commit -m "test: cover main scoring loop"
 
 `PRIVACY.md` must state that first release has no account, no cloud sync, and no personal data upload.
 
-- [ ] **Step 2: Add GitHub Actions CI**
+- [x] **Step 2: Add GitHub Actions CI**
 
 Create `.github/workflows/flutter-ci.yml`:
 
@@ -2608,7 +2608,7 @@ jobs:
       - run: flutter build apk --debug
 ```
 
-- [ ] **Step 3: Add release checklist**
+- [x] **Step 3: Add release checklist**
 
 `docs/release/release-checklist.md` must include:
 
@@ -2621,7 +2621,7 @@ jobs:
 - GitHub Release notes.
 - F-Droid metadata review.
 
-- [ ] **Step 4: Add F-Droid notes**
+- [x] **Step 4: Add F-Droid notes**
 
 `docs/release/fdroid-notes.md` must include:
 
@@ -2632,7 +2632,7 @@ jobs:
 - License.
 - Source tarball expectation.
 
-- [ ] **Step 5: Verify release docs and CI config**
+- [x] **Step 5: Verify release docs and CI config**
 
 Run:
 
@@ -2644,10 +2644,10 @@ flutter build apk --debug
 
 Expected: all commands exit with code 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
-git add README.md CONTRIBUTING.md PRIVACY.md docs/release .github/workflows/flutter-ci.yml
+git add README.md CONTRIBUTING.md PRIVACY.md CHANGELOG.md docs/release fastlane assets/icons .github/workflows/flutter-ci.yml android ios
 git commit -m "docs: add release and contribution docs"
 ```
 
@@ -2659,7 +2659,7 @@ Run these commands from repository root:
 dart format --set-exit-if-changed .
 flutter analyze
 flutter test
-flutter test integration_test/main_loop_test.dart
+flutter test integration_test/main_loop_test.dart -d <android-device-id>
 flutter build apk --debug
 ```
 

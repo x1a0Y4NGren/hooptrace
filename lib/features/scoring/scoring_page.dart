@@ -91,11 +91,15 @@ class _ScoringPageState extends State<ScoringPage> {
               child: Row(
                 children: [
                   const SizedBox(width: 12),
-                  Text(
-                    '${state.blueName} ${state.score.blueScore}',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  Expanded(
+                    child: Text(
+                      '${state.blueName} ${state.score.blueScore}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: widget.onOpenReplay == null ? null : _openReplay,
                     icon: const Icon(Icons.query_stats, size: 20),
@@ -103,10 +107,15 @@ class _ScoringPageState extends State<ScoringPage> {
                   ),
                   const SizedBox(width: 8),
                   const Text('00:00'),
-                  const Spacer(),
-                  Text(
-                    '${state.score.redScore} ${state.redName}',
-                    style: Theme.of(context).textTheme.titleLarge,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${state.score.redScore} ${state.redName}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
                   ),
                   const SizedBox(width: 12),
                 ],

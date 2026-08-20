@@ -1,0 +1,1 @@
+Initial Android-first release with offline one-on-one scoring, shot locations, replay history, local analytics, editable audited records, JSON backup, CSV export, replay images, and optional automatic local backup.

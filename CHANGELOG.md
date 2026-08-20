@@ -1,0 +1,21 @@
+# Changelog
+
+本项目的显著变更记录在此文件中，版本号遵循 Semantic Versioning。
+
+## [Unreleased]
+
+### Added
+
+- Android 优先的离线单挑篮球计分、犯规与规则提示。
+- 标准半场投篮落点、比赛复盘、历史记录和单场分析。
+- 球员与规则模板管理，以及带审计日志的赛后修正。
+- JSON 完整备份、CSV 数据导出、复盘图片和可选自动备份。
+- Android 主流程集成测试、发布文档与 GitHub Actions CI。
+
+### Changed
+
+- 使用正式应用标识 `io.github.x1a0y4ngren.hooptrace` 和 HoopTrace 启动图标。
+- 计分页顶部信息在小屏横屏和长球员名称下保持稳定布局。
+- 未配置正式密钥时，上游 Release 构建明确失败；未签名构建必须显式选择。
+
+[Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/main...HEAD

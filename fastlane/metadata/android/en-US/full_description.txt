@@ -1,0 +1,7 @@
+HoopTrace is an offline scoring and replay tool for one-on-one basketball.
+
+Record points, fouls, match events, and confirmed shot locations on a half court. Review the game through a local timeline, shot chart, and key analytics. Manage players and scoring rules, correct finished records with an audit trail, and export complete JSON backups, CSV data, or a replay image.
+
+All records stay on the device by default. HoopTrace has no account, cloud sync, ads, analytics, tracking, or personal-data upload. Automatic backup is optional, disabled by default, and writes only to a folder explicitly selected by the user.
+
+The official HoopTrace project is permanently free and open source under the MIT License.
