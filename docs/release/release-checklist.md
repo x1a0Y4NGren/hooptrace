@@ -47,8 +47,9 @@ flutter build apk --debug
 
 - [ ] 使用维护者控制的正式 keystore；永远不要使用 debug key 发布。
 - [ ] 将 keystore 做至少两份加密离线备份，并记录恢复责任人。
+- [ ] 首次发布可运行 `tool/release/setup_android_signing.ps1`，在仓库外创建 keystore 并生成被忽略的签名配置。
 - [ ] 在未提交的 `android/key.properties` 中配置 `storeFile`、`storePassword`、`keyAlias` 和 `keyPassword`。
-- [ ] 运行 `flutter build apk --release`。
+- [ ] 运行 `tool/release/build_android_release.ps1`，从干净提交生成签名 APK、证书记录、权限记录和 `SHA256SUMS`。
 - [ ] 确认没有为上游发布设置 `allowUnsignedRelease` 或 `HOOPTRACE_ALLOW_UNSIGNED_RELEASE`。
 - [ ] 使用 `apksigner verify --verbose --print-certs <apk>` 验证签名和证书指纹。
 - [ ] 将首次正式签名证书 SHA-256 指纹写入维护者的离线发布记录，后续版本必须一致。
@@ -68,7 +69,7 @@ flutter build apk --debug
 
 ## 6. 商店与仓库元数据
 
-- [ ] 准备至少两张不含测试数据或个人信息的手机截图。
+- [ ] 准备至少两张仅含经过整理的演示数据、不含个人信息的手机截图。
 - [ ] 检查 `fastlane/metadata/android/en-US` 和 `zh-CN` 的短描述、完整描述、图标及对应 `versionCode` Changelog。
 - [ ] 确认短描述少于 80 个字符，Changelog 不超过 500 个字符。
 - [ ] 在目标发布提交创建签名 tag，例如 `v0.1.0`。

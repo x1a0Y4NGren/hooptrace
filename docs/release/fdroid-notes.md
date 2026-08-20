@@ -68,7 +68,7 @@ HOOPTRACE_ALLOW_UNSIGNED_RELEASE=true flutter build apk --release --no-pub
 - 两个 locale 的 `images/icon.png`
 - 两个 locale 的 4 张手机截图：主页、计分、复盘和历史
 
-截图来自 Android 模拟器中的默认球员名称和测试比分，不包含个人信息。正式提交前应确保 release tag 中包含最终 metadata。
+截图来自 Android 模拟器，使用经过整理的演示比分和默认球员名称，不包含个人信息。正式提交前应确保 release tag 中包含最终 metadata。
 
 ## 源码与 tag 要求
 

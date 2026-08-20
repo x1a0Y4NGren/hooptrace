@@ -18,7 +18,7 @@ HoopTrace 是一款面向篮球爱好者的离线单挑计分与复盘工具。�
 
 ## 项目状态
 
-- 当前版本：`0.1.0+1`，首个公开发行版准备阶段。
+- 当前版本：`0.1.0+1`，Android 首发版本。
 - 当前平台：Android 优先，最低 Android API 24。
 - Android Application ID：`io.github.x1a0y4ngren.hooptrace`。
 - iOS 工程和标识已经保留，但首版尚未完成 iOS 真机发布验收。

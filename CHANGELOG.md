@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-21
+
 ### Added
 
 - Android 优先的离线单挑篮球计分、犯规与规则提示。
@@ -18,4 +20,5 @@
 - 计分页顶部信息在小屏横屏和长球员名称下保持稳定布局。
 - 未配置正式密钥时，上游 Release 构建明确失败；未签名构建必须显式选择。
 
-[Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/main...HEAD
+[Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v0.1.0

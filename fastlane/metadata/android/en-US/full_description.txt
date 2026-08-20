@@ -5,3 +5,5 @@ Record points, fouls, match events, and confirmed shot locations on a half court
 All records stay on the device by default. HoopTrace has no account, cloud sync, ads, analytics, tracking, or personal-data upload. Automatic backup is optional, disabled by default, and writes only to a folder explicitly selected by the user.
 
 The official HoopTrace project is permanently free and open source under the MIT License.
+
+The v0.1.0 interface is primarily available in Simplified Chinese. Additional interface languages are planned for later releases.
