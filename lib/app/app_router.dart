@@ -6,6 +6,8 @@ import 'package:hooptrace/app/match_view_data_mapper.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
+import 'package:hooptrace/core/export/automatic_backup_service.dart';
+import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
@@ -18,11 +20,14 @@ import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
+import 'package:hooptrace/features/settings/settings_controller.dart';
 
 GoRouter buildAppRouter(
   MatchSessionCoordinator matchSessions,
   PlayerRepository playerRepository,
   RuleTemplateRepository ruleTemplates,
+  ExportCoordinator exports,
+  AutomaticBackupService automaticBackup,
 ) {
   return GoRouter(
     routes: [
@@ -97,9 +102,10 @@ GoRouter buildAppRouter(
       ),
       GoRoute(
         path: '/settings',
-        builder: (context, state) => SettingsPage(
-          onOpenProject: () => context.push('/project'),
-          onOpenRules: () => context.push('/settings/rules'),
+        builder: (context, state) => _SettingsRoute(
+          matchSessions: matchSessions,
+          exports: exports,
+          automaticBackup: automaticBackup,
         ),
       ),
       GoRoute(
@@ -114,11 +120,58 @@ GoRouter buildAppRouter(
             key: ValueKey('replay-$matchId'),
             matchSessions: matchSessions,
             matchId: matchId,
+            exports: exports,
+            automaticBackup: automaticBackup,
           );
         },
       ),
     ],
   );
+}
+
+class _SettingsRoute extends StatefulWidget {
+  const _SettingsRoute({
+    required this.matchSessions,
+    required this.exports,
+    required this.automaticBackup,
+  });
+
+  final MatchSessionCoordinator matchSessions;
+  final ExportCoordinator exports;
+  final AutomaticBackupService automaticBackup;
+
+  @override
+  State<_SettingsRoute> createState() => _SettingsRouteState();
+}
+
+class _SettingsRouteState extends State<_SettingsRoute> {
+  late final SettingsController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = SettingsController(
+      exports: widget.exports,
+      automaticBackup: widget.automaticBackup,
+      canRestoreBackup: !widget.matchSessions.hasActiveMatch,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsPage(
+      controller: _controller,
+      onOpenProject: () => context.push('/project'),
+      onOpenRules: () => context.push('/settings/rules'),
+      onDataRestored: () => context.go('/'),
+    );
+  }
 }
 
 class _HomePageShell extends StatelessWidget {
@@ -238,11 +291,15 @@ class _ReplayRoute extends StatefulWidget {
   const _ReplayRoute({
     required this.matchSessions,
     required this.matchId,
+    required this.exports,
+    required this.automaticBackup,
     super.key,
   });
 
   final MatchSessionCoordinator matchSessions;
   final String matchId;
+  final ExportCoordinator exports;
+  final AutomaticBackupService automaticBackup;
 
   @override
   State<_ReplayRoute> createState() => _ReplayRouteState();
@@ -344,9 +401,16 @@ class _ReplayRouteState extends State<_ReplayRoute> {
         final active = widget.matchSessions.isActive(widget.matchId);
         return ReplayPage(
           controller: controller,
+          onShareSummary: (bytes, matchId) =>
+              widget.exports.shareReplayImage(bytes, matchId: matchId),
           onFinishMatch: active
               ? () async {
                   await widget.matchSessions.finishMatch(widget.matchId);
+                  try {
+                    await widget.automaticBackup.runIfEnabled();
+                  } on Object {
+                    // Finishing a match succeeds even if its backup folder moved.
+                  }
                   if (context.mounted) {
                     context.go('/history');
                   }

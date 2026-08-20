@@ -2320,6 +2320,9 @@ git commit -m "feat: add match analytics"
 
 ## Task 15: Backup Import/Export, CSV, And Replay Image
 
+**Status:** Completed in Wave 5C. Verified with unit/widget tests, static analysis,
+an Android debug build, and emulator share-sheet/image export checks.
+
 **Files:**
 - Create: `lib/core/export/backup_manifest.dart`
 - Create: `lib/core/export/json_backup_codec.dart`
@@ -2329,7 +2332,7 @@ git commit -m "feat: add match analytics"
 - Test: `test/core/export/json_backup_codec_test.dart`
 - Test: `test/core/export/csv_exporter_test.dart`
 
-- [ ] **Step 1: Write export tests**
+- [x] **Step 1: Write export tests**
 
 Test that:
 
@@ -2337,7 +2340,7 @@ Test that:
 - Backup manifest includes schema version and export timestamp.
 - CSV event export includes match id, event id, event type, side, points, timestamp.
 
-- [ ] **Step 2: Run tests and verify failure**
+- [x] **Step 2: Run tests and verify failure**
 
 Run:
 
@@ -2347,7 +2350,7 @@ flutter test test/core/export
 
 Expected: FAIL because export code does not exist.
 
-- [ ] **Step 3: Implement backup manifest**
+- [x] **Step 3: Implement backup manifest**
 
 Create `BackupManifest` with:
 
@@ -2358,7 +2361,7 @@ Create `BackupManifest` with:
 - `recordCounts`
 - `checksum`
 
-- [ ] **Step 4: Implement JSON backup codec**
+- [x] **Step 4: Implement JSON backup codec**
 
 The codec exports:
 
@@ -2373,7 +2376,7 @@ The codec exports:
 
 Import validates manifest schema and rejects future unsupported schema versions with a typed exception.
 
-- [ ] **Step 5: Implement CSV exporter**
+- [x] **Step 5: Implement CSV exporter**
 
 Export at least:
 
@@ -2381,11 +2384,11 @@ Export at least:
 - event list CSV
 - player statistics CSV
 
-- [ ] **Step 6: Implement replay image exporter**
+- [x] **Step 6: Implement replay image exporter**
 
 Use Flutter rendering to capture a replay summary widget through `RepaintBoundary`. The exported image includes score, shot chart, and key analytics.
 
-- [ ] **Step 7: Verify export**
+- [x] **Step 7: Verify export**
 
 Run:
 
@@ -2397,7 +2400,7 @@ flutter analyze
 
 Expected: all commands exit with code 0.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```powershell
 git add lib/core/export lib/features/settings test/core/export
@@ -2406,12 +2409,15 @@ git commit -m "feat: add local backup and export"
 
 ## Task 16: Automatic Backup
 
+**Status:** Completed in Wave 5C. Automatic backup remains opt-in, validates a
+user-approved directory, and preserves previous backup files.
+
 **Files:**
 - Create: `lib/core/export/automatic_backup_service.dart`
 - Modify: `lib/features/settings/settings_page.dart`
 - Test: `test/core/export/automatic_backup_service_test.dart`
 
-- [ ] **Step 1: Write automatic backup tests**
+- [x] **Step 1: Write automatic backup tests**
 
 Test that:
 
@@ -2419,7 +2425,7 @@ Test that:
 - Enabling automatic backup requires a configured export directory.
 - Running backup writes a JSON backup through `JsonBackupCodec`.
 
-- [ ] **Step 2: Run tests and verify failure**
+- [x] **Step 2: Run tests and verify failure**
 
 Run:
 
@@ -2429,7 +2435,7 @@ flutter test test/core/export/automatic_backup_service_test.dart
 
 Expected: FAIL because service does not exist.
 
-- [ ] **Step 3: Implement automatic backup service**
+- [x] **Step 3: Implement automatic backup service**
 
 Service methods:
 
@@ -2441,7 +2447,7 @@ Service methods:
 
 Use Android-friendly file picker flow and store only user-approved directory metadata.
 
-- [ ] **Step 4: Add settings controls**
+- [x] **Step 4: Add settings controls**
 
 Settings backup section shows:
 
@@ -2450,7 +2456,7 @@ Settings backup section shows:
 - Enable or disable.
 - Run backup now.
 
-- [ ] **Step 5: Verify automatic backup**
+- [x] **Step 5: Verify automatic backup**
 
 Run:
 
@@ -2462,7 +2468,7 @@ flutter analyze
 
 Expected: all commands exit with code 0.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add lib/core/export lib/features/settings test/core/export

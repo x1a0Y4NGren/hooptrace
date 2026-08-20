@@ -12,6 +12,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   collection: ^1.18.0
+  crypto: ^3.0.7
   csv: ^6.0.0
   drift: ^2.22.1
   drift_flutter: ^0.2.4
