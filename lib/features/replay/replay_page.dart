@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/core/export/replay_image_exporter.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/widgets/replay_analytics_summary.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
@@ -13,11 +15,15 @@ class ReplayPage extends StatefulWidget {
   const ReplayPage({
     required this.controller,
     this.onFinishMatch,
+    this.onShareSummary,
+    this.captureBoundary,
     super.key,
   });
 
   final ReplayController controller;
   final FutureOr<void> Function()? onFinishMatch;
+  final Future<void> Function(Uint8List bytes, String matchId)? onShareSummary;
+  final Future<Uint8List> Function(GlobalKey boundaryKey)? captureBoundary;
 
   @override
   State<ReplayPage> createState() => _ReplayPageState();
@@ -73,6 +79,19 @@ class _ReplayPageState extends State<ReplayPage> {
     );
   }
 
+  Future<void> _showExportPreview() async {
+    final onShareSummary = widget.onShareSummary;
+    if (onShareSummary == null) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _ReplayExportDialog(
+        controller: widget.controller,
+        captureBoundary: widget.captureBoundary ?? ReplayImageExporter.capture,
+        onShare: onShareSummary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
@@ -80,6 +99,13 @@ class _ReplayPageState extends State<ReplayPage> {
       appBar: AppBar(
         title: const Text('比赛复盘'),
         actions: [
+          if (widget.onShareSummary != null)
+            IconButton(
+              key: const Key('replay-export-image'),
+              tooltip: '导出复盘图',
+              onPressed: _showExportPreview,
+              icon: const Icon(Icons.ios_share_outlined),
+            ),
           if (controller.loadAuditLogs != null)
             IconButton(
               key: const Key('replay-audit-history'),
@@ -171,6 +197,375 @@ class _ReplayPageState extends State<ReplayPage> {
                   );
                 },
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ReplayExportDialog extends StatefulWidget {
+  const _ReplayExportDialog({
+    required this.controller,
+    required this.captureBoundary,
+    required this.onShare,
+  });
+
+  final ReplayController controller;
+  final Future<Uint8List> Function(GlobalKey boundaryKey) captureBoundary;
+  final Future<void> Function(Uint8List bytes, String matchId) onShare;
+
+  @override
+  State<_ReplayExportDialog> createState() => _ReplayExportDialogState();
+}
+
+class _ReplayExportDialogState extends State<_ReplayExportDialog> {
+  final _boundaryKey = GlobalKey();
+  bool _busy = false;
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
+    final viewport = MediaQuery.sizeOf(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.all(20),
+      child: SizedBox(
+        width: math.min(980, viewport.width - 40),
+        height: math.min(720, viewport.height - 40),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.image_outlined,
+                    color: HoopTraceColors.orange,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '复盘分享图',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: '关闭',
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const Text('落点与分析会生成一张本地图片'),
+              const SizedBox(height: 16),
+              Expanded(
+                child: Center(
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: RepaintBoundary(
+                      key: _boundaryKey,
+                      child: _ReplayExportSummary(
+                        controller: widget.controller,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _busy ? null : () => Navigator.pop(context),
+                    child: const Text('取消'),
+                  ),
+                  const SizedBox(width: 12),
+                  FilledButton.icon(
+                    key: const Key('replay-export-confirm'),
+                    onPressed: _busy ? null : _export,
+                    icon: _busy
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.ios_share_outlined),
+                    label: Text(_busy ? '生成中' : '生成并分享'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _export() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await WidgetsBinding.instance.endOfFrame;
+      final bytes = await widget.captureBoundary(_boundaryKey);
+      await widget.onShare(bytes, widget.controller.data.matchId);
+      if (mounted) Navigator.pop(context);
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _error = '图片生成或分享失败，请重试';
+        });
+      }
+    }
+  }
+}
+
+class _ReplayExportSummary extends StatelessWidget {
+  const _ReplayExportSummary({required this.controller});
+
+  final ReplayController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final data = controller.data;
+    final analytics = data.analytics;
+    final attempts = analytics == null
+        ? controller.scoreEventCount
+        : analytics.madeShotCount + analytics.missedShotCount;
+    final shootingPercentage = analytics == null || attempts == 0
+        ? '暂无'
+        : '${(analytics.shootingPercentage * 100).round()}%';
+    final largestLead = analytics?.largestLeadSide == null
+        ? '暂无'
+        : '${analytics!.largestLeadSide == TeamSide.red ? data.redName : data.blueName} '
+            '+${analytics.largestLeadPoints}';
+
+    return Container(
+      key: const Key('replay-export-summary'),
+      width: 900,
+      height: 520,
+      padding: const EdgeInsets.all(26),
+      color: HoopTraceColors.offWhite,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.sports_basketball,
+                color: HoopTraceColors.orange,
+                size: 28,
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'HoopTrace',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: HoopTraceColors.ink,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+              const Spacer(),
+              Text(
+                data.isFinished ? '比赛复盘 · 终场' : '比赛复盘 · 进行中',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: HoopTraceColors.ink.withValues(alpha: 0.68),
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _ExportTeamScore(
+                  name: data.blueName,
+                  score: data.blueScore,
+                  color: HoopTraceColors.blue,
+                  alignment: CrossAxisAlignment.start,
+                ),
+              ),
+              Text(
+                ':',
+                style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                      color: HoopTraceColors.ink,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              Expanded(
+                child: _ExportTeamScore(
+                  name: data.redName,
+                  score: data.redScore,
+                  color: HoopTraceColors.red,
+                  alignment: CrossAxisAlignment.end,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Center(
+                    child: AspectRatio(
+                      aspectRatio: 15 / 14,
+                      child: CourtView(
+                        shotLocations: controller.shotLocations,
+                        pendingLocation: null,
+                        mode: CourtViewMode.readOnly,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '本场分析',
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: HoopTraceColors.ink,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: GridView.count(
+                          physics: const NeverScrollableScrollPhysics(),
+                          crossAxisCount: 2,
+                          childAspectRatio: 2.25,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          children: [
+                            _ExportMetric(
+                              label: '比赛时长',
+                              value: _formatDuration(data.duration),
+                            ),
+                            _ExportMetric(
+                              label: '落点记录',
+                              value: '${controller.locatedShotCount}',
+                            ),
+                            _ExportMetric(
+                              label: '投篮命中率',
+                              value: shootingPercentage,
+                            ),
+                            _ExportMetric(
+                              label: '领先变化',
+                              value: '${analytics?.leadChanges ?? 0} 次',
+                            ),
+                            _ExportMetric(
+                              label: '最大领先',
+                              value: largestLead,
+                            ),
+                            _ExportMetric(
+                              label: '关键节点',
+                              value:
+                                  '${analytics?.keyPossessions.length ?? 0} 次',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExportTeamScore extends StatelessWidget {
+  const _ExportTeamScore({
+    required this.name,
+    required this.score,
+    required this.color,
+    required this.alignment,
+  });
+
+  final String name;
+  final int score;
+  final Color color;
+  final CrossAxisAlignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignment,
+      children: [
+        Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        Text(
+          '$score',
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ExportMetric extends StatelessWidget {
+  const _ExportMetric({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: HoopTraceColors.cream,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
             ),
           ],
         ),

@@ -16,6 +16,8 @@ class MatchSessionCoordinator extends ChangeNotifier {
 
   MatchRepository get repository => _repository;
 
+  bool get hasActiveMatch => _sessions.keys.any(isActive);
+
   ScoringController beginMatch(MatchSetup setup) {
     final existing = _sessions[setup.matchId];
     if (existing != null) {

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
@@ -91,6 +93,40 @@ void main() {
       MaterialApp(home: ReplayPage(controller: buildController())),
     );
     expect(find.byKey(const Key('replay-finish-match')), findsNothing);
+  });
+
+  testWidgets('previews and exports a dedicated replay summary image', (
+    tester,
+  ) async {
+    Uint8List? sharedBytes;
+    String? sharedMatchId;
+    final imageBytes = Uint8List.fromList([137, 80, 78, 71]);
+    await tester.binding.setSurfaceSize(const Size(1000, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReplayPage(
+          controller: buildController(),
+          captureBoundary: (_) async => imageBytes,
+          onShareSummary: (bytes, matchId) async {
+            sharedBytes = bytes;
+            sharedMatchId = matchId;
+          },
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('replay-export-image')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('replay-export-summary')), findsOneWidget);
+    expect(find.text('复盘分享图'), findsOneWidget);
+    expect(find.text('落点与分析会生成一张本地图片'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('replay-export-confirm')));
+    await tester.pumpAndSettle();
+    expect(sharedBytes, imageBytes);
+    expect(sharedMatchId, 'match-1');
   });
 
   testWidgets('adapts to portrait and landscape without overflow', (
