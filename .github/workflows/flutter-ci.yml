@@ -52,10 +52,13 @@ jobs:
       - name: Run unit and widget tests
         run: flutter test --reporter expanded
 
+      - name: Remove test-only plugin registrant
+        run: rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+
       - name: Build unsigned release APK explicitly
         env:
           HOOPTRACE_ALLOW_UNSIGNED_RELEASE: "true"
-        run: flutter build apk --release --no-pub
+        run: flutter build apk --release
 
       - name: Build debug APK
         run: flutter build apk --debug --no-pub
