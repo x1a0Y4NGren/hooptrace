@@ -75,6 +75,10 @@ try {
         if ($LASTEXITCODE -ne 0) { throw "Tests failed." }
     }
 
+    if (Test-Path -LiteralPath $generatedRegistrant) {
+        Remove-Item -LiteralPath $generatedRegistrant
+    }
+
     flutter build apk --release --no-pub
     if ($LASTEXITCODE -ne 0) { throw "Signed release build failed." }
 } finally {
