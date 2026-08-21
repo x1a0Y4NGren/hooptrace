@@ -88,9 +88,24 @@ try {
 if (-not (Test-Path -LiteralPath $sourceApk)) {
     throw "Release APK was not created at $sourceApk."
 }
-if (Test-Path -LiteralPath $generatedRegistrant) {
-    throw "GeneratedPluginRegistrant.java was recreated inside Android source; refusing the release."
+if (-not (Test-Path -LiteralPath $generatedRegistrant)) {
+    throw "Flutter did not generate the Android runtime plugin registrant."
 }
+$registrantContent = Get-Content -Raw -LiteralPath $generatedRegistrant
+if ($registrantContent -match "IntegrationTestPlugin") {
+    throw "The release plugin registrant still contains integration_test."
+}
+$requiredRuntimePlugins = @(
+    "JniPlugin",
+    "JniFlutterPlugin",
+    "Sqlite3FlutterLibsPlugin"
+)
+foreach ($pluginClass in $requiredRuntimePlugins) {
+    if ($registrantContent -notmatch [regex]::Escape($pluginClass)) {
+        throw "The release plugin registrant is missing $pluginClass."
+    }
+}
+Remove-Item -LiteralPath $generatedRegistrant
 
 $androidSdk = $env:ANDROID_SDK_ROOT
 if (-not $androidSdk) { $androidSdk = $env:ANDROID_HOME }
