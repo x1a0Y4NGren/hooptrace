@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "release_helpers.ps1")
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $keyPropertiesPath = Join-Path $repoRoot "android\key.properties"
@@ -22,7 +23,8 @@ if ($KeystorePath.StartsWith(
 
 New-Item -ItemType Directory -Force -Path $keystoreDirectory | Out-Null
 
-if (-not (Test-Path -LiteralPath $KeystorePath)) {
+$keystoreAlreadyExists = Test-Path -LiteralPath $KeystorePath -PathType Leaf
+if (-not $keystoreAlreadyExists) {
     Write-Host "Creating the permanent HoopTrace Android release key."
     Write-Host "Choose a strong password and press Enter for the key password to reuse it."
     & $keytool `
@@ -39,7 +41,7 @@ if (-not (Test-Path -LiteralPath $KeystorePath)) {
         throw "keytool failed with exit code $LASTEXITCODE."
     }
 } else {
-    Write-Host "Using existing keystore: $KeystorePath"
+    Write-Host "Recovery mode: using the existing keystore without replacing it: $KeystorePath"
 }
 
 function ConvertFrom-SecureValue {
@@ -95,7 +97,7 @@ try {
     $passwordText = $null
 }
 
-$keystoreHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $KeystorePath).Hash.ToLowerInvariant()
+$keystoreHash = Get-CompatibleSha256 -LiteralPath $KeystorePath
 [IO.File]::WriteAllText(
     "$KeystorePath.sha256",
     "$keystoreHash  $(Split-Path -Leaf $KeystorePath)`n",

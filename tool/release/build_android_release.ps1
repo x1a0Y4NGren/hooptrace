@@ -5,6 +5,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "release_helpers.ps1")
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 $keyPropertiesPath = Join-Path $repoRoot "android\key.properties"
@@ -145,7 +146,7 @@ if ($LASTEXITCODE -ne 0) { throw "APK permission inspection failed." }
     [Text.UTF8Encoding]::new($false)
 )
 
-$hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $releaseApk).Hash.ToLowerInvariant()
+$hash = Get-CompatibleSha256 -LiteralPath $releaseApk
 [IO.File]::WriteAllText(
     (Join-Path $releaseDirectory "SHA256SUMS"),
     "$hash  $releaseApkName`n",
