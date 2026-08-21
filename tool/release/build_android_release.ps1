@@ -79,7 +79,7 @@ try {
         Remove-Item -LiteralPath $generatedRegistrant
     }
 
-    flutter build apk --release --no-pub
+    flutter build apk --release
     if ($LASTEXITCODE -ne 0) { throw "Signed release build failed." }
 } finally {
     Pop-Location
