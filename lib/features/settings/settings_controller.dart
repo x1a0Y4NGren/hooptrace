@@ -58,7 +58,10 @@ class SettingsController extends ChangeNotifier {
     return _perform(() async {
       final directory = await exports.pickBackupDirectory();
       if (directory == null) return false;
-      await automaticBackup.configureDirectory(directory);
+      await automaticBackup.configureDirectory(
+        directory.reference,
+        displayName: directory.displayName,
+      );
       _backupState = await automaticBackup.loadState();
       return true;
     });
@@ -67,11 +70,13 @@ class SettingsController extends ChangeNotifier {
   Future<bool> setAutomaticBackupEnabled(bool enabled) {
     return _perform(() async {
       if (enabled) {
-        var directory = _backupState.directory;
-        if (directory == null) {
-          directory = await exports.pickBackupDirectory();
+        if (_backupState.directory == null) {
+          final directory = await exports.pickBackupDirectory();
           if (directory == null) return false;
-          await automaticBackup.configureDirectory(directory);
+          await automaticBackup.configureDirectory(
+            directory.reference,
+            displayName: directory.displayName,
+          );
         }
         await automaticBackup.enable();
       } else {

@@ -332,7 +332,8 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           timeLimitSeconds: null,
           winByTwo: true,
           foulLimit: null,
-          customEventTypesJson: '[]',
+          customEventTypesJson:
+              '{"eventTypes":[],"possessionHintEnabled":false}',
           isBuiltIn: false,
         ),
       );

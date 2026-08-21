@@ -148,13 +148,13 @@ void main() {
 class _MemoryExportGateway implements ExportGateway {
   final shares = <List<ExportArtifact>>[];
   ExportArtifact? pickedBackup;
-  String? pickedDirectory;
+  BackupDirectorySelection? pickedDirectory;
 
   @override
   Future<ExportArtifact?> pickBackup() async => pickedBackup;
 
   @override
-  Future<String?> pickDirectory() async => pickedDirectory;
+  Future<BackupDirectorySelection?> pickDirectory() async => pickedDirectory;
 
   @override
   Future<void> share(

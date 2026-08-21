@@ -42,12 +42,16 @@ void main() {
     test('configures a user-approved directory before enabling', () async {
       storage.availableDirectories.add('/approved');
 
-      await service.configureDirectory('/approved');
+      await service.configureDirectory(
+        '/approved',
+        displayName: 'Approved backups',
+      );
       await service.enable();
 
       final state = await service.loadState();
       expect(state.enabled, isTrue);
       expect(state.directory, '/approved');
+      expect(state.directoryLabel, 'Approved backups');
       expect(storage.files, hasLength(1));
       expect(
         storage.files.single.fileName,
@@ -70,6 +74,35 @@ void main() {
       expect(state.enabled, isFalse);
       expect(state.lastBackupAt, DateTime.utc(2026, 8, 21, 9, 5, 7));
       expect(state.lastBackupPath, path);
+    });
+
+    test('reports storage write failures without recording a success',
+        () async {
+      storage.availableDirectories.add('/approved');
+      storage.writeError = FileSystemException('Permission denied');
+      await service.configureDirectory('/approved');
+
+      expect(
+        service.runNow,
+        throwsA(isA<AutomaticBackupWriteException>()),
+      );
+      expect((await service.loadState()).lastBackupAt, isNull);
+    });
+
+    test('disables and clears an unsupported legacy directory reference',
+        () async {
+      const legacyPath = '/storage/emulated/0/HoopTraceTest';
+      storage.availableDirectories.add(legacyPath);
+      await service.configureDirectory(legacyPath);
+      await service.enable();
+      storage.acceptReferences = false;
+
+      final state = await service.loadState();
+
+      expect(state.enabled, isFalse);
+      expect(state.directory, isNull);
+      expect(state.directoryLabel, isNull);
+      expect(await service.runIfEnabled(), isNull);
     });
 
     test('disable prevents runIfEnabled and reset clears imported metadata',
@@ -113,9 +146,15 @@ void main() {
   });
 }
 
-class _MemoryBackupStorage implements AutomaticBackupStorage {
+class _MemoryBackupStorage
+    implements AutomaticBackupStorage, AutomaticBackupReferencePolicy {
   final availableDirectories = <String>{};
   final files = <_WrittenBackup>[];
+  Object? writeError;
+  bool acceptReferences = true;
+
+  @override
+  bool acceptsDirectoryReference(String reference) => acceptReferences;
 
   @override
   Future<bool> directoryExists(String path) async {
@@ -128,6 +167,8 @@ class _MemoryBackupStorage implements AutomaticBackupStorage {
     required String fileName,
     required Uint8List bytes,
   }) async {
+    final error = writeError;
+    if (error != null) throw error;
     files.add(_WrittenBackup(fileName, bytes));
     return '$directory/$fileName';
   }

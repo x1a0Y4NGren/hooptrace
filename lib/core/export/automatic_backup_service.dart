@@ -26,16 +26,33 @@ class BackupDirectoryUnavailableException extends AutomaticBackupException {
       : super('The selected backup directory is unavailable: $directory');
 }
 
+class AutomaticBackupWriteException extends AutomaticBackupException {
+  const AutomaticBackupWriteException()
+      : super('The backup could not be written to the selected directory.');
+}
+
+class BackupDirectorySelection {
+  const BackupDirectorySelection({
+    required this.reference,
+    required this.displayName,
+  });
+
+  final String reference;
+  final String displayName;
+}
+
 class AutomaticBackupState {
   const AutomaticBackupState({
     required this.enabled,
     this.directory,
+    this.directoryLabel,
     this.lastBackupAt,
     this.lastBackupPath,
   });
 
   final bool enabled;
   final String? directory;
+  final String? directoryLabel;
   final DateTime? lastBackupAt;
   final String? lastBackupPath;
 
@@ -50,6 +67,10 @@ abstract interface class AutomaticBackupStorage {
     required String fileName,
     required Uint8List bytes,
   });
+}
+
+abstract interface class AutomaticBackupReferencePolicy {
+  bool acceptsDirectoryReference(String reference);
 }
 
 class IoAutomaticBackupStorage implements AutomaticBackupStorage {
@@ -90,11 +111,13 @@ class AutomaticBackupService {
 
   static const _enabledKey = 'backup.automatic.enabled';
   static const _directoryKey = 'backup.automatic.directory';
+  static const _directoryLabelKey = 'backup.automatic.directoryLabel';
   static const _lastBackupAtKey = 'backup.automatic.lastBackupAt';
   static const _lastBackupPathKey = 'backup.automatic.lastBackupPath';
   static const _keys = {
     _enabledKey,
     _directoryKey,
+    _directoryLabelKey,
     _lastBackupAtKey,
     _lastBackupPathKey,
   };
@@ -113,13 +136,40 @@ class AutomaticBackupService {
       for (final row in await query.get()) row.key: jsonDecode(row.valueJson),
     };
     final rawDirectory = settings[_directoryKey];
+    final rawDirectoryLabel = settings[_directoryLabelKey];
+    var directory = rawDirectory is String && rawDirectory.trim().isNotEmpty
+        ? rawDirectory
+        : null;
+    var directoryLabel =
+        rawDirectoryLabel is String && rawDirectoryLabel.trim().isNotEmpty
+            ? rawDirectoryLabel
+            : null;
+    var enabled = settings[_enabledKey] == true;
+    final referencePolicy = storage is AutomaticBackupReferencePolicy
+        ? storage as AutomaticBackupReferencePolicy
+        : null;
+    if (directory != null &&
+        referencePolicy != null &&
+        !referencePolicy.acceptsDirectoryReference(directory)) {
+      await (database.delete(database.appSettings)
+            ..where(
+              (setting) => setting.key.isIn({
+                _enabledKey,
+                _directoryKey,
+                _directoryLabelKey,
+              }),
+            ))
+          .go();
+      enabled = false;
+      directory = null;
+      directoryLabel = null;
+    }
     final rawLastBackupAt = settings[_lastBackupAtKey];
     final rawLastBackupPath = settings[_lastBackupPathKey];
     return AutomaticBackupState(
-      enabled: settings[_enabledKey] == true,
-      directory: rawDirectory is String && rawDirectory.trim().isNotEmpty
-          ? rawDirectory
-          : null,
+      enabled: enabled,
+      directory: directory,
+      directoryLabel: directoryLabel,
       lastBackupAt: rawLastBackupAt is String
           ? DateTime.tryParse(rawLastBackupAt)?.toUtc()
           : null,
@@ -127,7 +177,10 @@ class AutomaticBackupService {
     );
   }
 
-  Future<void> configureDirectory(String directory) async {
+  Future<void> configureDirectory(
+    String directory, {
+    String? displayName,
+  }) async {
     final normalized = directory.trim();
     if (normalized.isEmpty) {
       throw const BackupDirectoryNotConfiguredException();
@@ -135,7 +188,16 @@ class AutomaticBackupService {
     if (!await storage.directoryExists(normalized)) {
       throw BackupDirectoryUnavailableException(normalized);
     }
-    await _writeSetting(_directoryKey, normalized);
+    final normalizedLabel = displayName?.trim();
+    await database.transaction(() async {
+      await _writeSetting(_directoryKey, normalized);
+      await _writeSetting(
+        _directoryLabelKey,
+        normalizedLabel == null || normalizedLabel.isEmpty
+            ? normalized
+            : normalizedLabel,
+      );
+    });
   }
 
   Future<void> enable() async {
@@ -164,11 +226,18 @@ class AutomaticBackupService {
     }
     final timestamp = now().toUtc();
     final payload = await codec.export();
-    final destination = await storage.write(
-      directory: directory,
-      fileName: 'hooptrace-backup-${_fileTimestamp(timestamp)}.json',
-      bytes: Uint8List.fromList(utf8.encode(payload)),
-    );
+    late final String destination;
+    try {
+      destination = await storage.write(
+        directory: directory,
+        fileName: 'hooptrace-backup-${_fileTimestamp(timestamp)}.json',
+        bytes: Uint8List.fromList(utf8.encode(payload)),
+      );
+    } on AutomaticBackupException {
+      rethrow;
+    } on Object {
+      throw const AutomaticBackupWriteException();
+    }
     await database.transaction(() async {
       await _writeSetting(
         _lastBackupAtKey,

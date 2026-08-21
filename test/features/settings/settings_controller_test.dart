@@ -50,7 +50,10 @@ void main() {
 
   test('enabling prompts for and stores a directory before first backup',
       () async {
-    gateway.pickedDirectory = '/approved';
+    gateway.pickedDirectory = const BackupDirectorySelection(
+      reference: '/approved',
+      displayName: 'Approved backups',
+    );
     storage.availableDirectories.add('/approved');
     await controller.load();
 
@@ -58,6 +61,7 @@ void main() {
 
     expect(controller.backupState.enabled, isTrue);
     expect(controller.backupState.directory, '/approved');
+    expect(controller.backupState.directoryLabel, 'Approved backups');
     expect(storage.writeCount, 1);
   });
 
@@ -85,13 +89,13 @@ void main() {
 }
 
 class _Gateway implements ExportGateway {
-  String? pickedDirectory;
+  BackupDirectorySelection? pickedDirectory;
 
   @override
   Future<ExportArtifact?> pickBackup() async => null;
 
   @override
-  Future<String?> pickDirectory() async => pickedDirectory;
+  Future<BackupDirectorySelection?> pickDirectory() async => pickedDirectory;
 
   @override
   Future<void> share(

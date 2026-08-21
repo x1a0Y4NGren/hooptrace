@@ -387,16 +387,25 @@ class JsonBackupCodec {
         'Rule template ${template.id} has invalid score buttons.',
       );
     }
-    final customEvents = _decodeJson(
+    final customEventMetadata = _decodeJson(
       'Rule template ${template.id} custom events',
       template.customEventTypesJson,
     );
+    final customEvents = switch (customEventMetadata) {
+      final List<dynamic> values => values,
+      final Map<String, dynamic> metadata => metadata['eventTypes'],
+      _ => null,
+    };
+    final possessionHint = customEventMetadata is Map<String, dynamic>
+        ? customEventMetadata['possessionHintEnabled']
+        : false;
     if (customEvents is! List<dynamic> ||
         customEvents.any(
           (value) => value is! String || value.trim().isEmpty,
-        )) {
+        ) ||
+        possessionHint is! bool) {
       throw BackupValidationException(
-        'Rule template ${template.id} has invalid custom events.',
+        'Rule template ${template.id} has invalid custom event metadata.',
       );
     }
   }

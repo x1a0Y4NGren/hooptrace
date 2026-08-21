@@ -38,7 +38,7 @@ abstract interface class ExportGateway {
 
   Future<ExportArtifact?> pickBackup();
 
-  Future<String?> pickDirectory();
+  Future<BackupDirectorySelection?> pickDirectory();
 }
 
 class ExportCoordinator {
@@ -126,7 +126,8 @@ class ExportCoordinator {
     );
   }
 
-  Future<String?> pickBackupDirectory() => gateway.pickDirectory();
+  Future<BackupDirectorySelection?> pickBackupDirectory() =>
+      gateway.pickDirectory();
 
   static List<PlayerStatisticsRow> _buildPlayerStatistics(
     List<Matche> matches,

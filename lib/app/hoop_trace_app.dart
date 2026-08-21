@@ -15,6 +15,7 @@ import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/device_export_gateway.dart';
+import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 
@@ -47,11 +48,16 @@ class _HoopTraceAppState extends State<HoopTraceApp> {
       _database,
       appVersion: hoopTraceAppVersion,
     );
-    _automaticBackup = AutomaticBackupService(_database, backupCodec);
+    final backupStorage = DeviceAutomaticBackupStorage();
+    _automaticBackup = AutomaticBackupService(
+      _database,
+      backupCodec,
+      storage: backupStorage,
+    );
     _exports = ExportCoordinator(
       _database,
       backupCodec,
-      gateway: const DeviceExportGateway(),
+      gateway: DeviceExportGateway(backupStorage: backupStorage),
       automaticBackup: _automaticBackup,
     );
     unawaited(_initializeLocalServices());

@@ -1,13 +1,18 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:hooptrace/core/export/automatic_backup_service.dart';
+import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 class DeviceExportGateway implements ExportGateway {
-  const DeviceExportGateway();
+  DeviceExportGateway({DeviceAutomaticBackupStorage? backupStorage})
+      : backupStorage = backupStorage ?? DeviceAutomaticBackupStorage();
+
+  final DeviceAutomaticBackupStorage backupStorage;
 
   @override
   Future<ExportArtifact?> pickBackup() async {
@@ -32,9 +37,15 @@ class DeviceExportGateway implements ExportGateway {
   }
 
   @override
-  Future<String?> pickDirectory() {
-    return FilePicker.platform.getDirectoryPath(
+  Future<BackupDirectorySelection?> pickDirectory() async {
+    if (Platform.isAndroid) return backupStorage.pickDirectory();
+    final directory = await FilePicker.platform.getDirectoryPath(
       dialogTitle: '选择自动备份文件夹',
+    );
+    if (directory == null) return null;
+    return BackupDirectorySelection(
+      reference: directory,
+      displayName: directory,
     );
   }
 

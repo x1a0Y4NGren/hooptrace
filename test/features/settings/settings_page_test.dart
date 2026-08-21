@@ -58,7 +58,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.shareCalls, 1);
 
-    gateway.pickedDirectory = '/approved';
+    gateway.pickedDirectory = const BackupDirectorySelection(
+      reference: '/approved',
+      displayName: 'HoopTrace backups',
+    );
     await tester
         .ensureVisible(find.byKey(const Key('automatic-backup-switch')));
     await tester.tap(find.byKey(const Key('automatic-backup-switch')));
@@ -69,14 +72,14 @@ void main() {
 }
 
 class _Gateway implements ExportGateway {
-  String? pickedDirectory;
+  BackupDirectorySelection? pickedDirectory;
   int shareCalls = 0;
 
   @override
   Future<ExportArtifact?> pickBackup() async => null;
 
   @override
-  Future<String?> pickDirectory() async => pickedDirectory;
+  Future<BackupDirectorySelection?> pickDirectory() async => pickedDirectory;
 
   @override
   Future<void> share(

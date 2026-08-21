@@ -158,7 +158,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       _SettingTile(
                         icon: Icons.folder_outlined,
                         title: '备份位置',
-                        subtitle: backup.directory ?? '未选择，只会访问你明确选择的文件夹',
+                        subtitle: backup.directoryLabel ??
+                            backup.directory ??
+                            '未选择，只会访问你明确选择的文件夹',
                         enabled: !controller.busy,
                         onTap: _configureDirectory,
                       ),
@@ -336,6 +338,9 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     if (error is BackupDirectoryUnavailableException) {
       return '所选文件夹当前不可写，请重新选择';
+    }
+    if (error is AutomaticBackupWriteException) {
+      return '备份写入失败，请重新选择备份文件夹后再试';
     }
     if (error is BackupRestoreBlockedException) {
       return '请先结束正在进行的比赛';
