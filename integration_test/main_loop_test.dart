@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
@@ -29,13 +30,18 @@ void main() {
       find.byKey(const Key('pregame-blue-name')),
       blueName,
     );
+    await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(find.text(pregameStartMatchText));
     await tester.tap(find.text(pregameStartMatchText));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await _pumpUntilLandscape(tester);
 
     await tester.tap(find.byKey(const Key('red-score-2')));
     await _pumpUntilFound(tester, find.text(scoringMarkShotDialogTitle));
-    await tester.tap(find.text(scoringMarkText));
+    final markButton = find.widgetWithText(FilledButton, scoringMarkText);
+    await tester.ensureVisible(markButton);
+    await tester.tap(markButton);
     await _pumpUntilFound(tester, find.byKey(const Key('confirm-location')));
     await tester.tap(find.byKey(const Key('confirm-location')));
     await tester.pump(const Duration(milliseconds: 300));
@@ -69,6 +75,24 @@ void main() {
     expect(find.byKey(const Key('replay-finish-match')), findsNothing);
     expect(tester.takeException(), isNull);
   });
+}
+
+Future<void> _pumpUntilLandscape(
+  WidgetTester tester, {
+  int attempts = 150,
+}) async {
+  for (var attempt = 0; attempt < attempts; attempt++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    final physicalSize = tester.view.physicalSize;
+    if (physicalSize.width > physicalSize.height) {
+      await tester.pump(const Duration(milliseconds: 250));
+      return;
+    }
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+  }
+  fail('Timed out waiting for the scoring view to enter landscape.');
 }
 
 Future<void> _pumpUntilFound(
