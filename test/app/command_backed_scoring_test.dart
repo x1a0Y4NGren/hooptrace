@@ -13,6 +13,12 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(3000, 1080));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 500));
+      await database.close();
+      await tester.pump(const Duration(seconds: 1));
+    });
     await tester.pumpWidget(HoopTraceApp(database: database));
     await _pumpUntilFound(tester, find.text('开始计分'));
 
@@ -29,7 +35,9 @@ void main() {
     await tester.tap(find.text('不标记'));
 
     for (var attempt = 0; attempt < 100; attempt++) {
-      await tester.pump(const Duration(milliseconds: 20));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
       final commandReceipts = await (database.select(
         database.auditLogs,
       )..where((row) => row.action.equals('command'))).get();
@@ -49,7 +57,10 @@ void main() {
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
   for (var attempt = 0; attempt < 100; attempt++) {
     await tester.pump(const Duration(milliseconds: 20));
-    if (finder.evaluate().isNotEmpty) return;
+    if (finder.evaluate().isNotEmpty) {
+      await tester.pumpAndSettle();
+      return;
+    }
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 5)),
     );

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
@@ -136,7 +139,7 @@ class _ScoringPageState extends State<ScoringPage> {
                           fouls: state.blueFouls,
                           onScore: (points) =>
                               _scoreAndAskLocation(TeamSide.blue, points),
-                          onFoul: () => _controller.addFoul(TeamSide.blue),
+                          onFoul: () => _handleFoul(TeamSide.blue),
                           scoreButtons: state.ruleTemplate.scoreButtons,
                         ),
                       ),
@@ -160,7 +163,7 @@ class _ScoringPageState extends State<ScoringPage> {
                           fouls: state.redFouls,
                           onScore: (points) =>
                               _scoreAndAskLocation(TeamSide.red, points),
-                          onFoul: () => _controller.addFoul(TeamSide.red),
+                          onFoul: () => _handleFoul(TeamSide.red),
                           scoreButtons: state.ruleTemplate.scoreButtons,
                         ),
                       ),
@@ -213,14 +216,16 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _scoreAndAskLocation(TeamSide side, int points) async {
-    final accepted = _controller.addScore(side: side, points: points);
+    final accepted = await _recordScore(side, points);
     if (!accepted) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text(scoringResolvePendingText)));
       return;
     }
 
+    if (!mounted) return;
     final markLocation = await showDialog<bool>(
       context: context,
       builder: (context) {
@@ -243,6 +248,45 @@ class _ScoringPageState extends State<ScoringPage> {
 
     if (markLocation == false) {
       _controller.skipPendingLocation();
+    }
+  }
+
+  Future<bool> _recordScore(TeamSide side, int points) async {
+    try {
+      if (_controller.isCommandBacked) {
+        return await _controller.recordScoreCommitted(
+          side: side,
+          points: points,
+        );
+      }
+      return _controller.addScore(side: side, points: points);
+    } on MatchCommandFailure catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+      }
+      return false;
+    }
+  }
+
+  void _handleFoul(TeamSide side) {
+    if (!_controller.isCommandBacked) {
+      _controller.addFoul(side);
+      return;
+    }
+    unawaited(_commitFoul(side));
+  }
+
+  Future<void> _commitFoul(TeamSide side) async {
+    try {
+      await _controller.recordFoulCommitted(side);
+    } on MatchCommandFailure catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+      }
     }
   }
 

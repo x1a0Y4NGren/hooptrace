@@ -19,6 +19,7 @@ import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 
@@ -227,6 +228,19 @@ Widget _buildScoringPage(
   required String matchId,
   required MatchSetup? setup,
 }) {
+  if (matchSessions.isCommandBacked) {
+    return _CommittedScoringRoute(
+      matchSessions: matchSessions,
+      matchId: matchId,
+      setup: setup,
+      onOpenReplay: () async {
+        await matchSessions.saveCurrent(matchId);
+        if (context.mounted) {
+          await context.push('/matches/$matchId/replay');
+        }
+      },
+    );
+  }
   final controller = setup == null
       ? matchSessions.controllerFor(matchId)
       : matchSessions.beginMatch(setup);
@@ -243,6 +257,63 @@ Widget _buildScoringPage(
       }
     },
   );
+}
+
+class _CommittedScoringRoute extends StatefulWidget {
+  const _CommittedScoringRoute({
+    required this.matchSessions,
+    required this.matchId,
+    required this.setup,
+    required this.onOpenReplay,
+  });
+
+  final MatchSessionCoordinator matchSessions;
+  final String matchId;
+  final MatchSetup? setup;
+  final VoidCallback onOpenReplay;
+
+  @override
+  State<_CommittedScoringRoute> createState() => _CommittedScoringRouteState();
+}
+
+class _CommittedScoringRouteState extends State<_CommittedScoringRoute> {
+  late final Future<ScoringController?> _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.setup == null
+        ? widget.matchSessions.loadCommitted(widget.matchId)
+        : widget.matchSessions.startCommitted(widget.setup!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<ScoringController?>(
+      future: _controller,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const _RouteMessage(
+            title: '无法开始比赛',
+            message: '比赛数据未提交，请返回后重试。',
+          );
+        }
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final controller = snapshot.data;
+        if (controller == null) {
+          return const _RouteMessage(title: '比赛未在进行中', message: '请从主页开始一场新比赛。');
+        }
+        return ScoringPage(
+          controller: controller,
+          onOpenReplay: widget.onOpenReplay,
+        );
+      },
+    );
+  }
 }
 
 class _HistoryRoute extends StatelessWidget {

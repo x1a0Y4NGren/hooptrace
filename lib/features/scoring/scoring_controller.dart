@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/rules/rule_engine.dart';
@@ -106,24 +110,109 @@ class MatchScoringState {
 }
 
 class ScoringController extends ChangeNotifier {
-  ScoringController({String? matchId, MatchSetup? setup})
-    : _state = MatchScoringState(
-        matchId: setup?.matchId ?? matchId ?? 'match-local',
-        redName: setup?.redName ?? defaultRedPlayerName,
-        blueName: setup?.blueName ?? defaultBluePlayerName,
-        events: const [],
-        score: const ScoreState.zero(),
-        shotLocations: const [],
-        ruleTemplate: _ruleTemplateFromSetup(setup),
-      );
+  ScoringController({
+    String? matchId,
+    MatchSetup? setup,
+    MatchCommandService? commandService,
+    MatchDetail? committedProjection,
+  }) : _commandService = commandService,
+       _state = committedProjection == null
+           ? MatchScoringState(
+               matchId: setup?.matchId ?? matchId ?? 'match-local',
+               redName: setup?.redName ?? defaultRedPlayerName,
+               blueName: setup?.blueName ?? defaultBluePlayerName,
+               events: const [],
+               score: const ScoreState.zero(),
+               shotLocations: const [],
+               ruleTemplate: _ruleTemplateFromSetup(setup),
+             )
+           : _stateFromProjection(committedProjection);
 
+  factory ScoringController.fromCommittedProjection(
+    MatchDetail projection,
+    MatchCommandService commandService,
+  ) {
+    return ScoringController(
+      commandService: commandService,
+      committedProjection: projection,
+    );
+  }
+
+  final MatchCommandService? _commandService;
   final ScoringReducer _reducer = ScoringReducer();
   final RuleEngine _ruleEngine = RuleEngine();
   MatchScoringState _state;
 
   MatchScoringState get state => _state;
 
+  bool get isCommandBacked => _commandService != null;
+
+  Future<bool> recordScoreCommitted({
+    required TeamSide side,
+    required int points,
+  }) async {
+    final service = _commandService;
+    if (service == null) {
+      return addScore(side: side, points: points);
+    }
+    if (_state.pendingLocation != null) {
+      return false;
+    }
+    final projection = await service.record(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        side: side,
+        points: points,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
+    _replaceFromProjection(projection);
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> recordFoulCommitted(TeamSide side) async {
+    final service = _commandService;
+    if (service == null) {
+      addFoul(side);
+      return;
+    }
+    final projection = await service.record(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.foul,
+        side: side,
+        points: 0,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
+    _replaceFromProjection(projection);
+    notifyListeners();
+  }
+
+  Future<void> undoLastEventCommitted() async {
+    final service = _commandService;
+    if (service == null) {
+      undoLastEvent();
+      return;
+    }
+    if (_state.events.isEmpty) return;
+    final projection = await service.undo(
+      UndoMatchEventCommand(
+        matchId: _state.matchId,
+        eventId: _state.events.last.id,
+        reason: 'Scoring UI undo',
+      ),
+    );
+    _replaceFromProjection(projection);
+    notifyListeners();
+  }
+
   bool addScore({required TeamSide side, required int points}) {
+    if (isCommandBacked) {
+      unawaited(recordScoreCommitted(side: side, points: points));
+      return true;
+    }
     if (_state.pendingLocation != null) {
       return false;
     }
@@ -219,6 +308,10 @@ class ScoringController extends ChangeNotifier {
   }
 
   void addFoul(TeamSide side) {
+    if (isCommandBacked) {
+      unawaited(recordFoulCommitted(side));
+      return;
+    }
     final event = MatchEvent(
       id: '${_state.matchId}-event-${_state.events.length + 1}',
       matchId: _state.matchId,
@@ -258,6 +351,45 @@ class ScoringController extends ChangeNotifier {
           : null,
       winByTwo: setup?.winByTwo ?? false,
     );
+  }
+
+  static MatchScoringState _stateFromProjection(MatchDetail projection) {
+    final events = List<MatchEvent>.unmodifiable(projection.events);
+    final locations = <ScoringShotLocation>[];
+    for (final location in projection.shotLocations) {
+      final event = events
+          .where((item) => item.id == location.eventId)
+          .firstOrNull;
+      if (event?.side == null) continue;
+      locations.add(
+        ScoringShotLocation(
+          id: location.id,
+          eventId: location.eventId,
+          side: event!.side!,
+          points: event.points,
+          point: location.point,
+          isLocked: location.isConfirmed,
+        ),
+      );
+    }
+    return MatchScoringState(
+      matchId: projection.match.id,
+      redName: projection.match.redName,
+      blueName: projection.match.blueName,
+      events: events,
+      score: ScoreState(
+        redScore: projection.redScore,
+        blueScore: projection.blueScore,
+      ),
+      shotLocations: List.unmodifiable(locations),
+      ruleTemplate: projection.match.ruleTemplateSnapshot,
+      redFouls: projection.redFouls,
+      blueFouls: projection.blueFouls,
+    );
+  }
+
+  void _replaceFromProjection(MatchDetail projection) {
+    _state = _stateFromProjection(projection);
   }
 
   static ({int red, int blue}) _countFouls(List<MatchEvent> events) {

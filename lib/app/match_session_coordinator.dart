@@ -1,29 +1,43 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/entities/match.dart';
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 
-/// Legacy in-memory coordinator retained for the pre-1.0 UI bridge.
+/// Coordinates scoring routes while keeping the old snapshot adapter
+/// available for compatibility tests and non-production callers.
 ///
-/// New consumers must compose [MatchCommandService] and read committed Drift
-/// projections; this coordinator is not a command-service fallback.
-@Deprecated('Use MatchCommandService and committed Drift projections.')
+/// The production app supplies [commandService], which makes every scoring
+/// mutation command-backed and only updates its controller from a committed
+/// [MatchDetail] projection.
 class MatchSessionCoordinator extends ChangeNotifier {
-  MatchSessionCoordinator(this._repository);
+  MatchSessionCoordinator(
+    this._repository, {
+    MatchCommandService? commandService,
+  }) : _commandService = commandService;
 
   final MatchRepository _repository;
+  final MatchCommandService? _commandService;
   final Map<String, _ActiveSession> _sessions = {};
   final Set<String> _finishedMatches = {};
 
   MatchRepository get repository => _repository;
 
+  bool get isCommandBacked => _commandService != null;
+
   bool get hasActiveMatch => _sessions.keys.any(isActive);
 
   ScoringController beginMatch(MatchSetup setup) {
+    if (isCommandBacked) {
+      throw StateError(
+        'Command-backed sessions must be started with startCommitted.',
+      );
+    }
     final existing = _sessions[setup.matchId];
     if (existing != null) {
       return existing.controller;
@@ -53,6 +67,88 @@ class MatchSessionCoordinator extends ChangeNotifier {
     return controller;
   }
 
+  Future<ScoringController> startCommitted(MatchSetup setup) async {
+    final service = _commandService;
+    if (service == null) {
+      return beginMatch(setup);
+    }
+    final now = DateTime.now().toUtc();
+    final command = StartMatchCommand(
+      matchId: setup.matchId,
+      redName: setup.redName,
+      blueName: setup.blueName,
+      ruleTemplate: RuleTemplate(
+        id: setup.ruleTemplateId,
+        name: setup.ruleTemplateName ?? setup.ruleTemplateId,
+        scoreButtons: List.unmodifiable(setup.scoreButtons),
+        targetScore: setup.targetScore,
+        timeLimitSeconds: setup.timerEnabled
+            ? setup.timeLimitMinutes * 60
+            : null,
+        winByTwo: setup.winByTwo,
+        foulLimit: setup.foulLimit,
+        possessionHintEnabled: setup.possessionHintEnabled,
+        customEventTypes: List.unmodifiable(setup.customEventTypes),
+      ),
+      timerEnabled: setup.timerEnabled,
+      createdAt: now,
+      startedAt: now,
+    );
+    final projection = await service.start(command);
+    final controller = ScoringController.fromCommittedProjection(
+      projection,
+      service,
+    );
+    _sessions[setup.matchId] = _ActiveSession(
+      setup: setup,
+      startedAt: now,
+      controller: controller,
+    );
+    return controller;
+  }
+
+  Future<ScoringController?> loadCommitted(String matchId) async {
+    final service = _commandService;
+    if (service == null) {
+      return controllerFor(matchId);
+    }
+    final existing = _sessions[matchId];
+    if (existing != null) return existing.controller;
+    final projection = await _repository.getMatchDetail(matchId);
+    if (projection == null ||
+        projection.match.lifecycle != MatchLifecycle.active) {
+      return null;
+    }
+    final controller = ScoringController.fromCommittedProjection(
+      projection,
+      service,
+    );
+    _sessions[matchId] = _ActiveSession(
+      setup: MatchSetup(
+        matchId: matchId,
+        redName: projection.match.redName,
+        blueName: projection.match.blueName,
+        ruleTemplateId: projection.match.ruleTemplateSnapshot.id,
+        ruleTemplateName: projection.match.ruleTemplateSnapshot.name,
+        targetScore: projection.match.ruleTemplateSnapshot.targetScore,
+        timerEnabled: projection.match.timerEnabled,
+        timeLimitMinutes:
+            (projection.match.ruleTemplateSnapshot.timeLimitSeconds ?? 600) ~/
+            60,
+        winByTwo: projection.match.ruleTemplateSnapshot.winByTwo,
+        scoreButtons: projection.match.ruleTemplateSnapshot.scoreButtons,
+        foulLimit: projection.match.ruleTemplateSnapshot.foulLimit,
+        possessionHintEnabled:
+            projection.match.ruleTemplateSnapshot.possessionHintEnabled,
+        customEventTypes:
+            projection.match.ruleTemplateSnapshot.customEventTypes,
+      ),
+      startedAt: projection.match.startedAt ?? projection.match.createdAt,
+      controller: controller,
+    );
+    return controller;
+  }
+
   ScoringController? controllerFor(String matchId) {
     return _sessions[matchId]?.controller;
   }
@@ -63,6 +159,7 @@ class MatchSessionCoordinator extends ChangeNotifier {
   }
 
   Future<void> saveCurrent(String matchId) async {
+    if (isCommandBacked) return;
     if (_finishedMatches.contains(matchId)) return;
     final session = _sessions[matchId];
     if (session == null) {
@@ -73,6 +170,15 @@ class MatchSessionCoordinator extends ChangeNotifier {
   }
 
   Future<void> finishMatch(String matchId) async {
+    if (isCommandBacked) {
+      final service = _commandService!;
+      await service.finish(
+        FinishMatchCommand(matchId: matchId, endedAt: DateTime.now().toUtc()),
+      );
+      _finishedMatches.add(matchId);
+      notifyListeners();
+      return;
+    }
     final session = _sessions[matchId];
     if (session != null) {
       _scheduleSnapshot(session);

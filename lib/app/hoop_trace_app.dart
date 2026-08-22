@@ -10,6 +10,7 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/match_session_coordinator.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/app_database_provider.dart';
+import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
@@ -42,7 +43,11 @@ class _HoopTraceAppState extends State<HoopTraceApp> {
     super.initState();
     _ownsDatabase = widget.database == null;
     _database = widget.database ?? openAppDatabase();
-    _matchSessions = MatchSessionCoordinator(MatchRepository(_database));
+    final commandService = MatchCommandService(_database);
+    _matchSessions = MatchSessionCoordinator(
+      MatchRepository(_database),
+      commandService: commandService,
+    );
     _ruleTemplates = RuleTemplateRepository(_database);
     final backupCodec = JsonBackupCodec(
       _database,
