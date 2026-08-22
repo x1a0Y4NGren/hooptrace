@@ -6,6 +6,7 @@ import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/entities/match_event.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/export/backup_manifest.dart';
 
@@ -253,7 +254,7 @@ class JsonBackupCodec {
     if (data.keys.toSet().difference(expected).isNotEmpty ||
         expected.difference(data.keys.toSet()).isNotEmpty) {
       throw const BackupValidationException(
-        'Backup must contain exactly the eight persisted table groups.',
+        'Backup must contain exactly the eleven persisted table groups.',
       );
     }
     if (manifest.recordCounts.keys.toSet().difference(expected).isNotEmpty ||
@@ -283,6 +284,7 @@ class JsonBackupCodec {
     required List<AppSetting> settings,
   }) {
     final matchIds = _uniqueIds('matches', matches.map((row) => row.id));
+    final matchesById = {for (final match in matches) match.id: match};
     _uniqueIds('matchParticipants', participants.map((row) => row.id));
     _uniqueIds('matchClocks', clocks.map((row) => row.id));
     _uniqueIds('activeSessions', activeSessions.map((row) => row.id));
@@ -295,9 +297,13 @@ class JsonBackupCodec {
     _uniqueIds('appSettings', settings.map((row) => row.key));
 
     if (activeSessions.length > 1 ||
-        (activeSessions.isNotEmpty && activeSessions.single.id != 'active')) {
+        (activeSessions.isNotEmpty &&
+            (activeSessions.single.id != 'active' ||
+                !matchIds.contains(activeSessions.single.matchId) ||
+                matchesById[activeSessions.single.matchId]?.lifecycle !=
+                    domain_match.MatchLifecycle.active.name))) {
       throw const BackupValidationException(
-        'Backup contains more than one active session.',
+        'Backup contains an invalid active session graph.',
       );
     }
 
@@ -322,6 +328,23 @@ class JsonBackupCodec {
         );
       }
     }
+    for (final matchId in matchIds) {
+      final sides = participants
+          .where((participant) => participant.matchId == matchId)
+          .map((participant) => participant.side)
+          .toSet();
+      if (sides.length != 2 ||
+          !sides.contains('red') ||
+          !sides.contains('blue')) {
+        throw BackupValidationException(
+          'Match $matchId must contain exactly one red and one blue participant.',
+        );
+      }
+    }
+    for (final match in matches) {
+      _validateMatch(match);
+    }
+    final clocksByMatch = <String, String>{};
     for (final clock in clocks) {
       if (!matchIds.contains(clock.matchId) ||
           !{'countUp', 'countdown'}.contains(clock.mode) ||
@@ -336,10 +359,12 @@ class JsonBackupCodec {
           'Clock ${clock.id} contains invalid references or values.',
         );
       }
-    }
-
-    for (final match in matches) {
-      _validateMatch(match);
+      if (clocksByMatch.containsKey(clock.matchId)) {
+        throw BackupValidationException(
+          'Match ${clock.matchId} contains more than one clock.',
+        );
+      }
+      clocksByMatch[clock.matchId] = clock.id;
     }
 
     for (final event in events) {
@@ -404,6 +429,7 @@ class JsonBackupCodec {
           : eventsById[possession.endedAtEventId];
       if (!matchIds.contains(possession.matchId) ||
           !_enumNames(TeamSide.values).contains(possession.side) ||
+          !_enumNames(PossessionSource.values).contains(possession.source) ||
           start == null ||
           start.matchId != possession.matchId ||
           (possession.endedAtEventId != null &&

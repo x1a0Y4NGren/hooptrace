@@ -52,4 +52,103 @@ void main() {
       );
     },
   );
+
+  test(
+    'shot event combinations preserve missed free throws and field goals',
+    () {
+      final missedFreeThrow = MatchEvent(
+        id: 'free-throw-missed',
+        matchId: 'match-1',
+        type: MatchEventType.freeThrow,
+        side: TeamSide.red,
+        points: 0,
+        outcome: ShotOutcome.missed,
+        occurredAt: DateTime.utc(2026, 5, 12, 12),
+      );
+      final missedFieldGoal = MatchEvent(
+        id: 'field-goal-missed',
+        matchId: 'match-1',
+        type: MatchEventType.fieldGoal,
+        side: TeamSide.blue,
+        points: 0,
+        outcome: ShotOutcome.missed,
+        occurredAt: DateTime.utc(2026, 5, 12, 12),
+      );
+
+      expect(missedFreeThrow.points, 0);
+      expect(missedFieldGoal.outcome, ShotOutcome.missed);
+    },
+  );
+
+  test('shot event combinations reject ambiguous or impossible attempts', () {
+    MatchEvent event({
+      required MatchEventType type,
+      TeamSide? side = TeamSide.red,
+      required int points,
+      ShotOutcome? outcome,
+    }) => MatchEvent(
+      id: '$type-$points-${outcome ?? 'none'}',
+      matchId: 'match-1',
+      type: type,
+      side: side,
+      points: points,
+      outcome: outcome,
+      occurredAt: DateTime.utc(2026, 5, 12, 12),
+    );
+
+    expect(
+      () => event(
+        type: MatchEventType.freeThrow,
+        points: 0,
+        outcome: ShotOutcome.made,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => event(
+        type: MatchEventType.freeThrow,
+        side: null,
+        points: 0,
+        outcome: ShotOutcome.missed,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => event(
+        type: MatchEventType.fieldGoal,
+        points: 0,
+        outcome: ShotOutcome.made,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => event(
+        type: MatchEventType.fieldGoal,
+        points: 2,
+        outcome: ShotOutcome.missed,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => event(type: MatchEventType.fieldGoal, points: 2, outcome: null),
+      throwsArgumentError,
+    );
+    expect(
+      () => event(
+        type: MatchEventType.miss,
+        side: null,
+        points: 0,
+        outcome: ShotOutcome.missed,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => event(
+        type: MatchEventType.miss,
+        points: 2,
+        outcome: ShotOutcome.missed,
+      ),
+      throwsArgumentError,
+    );
+  });
 }

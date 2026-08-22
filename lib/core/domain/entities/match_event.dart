@@ -20,18 +20,43 @@ class MatchEvent {
     String? customType,
     this.isDeleted = false,
   }) : customLabel = _normalizeLabel(customLabel ?? customType) {
-    if (type == EventKind.score || type == EventKind.fieldGoal) {
-      if (side == null) {
-        throw ArgumentError('Score events require a side.');
-      }
-      if ((outcome ?? ShotOutcome.made) == ShotOutcome.made && points <= 0) {
-        throw ArgumentError('Score points must be positive.');
-      }
-    }
-    if (type == EventKind.freeThrow && (side == null || points <= 0)) {
-      throw ArgumentError(
-        'Free-throw events require a side and positive points.',
-      );
+    switch (type) {
+      case EventKind.score:
+        if (side == null || points <= 0) {
+          throw ArgumentError('Score events require a side and points.');
+        }
+      case EventKind.fieldGoal:
+        if (side == null || outcome == null) {
+          throw ArgumentError(
+            'Field-goal events require a side and shot outcome.',
+          );
+        }
+        if (outcome == ShotOutcome.made && points <= 0) {
+          throw ArgumentError('Made field goals require positive points.');
+        }
+        if (outcome == ShotOutcome.missed && points != 0) {
+          throw ArgumentError('Missed field goals must have zero points.');
+        }
+      case EventKind.freeThrow:
+        if (side == null || outcome == null) {
+          throw ArgumentError(
+            'Free-throw events require a side and shot outcome.',
+          );
+        }
+        if (outcome == ShotOutcome.made && points <= 0) {
+          throw ArgumentError('Made free throws require positive points.');
+        }
+        if (outcome == ShotOutcome.missed && points != 0) {
+          throw ArgumentError('Missed free throws must have zero points.');
+        }
+      case EventKind.miss:
+        if (side == null || points != 0) {
+          throw ArgumentError(
+            'Legacy miss events require a side and zero points.',
+          );
+        }
+      default:
+        break;
     }
     if (matchClockPositionSeconds != null && matchClockPositionSeconds! < 0) {
       throw ArgumentError('Match-clock positions cannot be negative.');

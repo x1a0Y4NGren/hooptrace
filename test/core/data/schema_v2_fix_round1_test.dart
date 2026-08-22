@@ -227,7 +227,59 @@ void main() {
       expect(
         database
             .into(database.matchEvents)
-            .insert(event(type: EventKind.freeThrow.name, side: 'red')),
+            .insert(
+              event(
+                type: EventKind.freeThrow.name,
+                side: 'red',
+                outcome: 'missed',
+              ),
+            ),
+        completes,
+      );
+      expect(
+        database
+            .into(database.matchEvents)
+            .insert(
+              event(
+                type: EventKind.freeThrow.name,
+                side: 'red',
+                outcome: 'made',
+              ),
+            ),
+        throwsException,
+      );
+      expect(
+        database
+            .into(database.matchEvents)
+            .insert(
+              event(
+                type: EventKind.fieldGoal.name,
+                side: 'red',
+                points: 0,
+                outcome: 'made',
+              ),
+            ),
+        throwsException,
+      );
+      expect(
+        database
+            .into(database.matchEvents)
+            .insert(
+              event(
+                type: EventKind.fieldGoal.name,
+                side: 'red',
+                points: 2,
+                outcome: 'missed',
+              ),
+            ),
+        throwsException,
+      );
+      expect(
+        database
+            .into(database.matchEvents)
+            .insert(
+              event(type: EventKind.fieldGoal.name, side: 'red', points: 2),
+            ),
         throwsException,
       );
       expect(
@@ -346,6 +398,16 @@ void main() {
             ),
           );
       await source
+          .into(source.matchParticipants)
+          .insert(
+            MatchParticipantsCompanion.insert(
+              id: 'participant-2',
+              matchId: 'match-1',
+              side: 'blue',
+              nameSnapshot: 'Blue',
+            ),
+          );
+      await source
           .into(source.matchClocks)
           .insert(
             MatchClocksCompanion.insert(
@@ -374,7 +436,7 @@ void main() {
       await JsonBackupCodec(destination, appVersion: '1.0.0').restore(exported);
       expect(
         await destination.select(destination.matchParticipants).get(),
-        hasLength(1),
+        hasLength(2),
       );
       expect(
         await destination.select(destination.matchClocks).get(),

@@ -215,6 +215,61 @@ void main() {
       },
     );
 
+    test(
+      'rejects a backup with a missing participant before replacement',
+      () async {
+        await _expectGraphRejected((document) {
+          final data = document['data'] as Map<String, dynamic>;
+          (data['matchParticipants'] as List<dynamic>).removeLast();
+          _setRecordCount(document, 'matchParticipants', 1);
+        });
+      },
+    );
+
+    test(
+      'rejects an active session for a non-active match before replacement',
+      () async {
+        await _expectGraphRejected((document) {
+          final data = document['data'] as Map<String, dynamic>;
+          (data['activeSessions'] as List<dynamic>).add({
+            'id': 'active',
+            'matchId': 'match-1',
+            'claimedAtUtc': '2026-07-18T08:00:00.000Z',
+          });
+          _setRecordCount(document, 'activeSessions', 1);
+        });
+      },
+    );
+
+    test('rejects an orphan clock before replacement', () async {
+      await _expectGraphRejected((document) {
+        final data = document['data'] as Map<String, dynamic>;
+        (data['matchClocks'] as List<dynamic>).add({
+          'id': 'clock-orphan',
+          'matchId': 'missing-match',
+          'mode': 'countUp',
+          'phase': 'regulation',
+          'accumulatedSeconds': 0,
+          'runningSinceUtc': null,
+          'regulationSeconds': null,
+        });
+        _setRecordCount(document, 'matchClocks', 1);
+      });
+    });
+
+    test(
+      'rejects a possession whose match disagrees with its events',
+      () async {
+        await _expectGraphRejected((document) {
+          final data = document['data'] as Map<String, dynamic>;
+          final possession =
+              (data['possessionSegments'] as List<dynamic>).single
+                  as Map<String, dynamic>;
+          possession['matchId'] = 'missing-match';
+        });
+      },
+    );
+
     test('rolls back replacement when a database write fails', () async {
       final exported = await withTestDatabase((source) async {
         await _seedCompleteBackup(source);
@@ -253,6 +308,55 @@ void main() {
       expect(matches.map((match) => match.id), ['keep-me']);
     });
   });
+}
+
+Future<void> _expectGraphRejected(
+  void Function(Map<String, dynamic> document) mutate,
+) async {
+  final exported = await withTestDatabase((source) async {
+    await _seedCompleteBackup(source);
+    return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
+  });
+  final document = jsonDecode(exported) as Map<String, dynamic>;
+  mutate(document);
+  _refreshChecksum(document);
+
+  final destination = createTestDatabase();
+  await destination
+      .into(destination.matches)
+      .insert(
+        Matche(
+          id: 'keep-me',
+          lifecycle: 'active',
+          recordingMode: 'simple',
+          trackingCoverage: 'scoresOnly',
+          ruleTemplateJson: '{}',
+          createdAt: DateTime.utc(2026, 7, 17),
+          startedAt: null,
+          endedAt: null,
+          timerEnabled: false,
+          note: null,
+        ),
+      );
+
+  await expectLater(
+    JsonBackupCodec(
+      destination,
+      appVersion: '0.1.0+1',
+    ).restore(jsonEncode(document)),
+    throwsA(isA<BackupValidationException>()),
+  );
+  expect(
+    (await destination.select(destination.matches).get()).single.id,
+    'keep-me',
+  );
+  expect(await destination.select(destination.matchEvents).get(), isEmpty);
+}
+
+void _setRecordCount(Map<String, dynamic> document, String table, int count) {
+  final manifest = document['manifest'] as Map<String, dynamic>;
+  final counts = manifest['recordCounts'] as Map<String, dynamic>;
+  counts[table] = count;
 }
 
 void _refreshChecksum(Map<String, dynamic> document) {
