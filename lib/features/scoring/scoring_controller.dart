@@ -181,13 +181,14 @@ class ScoringController extends ChangeNotifier {
     }
   }
 
-  Future<void> recordFoulCommitted(TeamSide side) async {
+  Future<bool> recordFoulCommitted(TeamSide side) async {
     final service = _commandService;
     if (service == null) {
+      if (_state.pendingLocation != null) return false;
       addFoul(side);
-      return;
+      return true;
     }
-    if (_commandBusy) return;
+    if (_commandBusy || _state.pendingLocation != null) return false;
     _commandBusy = true;
     try {
       final projection = await service.record(
@@ -201,6 +202,7 @@ class ScoringController extends ChangeNotifier {
       );
       _replaceFromProjection(projection);
       notifyListeners();
+      return true;
     } finally {
       _commandBusy = false;
     }
@@ -338,12 +340,13 @@ class ScoringController extends ChangeNotifier {
     }
   }
 
-  void skipPendingLocation() {
-    if (_state.pendingLocation == null) {
-      return;
+  bool skipPendingLocation() {
+    if (_state.pendingLocation == null || _commandBusy) {
+      return false;
     }
     _state = _state.copyWith(clearPendingLocation: true);
     notifyListeners();
+    return true;
   }
 
   void undoLastEvent() {

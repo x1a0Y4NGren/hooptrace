@@ -332,4 +332,43 @@ void main() {
       expect(await database.select(database.shotLocations).get(), hasLength(1));
     });
   });
+
+  testWidgets('production foul button rejects a pending shot', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final start = await service.start(
+        StartMatchCommand(
+          commandId: 'page-foul-start-command',
+          matchId: 'page-foul-match',
+          redName: 'Red',
+          blueName: 'Blue',
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: 'Free',
+            scoreButtons: [1, 2, 3],
+          ),
+          createdAt: DateTime.utc(2026, 8, 23, 9),
+          startedAt: DateTime.utc(2026, 8, 23, 9),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      await tester.pump();
+
+      await tester.tap(find.text(foulText).first);
+      await tester.pump();
+
+      expect(find.text(scoringResolvePendingText), findsOneWidget);
+      expect(await database.select(database.matchEvents).get(), hasLength(1));
+    });
+  });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
@@ -256,6 +257,65 @@ void main() {
         )..where((row) => row.id.equals(failure!.command.commandId))).get();
         expect(receipts, hasLength(1));
         expect(receipts.single.action, AuditAction.command.name);
+      });
+    },
+  );
+
+  test(
+    'pending location cannot be skipped while confirmation command is in flight',
+    () async {
+      await withTestDatabase((database) async {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        var beforeCommitCalls = 0;
+        final service = MatchCommandService(
+          database,
+          failureInjector: (point) async {
+            if (point == MatchCommandFailurePoint.beforeCommit &&
+                beforeCommitCalls++ == 2) {
+              entered.complete();
+              await release.future;
+            }
+          },
+        );
+        final start = await _startCommandBackedMatch(service);
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+
+        final confirmation = controller.confirmPendingLocation();
+        await entered.future;
+
+        expect(controller.skipPendingLocation(), isFalse);
+        expect(controller.state.pendingLocation, isNotNull);
+
+        release.complete();
+        await confirmation;
+        expect(controller.state.pendingLocation, isNull);
+      });
+    },
+  );
+
+  test(
+    'pending location rejects foul and undo then soft-deletes the shot',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await _startCommandBackedMatch(service);
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await controller.recordScoreCommitted(side: TeamSide.blue, points: 3);
+
+        expect(await controller.recordFoulCommitted(TeamSide.red), isFalse);
+        expect(await database.select(database.matchEvents).get(), hasLength(1));
+
+        await controller.undoLastEventCommitted();
+        final event = await database.select(database.matchEvents).getSingle();
+        expect(event.isDeleted, isTrue);
       });
     },
   );

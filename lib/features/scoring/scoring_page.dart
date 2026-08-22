@@ -180,7 +180,7 @@ class _ScoringPageState extends State<ScoringPage> {
                           onConfirm: () {
                             unawaited(_confirmPendingLocation());
                           },
-                          onSkip: _controller.skipPendingLocation,
+                          onSkip: _skipPendingLocation,
                           onUndo: () {
                             unawaited(_undoPendingEvent());
                           },
@@ -274,6 +274,10 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   void _handleFoul(TeamSide side) {
+    if (_controller.state.pendingLocation != null) {
+      _showPendingLocationMessage();
+      return;
+    }
     if (!_controller.isCommandBacked) {
       _controller.addFoul(side);
       return;
@@ -283,10 +287,27 @@ class _ScoringPageState extends State<ScoringPage> {
 
   Future<void> _commitFoul(TeamSide side) async {
     try {
-      await _controller.recordFoulCommitted(side);
+      final accepted = await _controller.recordFoulCommitted(side);
+      if (!accepted && _controller.state.pendingLocation != null) {
+        _showPendingLocationMessage();
+      }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
     }
+  }
+
+  void _skipPendingLocation() {
+    if (!_controller.skipPendingLocation() &&
+        _controller.state.pendingLocation != null) {
+      _showPendingLocationMessage();
+    }
+  }
+
+  void _showPendingLocationMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text(scoringResolvePendingText)));
   }
 
   Future<void> _confirmPendingLocation() async {
