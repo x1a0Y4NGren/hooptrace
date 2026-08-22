@@ -407,12 +407,17 @@ class AbandonMatchCommand extends MatchCommand {
 
 typedef StartCommand = StartMatchCommand;
 typedef RecordCommand = RecordMatchEventCommand;
+typedef RecordEventCommand = RecordMatchEventCommand;
 typedef CorrectCommand = CorrectMatchEventCommand;
+typedef CorrectEventCommand = CorrectMatchEventCommand;
 typedef UndoCommand = UndoMatchEventCommand;
+typedef UndoEventCommand = UndoMatchEventCommand;
 typedef PauseCommand = PauseMatchCommand;
 typedef ResumeCommand = ResumeMatchCommand;
 typedef FinishCommand = FinishMatchCommand;
 typedef AbandonCommand = AbandonMatchCommand;
+typedef MatchProjection = MatchDetail;
+typedef CommittedMatchProjection = MatchDetail;
 
 /// Base typed failure returned by every command operation.
 class MatchCommandFailure implements Exception {
@@ -433,6 +438,12 @@ class MatchCommandFailure implements Exception {
   final StackTrace? stackTrace;
   MatchDetail? lastCommittedProjection;
   Future<MatchDetail> Function()? _retryAction;
+
+  MatchDetail? get projection => lastCommittedProjection;
+
+  bool get retryable => canRetry;
+
+  MatchCommand get immutableCommand => command;
 
   Future<MatchDetail> retry() {
     if (!canRetry || _retryAction == null) {
@@ -481,6 +492,9 @@ class CommandTransactionFailure extends MatchCommandFailure {
     super.projectionMatchId,
   }) : super(canRetry: true);
 }
+
+typedef MatchCommandException = MatchCommandFailure;
+typedef CommandFailure = MatchCommandFailure;
 
 class MatchCommandService {
   MatchCommandService(
@@ -769,6 +783,29 @@ class MatchCommandService {
   Future<MatchDetail> abandon(AbandonMatchCommand command) {
     return _complete(command, MatchLifecycle.abandoned);
   }
+
+  // Named aliases keep the command boundary easy to discover for consumers
+  // while all paths still execute through the same transactional methods.
+  Future<MatchDetail> startMatch(StartMatchCommand command) => start(command);
+
+  Future<MatchDetail> recordEvent(RecordMatchEventCommand command) =>
+      record(command);
+
+  Future<MatchDetail> correctEvent(CorrectMatchEventCommand command) =>
+      correct(command);
+
+  Future<MatchDetail> undoEvent(UndoMatchEventCommand command) => undo(command);
+
+  Future<MatchDetail> pauseMatch(PauseMatchCommand command) => pause(command);
+
+  Future<MatchDetail> resumeMatch(ResumeMatchCommand command) =>
+      resume(command);
+
+  Future<MatchDetail> finishMatch(FinishMatchCommand command) =>
+      finish(command);
+
+  Future<MatchDetail> abandonMatch(AbandonMatchCommand command) =>
+      abandon(command);
 
   Future<MatchDetail> _recordSemantic(
     MatchCommand command, {
