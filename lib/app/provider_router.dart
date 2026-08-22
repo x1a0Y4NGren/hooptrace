@@ -23,6 +23,48 @@ import 'package:hooptrace/features/rules/rule_template_list_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
+enum LeaveScoringAction { keep, pause }
+
+enum LeaveClockTransition { unknown, noCommand, resume, pause }
+
+/// The action-time snapshot is a separate provider edge so tests and future
+/// platform lifecycle hooks can force an unresolved state without replacing
+/// the live scoring projection used to render the page.
+final leaveScoringProjectionProvider =
+    Provider.family<AsyncValue<MatchDetail?>, String>(
+      (ref, matchId) => ref.watch(liveMatchProvider(matchId)),
+    );
+
+/// Maps a settled active projection to the command, if any, needed before
+/// leaving scoring. An unresolved projection deliberately fails closed so a
+/// stale or missing clock cannot silently navigate away from the match.
+LeaveClockTransition leaveClockTransitionFor(
+  AsyncValue<MatchDetail?> state,
+  LeaveScoringAction action,
+) {
+  if (state.isLoading || state.hasError || !state.hasValue) {
+    return LeaveClockTransition.unknown;
+  }
+  final projection = state.valueOrNull;
+  if (projection == null || projection.match.lifecycle.name != 'active') {
+    return LeaveClockTransition.unknown;
+  }
+  if (!projection.match.timerEnabled) {
+    return LeaveClockTransition.noCommand;
+  }
+  final clock = projection.clock;
+  if (clock == null) {
+    return LeaveClockTransition.unknown;
+  }
+  final isRunning = clock.isRunning;
+  return switch (action) {
+    LeaveScoringAction.keep =>
+      isRunning ? LeaveClockTransition.noCommand : LeaveClockTransition.resume,
+    LeaveScoringAction.pause =>
+      isRunning ? LeaveClockTransition.pause : LeaveClockTransition.noCommand,
+  };
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = buildProviderAppRouter();
   ref.onDispose(router.dispose);
@@ -562,23 +604,32 @@ Future<void> _leaveScoring(
   );
   if (action != 'keep' && action != 'pause') return;
 
+  final transition = leaveClockTransitionFor(
+    ref.read(leaveScoringProjectionProvider(matchId)),
+    action == 'keep' ? LeaveScoringAction.keep : LeaveScoringAction.pause,
+  );
+  if (transition == LeaveClockTransition.unknown) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('无法确认计时状态，请留在比赛中重试。')));
+    }
+    return;
+  }
+
   // The live projection is the durable source of truth for this decision.
   // In particular, do not issue a second pause to an already-paused match:
   // the command layer correctly rejects that duplicate semantic command.
-  final projection = ref.read(liveMatchProvider(matchId)).valueOrNull;
-  final timerEnabled = projection?.match.timerEnabled == true;
-  final clock = projection?.clock;
-  final isRunning = clock?.isRunning == true;
   final commandService = ref.read(matchCommandServiceProvider);
   try {
-    if (action == 'keep' && timerEnabled && clock != null && !isRunning) {
+    if (transition == LeaveClockTransition.resume) {
       await commandService.resume(
         ResumeMatchCommand(
           matchId: matchId,
           occurredAt: DateTime.now().toUtc(),
         ),
       );
-    } else if (action == 'pause' && timerEnabled && isRunning) {
+    } else if (transition == LeaveClockTransition.pause) {
       await commandService.pause(
         PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
       );
