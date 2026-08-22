@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/entities/clock_state.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -36,6 +39,54 @@ void main() {
             .accumulatedSeconds,
         0,
       );
+    },
+  );
+
+  test(
+    'running clock command receipt round-trips persisted and normalized states',
+    () async {
+      final database = createTestDatabase();
+      final startedAt = _anchor;
+      final projectedAt = _anchor.add(const Duration(seconds: 5));
+      await MatchCommandService(database, now: () => startedAt).start(
+        _start(timerEnabled: true),
+      );
+      final command = RecordMatchEventCommand(
+        commandId: 'clock-receipt-round-trip',
+        matchId: 'match-clock',
+        eventId: 'clock-receipt-event',
+        side: TeamSide.red,
+        points: 1,
+        occurredAt: projectedAt,
+      );
+      final first = await MatchCommandService(
+        database,
+        now: () => projectedAt,
+      ).record(command);
+      final receipt = await (database.select(database.auditLogs)
+            ..where((row) => row.id.equals(command.commandId)))
+          .getSingle();
+      final receiptAfter = jsonDecode(receipt.afterJson) as Map<String, Object?>;
+      final receiptClock =
+          (receiptAfter['projection'] as Map<String, Object?>)['clock']
+              as Map<String, Object?>;
+      expect(receiptClock['state'], isA<Map>());
+      expect(receiptClock['normalizedState'], isA<Map>());
+      expect(
+        (receiptClock['state'] as Map<String, Object?>)['accumulatedSeconds'],
+        0,
+      );
+      expect(
+        (receiptClock['normalizedState'] as Map<String, Object?>)
+            ['accumulatedSeconds'],
+        5,
+      );
+
+      final duplicate = await MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 30)),
+      ).record(command);
+      _expectClockProjectionEqual(first.clock!, duplicate.clock!);
     },
   );
 
@@ -829,6 +880,29 @@ Future<MatchCommandFailure> _captureFailure(
   } on MatchCommandFailure catch (failure) {
     return failure;
   }
+}
+
+void _expectClockProjectionEqual(ClockProjection expected, ClockProjection actual) {
+  _expectClockStateEqual(expected.state, actual.state);
+  _expectClockStateEqual(expected.normalizedState, actual.normalizedState);
+  expect(actual.nowUtc, expected.nowUtc);
+  expect(actual.elapsedSeconds, expected.elapsedSeconds);
+  expect(actual.displaySeconds, expected.displaySeconds);
+  expect(actual.phase, expected.phase);
+  expect(actual.remainingSeconds, expected.remainingSeconds);
+  expect(actual.recoveryReason, expected.recoveryReason);
+  expect(actual.recoveryMessage, expected.recoveryMessage);
+  expect(actual.requiresPersistence, expected.requiresPersistence);
+}
+
+void _expectClockStateEqual(ClockState expected, ClockState actual) {
+  expect(actual.id, expected.id);
+  expect(actual.matchId, expected.matchId);
+  expect(actual.mode, expected.mode);
+  expect(actual.phase, expected.phase);
+  expect(actual.accumulatedSeconds, expected.accumulatedSeconds);
+  expect(actual.runningSinceUtc, expected.runningSinceUtc);
+  expect(actual.regulationSeconds, expected.regulationSeconds);
 }
 
 StartMatchCommand _start({
