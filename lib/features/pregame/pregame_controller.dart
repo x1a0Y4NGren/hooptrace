@@ -1,7 +1,30 @@
+import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 
 const defaultRedPlayerName = '红方';
 const defaultBluePlayerName = '蓝方';
+
+/// The validation vocabulary used by both the pre-game controller and the
+/// start surface. Keeping the errors typed means the widget can provide
+/// localized copy without guessing from exception strings.
+enum PregameValidationError {
+  redParticipantRequired,
+  blueParticipantRequired,
+  duplicatePlayerProfile,
+  redPlayerProfileMissing,
+  bluePlayerProfileMissing,
+  recordingModeRequired,
+  invalidCountdownDuration,
+}
+
+class PregameValidationResult {
+  const PregameValidationResult(this.errors);
+
+  final List<PregameValidationError> errors;
+
+  bool get isValid => errors.isEmpty;
+}
 
 class MatchSetup {
   const MatchSetup({
@@ -18,11 +41,18 @@ class MatchSetup {
     this.foulLimit,
     this.possessionHintEnabled = false,
     this.customEventTypes = const [],
+    this.redPlayerProfileId,
+    this.bluePlayerProfileId,
+    this.recordingMode,
+    this.trackingCoverage = TrackingCoverage.scoresOnly,
+    this.clockMode = ClockMode.countUp,
   });
 
   final String matchId;
   final String redName;
   final String blueName;
+  final String? redPlayerProfileId;
+  final String? bluePlayerProfileId;
   final String ruleTemplateId;
   final String? ruleTemplateName;
   final int? targetScore;
@@ -33,47 +63,79 @@ class MatchSetup {
   final int? foulLimit;
   final bool possessionHintEnabled;
   final List<String> customEventTypes;
+  final RecordingMode? recordingMode;
+  final TrackingCoverage trackingCoverage;
+  final ClockMode clockMode;
 }
 
 class PregameState {
   const PregameState({
     this.redName = defaultRedPlayerName,
     this.blueName = defaultBluePlayerName,
+    this.redPlayerProfileId,
+    this.bluePlayerProfileId,
     this.ruleTemplateId = 'free',
     this.timerEnabled = false,
+    this.clockMode = ClockMode.countUp,
     this.targetScore = 11,
     this.timeLimitMinutes = 10,
     this.winByTwo = false,
+    this.recordingMode,
+    this.trackingCoverage = TrackingCoverage.scoresOnly,
     this.advancedExpanded = false,
   });
 
   final String redName;
   final String blueName;
+  final String? redPlayerProfileId;
+  final String? bluePlayerProfileId;
   final String ruleTemplateId;
   final bool timerEnabled;
+  final ClockMode clockMode;
   final int targetScore;
   final int timeLimitMinutes;
   final bool winByTwo;
+  final RecordingMode? recordingMode;
+  final TrackingCoverage trackingCoverage;
   final bool advancedExpanded;
 
   PregameState copyWith({
     String? redName,
     String? blueName,
+    String? redPlayerProfileId,
+    String? bluePlayerProfileId,
+    bool clearRedPlayerProfileId = false,
+    bool clearBluePlayerProfileId = false,
     String? ruleTemplateId,
     bool? timerEnabled,
+    ClockMode? clockMode,
     int? targetScore,
     int? timeLimitMinutes,
     bool? winByTwo,
+    RecordingMode? recordingMode,
+    bool clearRecordingMode = false,
+    TrackingCoverage? trackingCoverage,
     bool? advancedExpanded,
   }) {
     return PregameState(
       redName: redName ?? this.redName,
       blueName: blueName ?? this.blueName,
+      redPlayerProfileId: clearRedPlayerProfileId
+          ? null
+          : redPlayerProfileId ?? this.redPlayerProfileId,
+      bluePlayerProfileId: clearBluePlayerProfileId
+          ? null
+          : bluePlayerProfileId ?? this.bluePlayerProfileId,
       ruleTemplateId: ruleTemplateId ?? this.ruleTemplateId,
       timerEnabled: timerEnabled ?? this.timerEnabled,
+      clockMode: clockMode ?? this.clockMode,
       targetScore: targetScore ?? this.targetScore,
       timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
       winByTwo: winByTwo ?? this.winByTwo,
+      recordingMode: clearRecordingMode
+          ? null
+          : recordingMode ?? this.recordingMode,
+      trackingCoverage: trackingCoverage ?? this.trackingCoverage,
       advancedExpanded: advancedExpanded ?? this.advancedExpanded,
     );
   }
@@ -83,13 +145,18 @@ class PregameController {
   PregameController({
     PregameState state = const PregameState(),
     List<RuleTemplate> templates = const [],
+    List<Player> players = const [],
   }) : _state = state,
-       _templates = List.of(templates);
+       _templates = List.of(templates),
+       _players = List.of(players);
 
   PregameState _state;
   List<RuleTemplate> _templates;
+  List<Player> _players;
 
   PregameState get state => _state;
+
+  List<Player> get players => List.unmodifiable(_players);
 
   void setTemplates(List<RuleTemplate> templates) {
     _templates = List.of(templates);
@@ -100,16 +167,45 @@ class PregameController {
     if (fallback != null) setRuleTemplateId(fallback.id);
   }
 
+  /// Updates the available profile list without changing already selected
+  /// name snapshots. A match records what was shown at start, not a live
+  /// nickname lookup.
+  void setPlayers(List<Player> players) {
+    _players = List.of(players);
+  }
+
   void setRedName(String value) {
     _state = _state.copyWith(
       redName: _fallbackName(value, defaultRedPlayerName),
+      clearRedPlayerProfileId: true,
     );
   }
 
   void setBlueName(String value) {
     _state = _state.copyWith(
       blueName: _fallbackName(value, defaultBluePlayerName),
+      clearBluePlayerProfileId: true,
     );
+  }
+
+  /// Selects a stable profile for the red side. A false return means the
+  /// selection was not applied (unknown profile or already used by blue).
+  bool selectRedProfile(String? profileId) {
+    return _selectProfile(profileId, red: true);
+  }
+
+  /// Selects a stable profile for the blue side. A false return means the
+  /// selection was not applied (unknown profile or already used by red).
+  bool selectBlueProfile(String? profileId) {
+    return _selectProfile(profileId, red: false);
+  }
+
+  bool setRedPlayerProfile(Player? player) {
+    return selectRedProfile(player?.id);
+  }
+
+  bool setBluePlayerProfile(Player? player) {
+    return selectBlueProfile(player?.id);
   }
 
   void setRuleTemplateId(String value) {
@@ -118,6 +214,9 @@ class PregameController {
       ruleTemplateId: value,
       targetScore: selected?.targetScore ?? _state.targetScore,
       timerEnabled: selected?.timeLimitSeconds != null,
+      clockMode: selected?.timeLimitSeconds != null
+          ? ClockMode.countdown
+          : ClockMode.countUp,
       timeLimitMinutes: selected?.timeLimitSeconds == null
           ? _state.timeLimitMinutes
           : selected!.timeLimitSeconds! ~/ 60,
@@ -125,8 +224,27 @@ class PregameController {
     );
   }
 
+  void setRecordingMode(RecordingMode value) {
+    _state = _state.copyWith(recordingMode: value);
+  }
+
+  void clearRecordingMode() {
+    _state = _state.copyWith(clearRecordingMode: true);
+  }
+
+  void setTrackingCoverage(TrackingCoverage value) {
+    _state = _state.copyWith(trackingCoverage: value);
+  }
+
+  void setClockMode(ClockMode value) {
+    _state = _state.copyWith(
+      clockMode: value,
+      timerEnabled: value == ClockMode.countdown,
+    );
+  }
+
   void setTimerEnabled(bool value) {
-    _state = _state.copyWith(timerEnabled: value);
+    setClockMode(value ? ClockMode.countdown : ClockMode.countUp);
   }
 
   void setWinByTwo(bool value) {
@@ -145,6 +263,36 @@ class PregameController {
     _state = _state.copyWith(advancedExpanded: value);
   }
 
+  PregameValidationResult validate() {
+    final errors = <PregameValidationError>[];
+    if (_state.redName.trim().isEmpty) {
+      errors.add(PregameValidationError.redParticipantRequired);
+    }
+    if (_state.blueName.trim().isEmpty) {
+      errors.add(PregameValidationError.blueParticipantRequired);
+    }
+    if (_state.redPlayerProfileId != null &&
+        _state.redPlayerProfileId == _state.bluePlayerProfileId) {
+      errors.add(PregameValidationError.duplicatePlayerProfile);
+    }
+    if (_state.redPlayerProfileId != null &&
+        _findPlayer(_state.redPlayerProfileId!) == null) {
+      errors.add(PregameValidationError.redPlayerProfileMissing);
+    }
+    if (_state.bluePlayerProfileId != null &&
+        _findPlayer(_state.bluePlayerProfileId!) == null) {
+      errors.add(PregameValidationError.bluePlayerProfileMissing);
+    }
+    if (_state.recordingMode == null) {
+      errors.add(PregameValidationError.recordingModeRequired);
+    }
+    if (_state.clockMode == ClockMode.countdown &&
+        (_state.timeLimitMinutes < 1 || _state.timeLimitMinutes > 180)) {
+      errors.add(PregameValidationError.invalidCountdownDuration);
+    }
+    return PregameValidationResult(List.unmodifiable(errors));
+  }
+
   MatchSetup createMatchSetup() {
     final selected = _templates
         .where((item) => item.id == _state.ruleTemplateId)
@@ -153,17 +301,51 @@ class PregameController {
       matchId: 'match-${DateTime.now().microsecondsSinceEpoch}',
       redName: _state.redName,
       blueName: _state.blueName,
+      redPlayerProfileId: _state.redPlayerProfileId,
+      bluePlayerProfileId: _state.bluePlayerProfileId,
       ruleTemplateId: _state.ruleTemplateId,
       ruleTemplateName: selected?.name,
       targetScore: selected == null ? _state.targetScore : selected.targetScore,
-      timerEnabled: _state.timerEnabled,
+      timerEnabled: _state.clockMode == ClockMode.countdown,
       timeLimitMinutes: _state.timeLimitMinutes,
       winByTwo: _state.winByTwo,
       scoreButtons: selected?.scoreButtons ?? const [1, 2, 3],
       foulLimit: selected?.foulLimit,
       possessionHintEnabled: selected?.possessionHintEnabled ?? false,
       customEventTypes: selected?.customEventTypes ?? const [],
+      recordingMode: _state.recordingMode,
+      trackingCoverage: _state.trackingCoverage,
+      clockMode: _state.clockMode,
     );
+  }
+
+  bool _selectProfile(String? profileId, {required bool red}) {
+    if (profileId == null) {
+      _state = red
+          ? _state.copyWith(clearRedPlayerProfileId: true)
+          : _state.copyWith(clearBluePlayerProfileId: true);
+      return true;
+    }
+    final player = _findPlayer(profileId);
+    if (player == null) return false;
+    final otherId = red
+        ? _state.bluePlayerProfileId
+        : _state.redPlayerProfileId;
+    if (otherId == profileId) return false;
+    _state = red
+        ? _state.copyWith(
+            redName: player.nickname,
+            redPlayerProfileId: player.id,
+          )
+        : _state.copyWith(
+            blueName: player.nickname,
+            bluePlayerProfileId: player.id,
+          );
+    return true;
+  }
+
+  Player? _findPlayer(String id) {
+    return _players.where((player) => player.id == id).firstOrNull;
   }
 
   static String _fallbackName(String value, String fallback) {

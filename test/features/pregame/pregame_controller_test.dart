@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
+import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
 void main() {
@@ -38,5 +40,132 @@ void main() {
     final setup = controller.createMatchSetup();
 
     expect(setup.targetScore, isNull);
+  });
+
+  test('profile selection stores the profile id and current name snapshot', () {
+    final player = Player(
+      id: 'player-red',
+      nickname: 'Old Red',
+      createdAt: DateTime.utc(2026, 8, 23),
+    );
+    final controller = PregameController(players: [player]);
+
+    expect(controller.selectRedProfile(player.id), isTrue);
+
+    final setup = controller.createMatchSetup();
+    expect(setup.redPlayerProfileId, player.id);
+    expect(setup.redName, 'Old Red');
+  });
+
+  test('the same profile cannot be selected for both sides', () {
+    final player = Player(
+      id: 'player-1',
+      nickname: 'Player One',
+      createdAt: DateTime.utc(2026, 8, 23),
+    );
+    final controller = PregameController(players: [player]);
+
+    expect(controller.selectRedProfile(player.id), isTrue);
+    expect(controller.selectBlueProfile(player.id), isFalse);
+    expect(controller.state.bluePlayerProfileId, isNull);
+    expect(
+      controller.validate().errors,
+      isNot(contains(PregameValidationError.duplicatePlayerProfile)),
+    );
+  });
+
+  test('duplicate temporary names remain valid because sides are explicit', () {
+    final controller = PregameController()
+      ..setRedName('Alex')
+      ..setBlueName('Alex')
+      ..setRecordingMode(RecordingMode.simple);
+
+    final result = controller.validate();
+
+    expect(result.isValid, isTrue);
+    expect(controller.createMatchSetup().redPlayerProfileId, isNull);
+    expect(controller.createMatchSetup().bluePlayerProfileId, isNull);
+  });
+
+  test('every match requires an explicit recording mode', () {
+    final controller = PregameController();
+
+    expect(
+      controller.validate().errors,
+      contains(PregameValidationError.recordingModeRequired),
+    );
+
+    controller.setRecordingMode(RecordingMode.detailed);
+    expect(
+      controller.validate().errors,
+      isNot(contains(PregameValidationError.recordingModeRequired)),
+    );
+  });
+
+  test('countdown requires a positive duration within the supported range', () {
+    final controller = PregameController(
+      state: const PregameState(
+        clockMode: ClockMode.countdown,
+        timeLimitMinutes: 0,
+        recordingMode: RecordingMode.simple,
+      ),
+    );
+
+    expect(
+      controller.validate().errors,
+      contains(PregameValidationError.invalidCountdownDuration),
+    );
+
+    controller.setTimeLimitMinutes(15);
+    expect(
+      controller.validate().errors,
+      isNot(contains(PregameValidationError.invalidCountdownDuration)),
+    );
+  });
+
+  test('changing a selected profile to a temporary name clears its id', () {
+    final player = Player(
+      id: 'player-red',
+      nickname: 'Profile Name',
+      createdAt: DateTime.utc(2026, 8, 23),
+    );
+    final controller = PregameController(players: [player]);
+
+    controller.selectRedProfile(player.id);
+    controller.setRedName('Temporary Red');
+
+    expect(controller.state.redPlayerProfileId, isNull);
+    expect(controller.state.redName, 'Temporary Red');
+  });
+
+  test('selected profile snapshot does not follow later profile rename', () {
+    final original = Player(
+      id: 'player-red',
+      nickname: 'Before Rename',
+      createdAt: DateTime.utc(2026, 8, 23),
+    );
+    final controller = PregameController(players: [original])
+      ..selectRedProfile(original.id)
+      ..setRecordingMode(RecordingMode.simple);
+
+    controller.setPlayers([
+      Player(
+        id: original.id,
+        nickname: 'After Rename',
+        createdAt: original.createdAt,
+      ),
+    ]);
+
+    final setup = controller.createMatchSetup();
+    expect(setup.redPlayerProfileId, original.id);
+    expect(setup.redName, 'Before Rename');
+  });
+
+  test('unknown profile selections are rejected without changing the side', () {
+    final controller = PregameController();
+
+    expect(controller.selectRedProfile('missing'), isFalse);
+    expect(controller.state.redPlayerProfileId, isNull);
+    expect(controller.state.redName, defaultRedPlayerName);
   });
 }
