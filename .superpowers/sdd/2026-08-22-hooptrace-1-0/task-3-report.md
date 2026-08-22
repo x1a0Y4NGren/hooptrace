@@ -4,6 +4,9 @@
 
 - `7e1fd4c test: define schema v2 domain contract` — contract/invariant tests first.
 - `bee24c3 feat: establish schema v2 domain contract` — schema, domain records, generated Drift code, native bootstrap probe, and repository compatibility wiring.
+- `a1f4dbd test: cover schema v2 review fixes` — review-driven RED tests for native pre-open rejection, canonical participants/lifecycle, FK behavior, event triggers/audit, full v2 backup graph, and official schema export.
+- `7b5a026 fix: close schema v2 review gaps` — production/schema/export implementation, regenerated Drift code, and committed schema v2 dump.
+- `eed1163 chore: clear analyzer findings` — final analyzer/format cleanup.
 
 ## RED evidence
 
@@ -44,8 +47,39 @@ git diff --check
 - `lib/core/data/repositories/match_repository.dart`: canonical participant persistence, event extensions, and rule snapshot policy persistence while retaining v0.1 fixture compatibility.
 - `test/core/data/schema_v2_test.dart`: domain invariants, schema/table/index/FK integrity, participant/event cascade, shot-location cardinality and free-throw rejection, active-session singleton, and legacy schema guard.
 
+## Fix round 1 evidence
+
+The independent review identified nine important behavior gaps and three analyzer infos. Each behavior slice was added to `test/core/data/schema_v2_fix_round1_test.dart` before implementation; the first run was RED because `openNativeAppDatabaseAt` did not yet exist. After implementation:
+
+```text
+flutter test test/core/data/schema_v2_fix_round1_test.dart test/core/data/match_repository_test.dart test/core/export/json_backup_codec_test.dart --reporter expanded
+# 25 tests passed
+
+flutter test --reporter expanded
+# 135 tests passed, 0 failures
+
+flutter analyze
+# No issues found! (ran in 8.2s)
+
+dart run build_runner build --delete-conflicting-outputs
+# Built successfully; generated app_database.g.dart had zero diff
+
+dart run drift_dev schema dump lib/core/data/app_database.dart drift_schemas/drift_schema_v2.json
+# Wrote to drift_schemas/drift_schema_v2.json; committed dump had zero diff
+
+dart format --output=none --set-exit-if-changed lib test
+# exit 0; no tracked formatter diff
+
+git diff --check
+# clean
+git status --short
+# clean
+```
+
+The native test creates a real temporary SQLite file with `PRAGMA user_version = 1` and a sentinel row, verifies the typed rejection before Drift opens, and verifies both the pragma and sentinel remain unchanged. The app's production `openAppDatabase()` now uses the same raw setup probe against `getApplicationDocumentsDirectory()/hooptrace.sqlite`.
+
 ## Concerns / self-review
 
-- Existing v0.1 backup/repository fixtures construct generated `Matche` and possession rows directly. Generated data-class defaults were retained for these legacy constructors; rerunning build_runner will regenerate required constructor parameters, so the compatibility patch should be preserved or replaced with a source-level generator customization in a later maintenance pass.
-- Legacy red/blue columns remain as deprecated compatibility columns; participant rows are the canonical 1.0 ownership projection. A later backup/merge task should export/import the new participant, clock, and active-session graph explicitly.
-- `flutter analyze` reports only non-blocking style diagnostics in the schema/domain files; no analyzer errors remain.
+- Existing v0.1 backup/repository fixtures construct generated `Matche` and possession rows directly. Those fixtures were updated to provide the canonical lifecycle/participant fields, and `app_database.g.dart` was regenerated from source rather than hand-edited; a second generator run produced zero diff.
+- Domain constructor names/status remain only as compatibility inputs/getters; SQL and repository persistence use participant rows plus the single lifecycle column. The full v2 backup codec now exports/restores all eleven persisted table groups; Task 13 merge/retention/conflict policy remains intentionally out of scope.
+- Drift 2.34.0 and drift_dev 2.34.0 are pinned so the official schema dump is reproducible; `sqlite3` is a direct dev dependency for the real native pre-open test.
