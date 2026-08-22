@@ -483,6 +483,40 @@ class AbandonMatchCommand extends MatchCommand {
   };
 }
 
+/// Links a match-only participant to a stable player profile after the match
+/// is no longer active. The participant's name snapshot is intentionally not
+/// rewritten, so historical displays remain faithful to what was recorded.
+class LinkMatchParticipantCommand extends MatchCommand {
+  LinkMatchParticipantCommand({
+    super.commandId,
+    required this.matchId,
+    required this.participantId,
+    required this.playerProfileId,
+    this.reason,
+    String? auditId,
+  }) : auditId = auditId ?? _newUuid();
+
+  @override
+  final String matchId;
+  final String participantId;
+  final String playerProfileId;
+  final String? reason;
+  final String auditId;
+
+  @override
+  String get commandType => 'linkParticipant';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'participantId': participantId,
+    'playerProfileId': playerProfileId,
+    'reason': reason,
+    'auditId': auditId,
+  };
+}
+
 typedef StartCommand = StartMatchCommand;
 typedef RecordCommand = RecordMatchEventCommand;
 typedef RecordEventCommand = RecordMatchEventCommand;
@@ -501,6 +535,8 @@ typedef AcknowledgeDecisionCommand = ContinueMatchCommand;
 typedef MatchClockService = MatchCommandService;
 typedef FinishCommand = FinishMatchCommand;
 typedef AbandonCommand = AbandonMatchCommand;
+typedef LinkParticipantCommand = LinkMatchParticipantCommand;
+typedef LinkPlayerCommand = LinkMatchParticipantCommand;
 typedef MatchProjection = MatchDetail;
 typedef CommittedMatchProjection = MatchDetail;
 
@@ -1058,6 +1094,113 @@ class MatchCommandService {
     return _complete(command, MatchLifecycle.abandoned);
   }
 
+  Future<MatchDetail> linkParticipant(LinkMatchParticipantCommand command) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+
+        final match = await _matchRow(command.matchId);
+        if (match == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing match ${command.matchId}.',
+          );
+        }
+        final lifecycle = MatchLifecycle.values.byName(match.lifecycle);
+        if (lifecycle == MatchLifecycle.active ||
+            lifecycle == MatchLifecycle.draft) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Only completed matches can link participants.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (command.playerProfileId.trim().isEmpty) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'A player profile is required.',
+            projectionMatchId: command.matchId,
+          );
+        }
+
+        final participant = await _participantRow(
+          command.matchId,
+          command.participantId,
+        );
+        if (participant == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Participant does not belong to this match.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (participant.playerProfileId != null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'This participant is already linked to a profile.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (await _playerRow(command.playerProfileId) == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing player profile ${command.playerProfileId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final otherParticipants =
+            await (_database.select(_database.matchParticipants)..where(
+                  (row) =>
+                      row.matchId.equals(command.matchId) &
+                      row.playerProfileId.equals(command.playerProfileId) &
+                      row.id.isNotIn([command.participantId]),
+                ))
+                .get();
+        if (otherParticipants.isNotEmpty) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'That profile is already used by the other participant.',
+            projectionMatchId: command.matchId,
+          );
+        }
+
+        final before = _participantJson(participant);
+        await (_database.update(_database.matchParticipants)..where(
+              (row) =>
+                  row.id.equals(command.participantId) &
+                  row.matchId.equals(command.matchId),
+            ))
+            .write(
+              MatchParticipantsCompanion(
+                playerProfileId: Value(command.playerProfileId),
+              ),
+            );
+        final updated = await _participantRow(
+          command.matchId,
+          command.participantId,
+        );
+        if (updated == null) {
+          throw StateError('Linked participant disappeared before commit.');
+        }
+        await _writeAudit(
+          id: command.auditId,
+          matchId: command.matchId,
+          targetId: command.participantId,
+          action: 'link',
+          before: before,
+          after: _participantJson(updated),
+          reason: command.reason,
+        );
+        await _inject(MatchCommandFailurePoint.afterEventWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
   // Named aliases keep the command boundary easy to discover for consumers
   // while all paths still execute through the same transactional methods.
   Future<MatchDetail> startMatch(StartMatchCommand command) => start(command);
@@ -1086,6 +1229,10 @@ class MatchCommandService {
 
   Future<MatchDetail> abandonMatch(AbandonMatchCommand command) =>
       abandon(command);
+
+  Future<MatchDetail> linkMatchParticipant(
+    LinkMatchParticipantCommand command,
+  ) => linkParticipant(command);
 
   Future<MatchDetail> _recordSemantic(
     MatchCommand command, {
@@ -1567,6 +1714,17 @@ class MatchCommandService {
   Future<PlayerRow?> _playerRow(String id) {
     final query = _database.select(_database.players)
       ..where((row) => row.id.equals(id));
+    return query.getSingleOrNull();
+  }
+
+  Future<MatchParticipant?> _participantRow(
+    String matchId,
+    String participantId,
+  ) {
+    final query = _database.select(_database.matchParticipants)
+      ..where(
+        (row) => row.matchId.equals(matchId) & row.id.equals(participantId),
+      );
     return query.getSingleOrNull();
   }
 
@@ -2164,6 +2322,15 @@ class MatchCommandService {
       isDeleted: Value(event.isDeleted),
     );
   }
+
+  static Map<String, Object?> _participantJson(MatchParticipant row) =>
+      <String, Object?>{
+        'id': row.id,
+        'matchId': row.matchId,
+        'side': row.side,
+        'nameSnapshot': row.nameSnapshot,
+        'playerProfileId': row.playerProfileId,
+      };
 
   static Map<String, Object?> _eventJson(MatchEventRow row) =>
       <String, Object?>{
