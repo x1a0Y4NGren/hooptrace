@@ -64,8 +64,7 @@ class MatchRepository {
             ),
           );
 
-      // Participant rows are the canonical ownership projection. Legacy name
-      // columns above remain populated for v0.1 repository/backup fixtures.
+      // Participant rows are the sole canonical ownership projection.
       await (_database.delete(
         _database.matchParticipants,
       )..where((participant) => participant.matchId.equals(match.id))).go();

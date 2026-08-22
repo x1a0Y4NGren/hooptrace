@@ -119,7 +119,11 @@ class MatchEvents extends Table {
 
   @override
   List<String> get customConstraints => [
+    "CHECK (type IN ('score', 'fieldGoal', 'freeThrow', 'miss', 'foul', 'reward', 'pause', 'interruption', 'note', 'custom', 'possession'))",
+    "CHECK (side IS NULL OR side IN ('red', 'blue'))",
+    "CHECK (type NOT IN ('score', 'fieldGoal', 'freeThrow') OR side IS NOT NULL)",
     'CHECK (type != \'score\' OR (side IS NOT NULL AND points > 0))',
+    'CHECK (type != \'freeThrow\' OR points > 0)',
     'CHECK (outcome IS NULL OR outcome IN (\'made\', \'missed\', \'notApplicable\'))',
     'CHECK (match_clock_position_seconds IS NULL OR match_clock_position_seconds >= 0)',
     'CHECK (points >= 0)',

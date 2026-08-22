@@ -625,7 +625,11 @@
         "is_virtual": false,
         "without_rowid": false,
         "constraints": [
+          "CHECK (type IN ('score', 'fieldGoal', 'freeThrow', 'miss', 'foul', 'reward', 'pause', 'interruption', 'note', 'custom', 'possession'))",
+          "CHECK (side IS NULL OR side IN ('red', 'blue'))",
+          "CHECK (type NOT IN ('score', 'fieldGoal', 'freeThrow') OR side IS NOT NULL)",
           "CHECK (type != 'score' OR (side IS NOT NULL AND points > 0))",
+          "CHECK (type != 'freeThrow' OR points > 0)",
           "CHECK (outcome IS NULL OR outcome IN ('made', 'missed', 'notApplicable'))",
           "CHECK (match_clock_position_seconds IS NULL OR match_clock_position_seconds >= 0)",
           "CHECK (points >= 0)"
@@ -1223,7 +1227,7 @@
       "sql": [
         {
           "dialect": "sqlite",
-          "sql": "CREATE TABLE IF NOT EXISTS \"match_events\" (\"id\" TEXT NOT NULL, \"match_id\" TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE, \"type\" TEXT NOT NULL, \"side\" TEXT NULL, \"points\" INTEGER NOT NULL DEFAULT 0, \"outcome\" TEXT NULL, \"match_clock_position_seconds\" INTEGER NULL, \"occurred_at\" INTEGER NOT NULL, \"note\" TEXT NULL, \"custom_label\" TEXT NULL, \"is_deleted\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_deleted\" IN (0, 1)), PRIMARY KEY (\"id\"), CHECK (type != 'score' OR (side IS NOT NULL AND points > 0)), CHECK (outcome IS NULL OR outcome IN ('made', 'missed', 'notApplicable')), CHECK (match_clock_position_seconds IS NULL OR match_clock_position_seconds >= 0), CHECK (points >= 0));"
+          "sql": "CREATE TABLE IF NOT EXISTS \"match_events\" (\"id\" TEXT NOT NULL, \"match_id\" TEXT NOT NULL REFERENCES matches (id) ON DELETE CASCADE, \"type\" TEXT NOT NULL, \"side\" TEXT NULL, \"points\" INTEGER NOT NULL DEFAULT 0, \"outcome\" TEXT NULL, \"match_clock_position_seconds\" INTEGER NULL, \"occurred_at\" INTEGER NOT NULL, \"note\" TEXT NULL, \"custom_label\" TEXT NULL, \"is_deleted\" INTEGER NOT NULL DEFAULT 0 CHECK (\"is_deleted\" IN (0, 1)), PRIMARY KEY (\"id\"), CHECK (type IN ('score', 'fieldGoal', 'freeThrow', 'miss', 'foul', 'reward', 'pause', 'interruption', 'note', 'custom', 'possession')), CHECK (side IS NULL OR side IN ('red', 'blue')), CHECK (type NOT IN ('score', 'fieldGoal', 'freeThrow') OR side IS NOT NULL), CHECK (type != 'score' OR (side IS NOT NULL AND points > 0)), CHECK (type != 'freeThrow' OR points > 0), CHECK (outcome IS NULL OR outcome IN ('made', 'missed', 'notApplicable')), CHECK (match_clock_position_seconds IS NULL OR match_clock_position_seconds >= 0), CHECK (points >= 0));"
         }
       ]
     },

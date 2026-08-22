@@ -184,6 +184,62 @@ void main() {
   );
 
   test(
+    'event persistence rejects unknown vocabulary and illegal free throws',
+    () async {
+      final database = createTestDatabase();
+      await database
+          .into(database.matches)
+          .insert(
+            MatchesCompanion.insert(
+              id: 'match-1',
+              ruleTemplateJson: '{}',
+              createdAt: DateTime.utc(2026),
+            ),
+          );
+
+      MatchEventsCompanion event({
+        required String type,
+        String? side,
+        int points = 0,
+        String? outcome,
+      }) => MatchEventsCompanion.insert(
+        id: '$type-${side ?? 'none'}-$points',
+        matchId: 'match-1',
+        type: type,
+        side: Value(side),
+        points: Value(points),
+        outcome: Value(outcome),
+        occurredAt: DateTime.utc(2026),
+      );
+
+      expect(
+        database.into(database.matchEvents).insert(event(type: 'green')),
+        throwsException,
+      );
+      expect(
+        database
+            .into(database.matchEvents)
+            .insert(
+              event(type: EventKind.score.name, side: 'green', points: 2),
+            ),
+        throwsException,
+      );
+      expect(
+        database
+            .into(database.matchEvents)
+            .insert(event(type: EventKind.freeThrow.name, side: 'red')),
+        throwsException,
+      );
+      expect(
+        database
+            .into(database.matchEvents)
+            .insert(event(type: EventKind.custom.name, outcome: 'unknown')),
+        throwsException,
+      );
+    },
+  );
+
+  test(
     'repository round-trips canonical custom label and audits event extensions',
     () async {
       final database = createTestDatabase();
