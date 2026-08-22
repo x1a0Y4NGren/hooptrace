@@ -68,8 +68,7 @@ void main() {
   });
 
   test('overtime projection is count-up from a zeroed persisted clock', () {
-    final projection = ClockEngine().project(
-      state: ClockState(
+    final state = ClockState(
         id: 'clock-4',
         matchId: 'match-4',
         mode: ClockMode.countdown,
@@ -77,7 +76,9 @@ void main() {
         accumulatedSeconds: 0,
         runningSinceUtc: anchor,
         regulationSeconds: 10,
-      ),
+      );
+    final projection = ClockEngine().project(
+      state: state,
       now: anchor.add(const Duration(seconds: 4)),
     );
 
@@ -85,5 +86,6 @@ void main() {
     expect(projection.elapsedSeconds, 4);
     expect(projection.displaySeconds, 4);
     expect(projection.remainingSeconds, isNull);
+    expect(state.remainingSeconds, isNull);
   });
 }
