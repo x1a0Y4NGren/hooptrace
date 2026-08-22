@@ -100,24 +100,18 @@ void main() {
     // Riverpod exposes previous-state construction as an internal test seam
     // in 3.3.2; this is the exact transient shape a refreshing provider emits.
     // ignore: invalid_use_of_internal_member
-    final loadingWithPreviousNull = AsyncLoading<MatchDetail?>().copyWithPrevious(
-      const AsyncData<MatchDetail?>(null),
-    );
-    expect(
-      canRestoreBackupFor(loadingWithPreviousNull),
-      isFalse,
-    );
+    final loadingWithPreviousNull = AsyncLoading<MatchDetail?>()
+        .copyWithPrevious(const AsyncData<MatchDetail?>(null));
+    expect(canRestoreBackupFor(loadingWithPreviousNull), isFalse);
     // ignore: invalid_use_of_internal_member
-    final errorWithPreviousNull = AsyncError<MatchDetail?>(
-      StateError('active query failed'),
-      StackTrace.current,
-    )
-      // ignore: invalid_use_of_internal_member
-      .copyWithPrevious(const AsyncData<MatchDetail?>(null));
-    expect(
-      canRestoreBackupFor(errorWithPreviousNull),
-      isFalse,
-    );
+    final errorWithPreviousNull =
+        AsyncError<MatchDetail?>(
+          StateError('active query failed'),
+          StackTrace.current,
+        )
+        // ignore: invalid_use_of_internal_member
+        .copyWithPrevious(const AsyncData<MatchDetail?>(null));
+    expect(canRestoreBackupFor(errorWithPreviousNull), isFalse);
 
     final database = createTestDatabase();
     addTearDown(database.close);
