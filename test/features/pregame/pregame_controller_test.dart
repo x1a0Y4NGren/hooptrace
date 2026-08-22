@@ -123,6 +123,18 @@ void main() {
     );
   });
 
+  test('clock mode and timer enablement remain independent', () {
+    final controller = PregameController()
+      ..setTimerEnabled(true)
+      ..setClockMode(ClockMode.countUp);
+
+    expect(controller.state.clockMode, ClockMode.countUp);
+    expect(controller.state.timerEnabled, isTrue);
+    final setup = controller.createMatchSetup();
+    expect(setup.clockMode, ClockMode.countUp);
+    expect(setup.timerEnabled, isTrue);
+  });
+
   test('changing a selected profile to a temporary name clears its id', () {
     final player = Player(
       id: 'player-red',

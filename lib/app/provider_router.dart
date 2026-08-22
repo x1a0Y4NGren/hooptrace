@@ -13,6 +13,7 @@ import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
+import 'package:hooptrace/features/pregame/start_match_mapper.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/players/player_editor_page.dart';
 import 'package:hooptrace/features/players/player_list_page.dart';
@@ -493,8 +494,16 @@ Future<void> _startMatch(
       ).showSnackBar(const SnackBar(content: Text('已有进行中的比赛，请先继续或放弃它。')));
       return;
     }
-    await ref.read(matchCommandServiceProvider).start(_commandForSetup(setup));
+    await ref
+        .read(matchCommandServiceProvider)
+        .start(buildStartMatchCommand(setup));
     if (context.mounted) context.go('/scoring/${setup.matchId}');
+  } on PregameSetupValidationException catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('请完成赛前设置：${error.result.errors.join('、')}')),
+      );
+    }
   } on MatchCommandFailure catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(context)
@@ -502,29 +511,6 @@ Future<void> _startMatch(
         ..showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
-}
-
-StartMatchCommand _commandForSetup(MatchSetup setup) {
-  return StartMatchCommand(
-    matchId: setup.matchId,
-    redName: setup.redName,
-    blueName: setup.blueName,
-    ruleTemplate: RuleTemplate(
-      id: setup.ruleTemplateId,
-      name: setup.ruleTemplateName ?? setup.ruleTemplateId,
-      scoreButtons: List.unmodifiable(setup.scoreButtons),
-      targetScore: setup.targetScore,
-      timeLimitSeconds: setup.timerEnabled ? setup.timeLimitMinutes * 60 : null,
-      winByTwo: setup.winByTwo,
-      foulLimit: setup.foulLimit,
-      possessionHintEnabled: setup.possessionHintEnabled,
-      customEventTypes: List.unmodifiable(setup.customEventTypes),
-    ),
-    timerEnabled: setup.timerEnabled,
-    regulationSeconds: setup.timerEnabled ? setup.timeLimitMinutes * 60 : null,
-    createdAt: DateTime.now().toUtc(),
-    startedAt: DateTime.now().toUtc(),
-  );
 }
 
 Future<void> _abandon(

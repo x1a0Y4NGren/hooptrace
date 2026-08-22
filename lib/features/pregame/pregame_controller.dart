@@ -15,6 +15,7 @@ enum PregameValidationError {
   redPlayerProfileMissing,
   bluePlayerProfileMissing,
   recordingModeRequired,
+  countdownTimerRequired,
   invalidCountdownDuration,
 }
 
@@ -213,7 +214,6 @@ class PregameController {
     _state = _state.copyWith(
       ruleTemplateId: value,
       targetScore: selected?.targetScore ?? _state.targetScore,
-      timerEnabled: selected?.timeLimitSeconds != null,
       clockMode: selected?.timeLimitSeconds != null
           ? ClockMode.countdown
           : ClockMode.countUp,
@@ -237,14 +237,11 @@ class PregameController {
   }
 
   void setClockMode(ClockMode value) {
-    _state = _state.copyWith(
-      clockMode: value,
-      timerEnabled: value == ClockMode.countdown,
-    );
+    _state = _state.copyWith(clockMode: value);
   }
 
   void setTimerEnabled(bool value) {
-    setClockMode(value ? ClockMode.countdown : ClockMode.countUp);
+    _state = _state.copyWith(timerEnabled: value);
   }
 
   void setWinByTwo(bool value) {
@@ -286,9 +283,13 @@ class PregameController {
     if (_state.recordingMode == null) {
       errors.add(PregameValidationError.recordingModeRequired);
     }
-    if (_state.clockMode == ClockMode.countdown &&
-        (_state.timeLimitMinutes < 1 || _state.timeLimitMinutes > 180)) {
-      errors.add(PregameValidationError.invalidCountdownDuration);
+    if (_state.clockMode == ClockMode.countdown) {
+      if (!_state.timerEnabled) {
+        errors.add(PregameValidationError.countdownTimerRequired);
+      }
+      if (_state.timeLimitMinutes < 1 || _state.timeLimitMinutes > 180) {
+        errors.add(PregameValidationError.invalidCountdownDuration);
+      }
     }
     return PregameValidationResult(List.unmodifiable(errors));
   }
@@ -306,7 +307,7 @@ class PregameController {
       ruleTemplateId: _state.ruleTemplateId,
       ruleTemplateName: selected?.name,
       targetScore: selected == null ? _state.targetScore : selected.targetScore,
-      timerEnabled: _state.clockMode == ClockMode.countdown,
+      timerEnabled: _state.timerEnabled,
       timeLimitMinutes: _state.timeLimitMinutes,
       winByTwo: _state.winByTwo,
       scoreButtons: selected?.scoreButtons ?? const [1, 2, 3],
