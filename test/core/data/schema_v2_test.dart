@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -10,6 +11,7 @@ import 'package:hooptrace/core/domain/entities/active_session.dart'
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 import '../../test_helpers/test_database.dart';
+import '../../generated_migrations/schema.dart';
 
 void main() {
   test('domain contract exposes the 1.0 enum vocabulary', () {
@@ -318,4 +320,17 @@ void main() {
       );
     },
   );
+
+  test('official generated schema verifies the runtime v2 database', () async {
+    final verifier = SchemaVerifier(GeneratedHelper());
+    final schema = await verifier.startAt(2);
+    final database = AppDatabase(schema.executor);
+    addTearDown(database.close);
+
+    await verifier.migrateAndValidate(
+      database,
+      2,
+      options: const ValidationOptions(validateDropped: true),
+    );
+  });
 }
