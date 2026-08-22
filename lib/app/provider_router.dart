@@ -530,26 +530,38 @@ Future<void> _leaveScoring(
       ],
     ),
   );
-  if (action == 'pause') {
-    try {
-      await ref
-          .read(matchCommandServiceProvider)
-          .pause(
-            PauseMatchCommand(
-              matchId: matchId,
-              occurredAt: DateTime.now().toUtc(),
-            ),
-          );
-    } on MatchCommandFailure catch (error) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
-      }
-      return;
+  if (action != 'keep' && action != 'pause') return;
+
+  // The live projection is the durable source of truth for this decision.
+  // In particular, do not issue a second pause to an already-paused match:
+  // the command layer correctly rejects that duplicate semantic command.
+  final projection = ref.read(liveMatchProvider(matchId)).valueOrNull;
+  final timerEnabled = projection?.match.timerEnabled == true;
+  final clock = projection?.clock;
+  final isRunning = clock?.isRunning == true;
+  final commandService = ref.read(matchCommandServiceProvider);
+  try {
+    if (action == 'keep' && timerEnabled && clock != null && !isRunning) {
+      await commandService.resume(
+        ResumeMatchCommand(
+          matchId: matchId,
+          occurredAt: DateTime.now().toUtc(),
+        ),
+      );
+    } else if (action == 'pause' && timerEnabled && isRunning) {
+      await commandService.pause(
+        PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+      );
     }
+  } on MatchCommandFailure catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+    return;
   }
-  if ((action == 'keep' || action == 'pause') && context.mounted) {
+  if (context.mounted) {
     // Scoring is entered with `go`, so there may be no back-stack entry to
     // pop. Leaving must return to the durable home projection explicitly.
     context.go('/');
