@@ -318,6 +318,34 @@ void main() {
       throwsA(isA<CommandValidationFailure>()),
     );
   });
+
+  test('pause at a countdown boundary keeps the persisted expiry decision', () async {
+    final database = createTestDatabase();
+    await MatchCommandService(database, now: () => _anchor).start(
+      _start(
+        timerEnabled: true,
+        clockMode: ClockMode.countdown,
+        regulationSeconds: 10,
+      ),
+    );
+    final failure = await _captureFailure(
+      () => MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 10)),
+      ).pause(
+        PauseMatchCommand(
+          commandId: 'pause-at-expiry',
+          matchId: 'match-clock',
+          occurredAt: _anchor.add(const Duration(seconds: 10)),
+        ),
+      ),
+    );
+
+    expect(failure, isA<EndConditionFailure>());
+    final row = await database.select(database.matchClocks).getSingle();
+    expect(row.phase, ClockPhase.regulationExpired.name);
+    expect(row.runningSinceUtc, isNull);
+  });
 }
 
 Future<MatchCommandFailure> _captureFailure(
