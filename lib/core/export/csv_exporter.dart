@@ -27,6 +27,8 @@ class PlayerStatisticsRow {
 class CsvExporter {
   const CsvExporter._();
 
+  static final _csv = Csv(lineDelimiter: '\r\n');
+
   static const matchHeaders = [
     'match_id',
     'red_name',
@@ -129,7 +131,7 @@ class CsvExporter {
   }
 
   static String _encode(List<List<Object?>> rows) {
-    return const ListToCsvConverter(eol: '\r\n').convert(rows);
+    return _csv.encode(rows);
   }
 
   static String _timestamp(DateTime value) => value.toUtc().toIso8601String();

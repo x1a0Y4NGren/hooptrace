@@ -91,7 +91,7 @@ void main() {
         'hooptrace-events-20260821-103000.csv',
         'hooptrace-player-stats-20260821-103000.csv',
       ]);
-      final stats = const CsvToListConverter().convert(
+      final stats = _decodeCsv(
         utf8.decode(files.last.bytes),
       );
       expect(stats[1], [
@@ -144,6 +144,14 @@ void main() {
       expect(artifact.bytes, png);
     });
   });
+}
+
+List<List<dynamic>> _decodeCsv(String encoded) {
+  return Csv(
+    dynamicTyping: true,
+    decoderTransform: (field, _, __) =>
+        field is bool ? field.toString() : field,
+  ).decode(encoded);
 }
 
 class _MemoryExportGateway implements ExportGateway {

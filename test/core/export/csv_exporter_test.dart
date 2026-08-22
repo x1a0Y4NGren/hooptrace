@@ -6,7 +6,7 @@ import 'package:hooptrace/core/export/csv_exporter.dart';
 void main() {
   group('CsvExporter', () {
     test('exports match list with stable headers and escaped text', () {
-      final csv = CsvExporter.matchList([
+      final encoded = CsvExporter.matchList([
         Matche(
           id: 'match-1',
           redName: 'Red, Prime',
@@ -21,7 +21,7 @@ void main() {
         ),
       ]);
 
-      final rows = const CsvToListConverter().convert(csv);
+      final rows = _decodeCsv(encoded);
       expect(rows.first, CsvExporter.matchHeaders);
       expect(rows.singleWhere((row) => row.first == 'match-1'), [
         'match-1',
@@ -34,13 +34,13 @@ void main() {
         'false',
         'line one\nline two',
       ]);
-      expect(csv, contains('"Red, Prime"'));
-      expect(csv, contains('"Blue ""Wave"""'));
-      expect(csv, contains('"line one\nline two"'));
+      expect(encoded, contains('"Red, Prime"'));
+      expect(encoded, contains('"Blue ""Wave"""'));
+      expect(encoded, contains('"line one\nline two"'));
     });
 
     test('exports required event fields with stable headers', () {
-      final csv = CsvExporter.eventList([
+      final encoded = CsvExporter.eventList([
         MatchEventRow(
           id: 'event-1',
           matchId: 'match-1',
@@ -54,7 +54,7 @@ void main() {
         ),
       ]);
 
-      final rows = const CsvToListConverter().convert(csv);
+      final rows = _decodeCsv(encoded);
       expect(rows.first, CsvExporter.eventHeaders);
       expect(rows[1].take(6), [
         'match-1',
@@ -68,7 +68,7 @@ void main() {
     });
 
     test('exports player statistics with stable headers', () {
-      final csv = CsvExporter.playerStatistics([
+      final encoded = CsvExporter.playerStatistics([
         const PlayerStatisticsRow(
           playerId: 'player-1',
           playerName: 'A, Ace',
@@ -80,7 +80,7 @@ void main() {
         ),
       ]);
 
-      final rows = const CsvToListConverter().convert(csv);
+      final rows = _decodeCsv(encoded);
       expect(rows.first, CsvExporter.playerStatisticsHeaders);
       expect(rows[1], [
         'player-1',
@@ -92,7 +92,15 @@ void main() {
         20,
         60.0,
       ]);
-      expect(csv, endsWith(',60.00'));
+      expect(encoded, endsWith(',60.00'));
     });
   });
+}
+
+List<List<dynamic>> _decodeCsv(String encoded) {
+  return Csv(
+    dynamicTyping: true,
+    decoderTransform: (field, _, __) =>
+        field is bool ? field.toString() : field,
+  ).decode(encoded);
 }

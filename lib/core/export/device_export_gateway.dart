@@ -16,19 +16,13 @@ class DeviceExportGateway implements ExportGateway {
 
   @override
   Future<ExportArtifact?> pickBackup() async {
-    final result = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFile(
       dialogTitle: '选择 HoopTrace 备份',
       type: FileType.custom,
       allowedExtensions: const ['json'],
-      withData: true,
     );
-    if (result == null || result.files.isEmpty) return null;
-    final picked = result.files.single;
-    final bytes = picked.bytes ??
-        (picked.path == null ? null : await File(picked.path!).readAsBytes());
-    if (bytes == null) {
-      throw StateError('无法读取所选备份文件。');
-    }
+    if (picked == null) return null;
+    final bytes = await picked.readAsBytes();
     return ExportArtifact(
       fileName: picked.name,
       mimeType: 'application/json',
@@ -39,7 +33,7 @@ class DeviceExportGateway implements ExportGateway {
   @override
   Future<BackupDirectorySelection?> pickDirectory() async {
     if (Platform.isAndroid) return backupStorage.pickDirectory();
-    final directory = await FilePicker.platform.getDirectoryPath(
+    final directory = await FilePicker.getDirectoryPath(
       dialogTitle: '选择自动备份文件夹',
     );
     if (directory == null) return null;
@@ -65,12 +59,14 @@ class DeviceExportGateway implements ExportGateway {
       await file.writeAsBytes(artifact.bytes, flush: true);
       files.add(XFile(file.path, mimeType: artifact.mimeType));
     }
-    await Share.shareXFiles(
-      files,
-      subject: subject,
-      text: subject,
-      fileNameOverrides:
-          artifacts.map((artifact) => artifact.fileName).toList(),
+    await SharePlus.instance.share(
+      ShareParams(
+        files: files,
+        subject: subject,
+        text: subject,
+        fileNameOverrides:
+            artifacts.map((artifact) => artifact.fileName).toList(),
+      ),
     );
   }
 }
