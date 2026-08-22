@@ -100,7 +100,7 @@ void main() {
 List<List<dynamic>> _decodeCsv(String encoded) {
   return Csv(
     dynamicTyping: true,
-    decoderTransform: (field, _, __) =>
+    decoderTransform: (field, _, _) =>
         field is bool ? field.toString() : field,
   ).decode(encoded);
 }

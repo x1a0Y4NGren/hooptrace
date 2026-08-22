@@ -1215,7 +1215,7 @@ class _AuditHistorySheet extends StatelessWidget {
                   ? const Center(child: Text('暂无编辑记录'))
                   : ListView.separated(
                       itemCount: logs.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      separatorBuilder: (_, _) => const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final log = logs[index];
                         return ListTile(

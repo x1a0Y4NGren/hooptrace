@@ -42,7 +42,7 @@ class HistoryPage extends StatelessWidget {
                       vertical: 12,
                     ),
                     itemCount: controller.matches.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final match = controller.matches[index];
                       return _HistoryMatchRow(

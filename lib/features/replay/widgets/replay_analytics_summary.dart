@@ -66,7 +66,7 @@ class ReplayAnalyticsSummary extends StatelessWidget {
               key: const Key('replay-scoring-flow'),
               scrollDirection: Axis.horizontal,
               itemCount: analytics.scoringFlow.length,
-              separatorBuilder: (_, __) => const Padding(
+              separatorBuilder: (_, _) => const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 6),
                 child: Icon(Icons.chevron_right, size: 18),
               ),

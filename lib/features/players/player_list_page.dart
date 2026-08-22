@@ -52,7 +52,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
             return ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
               itemCount: players.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final player = players[index];
                 return Card(

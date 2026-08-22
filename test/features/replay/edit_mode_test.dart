@@ -31,7 +31,7 @@ void main() {
           ),
         ],
       ),
-      onMoveShotLocation: (_, __, ___) async {},
+      onMoveShotLocation: (_, _, _) async {},
     );
     await tester.pumpWidget(
       MaterialApp(home: ReplayPage(controller: controller)),
@@ -64,7 +64,7 @@ void main() {
     var savedNote = '';
     controller = ReplayController(
       data: _editableMatch(),
-      onUpdateEventNote: (_, note, __) async {
+      onUpdateEventNote: (_, note, _) async {
         savedNote = note;
         controller.replaceData(_editableMatch(note: note));
       },
@@ -94,7 +94,7 @@ void main() {
     var savedReason = '';
     controller = ReplayController(
       data: _editableMatch(withLocation: true),
-      onMoveShotLocation: (_, __, reason) async {
+      onMoveShotLocation: (_, _, reason) async {
         savedReason = reason ?? '';
         controller.replaceData(_editableMatch(withLocation: true));
       },
