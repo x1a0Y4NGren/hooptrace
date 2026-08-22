@@ -1,10 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/rules/rule_engine.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
+
+import '../../test_helpers/test_database.dart';
 
 void main() {
   test('adding a score creates a pending location and updates totals', () {
@@ -120,4 +126,47 @@ void main() {
 
     expect(controller.state.ruleTemplate.name, 'Custom 15');
   });
+
+  test(
+    'command-backed made score commits as fieldGoal and creates pending location',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = StartMatchCommand(
+          commandId: 'ui-score-start-command',
+          matchId: 'ui-score-match',
+          redName: 'Red',
+          blueName: 'Blue',
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: 'Free',
+            scoreButtons: [1, 2, 3],
+          ),
+          createdAt: DateTime.utc(2026, 8, 23, 9),
+          startedAt: DateTime.utc(2026, 8, 23, 9),
+        );
+        final projection = await service.start(start);
+        final controller = ScoringController.fromCommittedProjection(
+          projection,
+          service,
+        );
+
+        expect(
+          await controller.recordScoreCommitted(
+            side: TeamSide.red,
+            points: 2,
+          ),
+          isTrue,
+        );
+
+        final event = await (database.select(
+          database.matchEvents,
+        )..where((row) => row.matchId.equals(start.matchId))).getSingle();
+        expect(event.type, EventKind.fieldGoal.name);
+        expect(event.outcome, ShotOutcome.made.name);
+        expect(controller.state.pendingLocation, isNotNull);
+        expect(controller.state.pendingLocation!.eventId, event.id);
+      });
+    },
+  );
 }

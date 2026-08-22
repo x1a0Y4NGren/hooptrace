@@ -158,15 +158,24 @@ class ScoringController extends ChangeNotifier {
     if (_state.pendingLocation != null) {
       return false;
     }
-    final projection = await service.record(
-      RecordMatchEventCommand(
-        matchId: _state.matchId,
+    final command = RecordMatchEventCommand(
+      matchId: _state.matchId,
+      type: EventKind.fieldGoal,
+      side: side,
+      points: points,
+      outcome: ShotOutcome.made,
+      occurredAt: DateTime.now().toUtc(),
+    );
+    final projection = await service.record(command);
+    _replaceFromProjection(
+      projection,
+      pendingLocation: PendingShotLocation(
+        eventId: command.eventId,
         side: side,
         points: points,
-        occurredAt: DateTime.now().toUtc(),
+        point: CourtPoint(x: 0.5, y: 0.58),
       ),
     );
-    _replaceFromProjection(projection);
     notifyListeners();
     return true;
   }
@@ -388,8 +397,14 @@ class ScoringController extends ChangeNotifier {
     );
   }
 
-  void _replaceFromProjection(MatchDetail projection) {
+  void _replaceFromProjection(
+    MatchDetail projection, {
+    PendingShotLocation? pendingLocation,
+  }) {
     _state = _stateFromProjection(projection);
+    if (pendingLocation != null) {
+      _state = _state.copyWith(pendingLocation: pendingLocation);
+    }
   }
 
   static ({int red, int blue}) _countFouls(List<MatchEvent> events) {
