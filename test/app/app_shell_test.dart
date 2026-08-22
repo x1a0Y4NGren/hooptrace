@@ -12,6 +12,10 @@ import '../test_helpers/test_database.dart';
 void main() {
   testWidgets('HoopTrace app starts on home route', (tester) async {
     final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
 
@@ -26,6 +30,10 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
 
@@ -45,6 +53,10 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1095, 616));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
     await tester.pumpWidget(HoopTraceApp(database: database));
     await _pumpUntilFound(tester, find.text('\u5f00\u59cb\u8ba1\u5206'));
 

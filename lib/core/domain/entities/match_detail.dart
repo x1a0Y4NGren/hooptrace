@@ -1,4 +1,5 @@
 import 'package:hooptrace/core/domain/entities/match.dart';
+import 'package:hooptrace/core/domain/entities/active_session.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart';
 import 'package:hooptrace/core/domain/clock/clock_engine.dart';
@@ -63,6 +64,7 @@ class MatchDetail {
     this.clock,
     this.decision,
     this.warnings = const <MatchRuleWarning>[],
+    this.activeSession,
   });
 
   final Match match;
@@ -77,6 +79,20 @@ class MatchDetail {
   final ClockProjection? clock;
   final MatchDecision? decision;
   final List<MatchRuleWarning> warnings;
+  final ActiveSession? activeSession;
+
+  /// The last durable active-session claim observed by the app. This is used
+  /// for recovery UI; it is deliberately separate from [match.createdAt],
+  /// which describes the match rather than the latest persisted session.
+  DateTime? get lastPersistedAt {
+    var latest = activeSession?.claimedAtUtc;
+    for (final event in events) {
+      if (latest == null || event.occurredAt.isAfter(latest)) {
+        latest = event.occurredAt;
+      }
+    }
+    return latest;
+  }
 
   MatchDecision? get ruleDecision => decision;
 
@@ -102,6 +118,7 @@ class MatchDetail {
       clock: clock ?? this.clock,
       decision: decision ?? this.decision,
       warnings: warnings ?? this.warnings,
+      activeSession: activeSession,
     );
   }
 

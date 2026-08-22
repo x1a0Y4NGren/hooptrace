@@ -10,7 +10,12 @@ import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart' as domain;
+import 'package:hooptrace/core/domain/entities/active_session.dart'
+    as domain_session;
+import 'package:hooptrace/core/domain/entities/clock_state.dart';
+import 'package:hooptrace/core/domain/clock/clock_engine.dart';
 import 'package:hooptrace/core/domain/scoring/scoring_reducer.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:uuid/uuid.dart';
@@ -381,14 +386,98 @@ class MatchRepository {
       final eventRows = await eventQuery.get();
       final locationRows = await locationQuery.get();
       final participantRows = await participantQuery.get();
+      final activeRow = await (_database.select(
+        _database.activeSessions,
+      )..where((session) => session.matchId.equals(matchId))).getSingleOrNull();
+      final clockRow = await (_database.select(
+        _database.matchClocks,
+      )..where((clock) => clock.matchId.equals(matchId))).getSingleOrNull();
 
       return buildDetail(
         matchRow,
         eventRows,
         locationRows,
         participantRows: participantRows,
+        activeSession: activeRow == null
+            ? null
+            : domain_session.ActiveSession(
+                id: activeRow.id,
+                matchId: activeRow.matchId,
+                claimedAtUtc: activeRow.claimedAtUtc.toUtc(),
+              ),
+        clock: clockRow == null ? null : _projectClock(clockRow),
       );
     });
+  }
+
+  /// Emits the single active match and rebuilds its committed projection when
+  /// any table that contributes to that projection changes. The explicit
+  /// [readsFrom] set is intentional: a query that only selected
+  /// [activeSessions] would otherwise miss score, location, participant and
+  /// clock writes after process reconstruction.
+  Stream<MatchDetail?> watchActiveMatch() {
+    final query = _database.customSelect(
+      'SELECT active_sessions.match_id AS match_id '
+      'FROM active_sessions '
+      'JOIN matches ON matches.id = active_sessions.match_id '
+      "WHERE active_sessions.id = 'active' LIMIT 1",
+      readsFrom: {
+        _database.activeSessions,
+        _database.matches,
+        _database.matchParticipants,
+        _database.matchEvents,
+        _database.shotLocations,
+        _database.matchClocks,
+      },
+    );
+    final changes = query.watch().asyncMap((rows) async {
+      if (rows.isEmpty) return null;
+      return getMatchDetail(rows.single.read<String>('match_id'));
+    });
+    return (() async* {
+      // Drift emits an initial query result in normal operation. The explicit
+      // read also makes the recovery stream deterministic when a provider is
+      // attached immediately after a committed start transaction.
+      yield await getActiveMatch();
+      yield* changes;
+    })();
+  }
+
+  /// Reactive detail stream for a live scoring route. It tracks the same
+  /// complete projection graph as [watchActiveMatch], but is addressable by
+  /// match id so a route can be rebuilt without retaining a controller.
+  Stream<MatchDetail?> watchLiveMatch(String matchId) {
+    final query = _database.customSelect(
+      'SELECT id FROM matches WHERE id = ? LIMIT 1',
+      variables: [Variable.withString(matchId)],
+      readsFrom: {
+        _database.matches,
+        _database.matchParticipants,
+        _database.matchEvents,
+        _database.shotLocations,
+        _database.matchClocks,
+        _database.activeSessions,
+      },
+    );
+    final changes = query.watch().asyncMap((rows) async {
+      if (rows.isEmpty) return null;
+      return getMatchDetail(matchId);
+    });
+    return (() async* {
+      yield await getMatchDetail(matchId);
+      yield* changes;
+    })();
+  }
+
+  Stream<MatchDetail?> watchMatchDetail(String matchId) =>
+      watchLiveMatch(matchId);
+
+  Future<MatchDetail?> getActiveMatch() async {
+    final row = await (_database.select(
+      _database.activeSessions,
+    )..where((session) => session.id.equals('active'))).getSingleOrNull();
+    if (row == null) return null;
+    return getMatchDetail(row.matchId);
   }
 
   Future<List<MatchHistoryEntry>> listHistory() async {
@@ -542,6 +631,8 @@ class MatchRepository {
     List<MatchEventRow> eventRows,
     List<ShotLocation> locationRows, {
     List<dynamic> participantRows = const [],
+    domain_session.ActiveSession? activeSession,
+    ClockProjection? clock,
   }) {
     final events = eventRows.map(mapEventRow).toList(growable: false);
     final locations = locationRows
@@ -576,7 +667,22 @@ class MatchRepository {
       blueFouls: _countFouls(activeEvents, TeamSide.blue),
       shotAttemptCount: shotEventIds.length,
       locatedShotCount: locatedEventIds.length,
+      activeSession: activeSession,
+      clock: clock,
     );
+  }
+
+  static ClockProjection _projectClock(MatchClock row) {
+    final state = ClockState(
+      id: row.id,
+      matchId: row.matchId,
+      mode: ClockMode.values.byName(row.mode),
+      phase: ClockPhase.values.byName(row.phase),
+      accumulatedSeconds: row.accumulatedSeconds,
+      runningSinceUtc: row.runningSinceUtc?.toUtc(),
+      regulationSeconds: row.regulationSeconds,
+    );
+    return const ClockEngine().project(state: state, now: DateTime.now());
   }
 
   static int _countFouls(List<MatchEvent> events, TeamSide side) {

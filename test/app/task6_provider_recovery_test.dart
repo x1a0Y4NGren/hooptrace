@@ -1,0 +1,262 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_providers.dart';
+import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
+import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/features/scoring/scoring_page.dart';
+
+import '../test_helpers/test_database.dart';
+
+void main() {
+  test(
+    'activeMatchProvider reacts to committed match and score writes',
+    () async {
+      final database = createTestDatabase();
+      final container = ProviderContainer(
+        overrides: [appDatabaseProvider.overrideWithValue(database)],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await database.close();
+      });
+
+      final now = DateTime.utc(2026, 8, 23, 12);
+      final commandService = container.read(matchCommandServiceProvider);
+      container.listen(activeMatchProvider, (_, _) {}, fireImmediately: true);
+      final command = StartMatchCommand(
+        commandId: 'task6-active-start',
+        matchId: 'task6-active',
+        redName: '红队',
+        blueName: '蓝队',
+        ruleTemplate: const RuleTemplate(
+          id: 'free',
+          name: '自由计分',
+          scoreButtons: [1, 2, 3],
+        ),
+        createdAt: now,
+        startedAt: now,
+      );
+
+      await commandService.start(command);
+      final started = await container.read(activeMatchProvider.future);
+      expect(started?.match.id, 'task6-active');
+      expect(started?.redScore, 0);
+
+      await commandService.record(
+        RecordMatchEventCommand(
+          commandId: 'task6-active-score',
+          matchId: command.matchId,
+          side: TeamSide.red,
+          points: 2,
+          occurredAt: now,
+        ),
+      );
+
+      await _eventually(
+        () => container.read(activeMatchProvider).valueOrNull?.redScore == 2,
+      );
+      expect(container.read(activeMatchProvider).valueOrNull?.redScore, 2);
+    },
+  );
+
+  testWidgets(
+    'rebuilding the widget tree with the same database shows resume card',
+    (tester) async {
+      final database = createTestDatabase();
+      _closeDatabaseAfterWidgetTest(tester, database);
+      final commandService = MatchCommandService(database);
+      final now = DateTime.utc(2026, 8, 23, 12);
+      await commandService.start(
+        StartMatchCommand(
+          commandId: 'task6-rebuild-start',
+          matchId: 'task6-rebuild',
+          redName: '重建红方',
+          blueName: '重建蓝方',
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: '自由计分',
+            scoreButtons: [1, 2, 3],
+          ),
+          createdAt: now,
+          startedAt: now,
+        ),
+      );
+      await commandService.record(
+        RecordMatchEventCommand(
+          commandId: 'task6-rebuild-score',
+          matchId: 'task6-rebuild',
+          side: TeamSide.blue,
+          points: 3,
+          occurredAt: now,
+        ),
+      );
+
+      await tester.pumpWidget(HoopTraceApp(database: database));
+      await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+      expect(find.text('重建红方'), findsOneWidget);
+      expect(find.text('重建蓝方'), findsOneWidget);
+      expect(find.text('0 : 3'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpWidget(HoopTraceApp(database: database));
+      await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+      expect(find.text('重建红方'), findsOneWidget);
+      expect(find.text('0 : 3'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'new match is blocked until active match is explicitly abandoned',
+    (tester) async {
+      final database = createTestDatabase();
+      _closeDatabaseAfterWidgetTest(tester, database);
+      final now = DateTime.utc(2026, 8, 23, 12);
+      await MatchCommandService(database).start(
+        StartMatchCommand(
+          commandId: 'task6-block-start',
+          matchId: 'task6-block',
+          redName: '已进行红方',
+          blueName: '已进行蓝方',
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: '自由计分',
+            scoreButtons: [1, 2, 3],
+          ),
+          createdAt: now,
+          startedAt: now,
+        ),
+      );
+
+      await tester.pumpWidget(HoopTraceApp(database: database));
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('home-start-scoring')),
+      );
+      await tester.tap(find.byKey(const Key('home-start-scoring')));
+      await tester.pump();
+      expect(find.textContaining('已有进行中的比赛'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('active-abandon')));
+      await tester.pump();
+      expect(find.text('放弃这场比赛？'), findsOneWidget);
+      await tester.tap(find.text('确认放弃'));
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('home-start-scoring')),
+      );
+      expect(find.byKey(const Key('home-resume-card')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('home-start-scoring')));
+      await _pumpUntilFound(tester, find.text('赛前设置'));
+    },
+  );
+
+  testWidgets('leaving live scoring offers keep running, pause and stay', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    _closeDatabaseAfterWidgetTest(tester, database);
+    final now = DateTime.utc(2026, 8, 23, 12);
+    final commandService = MatchCommandService(database);
+    await commandService.start(
+      StartMatchCommand(
+        commandId: 'task6-leave-start',
+        matchId: 'task6-leave',
+        redName: '离开红方',
+        blueName: '离开蓝方',
+        ruleTemplate: const RuleTemplate(
+          id: 'free',
+          name: '自由计分',
+          scoreButtons: [1, 2, 3],
+        ),
+        timerEnabled: true,
+        regulationSeconds: 600,
+        createdAt: now,
+        startedAt: now,
+      ),
+    );
+
+    await tester.pumpWidget(HoopTraceApp(database: database));
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+
+    await tester.tap(find.byKey(const Key('scoring-leave')));
+    await tester.pump();
+    expect(find.text('离开比赛'), findsOneWidget);
+    expect(find.byKey(const Key('leave-stay')), findsOneWidget);
+    expect(find.byKey(const Key('leave-keep-running')), findsOneWidget);
+    expect(find.byKey(const Key('leave-pause-and-leave')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('leave-stay')));
+    await tester.pump();
+    expect(find.byType(ScoringPage), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('scoring-leave')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('leave-keep-running')));
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+    expect((await commandService.readClock('task6-leave'))?.isRunning, isTrue);
+
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await tester.tap(find.byKey(const Key('scoring-leave')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('leave-pause-and-leave')));
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+    expect((await commandService.readClock('task6-leave'))?.isRunning, isFalse);
+  });
+
+  testWidgets('legacy bootstrap explains that v0.1 data is preserved', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    _closeDatabaseAfterWidgetTest(tester, database);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          databaseCompatibilityProbeProvider.overrideWith(
+            (ref) =>
+                (_) async => throw const LegacySchemaDetectedException(1),
+          ),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('legacy-bootstrap')));
+    expect(find.text('无法打开 HoopTrace v0.1 数据'), findsOneWidget);
+    expect(find.textContaining('不会静默迁移、删除或清空'), findsOneWidget);
+  });
+}
+
+void _closeDatabaseAfterWidgetTest(WidgetTester tester, AppDatabase database) {
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await database.close();
+  });
+}
+
+Future<void> _eventually(bool Function() predicate) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    if (predicate()) return;
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+  fail('Timed out waiting for reactive provider update.');
+}
+
+Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    await tester.pump(const Duration(milliseconds: 20));
+    if (finder.evaluate().isNotEmpty) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 5)),
+    );
+  }
+  fail('Timed out waiting for $finder');
+}

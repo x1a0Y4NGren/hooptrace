@@ -1,102 +1,71 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
-import 'package:hooptrace/app/app_metadata.dart';
-import 'package:hooptrace/app/app_router.dart';
+import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
-import 'package:hooptrace/app/match_session_coordinator.dart';
+import 'package:hooptrace/app/provider_router.dart';
 import 'package:hooptrace/core/data/app_database.dart';
-import 'package:hooptrace/core/data/app_database_provider.dart';
-import 'package:hooptrace/core/data/commands/match_command_service.dart';
-import 'package:hooptrace/core/data/repositories/match_repository.dart';
-import 'package:hooptrace/core/data/repositories/player_repository.dart';
-import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
-import 'package:hooptrace/core/export/automatic_backup_service.dart';
-import 'package:hooptrace/core/export/device_export_gateway.dart';
-import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
-import 'package:hooptrace/core/export/export_coordinator.dart';
-import 'package:hooptrace/core/export/json_backup_codec.dart';
 
-class HoopTraceApp extends StatefulWidget {
+/// Application composition root. The optional database and provider overrides
+/// are test seams; production ownership lives in [appDatabaseProvider].
+class HoopTraceApp extends StatelessWidget {
   const HoopTraceApp({this.database, super.key});
 
   final AppDatabase? database;
 
   @override
-  State<HoopTraceApp> createState() => _HoopTraceAppState();
+  Widget build(BuildContext context) {
+    if (database == null) {
+      return const ProviderScope(child: _HoopTraceAppView());
+    }
+    return ProviderScope(
+      overrides: [appDatabaseProvider.overrideWithValue(database!)],
+      child: const _HoopTraceAppView(),
+    );
+  }
 }
 
-class _HoopTraceAppState extends State<HoopTraceApp> {
-  late final AppDatabase _database;
-  late final GoRouter _router;
-  late final MatchSessionCoordinator _matchSessions;
-  late final RuleTemplateRepository _ruleTemplates;
-  late final AutomaticBackupService _automaticBackup;
-  late final ExportCoordinator _exports;
-  late final bool _ownsDatabase;
+class _HoopTraceAppView extends ConsumerWidget {
+  const _HoopTraceAppView();
 
   @override
-  void initState() {
-    super.initState();
-    _ownsDatabase = widget.database == null;
-    _database = widget.database ?? openAppDatabase();
-    final commandService = MatchCommandService(_database);
-    _matchSessions = MatchSessionCoordinator(
-      MatchRepository(_database),
-      commandService: commandService,
-    );
-    _ruleTemplates = RuleTemplateRepository(_database);
-    final backupCodec = JsonBackupCodec(
-      _database,
-      appVersion: hoopTraceAppVersion,
-    );
-    final backupStorage = DeviceAutomaticBackupStorage();
-    _automaticBackup = AutomaticBackupService(
-      _database,
-      backupCodec,
-      storage: backupStorage,
-    );
-    _exports = ExportCoordinator(
-      _database,
-      backupCodec,
-      gateway: DeviceExportGateway(backupStorage: backupStorage),
-      automaticBackup: _automaticBackup,
-    );
-    unawaited(_initializeLocalServices());
-    _router = buildAppRouter(
-      _matchSessions,
-      PlayerRepository(_database),
-      _ruleTemplates,
-      _exports,
-      _automaticBackup,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bootstrap = ref.watch(databaseBootstrapProvider);
+    return bootstrap.when(
+      loading: () => _buildMaterialApp(home: const _BootstrapLoadingPage()),
+      error: (error, stackTrace) =>
+          _buildMaterialApp(home: _BootstrapFailurePage(error: error)),
+      data: (state) {
+        if (!state.isReady) {
+          return _buildMaterialApp(
+            home: LegacyDatabaseBootstrapPage(version: state.version),
+          );
+        }
+        return _buildMaterialApp(routerConfig: ref.watch(appRouterProvider));
+      },
     );
   }
 
-  Future<void> _initializeLocalServices() async {
-    await _ruleTemplates.ensureBuiltIns();
-    try {
-      await _automaticBackup.runIfEnabled();
-    } on Object {
-      // A removed or unavailable user folder must not prevent app startup.
+  MaterialApp _buildMaterialApp({Widget? home, GoRouter? routerConfig}) {
+    if (routerConfig != null) {
+      return MaterialApp.router(
+        title: 'HoopTrace',
+        theme: buildHoopTraceTheme(),
+        locale: const Locale('zh'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: routerConfig,
+        debugShowCheckedModeBanner: false,
+      );
     }
-  }
-
-  @override
-  void dispose() {
-    _router.dispose();
-    _matchSessions.dispose();
-    if (_ownsDatabase) {
-      unawaited(_database.close());
-    }
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp.router(
+    return MaterialApp(
       title: 'HoopTrace',
       theme: buildHoopTraceTheme(),
       locale: const Locale('zh'),
@@ -107,8 +76,79 @@ class _HoopTraceAppState extends State<HoopTraceApp> {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      routerConfig: _router,
+      home: home,
       debugShowCheckedModeBanner: false,
+    );
+  }
+}
+
+class LegacyDatabaseBootstrapPage extends StatelessWidget {
+  const LegacyDatabaseBootstrapPage({this.version, super.key});
+
+  final int? version;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      key: const Key('legacy-bootstrap'),
+      appBar: AppBar(title: const Text('HoopTrace 数据兼容性检查')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.storage_outlined, size: 56),
+                const SizedBox(height: 16),
+                const Text(
+                  '无法打开 HoopTrace v0.1 数据',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '检测到不兼容的旧数据库版本${version == null ? '' : ' v$version'}。'
+                  '现有文件会保持原样；HoopTrace 不会静默迁移、删除或清空它。'
+                  '请先导出或备份旧文件，再使用当前版本创建新的本地数据。',
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BootstrapLoadingPage extends StatelessWidget {
+  const _BootstrapLoadingPage();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
+}
+
+class _BootstrapFailurePage extends StatelessWidget {
+  const _BootstrapFailurePage({required this.error});
+
+  final Object error;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            '本地数据库暂时无法打开。现有数据未被修改。\n$error',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
     );
   }
 }

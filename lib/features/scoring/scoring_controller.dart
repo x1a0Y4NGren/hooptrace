@@ -462,6 +462,15 @@ class ScoringController extends ChangeNotifier {
     }
   }
 
+  /// Replaces the local view with a committed Drift projection received from
+  /// the reactive composition root. This intentionally does not issue a
+  /// command or retain any database rows in memory.
+  void replaceCommittedProjection(MatchDetail projection) {
+    final pending = _state.pendingLocation;
+    _replaceFromProjection(projection, pendingLocation: pending);
+    notifyListeners();
+  }
+
   static PendingShotLocation? _pendingForRecord(
     RecordMatchEventCommand command,
   ) {

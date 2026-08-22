@@ -22,6 +22,7 @@ class ScoringPage extends StatefulWidget {
     this.setup,
     this.controller,
     this.onOpenReplay,
+    this.onRequestLeave,
     super.key,
   }) : assert(matchId != null || setup != null || controller != null);
 
@@ -29,6 +30,7 @@ class ScoringPage extends StatefulWidget {
   final MatchSetup? setup;
   final ScoringController? controller;
   final VoidCallback? onOpenReplay;
+  final Future<void> Function()? onRequestLeave;
 
   @override
   State<ScoringPage> createState() => _ScoringPageState();
@@ -37,6 +39,7 @@ class ScoringPage extends StatefulWidget {
 class _ScoringPageState extends State<ScoringPage> {
   late ScoringController _controller;
   bool _ownsController = false;
+  bool _leaveBusy = false;
 
   @override
   void initState() {
@@ -86,7 +89,7 @@ class _ScoringPageState extends State<ScoringPage> {
   Widget build(BuildContext context) {
     final state = _controller.state;
 
-    return Scaffold(
+    final page = Scaffold(
       body: SafeArea(
         child: Column(
           children: [
@@ -94,6 +97,13 @@ class _ScoringPageState extends State<ScoringPage> {
               height: 48,
               child: Row(
                 children: [
+                  if (widget.onRequestLeave != null)
+                    IconButton(
+                      key: const Key('scoring-leave'),
+                      tooltip: '返回',
+                      onPressed: _requestLeave,
+                      icon: const Icon(Icons.arrow_back),
+                    ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -217,6 +227,26 @@ class _ScoringPageState extends State<ScoringPage> {
         ),
       ),
     );
+    final onRequestLeave = widget.onRequestLeave;
+    if (onRequestLeave == null) return page;
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) unawaited(_requestLeave());
+      },
+      child: page,
+    );
+  }
+
+  Future<void> _requestLeave() async {
+    final onRequestLeave = widget.onRequestLeave;
+    if (onRequestLeave == null || _leaveBusy) return;
+    _leaveBusy = true;
+    try {
+      await onRequestLeave();
+    } finally {
+      if (mounted) setState(() => _leaveBusy = false);
+    }
   }
 
   Future<void> _scoreAndAskLocation(TeamSide side, int points) async {

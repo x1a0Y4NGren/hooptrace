@@ -14,6 +14,10 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
     final repository = MatchRepository(database);
     await _createFinishedMatch(repository, 'match-a', 'Alpha', 1);
     await _createFinishedMatch(repository, 'match-b', 'Bravo', 3);
