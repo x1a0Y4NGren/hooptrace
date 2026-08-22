@@ -111,32 +111,34 @@ void main() {
       );
     });
 
-    test('rejects a modified payload with a typed checksum exception',
-        () async {
-      final database = createTestDatabase();
-      await _seedCompleteBackup(database);
-      final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
-      final document = jsonDecode(await codec.export()) as Map<String, dynamic>;
-      final data = document['data'] as Map<String, dynamic>;
-      final events = data['matchEvents'] as List<dynamic>;
-      (events.single as Map<String, dynamic>)['points'] = 3;
+    test(
+      'rejects a modified payload with a typed checksum exception',
+      () async {
+        final database = createTestDatabase();
+        await _seedCompleteBackup(database);
+        final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+        final document =
+            jsonDecode(await codec.export()) as Map<String, dynamic>;
+        final data = document['data'] as Map<String, dynamic>;
+        final events = data['matchEvents'] as List<dynamic>;
+        (events.single as Map<String, dynamic>)['points'] = 3;
 
-      expect(
-        () => codec.restore(jsonEncode(document)),
-        throwsA(isA<BackupChecksumException>()),
-      );
-    });
+        expect(
+          () => codec.restore(jsonEncode(document)),
+          throwsA(isA<BackupChecksumException>()),
+        );
+      },
+    );
 
     test('fully validates before replacing existing local data', () async {
       final exported = await withTestDatabase((source) async {
         await _seedCompleteBackup(source);
-        return JsonBackupCodec(
-          source,
-          appVersion: '0.1.0+1',
-        ).export();
+        return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
       });
       final destination = createTestDatabase();
-      await destination.into(destination.matches).insert(
+      await destination
+          .into(destination.matches)
+          .insert(
             Matche(
               id: 'keep-me',
               redName: 'Local Red',
@@ -157,8 +159,10 @@ void main() {
       _refreshChecksum(document);
 
       await expectLater(
-        JsonBackupCodec(destination, appVersion: '0.1.0+1')
-            .restore(jsonEncode(document)),
+        JsonBackupCodec(
+          destination,
+          appVersion: '0.1.0+1',
+        ).restore(jsonEncode(document)),
         throwsA(isA<BackupValidationException>()),
       );
       final matches = await destination.select(destination.matches).get();
@@ -166,55 +170,57 @@ void main() {
       expect(await destination.select(destination.matchEvents).get(), isEmpty);
     });
 
-    test('rejects invalid domain values before replacing existing data',
-        () async {
-      final exported = await withTestDatabase((source) async {
-        await _seedCompleteBackup(source);
-        return JsonBackupCodec(
-          source,
-          appVersion: '0.1.0+1',
-        ).export();
-      });
-      final destination = createTestDatabase();
-      await destination.into(destination.players).insert(
-            PlayerRow(
-              id: 'keep-player',
-              nickname: '本机球员',
-              createdAt: DateTime.utc(2026, 7, 17),
-              preferredSide: null,
-              note: null,
-            ),
-          );
-      final document = jsonDecode(exported) as Map<String, dynamic>;
-      final data = document['data'] as Map<String, dynamic>;
-      final events = data['matchEvents'] as List<dynamic>;
-      (events.single as Map<String, dynamic>)['side'] = 'green';
-      final locations = data['shotLocations'] as List<dynamic>;
-      (locations.single as Map<String, dynamic>)['x'] = 1.5;
-      _refreshChecksum(document);
+    test(
+      'rejects invalid domain values before replacing existing data',
+      () async {
+        final exported = await withTestDatabase((source) async {
+          await _seedCompleteBackup(source);
+          return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
+        });
+        final destination = createTestDatabase();
+        await destination
+            .into(destination.players)
+            .insert(
+              PlayerRow(
+                id: 'keep-player',
+                nickname: '本机球员',
+                createdAt: DateTime.utc(2026, 7, 17),
+                preferredSide: null,
+                note: null,
+              ),
+            );
+        final document = jsonDecode(exported) as Map<String, dynamic>;
+        final data = document['data'] as Map<String, dynamic>;
+        final events = data['matchEvents'] as List<dynamic>;
+        (events.single as Map<String, dynamic>)['side'] = 'green';
+        final locations = data['shotLocations'] as List<dynamic>;
+        (locations.single as Map<String, dynamic>)['x'] = 1.5;
+        _refreshChecksum(document);
 
-      await expectLater(
-        JsonBackupCodec(destination, appVersion: '0.1.0+1')
-            .restore(jsonEncode(document)),
-        throwsA(isA<BackupValidationException>()),
-      );
-      expect(
-        (await destination.select(destination.players).get()).single.id,
-        'keep-player',
-      );
-      expect(await destination.select(destination.matches).get(), isEmpty);
-    });
+        await expectLater(
+          JsonBackupCodec(
+            destination,
+            appVersion: '0.1.0+1',
+          ).restore(jsonEncode(document)),
+          throwsA(isA<BackupValidationException>()),
+        );
+        expect(
+          (await destination.select(destination.players).get()).single.id,
+          'keep-player',
+        );
+        expect(await destination.select(destination.matches).get(), isEmpty);
+      },
+    );
 
     test('rolls back replacement when a database write fails', () async {
       final exported = await withTestDatabase((source) async {
         await _seedCompleteBackup(source);
-        return JsonBackupCodec(
-          source,
-          appVersion: '0.1.0+1',
-        ).export();
+        return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
       });
       final destination = createTestDatabase();
-      await destination.into(destination.matches).insert(
+      await destination
+          .into(destination.matches)
+          .insert(
             Matche(
               id: 'keep-me',
               redName: 'Local Red',
@@ -259,7 +265,9 @@ void _refreshChecksum(Map<String, dynamic> document) {
 
 Future<void> _seedCompleteBackup(AppDatabase database) async {
   final createdAt = DateTime.utc(2026, 7, 18, 8);
-  await database.into(database.matches).insert(
+  await database
+      .into(database.matches)
+      .insert(
         Matche(
           id: 'match-1',
           redName: 'Red',
@@ -283,7 +291,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           note: 'final',
         ),
       );
-  await database.into(database.matchEvents).insert(
+  await database
+      .into(database.matchEvents)
+      .insert(
         MatchEventRow(
           id: 'event-1',
           matchId: 'match-1',
@@ -296,7 +306,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           isDeleted: false,
         ),
       );
-  await database.into(database.shotLocations).insert(
+  await database
+      .into(database.shotLocations)
+      .insert(
         const ShotLocation(
           id: 'shot-1',
           matchId: 'match-1',
@@ -306,7 +318,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           isConfirmed: true,
         ),
       );
-  await database.into(database.players).insert(
+  await database
+      .into(database.players)
+      .insert(
         PlayerRow(
           id: 'player-1',
           nickname: 'A, "Ace"',
@@ -315,7 +329,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           note: null,
         ),
       );
-  await database.into(database.ruleTemplates).insert(
+  await database
+      .into(database.ruleTemplates)
+      .insert(
         const RuleTemplateRow(
           id: 'rule-1',
           name: 'Race to 11',
@@ -329,7 +345,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           isBuiltIn: false,
         ),
       );
-  await database.into(database.possessionSegments).insert(
+  await database
+      .into(database.possessionSegments)
+      .insert(
         const PossessionSegment(
           id: 'possession-1',
           matchId: 'match-1',
@@ -339,7 +357,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           reason: 'score',
         ),
       );
-  await database.into(database.auditLogs).insert(
+  await database
+      .into(database.auditLogs)
+      .insert(
         AuditLog(
           id: 'audit-1',
           matchId: 'match-1',
@@ -351,11 +371,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           createdAt: createdAt.add(const Duration(minutes: 1)),
         ),
       );
-  await database.into(database.appSettings).insert(
-        AppSetting(
-          key: 'theme',
-          valueJson: '"light"',
-          updatedAt: createdAt,
-        ),
+  await database
+      .into(database.appSettings)
+      .insert(
+        AppSetting(key: 'theme', valueJson: '"light"', updatedAt: createdAt),
       );
 }

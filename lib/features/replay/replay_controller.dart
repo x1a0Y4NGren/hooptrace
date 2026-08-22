@@ -86,11 +86,12 @@ class ReplayController extends ChangeNotifier {
     String locationId,
     CourtPoint point,
     String? reason,
-  )? onMoveShotLocation;
+  )?
+  onMoveShotLocation;
   final Future<void> Function(String eventId, String? reason)?
-      onSoftDeleteEvent;
+  onSoftDeleteEvent;
   final Future<void> Function(String eventId, String note, String? reason)?
-      onUpdateEventNote;
+  onUpdateEventNote;
   final Future<List<AuditLogEntry>> Function()? loadAuditLogs;
   ReplayKindFilter _kindFilter = ReplayKindFilter.all;
   ReplaySideFilter _sideFilter = ReplaySideFilter.all;
@@ -196,8 +197,9 @@ class ReplayController extends ChangeNotifier {
 
   void selectLocation(String locationId) {
     if (!_isEditing) return;
-    final event =
-        _data.events.where((item) => item.locationId == locationId).firstOrNull;
+    final event = _data.events
+        .where((item) => item.locationId == locationId)
+        .firstOrNull;
     if (event != null) selectEvent(event.id);
   }
 

@@ -31,10 +31,7 @@ GoRouter buildAppRouter(
 ) {
   return GoRouter(
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const _HomePageShell(),
-      ),
+      GoRoute(path: '/', builder: (context, state) => const _HomePageShell()),
       GoRoute(
         path: '/pregame',
         builder: (context, state) => StreamBuilder(
@@ -50,15 +47,15 @@ GoRouter buildAppRouter(
       ),
       GoRoute(
         path: '/settings/rules',
-        builder: (context, state) => RuleTemplateListPage(
-          repository: ruleTemplates,
-        ),
+        builder: (context, state) =>
+            RuleTemplateListPage(repository: ruleTemplates),
       ),
       GoRoute(
         path: '/scoring/:matchId',
         builder: (context, state) {
-          final setup =
-              state.extra is MatchSetup ? state.extra! as MatchSetup : null;
+          final setup = state.extra is MatchSetup
+              ? state.extra! as MatchSetup
+              : null;
           return OrientationShell(
             mode: HoopTraceOrientationMode.landscapeRequired,
             child: _buildScoringPage(
@@ -72,9 +69,8 @@ GoRouter buildAppRouter(
       ),
       GoRoute(
         path: '/history',
-        builder: (context, state) => _HistoryRoute(
-          matchSessions: matchSessions,
-        ),
+        builder: (context, state) =>
+            _HistoryRoute(matchSessions: matchSessions),
       ),
       GoRoute(
         path: '/players',
@@ -235,10 +231,7 @@ Widget _buildScoringPage(
       ? matchSessions.controllerFor(matchId)
       : matchSessions.beginMatch(setup);
   if (controller == null) {
-    return const _RouteMessage(
-      title: '比赛未在进行中',
-      message: '请从主页开始一场新比赛。',
-    );
+    return const _RouteMessage(title: '比赛未在进行中', message: '请从主页开始一场新比赛。');
   }
 
   return ScoringPage(
@@ -317,16 +310,18 @@ class _ReplayRouteState extends State<_ReplayRoute> {
 
   Future<ReplayController?> _loadController() async {
     await widget.matchSessions.saveCurrent(widget.matchId);
-    final detail =
-        await widget.matchSessions.repository.getMatchDetail(widget.matchId);
+    final detail = await widget.matchSessions.repository.getMatchDetail(
+      widget.matchId,
+    );
     if (detail == null) {
       return null;
     }
     final editable = !widget.matchSessions.isActive(widget.matchId);
     late ReplayController controller;
     Future<void> refreshData() async {
-      final refreshed =
-          await widget.matchSessions.repository.getMatchDetail(widget.matchId);
+      final refreshed = await widget.matchSessions.repository.getMatchDetail(
+        widget.matchId,
+      );
       if (refreshed != null) {
         controller.replaceData(replayDataFromDetail(refreshed));
       }
@@ -393,10 +388,7 @@ class _ReplayRouteState extends State<_ReplayRoute> {
         }
         final controller = snapshot.data;
         if (controller == null) {
-          return const _RouteMessage(
-            title: '没有找到这场比赛',
-            message: '记录可能已被移除。',
-          );
+          return const _RouteMessage(title: '没有找到这场比赛', message: '记录可能已被移除。');
         }
         final active = widget.matchSessions.isActive(widget.matchId);
         return ReplayPage(

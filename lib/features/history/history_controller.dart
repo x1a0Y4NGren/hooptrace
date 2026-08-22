@@ -12,8 +12,8 @@ class HistoryMatchSummary {
     required this.duration,
     required this.locatedShots,
     required this.scoringEvents,
-  })  : assert(locatedShots >= 0),
-        assert(scoringEvents >= 0);
+  }) : assert(locatedShots >= 0),
+       assert(scoringEvents >= 0);
 
   final String matchId;
   final DateTime playedAt;
@@ -39,8 +39,8 @@ class HistoryMatchSummary {
 
 class HistoryController {
   HistoryController({required List<HistoryMatchSummary> matches})
-      : _matches = List.of(matches)
-          ..sort((a, b) => b.playedAt.compareTo(a.playedAt));
+    : _matches = List.of(matches)
+        ..sort((a, b) => b.playedAt.compareTo(a.playedAt));
 
   final List<HistoryMatchSummary> _matches;
 

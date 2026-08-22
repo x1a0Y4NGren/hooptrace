@@ -6,7 +6,7 @@ enum RuleHintType {
   matchPoint,
   targetReached,
   winByTwoRequired,
-  possessionChange
+  possessionChange,
 }
 
 class RuleHint {
@@ -70,10 +70,7 @@ class RuleEngine {
 
     if (sideScore == targetScore - 1) {
       hints.add(
-        const RuleHint(
-          type: RuleHintType.matchPoint,
-          message: 'Match point',
-        ),
+        const RuleHint(type: RuleHintType.matchPoint, message: 'Match point'),
       );
     }
 

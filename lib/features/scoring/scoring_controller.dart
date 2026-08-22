@@ -95,8 +95,9 @@ class MatchScoringState {
       score: score ?? this.score,
       shotLocations: shotLocations ?? this.shotLocations,
       ruleTemplate: ruleTemplate ?? this.ruleTemplate,
-      pendingLocation:
-          clearPendingLocation ? null : pendingLocation ?? this.pendingLocation,
+      pendingLocation: clearPendingLocation
+          ? null
+          : pendingLocation ?? this.pendingLocation,
       redFouls: redFouls ?? this.redFouls,
       blueFouls: blueFouls ?? this.blueFouls,
       ruleHints: ruleHints ?? this.ruleHints,
@@ -105,18 +106,16 @@ class MatchScoringState {
 }
 
 class ScoringController extends ChangeNotifier {
-  ScoringController({
-    String? matchId,
-    MatchSetup? setup,
-  }) : _state = MatchScoringState(
-          matchId: setup?.matchId ?? matchId ?? 'match-local',
-          redName: setup?.redName ?? defaultRedPlayerName,
-          blueName: setup?.blueName ?? defaultBluePlayerName,
-          events: const [],
-          score: const ScoreState.zero(),
-          shotLocations: const [],
-          ruleTemplate: _ruleTemplateFromSetup(setup),
-        );
+  ScoringController({String? matchId, MatchSetup? setup})
+    : _state = MatchScoringState(
+        matchId: setup?.matchId ?? matchId ?? 'match-local',
+        redName: setup?.redName ?? defaultRedPlayerName,
+        blueName: setup?.blueName ?? defaultBluePlayerName,
+        events: const [],
+        score: const ScoreState.zero(),
+        shotLocations: const [],
+        ruleTemplate: _ruleTemplateFromSetup(setup),
+      );
 
   final ScoringReducer _reducer = ScoringReducer();
   final RuleEngine _ruleEngine = RuleEngine();
@@ -241,7 +240,8 @@ class ScoringController extends ChangeNotifier {
   static RuleTemplate _ruleTemplateFromSetup(MatchSetup? setup) {
     return RuleTemplate(
       id: setup?.ruleTemplateId ?? 'free',
-      name: setup?.ruleTemplateName ??
+      name:
+          setup?.ruleTemplateName ??
           switch (setup?.ruleTemplateId) {
             'eleven' || 'eleven_win_by_two' => '11 分制',
             'twenty_one' => '21 分制',
@@ -253,8 +253,9 @@ class ScoringController extends ChangeNotifier {
       possessionHintEnabled: setup?.possessionHintEnabled ?? false,
       customEventTypes: setup?.customEventTypes ?? const [],
       targetScore: setup?.targetScore,
-      timeLimitSeconds:
-          setup?.timerEnabled == true ? setup!.timeLimitMinutes * 60 : null,
+      timeLimitSeconds: setup?.timerEnabled == true
+          ? setup!.timeLimitMinutes * 60
+          : null,
       winByTwo: setup?.winByTwo ?? false,
     );
   }

@@ -44,7 +44,9 @@ class MatchRepository {
   }
 
   Future<void> saveMatch(Match match) {
-    return _database.into(_database.matches).insertOnConflictUpdate(
+    return _database
+        .into(_database.matches)
+        .insertOnConflictUpdate(
           MatchesCompanion.insert(
             id: match.id,
             redName: match.redName,
@@ -65,15 +67,15 @@ class MatchRepository {
   Future<void> addEvent(MatchEvent event) => saveEvent(event);
 
   Future<void> saveEvent(MatchEvent event) {
-    return _database.into(_database.matchEvents).insertOnConflictUpdate(
-          _eventCompanion(event),
-        );
+    return _database
+        .into(_database.matchEvents)
+        .insertOnConflictUpdate(_eventCompanion(event));
   }
 
   Future<void> saveShotLocation(domain.ShotLocation location) {
-    return _database.into(_database.shotLocations).insertOnConflictUpdate(
-          _shotLocationCompanion(location),
-        );
+    return _database
+        .into(_database.shotLocations)
+        .insertOnConflictUpdate(_shotLocationCompanion(location));
   }
 
   Future<void> saveEventWithShotLocation(
@@ -134,37 +136,35 @@ class MatchRepository {
     }
 
     return _database.transaction(() async {
-      await (_database.delete(_database.shotLocations)
-            ..where((location) => location.matchId.equals(matchId)))
-          .go();
-      await (_database.delete(_database.matchEvents)
-            ..where((event) => event.matchId.equals(matchId)))
-          .go();
+      await (_database.delete(
+        _database.shotLocations,
+      )..where((location) => location.matchId.equals(matchId))).go();
+      await (_database.delete(
+        _database.matchEvents,
+      )..where((event) => event.matchId.equals(matchId))).go();
       for (final event in events) {
-        await _database.into(_database.matchEvents).insert(
-              _eventCompanion(event),
-            );
+        await _database
+            .into(_database.matchEvents)
+            .insert(_eventCompanion(event));
       }
       for (final location in shotLocations) {
-        await _database.into(_database.shotLocations).insert(
-              _shotLocationCompanion(location),
-            );
+        await _database
+            .into(_database.shotLocations)
+            .insert(_shotLocationCompanion(location));
       }
     });
   }
 
-  Future<void> finishMatch(
-    String matchId, {
-    required DateTime endedAt,
-  }) async {
-    final updated = await (_database.update(_database.matches)
-          ..where((match) => match.id.equals(matchId)))
-        .write(
-      MatchesCompanion(
-        status: Value(MatchStatus.finished.name),
-        endedAt: Value(endedAt),
-      ),
-    );
+  Future<void> finishMatch(String matchId, {required DateTime endedAt}) async {
+    final updated =
+        await (_database.update(
+          _database.matches,
+        )..where((match) => match.id.equals(matchId))).write(
+          MatchesCompanion(
+            status: Value(MatchStatus.finished.name),
+            endedAt: Value(endedAt),
+          ),
+        );
     if (updated == 0) {
       throw StateError('Cannot finish missing match $matchId.');
     }
@@ -257,8 +257,8 @@ class MatchRepository {
             createdAt: row.createdAt.toUtc(),
             reason: row.reason,
             diff: AuditDiff(
-              before:
-                  (jsonDecode(row.beforeJson) as Map).cast<String, Object?>(),
+              before: (jsonDecode(row.beforeJson) as Map)
+                  .cast<String, Object?>(),
               after: (jsonDecode(row.afterJson) as Map).cast<String, Object?>(),
             ),
           ),
@@ -280,7 +280,9 @@ class MatchRepository {
     required Map<String, Object?> after,
     String? reason,
   }) {
-    return _database.into(_database.auditLogs).insert(
+    return _database
+        .into(_database.auditLogs)
+        .insert(
           AuditLogsCompanion.insert(
             id: _uuid.v4(),
             matchId: matchId,
@@ -300,25 +302,25 @@ class MatchRepository {
   }
 
   static Map<String, Object?> _eventJson(MatchEventRow row) => {
-        'id': row.id,
-        'matchId': row.matchId,
-        'type': row.type,
-        'side': row.side,
-        'points': row.points,
-        'occurredAt': row.occurredAt.toUtc().toIso8601String(),
-        'note': row.note,
-        'customEventType': row.customEventType,
-        'isDeleted': row.isDeleted,
-      };
+    'id': row.id,
+    'matchId': row.matchId,
+    'type': row.type,
+    'side': row.side,
+    'points': row.points,
+    'occurredAt': row.occurredAt.toUtc().toIso8601String(),
+    'note': row.note,
+    'customEventType': row.customEventType,
+    'isDeleted': row.isDeleted,
+  };
 
   static Map<String, Object?> _locationJson(ShotLocation row) => {
-        'id': row.id,
-        'matchId': row.matchId,
-        'eventId': row.eventId,
-        'x': row.x,
-        'y': row.y,
-        'isConfirmed': row.isConfirmed,
-      };
+    'id': row.id,
+    'matchId': row.matchId,
+    'eventId': row.eventId,
+    'x': row.x,
+    'y': row.y,
+    'isConfirmed': row.isConfirmed,
+  };
 
   Stream<List<MatchEvent>> watchEvents(String matchId) {
     final query = _database.select(_database.matchEvents)
@@ -471,8 +473,9 @@ class MatchRepository {
     List<ShotLocation> locationRows,
   ) {
     final events = eventRows.map(mapEventRow).toList(growable: false);
-    final locations =
-        locationRows.map(_mapShotLocationRow).toList(growable: false);
+    final locations = locationRows
+        .map(_mapShotLocationRow)
+        .toList(growable: false);
     final activeEvents = events.where((event) => !event.isDeleted).toList();
     final score = ScoringReducer().reduce(activeEvents);
     final shotEventIds = activeEvents

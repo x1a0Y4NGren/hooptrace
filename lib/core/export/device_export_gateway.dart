@@ -10,7 +10,7 @@ import 'package:share_plus/share_plus.dart';
 
 class DeviceExportGateway implements ExportGateway {
   DeviceExportGateway({DeviceAutomaticBackupStorage? backupStorage})
-      : backupStorage = backupStorage ?? DeviceAutomaticBackupStorage();
+    : backupStorage = backupStorage ?? DeviceAutomaticBackupStorage();
 
   final DeviceAutomaticBackupStorage backupStorage;
 
@@ -64,8 +64,9 @@ class DeviceExportGateway implements ExportGateway {
         files: files,
         subject: subject,
         text: subject,
-        fileNameOverrides:
-            artifacts.map((artifact) => artifact.fileName).toList(),
+        fileNameOverrides: artifacts
+            .map((artifact) => artifact.fileName)
+            .toList(),
       ),
     );
   }

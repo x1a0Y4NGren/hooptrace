@@ -21,8 +21,9 @@ class HalfCourtGeometry {
     }
 
     final availableRatio = size.width / size.height;
-    final courtWidth =
-        availableRatio > aspectRatio ? size.height * aspectRatio : size.width;
+    final courtWidth = availableRatio > aspectRatio
+        ? size.height * aspectRatio
+        : size.width;
     final courtHeight = courtWidth / aspectRatio;
 
     return Rect.fromLTWH(
@@ -74,10 +75,7 @@ class HalfCourtGeometry {
 }
 
 class CourtPainter extends CustomPainter {
-  const CourtPainter({
-    this.shotLocations = const [],
-    this.pendingLocation,
-  });
+  const CourtPainter({this.shotLocations = const [], this.pendingLocation});
 
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
@@ -105,10 +103,7 @@ class CourtPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.1;
 
-    final courtShape = RRect.fromRectAndRadius(
-      court,
-      const Radius.circular(8),
-    );
+    final courtShape = RRect.fromRectAndRadius(court, const Radius.circular(8));
     final shadowPath = Path()..addRRect(courtShape);
     canvas.drawShadow(
       shadowPath,
@@ -180,33 +175,15 @@ class CourtPainter extends CustomPainter {
       center: freeThrowCenter,
       radius: freeThrowRadius / HalfCourtGeometry.width * court.width,
     );
-    canvas.drawArc(
-      freeThrowCircle,
-      0,
-      math.pi,
-      false,
-      linePaint,
-    );
-    canvas.drawArc(
-      freeThrowCircle,
-      math.pi,
-      math.pi,
-      false,
-      mutedLinePaint,
-    );
+    canvas.drawArc(freeThrowCircle, 0, math.pi, false, linePaint);
+    canvas.drawArc(freeThrowCircle, math.pi, math.pi, false, mutedLinePaint);
 
     final basket = HalfCourtGeometry.metersToOffset(court, centerX, basketY);
     final restrictedCircle = Rect.fromCircle(
       center: basket,
       radius: restrictedRadius / HalfCourtGeometry.width * court.width,
     );
-    canvas.drawArc(
-      restrictedCircle,
-      0,
-      math.pi,
-      false,
-      mutedLinePaint,
-    );
+    canvas.drawArc(restrictedCircle, 0, math.pi, false, mutedLinePaint);
 
     final threePointCenter = basket;
     final threePointPixelRadius =

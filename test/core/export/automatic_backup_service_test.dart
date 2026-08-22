@@ -30,14 +30,16 @@ void main() {
       );
     });
 
-    test('is disabled by default and cannot enable without a directory',
-        () async {
-      expect(await service.isEnabled(), isFalse);
-      expect(
-        service.enable,
-        throwsA(isA<BackupDirectoryNotConfiguredException>()),
-      );
-    });
+    test(
+      'is disabled by default and cannot enable without a directory',
+      () async {
+        expect(await service.isEnabled(), isFalse);
+        expect(
+          service.enable,
+          throwsA(isA<BackupDirectoryNotConfiguredException>()),
+        );
+      },
+    );
 
     test('configures a user-approved directory before enabling', () async {
       storage.availableDirectories.add('/approved');
@@ -76,73 +78,78 @@ void main() {
       expect(state.lastBackupPath, path);
     });
 
-    test('reports storage write failures without recording a success',
-        () async {
-      storage.availableDirectories.add('/approved');
-      storage.writeError = FileSystemException('Permission denied');
-      await service.configureDirectory('/approved');
+    test(
+      'reports storage write failures without recording a success',
+      () async {
+        storage.availableDirectories.add('/approved');
+        storage.writeError = FileSystemException('Permission denied');
+        await service.configureDirectory('/approved');
 
-      expect(
-        service.runNow,
-        throwsA(isA<AutomaticBackupWriteException>()),
-      );
-      expect((await service.loadState()).lastBackupAt, isNull);
-    });
+        expect(service.runNow, throwsA(isA<AutomaticBackupWriteException>()));
+        expect((await service.loadState()).lastBackupAt, isNull);
+      },
+    );
 
-    test('disables and clears an unsupported legacy directory reference',
-        () async {
-      const legacyPath = '/storage/emulated/0/HoopTraceTest';
-      storage.availableDirectories.add(legacyPath);
-      await service.configureDirectory(legacyPath);
-      await service.enable();
-      storage.acceptReferences = false;
+    test(
+      'disables and clears an unsupported legacy directory reference',
+      () async {
+        const legacyPath = '/storage/emulated/0/HoopTraceTest';
+        storage.availableDirectories.add(legacyPath);
+        await service.configureDirectory(legacyPath);
+        await service.enable();
+        storage.acceptReferences = false;
 
-      final state = await service.loadState();
+        final state = await service.loadState();
 
-      expect(state.enabled, isFalse);
-      expect(state.directory, isNull);
-      expect(state.directoryLabel, isNull);
-      expect(await service.runIfEnabled(), isNull);
-    });
+        expect(state.enabled, isFalse);
+        expect(state.directory, isNull);
+        expect(state.directoryLabel, isNull);
+        expect(await service.runIfEnabled(), isNull);
+      },
+    );
 
-    test('disable prevents runIfEnabled and reset clears imported metadata',
-        () async {
-      storage.availableDirectories.add('/approved');
-      await service.configureDirectory('/approved');
-      await service.enable();
-      await service.disable();
-      storage.files.clear();
+    test(
+      'disable prevents runIfEnabled and reset clears imported metadata',
+      () async {
+        storage.availableDirectories.add('/approved');
+        await service.configureDirectory('/approved');
+        await service.enable();
+        await service.disable();
+        storage.files.clear();
 
-      expect(await service.runIfEnabled(), isNull);
-      await service.resetAfterRestore();
-      final state = await service.loadState();
-      expect(state.enabled, isFalse);
-      expect(state.directory, isNull);
-    });
+        expect(await service.runIfEnabled(), isNull);
+        await service.resetAfterRestore();
+        final state = await service.loadState();
+        expect(state.enabled, isFalse);
+        expect(state.directory, isNull);
+      },
+    );
 
-    test('IO storage never overwrites a backup with the same filename',
-        () async {
-      final directory = await Directory.systemTemp.createTemp(
-        'hooptrace-backup-test-',
-      );
-      addTearDown(() => directory.delete(recursive: true));
-      const ioStorage = IoAutomaticBackupStorage();
+    test(
+      'IO storage never overwrites a backup with the same filename',
+      () async {
+        final directory = await Directory.systemTemp.createTemp(
+          'hooptrace-backup-test-',
+        );
+        addTearDown(() => directory.delete(recursive: true));
+        const ioStorage = IoAutomaticBackupStorage();
 
-      final first = await ioStorage.write(
-        directory: directory.path,
-        fileName: 'backup.json',
-        bytes: Uint8List.fromList([1]),
-      );
-      final second = await ioStorage.write(
-        directory: directory.path,
-        fileName: 'backup.json',
-        bytes: Uint8List.fromList([2]),
-      );
+        final first = await ioStorage.write(
+          directory: directory.path,
+          fileName: 'backup.json',
+          bytes: Uint8List.fromList([1]),
+        );
+        final second = await ioStorage.write(
+          directory: directory.path,
+          fileName: 'backup.json',
+          bytes: Uint8List.fromList([2]),
+        );
 
-      expect(second, isNot(first));
-      expect(await File(first).readAsBytes(), [1]);
-      expect(await File(second).readAsBytes(), [2]);
-    });
+        expect(second, isNot(first));
+        expect(await File(first).readAsBytes(), [1]);
+        expect(await File(second).readAsBytes(), [2]);
+      },
+    );
   });
 }
 

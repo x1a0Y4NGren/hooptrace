@@ -22,10 +22,7 @@ void main() {
     await tester.tap(find.text('开始计分'));
     await _pumpUntilFound(tester, find.byType(PregamePage));
 
-    await tester.enterText(
-      find.byKey(const Key('pregame-red-name')),
-      redName,
-    );
+    await tester.enterText(find.byKey(const Key('pregame-red-name')), redName);
     await tester.enterText(
       find.byKey(const Key('pregame-blue-name')),
       blueName,

@@ -59,7 +59,8 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   void _attachController() {
-    _controller = widget.controller ??
+    _controller =
+        widget.controller ??
         ScoringController(matchId: widget.matchId, setup: widget.setup);
     _ownsController = widget.controller == null;
     _controller.addListener(_handleStateChanged);
@@ -185,8 +186,10 @@ class _ScoringPageState extends State<ScoringPage> {
             if (state.ruleHints.isNotEmpty)
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 6,
+                ),
                 color: Theme.of(context).colorScheme.secondaryContainer,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -212,9 +215,9 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _scoreAndAskLocation(TeamSide side, int points) async {
     final accepted = _controller.addScore(side: side, points: points);
     if (!accepted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(scoringResolvePendingText)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text(scoringResolvePendingText)));
       return;
     }
 
@@ -245,9 +248,9 @@ class _ScoringPageState extends State<ScoringPage> {
 
   void _openReplay() {
     if (_controller.state.pendingLocation != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(scoringResolvePendingText)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text(scoringResolvePendingText)));
       return;
     }
     widget.onOpenReplay?.call();

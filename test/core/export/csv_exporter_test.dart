@@ -82,16 +82,7 @@ void main() {
 
       final rows = _decodeCsv(encoded);
       expect(rows.first, CsvExporter.playerStatisticsHeaders);
-      expect(rows[1], [
-        'player-1',
-        'A, Ace',
-        4,
-        3,
-        28,
-        12,
-        20,
-        60.0,
-      ]);
+      expect(rows[1], ['player-1', 'A, Ace', 4, 3, 28, 12, 20, 60.0]);
       expect(encoded, endsWith(',60.00'));
     });
   });
@@ -100,7 +91,6 @@ void main() {
 List<List<dynamic>> _decodeCsv(String encoded) {
   return Csv(
     dynamicTyping: true,
-    decoderTransform: (field, _, _) =>
-        field is bool ? field.toString() : field,
+    decoderTransform: (field, _, _) => field is bool ? field.toString() : field,
   ).decode(encoded);
 }

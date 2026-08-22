@@ -38,8 +38,8 @@ class MatchEvents extends Table {
 
   @override
   List<String> get customConstraints => [
-        "CHECK (type != 'score' OR (side IS NOT NULL AND points > 0))",
-      ];
+    "CHECK (type != 'score' OR (side IS NOT NULL AND points > 0))",
+  ];
 }
 
 class ShotLocations extends Table {

@@ -18,17 +18,17 @@ sealed class AutomaticBackupException implements Exception {
 
 class BackupDirectoryNotConfiguredException extends AutomaticBackupException {
   const BackupDirectoryNotConfiguredException()
-      : super('Choose a backup directory before enabling automatic backup.');
+    : super('Choose a backup directory before enabling automatic backup.');
 }
 
 class BackupDirectoryUnavailableException extends AutomaticBackupException {
   const BackupDirectoryUnavailableException(String directory)
-      : super('The selected backup directory is unavailable: $directory');
+    : super('The selected backup directory is unavailable: $directory');
 }
 
 class AutomaticBackupWriteException extends AutomaticBackupException {
   const AutomaticBackupWriteException()
-      : super('The backup could not be written to the selected directory.');
+    : super('The backup could not be written to the selected directory.');
 }
 
 class BackupDirectorySelection {
@@ -106,8 +106,8 @@ class AutomaticBackupService {
     this.codec, {
     AutomaticBackupStorage? storage,
     DateTime Function()? now,
-  })  : storage = storage ?? const IoAutomaticBackupStorage(),
-        now = now ?? DateTime.now;
+  }) : storage = storage ?? const IoAutomaticBackupStorage(),
+       now = now ?? DateTime.now;
 
   static const _enabledKey = 'backup.automatic.enabled';
   static const _directoryKey = 'backup.automatic.directory';
@@ -142,8 +142,8 @@ class AutomaticBackupService {
         : null;
     var directoryLabel =
         rawDirectoryLabel is String && rawDirectoryLabel.trim().isNotEmpty
-            ? rawDirectoryLabel
-            : null;
+        ? rawDirectoryLabel
+        : null;
     var enabled = settings[_enabledKey] == true;
     final referencePolicy = storage is AutomaticBackupReferencePolicy
         ? storage as AutomaticBackupReferencePolicy
@@ -151,14 +151,13 @@ class AutomaticBackupService {
     if (directory != null &&
         referencePolicy != null &&
         !referencePolicy.acceptsDirectoryReference(directory)) {
-      await (database.delete(database.appSettings)
-            ..where(
-              (setting) => setting.key.isIn({
-                _enabledKey,
-                _directoryKey,
-                _directoryLabelKey,
-              }),
-            ))
+      await (database.delete(database.appSettings)..where(
+            (setting) => setting.key.isIn({
+              _enabledKey,
+              _directoryKey,
+              _directoryLabelKey,
+            }),
+          ))
           .go();
       enabled = false;
       directory = null;
@@ -239,10 +238,7 @@ class AutomaticBackupService {
       throw const AutomaticBackupWriteException();
     }
     await database.transaction(() async {
-      await _writeSetting(
-        _lastBackupAtKey,
-        timestamp.toIso8601String(),
-      );
+      await _writeSetting(_lastBackupAtKey, timestamp.toIso8601String());
       await _writeSetting(_lastBackupPathKey, destination);
     });
     return destination;
@@ -254,13 +250,15 @@ class AutomaticBackupService {
   }
 
   Future<void> resetAfterRestore() {
-    return (database.delete(database.appSettings)
-          ..where((setting) => setting.key.isIn(_keys)))
-        .go();
+    return (database.delete(
+      database.appSettings,
+    )..where((setting) => setting.key.isIn(_keys))).go();
   }
 
   Future<void> _writeSetting(String key, Object value) {
-    return database.into(database.appSettings).insertOnConflictUpdate(
+    return database
+        .into(database.appSettings)
+        .insertOnConflictUpdate(
           AppSetting(
             key: key,
             valueJson: jsonEncode(value),

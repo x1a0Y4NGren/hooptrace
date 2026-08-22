@@ -11,8 +11,9 @@ import 'package:hooptrace/features/settings/settings_page.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
-  testWidgets('settings exposes usable local export and backup controls',
-      (tester) async {
+  testWidgets('settings exposes usable local export and backup controls', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(800, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = createTestDatabase();
@@ -40,14 +41,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    for (final title in [
-      '导出完整备份',
-      '从备份恢复',
-      '导出 CSV',
-      '自动备份',
-      '备份位置',
-      '立即备份',
-    ]) {
+    for (final title in ['导出完整备份', '从备份恢复', '导出 CSV', '自动备份', '备份位置', '立即备份']) {
       await tester.scrollUntilVisible(find.text(title), 200);
       expect(find.text(title), findsOneWidget);
     }
@@ -62,8 +56,9 @@ void main() {
       reference: '/approved',
       displayName: 'HoopTrace backups',
     );
-    await tester
-        .ensureVisible(find.byKey(const Key('automatic-backup-switch')));
+    await tester.ensureVisible(
+      find.byKey(const Key('automatic-backup-switch')),
+    );
     await tester.tap(find.byKey(const Key('automatic-backup-switch')));
     await tester.pumpAndSettle();
     expect(storage.writeCount, 1);

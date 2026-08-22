@@ -8,44 +8,42 @@ void main() {
   final calculator = MatchAnalyticsCalculator();
 
   test(
-      'calculates a stable chronological scoring flow and ignores deleted events',
-      () {
-    final start = DateTime.utc(2026);
-    final events = [
-      _score(
-        'blue-later',
-        TeamSide.blue,
-        2,
-        start.add(const Duration(minutes: 2)),
-      ),
-      _score(
-        'red-first',
-        TeamSide.red,
-        2,
-        start.add(const Duration(minutes: 1)),
-      ),
-      _score(
-        'red-same-time',
-        TeamSide.red,
-        1,
-        start.add(const Duration(minutes: 1)),
-      ),
-      MatchEvent(
-        id: 'deleted',
-        matchId: 'm1',
-        type: MatchEventType.score,
-        side: TeamSide.blue,
-        points: 100,
-        occurredAt: start,
-        isDeleted: true,
-      ),
-    ];
+    'calculates a stable chronological scoring flow and ignores deleted events',
+    () {
+      final start = DateTime.utc(2026);
+      final events = [
+        _score(
+          'blue-later',
+          TeamSide.blue,
+          2,
+          start.add(const Duration(minutes: 2)),
+        ),
+        _score(
+          'red-first',
+          TeamSide.red,
+          2,
+          start.add(const Duration(minutes: 1)),
+        ),
+        _score(
+          'red-same-time',
+          TeamSide.red,
+          1,
+          start.add(const Duration(minutes: 1)),
+        ),
+        MatchEvent(
+          id: 'deleted',
+          matchId: 'm1',
+          type: MatchEventType.score,
+          side: TeamSide.blue,
+          points: 100,
+          occurredAt: start,
+          isDeleted: true,
+        ),
+      ];
 
-    final analytics = calculator.calculate(events);
+      final analytics = calculator.calculate(events);
 
-    expect(
-      analytics.scoringFlow,
-      [
+      expect(analytics.scoringFlow, [
         ScoringFlowEntry(
           eventId: 'red-first',
           side: TeamSide.red,
@@ -70,11 +68,11 @@ void main() {
           blueScore: 2,
           occurredAt: start.add(const Duration(minutes: 2)),
         ),
-      ],
-    );
-    expect(analytics.largestLeadSide, TeamSide.red);
-    expect(analytics.largestLeadPoints, 3);
-  });
+      ]);
+      expect(analytics.largestLeadSide, TeamSide.red);
+      expect(analytics.largestLeadPoints, 3);
+    },
+  );
 
   test('counts when non-tied leader switches across ties', () {
     final start = DateTime.utc(2026);
@@ -121,24 +119,20 @@ void main() {
     expect(empty.leadChanges, 0);
   });
 
-  test('records tie, overtake, match point, and one scoring run possession',
-      () {
-    final start = DateTime.utc(2026);
-    final analytics = calculator.calculate(
-      [
+  test(
+    'records tie, overtake, match point, and one scoring run possession',
+    () {
+      final start = DateTime.utc(2026);
+      final analytics = calculator.calculate([
         _score('r1', TeamSide.red, 2, start),
         _score('b1', TeamSide.blue, 2, start.add(const Duration(seconds: 1))),
         _score('b2', TeamSide.blue, 2, start.add(const Duration(seconds: 2))),
         _score('r2', TeamSide.red, 3, start.add(const Duration(seconds: 3))),
         _score('r3', TeamSide.red, 1, start.add(const Duration(seconds: 4))),
         _score('r4', TeamSide.red, 1, start.add(const Duration(seconds: 5))),
-      ],
-      targetScore: 7,
-    );
+      ], targetScore: 7);
 
-    expect(
-      analytics.keyPossessions,
-      [
+      expect(analytics.keyPossessions, [
         KeyPossession(
           type: KeyPossessionType.tie,
           eventId: 'b1',
@@ -179,9 +173,9 @@ void main() {
           blueScore: 4,
           occurredAt: start.add(const Duration(seconds: 5)),
         ),
-      ],
-    );
-  });
+      ]);
+    },
+  );
 
   test('records an overtake after scoring through a tie', () {
     final start = DateTime.utc(2026);
@@ -191,10 +185,10 @@ void main() {
       _score('b2', TeamSide.blue, 1, start.add(const Duration(seconds: 2))),
     ]);
 
-    expect(
-      analytics.keyPossessions.map((item) => item.type),
-      [KeyPossessionType.tie, KeyPossessionType.overtake],
-    );
+    expect(analytics.keyPossessions.map((item) => item.type), [
+      KeyPossessionType.tie,
+      KeyPossessionType.overtake,
+    ]);
     expect(analytics.keyPossessions.last.eventId, 'b2');
   });
 
@@ -219,33 +213,34 @@ void main() {
   });
 
   test(
-      'analytics and nested value objects compare by value and expose immutable lists',
-      () {
-    final start = DateTime.utc(2026);
-    final events = [_score('r1', TeamSide.red, 2, start)];
-    final first = calculator.calculate(events);
-    final second = calculator.calculate(events);
+    'analytics and nested value objects compare by value and expose immutable lists',
+    () {
+      final start = DateTime.utc(2026);
+      final events = [_score('r1', TeamSide.red, 2, start)];
+      final first = calculator.calculate(events);
+      final second = calculator.calculate(events);
 
-    expect(first, second);
-    expect(first.scoringFlow.single, second.scoringFlow.single);
-    expect(
-      () => first.scoringFlow.add(first.scoringFlow.single),
-      throwsUnsupportedError,
-    );
-    expect(
-      () => first.keyPossessions.add(
-        KeyPossession(
-          type: KeyPossessionType.tie,
-          eventId: 'unused',
-          side: TeamSide.red,
-          redScore: 1,
-          blueScore: 1,
-          occurredAt: start,
+      expect(first, second);
+      expect(first.scoringFlow.single, second.scoringFlow.single);
+      expect(
+        () => first.scoringFlow.add(first.scoringFlow.single),
+        throwsUnsupportedError,
+      );
+      expect(
+        () => first.keyPossessions.add(
+          KeyPossession(
+            type: KeyPossessionType.tie,
+            eventId: 'unused',
+            side: TeamSide.red,
+            redScore: 1,
+            blueScore: 1,
+            occurredAt: start,
+          ),
         ),
-      ),
-      throwsUnsupportedError,
-    );
-  });
+        throwsUnsupportedError,
+      );
+    },
+  );
 }
 
 MatchEvent _score(String id, TeamSide side, int points, DateTime occurredAt) {

@@ -24,7 +24,7 @@ class BackupFormatException extends BackupException {
 
 class BackupChecksumException extends BackupException {
   const BackupChecksumException()
-      : super('Backup checksum does not match its payload.');
+    : super('Backup checksum does not match its payload.');
 }
 
 class UnsupportedBackupSchemaException extends BackupException {
@@ -32,9 +32,9 @@ class UnsupportedBackupSchemaException extends BackupException {
     required this.schemaVersion,
     required this.supportedSchemaVersion,
   }) : super(
-          'Backup schema $schemaVersion is newer than supported schema '
-          '$supportedSchemaVersion.',
-        );
+         'Backup schema $schemaVersion is newer than supported schema '
+         '$supportedSchemaVersion.',
+       );
 
   final int schemaVersion;
   final int supportedSchemaVersion;
@@ -112,9 +112,7 @@ class JsonBackupCodec {
         );
       }
       manifest = BackupManifest.fromJson(manifestJson);
-      data = dataJson.map(
-        (key, value) => MapEntry(key, _jsonRows(key, value)),
-      );
+      data = dataJson.map((key, value) => MapEntry(key, _jsonRows(key, value)));
     } on BackupException {
       rethrow;
     } on Object catch (error) {
@@ -150,8 +148,9 @@ class JsonBackupCodec {
       locations = data['shotLocations']!.map(ShotLocation.fromJson).toList();
       players = data['players']!.map(PlayerRow.fromJson).toList();
       templates = data['ruleTemplates']!.map(RuleTemplateRow.fromJson).toList();
-      possessions =
-          data['possessionSegments']!.map(PossessionSegment.fromJson).toList();
+      possessions = data['possessionSegments']!
+          .map(PossessionSegment.fromJson)
+          .toList();
       audits = data['auditLogs']!.map(AuditLog.fromJson).toList();
       settings = data['appSettings']!.map(AppSetting.fromJson).toList();
     } on Object catch (error) {
@@ -197,12 +196,14 @@ class JsonBackupCodec {
     if (value is! List<dynamic>) {
       throw BackupFormatException('$table must be a JSON array.');
     }
-    return value.map((row) {
-      if (row is! Map<String, dynamic>) {
-        throw BackupFormatException('$table contains a non-object row.');
-      }
-      return row;
-    }).toList(growable: false);
+    return value
+        .map((row) {
+          if (row is! Map<String, dynamic>) {
+            throw BackupFormatException('$table contains a non-object row.');
+          }
+          return row;
+        })
+        .toList(growable: false);
   }
 
   void _validateTableGroups(
@@ -400,9 +401,7 @@ class JsonBackupCodec {
         ? customEventMetadata['possessionHintEnabled']
         : false;
     if (customEvents is! List<dynamic> ||
-        customEvents.any(
-          (value) => value is! String || value.trim().isEmpty,
-        ) ||
+        customEvents.any((value) => value is! String || value.trim().isEmpty) ||
         possessionHint is! bool) {
       throw BackupValidationException(
         'Rule template ${template.id} has invalid custom event metadata.',
@@ -429,9 +428,7 @@ class JsonBackupCodec {
         (foulLimit != null && (foulLimit is! int || foulLimit <= 0)) ||
         rule['possessionHintEnabled'] is! bool ||
         customEvents is! List<dynamic> ||
-        customEvents.any(
-          (value) => value is! String || value.trim().isEmpty,
-        )) {
+        customEvents.any((value) => value is! String || value.trim().isEmpty)) {
       throw BackupValidationException('$label is invalid.');
     }
   }

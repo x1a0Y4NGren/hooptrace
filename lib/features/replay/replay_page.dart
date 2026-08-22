@@ -72,10 +72,7 @@ class _ReplayPageState extends State<ReplayPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _EventEditorSheet(
-        controller: controller,
-        event: event,
-      ),
+      builder: (_) => _EventEditorSheet(controller: controller, event: event),
     );
   }
 
@@ -164,8 +161,10 @@ class _ReplayPageState extends State<ReplayPage> {
                             padding: const EdgeInsets.all(20),
                             child: _ReplayOverview(
                               controller: controller,
-                              courtMaxHeight:
-                                  math.max(120, constraints.maxHeight - 76),
+                              courtMaxHeight: math.max(
+                                120,
+                                constraints.maxHeight - 76,
+                              ),
                             ),
                           ),
                         ),
@@ -250,8 +249,8 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
                     child: Text(
                       '复盘分享图',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -351,7 +350,7 @@ class _ReplayExportSummary extends StatelessWidget {
     final largestLead = analytics?.largestLeadSide == null
         ? '暂无'
         : '${analytics!.largestLeadSide == TeamSide.red ? data.redName : data.blueName} '
-            '+${analytics.largestLeadPoints}';
+              '+${analytics.largestLeadPoints}';
 
     return Container(
       key: const Key('replay-export-summary'),
@@ -373,17 +372,17 @@ class _ReplayExportSummary extends StatelessWidget {
               Text(
                 'HoopTrace',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: HoopTraceColors.ink,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  color: HoopTraceColors.ink,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const Spacer(),
               Text(
                 data.isFinished ? '比赛复盘 · 终场' : '比赛复盘 · 进行中',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: HoopTraceColors.ink.withValues(alpha: 0.68),
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: HoopTraceColors.ink.withValues(alpha: 0.68),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ],
           ),
@@ -401,9 +400,9 @@ class _ReplayExportSummary extends StatelessWidget {
               Text(
                 ':',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                      color: HoopTraceColors.ink,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  color: HoopTraceColors.ink,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Expanded(
                 child: _ExportTeamScore(
@@ -441,11 +440,11 @@ class _ReplayExportSummary extends StatelessWidget {
                     children: [
                       Text(
                         '本场分析',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  color: HoopTraceColors.ink,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: HoopTraceColors.ink,
+                              fontWeight: FontWeight.w800,
+                            ),
                       ),
                       const SizedBox(height: 10),
                       Expanded(
@@ -472,10 +471,7 @@ class _ReplayExportSummary extends StatelessWidget {
                               label: '领先变化',
                               value: '${analytics?.leadChanges ?? 0} 次',
                             ),
-                            _ExportMetric(
-                              label: '最大领先',
-                              value: largestLead,
-                            ),
+                            _ExportMetric(label: '最大领先', value: largestLead),
                             _ExportMetric(
                               label: '关键节点',
                               value:
@@ -519,16 +515,16 @@ class _ExportTeamScore extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w700,
-              ),
+            color: color,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         Text(
           '$score',
           style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w900,
-              ),
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ],
     );
@@ -563,9 +559,9 @@ class _ExportMetric extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
           ],
         ),
@@ -719,8 +715,8 @@ class _ScoreHeader extends StatelessWidget {
             child: Text(
               data.isFinished ? '终场' : '进行中',
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                    color: HoopTraceColors.ink.withValues(alpha: 0.65),
-                  ),
+                color: HoopTraceColors.ink.withValues(alpha: 0.65),
+              ),
             ),
           ),
           Expanded(
@@ -759,15 +755,16 @@ class _TeamScore extends StatelessWidget {
           name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style:
-              Theme.of(context).textTheme.titleMedium?.copyWith(color: color),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(color: color),
         ),
         Text(
           '$score',
           style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w800,
-              ),
+            color: color,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -775,10 +772,7 @@ class _TeamScore extends StatelessWidget {
 }
 
 class _ReplayOverview extends StatelessWidget {
-  const _ReplayOverview({
-    required this.controller,
-    this.courtMaxHeight,
-  });
+  const _ReplayOverview({required this.controller, this.courtMaxHeight});
 
   final ReplayController controller;
   final double? courtMaxHeight;
@@ -811,8 +805,9 @@ class _ReplayOverview extends StatelessWidget {
                   onPendingLocationChanged: controller.isEditing
                       ? controller.updatePendingShotPoint
                       : null,
-                  onShotLocationTap:
-                      controller.isEditing ? controller.selectLocation : null,
+                  onShotLocationTap: controller.isEditing
+                      ? controller.selectLocation
+                      : null,
                   mode: controller.isEditing
                       ? CourtViewMode.editable
                       : CourtViewMode.readOnly,
@@ -936,9 +931,9 @@ class _Metric extends StatelessWidget {
           Text(label, style: Theme.of(context).textTheme.labelMedium),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -1117,13 +1112,13 @@ class _TimelineEvent extends StatelessWidget {
     final sideColor = event.side == TeamSide.red
         ? HoopTraceColors.red
         : event.side == TeamSide.blue
-            ? HoopTraceColors.blue
-            : HoopTraceColors.ink;
+        ? HoopTraceColors.blue
+        : HoopTraceColors.ink;
     final sideName = event.side == TeamSide.red
         ? data.redName
         : event.side == TeamSide.blue
-            ? data.blueName
-            : '比赛';
+        ? data.blueName
+        : '比赛';
     final action = switch (event.kind) {
       ReplayEventKind.score => '+${event.points} 分',
       ReplayEventKind.foul => '犯规',
@@ -1161,8 +1156,8 @@ class _TimelineEvent extends StatelessWidget {
                   Text(
                     '$sideName · $action',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   if (event.note != null && event.note!.isNotEmpty)
                     Text(
@@ -1254,9 +1249,9 @@ class _SectionTitle extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );

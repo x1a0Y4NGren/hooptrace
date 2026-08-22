@@ -36,17 +36,14 @@ void main() {
     await tester.enterText(find.byKey(const Key('rule-event-types')), '抢断,盖帽');
     await tester.tap(find.byKey(const Key('rule-win-by-two')));
     await tester.tap(find.byKey(const Key('rule-possession-hint')));
-    await tester.fling(
-      find.byType(ListView),
-      const Offset(0, -800),
-      1000,
-    );
+    await tester.fling(find.byType(ListView), const Offset(0, -800), 1000);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('rule-save')));
     await tester.pumpAndSettle();
 
-    final custom = (await repository.listAll())
-        .singleWhere((template) => template.name == '训练规则');
+    final custom = (await repository.listAll()).singleWhere(
+      (template) => template.name == '训练规则',
+    );
     expect(custom.targetScore, 15);
     expect(custom.timeLimitSeconds, 420);
     expect(custom.foulLimit, 4);

@@ -16,17 +16,17 @@ class BackupManifest {
   final String checksum;
 
   Map<String, dynamic> toJson() => {
-        ...checksumSourceJson(),
-        'checksum': checksum,
-      };
+    ...checksumSourceJson(),
+    'checksum': checksum,
+  };
 
   Map<String, dynamic> checksumSourceJson() => {
-        'appName': appName,
-        'appVersion': appVersion,
-        'schemaVersion': schemaVersion,
-        'exportedAt': exportedAt.toUtc().toIso8601String(),
-        'recordCounts': recordCounts,
-      };
+    'appName': appName,
+    'appVersion': appVersion,
+    'schemaVersion': schemaVersion,
+    'exportedAt': exportedAt.toUtc().toIso8601String(),
+    'recordCounts': recordCounts,
+  };
 
   factory BackupManifest.fromJson(Map<String, dynamic> json) {
     return BackupManifest(
@@ -34,8 +34,9 @@ class BackupManifest {
       appVersion: json['appVersion'] as String,
       schemaVersion: json['schemaVersion'] as int,
       exportedAt: DateTime.parse(json['exportedAt'] as String).toUtc(),
-      recordCounts: (json['recordCounts'] as Map<String, dynamic>)
-          .map((key, value) => MapEntry(key, value as int)),
+      recordCounts: (json['recordCounts'] as Map<String, dynamic>).map(
+        (key, value) => MapEntry(key, value as int),
+      ),
       checksum: json['checksum'] as String,
     );
   }

@@ -18,9 +18,9 @@ class ProjectDetailsPage extends StatelessWidget {
   Future<void> _open(BuildContext context, String url) async {
     final opened = await launcher.open(url);
     if (!opened && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('无法打开链接，请稍后重试。')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('无法打开链接，请稍后重试。')));
     }
   }
 
@@ -34,9 +34,9 @@ class ProjectDetailsPage extends StatelessWidget {
           children: [
             Text(
               'HoopTrace',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             const Text('为一对一篮球而做的本地计分与复盘工具。'),
@@ -64,9 +64,9 @@ class ProjectDetailsPage extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               '开放项目',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             _ProjectLink(

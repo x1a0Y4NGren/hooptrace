@@ -45,8 +45,9 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
             separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final template = templates[index];
-              final builtIn = RuleTemplateRepository.builtIns
-                  .any((item) => item.id == template.id);
+              final builtIn = RuleTemplateRepository.builtIns.any(
+                (item) => item.id == template.id,
+              );
               return ListTile(
                 minTileHeight: 64,
                 leading: Icon(builtIn ? Icons.verified_outlined : Icons.tune),

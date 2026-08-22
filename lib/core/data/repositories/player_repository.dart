@@ -9,7 +9,9 @@ class PlayerRepository {
   final AppDatabase _database;
 
   Future<void> save(Player player) {
-    return _database.into(_database.players).insertOnConflictUpdate(
+    return _database
+        .into(_database.players)
+        .insertOnConflictUpdate(
           PlayersCompanion.insert(
             id: player.id,
             nickname: player.nickname,
@@ -28,9 +30,9 @@ class PlayerRepository {
   }
 
   Future<void> delete(String id) async {
-    await (_database.delete(_database.players)
-          ..where((player) => player.id.equals(id)))
-        .go();
+    await (_database.delete(
+      _database.players,
+    )..where((player) => player.id.equals(id))).go();
   }
 
   Stream<List<Player>> watchAll() {
@@ -38,8 +40,8 @@ class PlayerRepository {
       ..orderBy([(player) => OrderingTerm.asc(player.createdAt)]);
 
     return query.watch().map(
-          (rows) => rows.map(_mapRow).toList(growable: false),
-        );
+      (rows) => rows.map(_mapRow).toList(growable: false),
+    );
   }
 
   static Player _mapRow(PlayerRow row) {

@@ -10,8 +10,9 @@ import 'package:hooptrace/features/players/player_list_page.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
-  testWidgets('player list exposes empty, create and edit flows',
-      (tester) async {
+  testWidgets('player list exposes empty, create and edit flows', (
+    tester,
+  ) async {
     final database = createTestDatabase();
     final repository = PlayerRepository(database);
     var created = false;
@@ -49,8 +50,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
-  testWidgets('player editor creates and updates persisted fields',
-      (tester) async {
+  testWidgets('player editor creates and updates persisted fields', (
+    tester,
+  ) async {
     final database = createTestDatabase();
     final repository = PlayerRepository(database);
     var saved = false;

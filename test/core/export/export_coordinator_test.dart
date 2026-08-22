@@ -21,7 +21,9 @@ void main() {
 
     setUp(() async {
       replacementBackup = await withTestDatabase((source) async {
-        await source.into(source.players).insert(
+        await source
+            .into(source.players)
+            .insert(
               PlayerRow(
                 id: 'replacement',
                 nickname: '新球员',
@@ -30,10 +32,7 @@ void main() {
                 note: null,
               ),
             );
-        return JsonBackupCodec(
-          source,
-          appVersion: '0.1.0+1',
-        ).export();
+        return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
       });
       database = createTestDatabase();
       gateway = _MemoryExportGateway();
@@ -91,44 +90,35 @@ void main() {
         'hooptrace-events-20260821-103000.csv',
         'hooptrace-player-stats-20260821-103000.csv',
       ]);
-      final stats = _decodeCsv(
-        utf8.decode(files.last.bytes),
-      );
-      expect(stats[1], [
-        'player-red',
-        '赤焰',
-        1,
-        1,
-        2,
-        1,
-        2,
-        50.0,
-      ]);
+      final stats = _decodeCsv(utf8.decode(files.last.bytes));
+      expect(stats[1], ['player-red', '赤焰', 1, 1, 2, 1, 2, 50.0]);
       expect(stats[2][0], '');
       expect(stats[2][1], '海浪');
     });
 
-    test('restores picked JSON atomically and clears device backup approval',
-        () async {
-      backupStorage.availableDirectories.add('/approved');
-      await automaticBackup.configureDirectory('/approved');
-      await automaticBackup.enable();
-      gateway.pickedBackup = ExportArtifact.text(
-        fileName: 'incoming.json',
-        mimeType: 'application/json',
-        contents: replacementBackup,
-      );
+    test(
+      'restores picked JSON atomically and clears device backup approval',
+      () async {
+        backupStorage.availableDirectories.add('/approved');
+        await automaticBackup.configureDirectory('/approved');
+        await automaticBackup.enable();
+        gateway.pickedBackup = ExportArtifact.text(
+          fileName: 'incoming.json',
+          mimeType: 'application/json',
+          contents: replacementBackup,
+        );
 
-      expect(await coordinator.restorePickedBackup(), isTrue);
+        expect(await coordinator.restorePickedBackup(), isTrue);
 
-      expect(
-        (await database.select(database.players).get()).single.id,
-        'replacement',
-      );
-      final state = await automaticBackup.loadState();
-      expect(state.enabled, isFalse);
-      expect(state.directory, isNull);
-    });
+        expect(
+          (await database.select(database.players).get()).single.id,
+          'replacement',
+        );
+        final state = await automaticBackup.loadState();
+        expect(state.enabled, isFalse);
+        expect(state.directory, isNull);
+      },
+    );
 
     test('returns false when the import picker is cancelled', () async {
       expect(await coordinator.restorePickedBackup(), isFalse);
@@ -149,8 +139,7 @@ void main() {
 List<List<dynamic>> _decodeCsv(String encoded) {
   return Csv(
     dynamicTyping: true,
-    decoderTransform: (field, _, _) =>
-        field is bool ? field.toString() : field,
+    decoderTransform: (field, _, _) => field is bool ? field.toString() : field,
   ).decode(encoded);
 }
 
@@ -194,7 +183,9 @@ class _MemoryBackupStorage implements AutomaticBackupStorage {
 
 Future<void> _seed(AppDatabase database) async {
   final startedAt = DateTime.utc(2026, 8, 21, 9);
-  await database.into(database.matches).insert(
+  await database
+      .into(database.matches)
+      .insert(
         Matche(
           id: 'match-1',
           redName: '赤焰',

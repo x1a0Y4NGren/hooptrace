@@ -16,17 +16,17 @@ void main() {
     final calls = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-      calls.add(call);
-      return switch (call.method) {
-        'pickDirectory' => <String, Object?>{
-            'reference': 'content://provider/tree/HoopTraceTest',
-            'displayName': 'HoopTraceTest',
-          },
-        'directoryExists' => true,
-        'writeBackup' => 'content://provider/document/backup.json',
-        _ => throw MissingPluginException(call.method),
-      };
-    });
+          calls.add(call);
+          return switch (call.method) {
+            'pickDirectory' => <String, Object?>{
+              'reference': 'content://provider/tree/HoopTraceTest',
+              'displayName': 'HoopTraceTest',
+            },
+            'directoryExists' => true,
+            'writeBackup' => 'content://provider/document/backup.json',
+            _ => throw MissingPluginException(call.method),
+          };
+        });
     final storage = DeviceAutomaticBackupStorage(useAndroidSaf: true);
 
     final selection = await storage.pickDirectory();

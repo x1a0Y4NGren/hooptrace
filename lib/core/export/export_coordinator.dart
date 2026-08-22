@@ -31,10 +31,7 @@ class ExportArtifact {
 }
 
 abstract interface class ExportGateway {
-  Future<void> share(
-    List<ExportArtifact> artifacts, {
-    required String subject,
-  });
+  Future<void> share(List<ExportArtifact> artifacts, {required String subject});
 
   Future<ExportArtifact?> pickBackup();
 
@@ -59,16 +56,13 @@ class ExportCoordinator {
   Future<void> shareJsonBackup() async {
     final timestamp = now().toUtc();
     final payload = await codec.export();
-    await gateway.share(
-      [
-        ExportArtifact.text(
-          fileName: 'hooptrace-backup-${_fileTimestamp(timestamp)}.json',
-          mimeType: 'application/json',
-          contents: payload,
-        ),
-      ],
-      subject: 'HoopTrace 完整本地备份',
-    );
+    await gateway.share([
+      ExportArtifact.text(
+        fileName: 'hooptrace-backup-${_fileTimestamp(timestamp)}.json',
+        mimeType: 'application/json',
+        contents: payload,
+      ),
+    ], subject: 'HoopTrace 完整本地备份');
   }
 
   Future<bool> restorePickedBackup() async {
@@ -87,43 +81,34 @@ class ExportCoordinator {
     final players = await database.select(database.players).get();
     final statistics = _buildPlayerStatistics(matches, events, players);
     final suffix = _fileTimestamp(timestamp);
-    await gateway.share(
-      [
-        ExportArtifact.text(
-          fileName: 'hooptrace-matches-$suffix.csv',
-          mimeType: 'text/csv',
-          contents: CsvExporter.matchList(matches),
-        ),
-        ExportArtifact.text(
-          fileName: 'hooptrace-events-$suffix.csv',
-          mimeType: 'text/csv',
-          contents: CsvExporter.eventList(events),
-        ),
-        ExportArtifact.text(
-          fileName: 'hooptrace-player-stats-$suffix.csv',
-          mimeType: 'text/csv',
-          contents: CsvExporter.playerStatistics(statistics),
-        ),
-      ],
-      subject: 'HoopTrace CSV 数据导出',
-    );
+    await gateway.share([
+      ExportArtifact.text(
+        fileName: 'hooptrace-matches-$suffix.csv',
+        mimeType: 'text/csv',
+        contents: CsvExporter.matchList(matches),
+      ),
+      ExportArtifact.text(
+        fileName: 'hooptrace-events-$suffix.csv',
+        mimeType: 'text/csv',
+        contents: CsvExporter.eventList(events),
+      ),
+      ExportArtifact.text(
+        fileName: 'hooptrace-player-stats-$suffix.csv',
+        mimeType: 'text/csv',
+        contents: CsvExporter.playerStatistics(statistics),
+      ),
+    ], subject: 'HoopTrace CSV 数据导出');
   }
 
-  Future<void> shareReplayImage(
-    Uint8List bytes, {
-    required String matchId,
-  }) {
+  Future<void> shareReplayImage(Uint8List bytes, {required String matchId}) {
     final safeMatchId = _safeFilePart(matchId);
-    return gateway.share(
-      [
-        ExportArtifact(
-          fileName: 'hooptrace-replay-$safeMatchId.png',
-          mimeType: 'image/png',
-          bytes: bytes,
-        ),
-      ],
-      subject: 'HoopTrace 比赛复盘',
-    );
+    return gateway.share([
+      ExportArtifact(
+        fileName: 'hooptrace-replay-$safeMatchId.png',
+        mimeType: 'image/png',
+        bytes: bytes,
+      ),
+    ], subject: 'HoopTrace 比赛复盘');
   }
 
   Future<BackupDirectorySelection?> pickBackupDirectory() =>
@@ -153,51 +138,53 @@ class ExportCoordinator {
       eventsByMatch.putIfAbsent(event.matchId, () => []).add(event);
     }
 
-    return participants.map((participant) {
-      var matchesPlayed = 0;
-      var wins = 0;
-      var points = 0;
-      var madeShots = 0;
-      var attemptedShots = 0;
-      for (final match in matches) {
-        final sides = <String>{
-          if (match.redName == participant.name) 'red',
-          if (match.blueName == participant.name) 'blue',
-        };
-        if (sides.isEmpty) continue;
-        matchesPlayed++;
-        final matchEvents = eventsByMatch[match.id] ?? const [];
-        var redScore = 0;
-        var blueScore = 0;
-        for (final event in matchEvents) {
-          if (event.type == 'score') {
-            if (event.side == 'red') redScore += event.points;
-            if (event.side == 'blue') blueScore += event.points;
+    return participants
+        .map((participant) {
+          var matchesPlayed = 0;
+          var wins = 0;
+          var points = 0;
+          var madeShots = 0;
+          var attemptedShots = 0;
+          for (final match in matches) {
+            final sides = <String>{
+              if (match.redName == participant.name) 'red',
+              if (match.blueName == participant.name) 'blue',
+            };
+            if (sides.isEmpty) continue;
+            matchesPlayed++;
+            final matchEvents = eventsByMatch[match.id] ?? const [];
+            var redScore = 0;
+            var blueScore = 0;
+            for (final event in matchEvents) {
+              if (event.type == 'score') {
+                if (event.side == 'red') redScore += event.points;
+                if (event.side == 'blue') blueScore += event.points;
+              }
+              if (!sides.contains(event.side)) continue;
+              if (event.type == 'score') {
+                points += event.points;
+                madeShots++;
+                attemptedShots++;
+              } else if (event.type == 'miss') {
+                attemptedShots++;
+              }
+            }
+            if ((sides.contains('red') && redScore > blueScore) ||
+                (sides.contains('blue') && blueScore > redScore)) {
+              wins++;
+            }
           }
-          if (!sides.contains(event.side)) continue;
-          if (event.type == 'score') {
-            points += event.points;
-            madeShots++;
-            attemptedShots++;
-          } else if (event.type == 'miss') {
-            attemptedShots++;
-          }
-        }
-        if ((sides.contains('red') && redScore > blueScore) ||
-            (sides.contains('blue') && blueScore > redScore)) {
-          wins++;
-        }
-      }
-      return PlayerStatisticsRow(
-        playerId: participant.id,
-        playerName: participant.name,
-        matchesPlayed: matchesPlayed,
-        wins: wins,
-        points: points,
-        madeShots: madeShots,
-        attemptedShots: attemptedShots,
-      );
-    }).toList(growable: false);
+          return PlayerStatisticsRow(
+            playerId: participant.id,
+            playerName: participant.name,
+            matchesPlayed: matchesPlayed,
+            wins: wins,
+            points: points,
+            madeShots: madeShots,
+            attemptedShots: attemptedShots,
+          );
+        })
+        .toList(growable: false);
   }
 
   static String _safeFilePart(String value) {

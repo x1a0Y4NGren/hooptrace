@@ -21,8 +21,9 @@ class SettingsController extends ChangeNotifier {
   final AutomaticBackupService automaticBackup;
   final bool canRestoreBackup;
 
-  AutomaticBackupState _backupState =
-      const AutomaticBackupState(enabled: false);
+  AutomaticBackupState _backupState = const AutomaticBackupState(
+    enabled: false,
+  );
   bool _initialized = false;
   bool _busy = false;
 

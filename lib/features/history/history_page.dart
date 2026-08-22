@@ -82,8 +82,8 @@ class _EmptyHistory extends StatelessWidget {
               '完成一场比赛后，记录会显示在这里。',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: HoopTraceColors.ink.withValues(alpha: 0.65),
-                  ),
+                color: HoopTraceColors.ink.withValues(alpha: 0.65),
+              ),
             ),
           ],
         ),
@@ -124,7 +124,10 @@ class _HistoryMatchRow extends StatelessWidget {
         SizedBox(width: 128, child: _date(context)),
         Expanded(flex: 4, child: _teamsAndScore(context)),
         Expanded(flex: 2, child: _winner(context)),
-        Expanded(flex: 2, child: _Meta(label: '规则', value: match.ruleName)),
+        Expanded(
+          flex: 2,
+          child: _Meta(label: '规则', value: match.ruleName),
+        ),
         SizedBox(
           width: 78,
           child: _Meta(label: '时长', value: _formatDuration(match.duration)),
@@ -168,8 +171,8 @@ class _HistoryMatchRow extends StatelessWidget {
       _formatDate(match.playedAt),
       maxLines: 1,
       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: HoopTraceColors.ink.withValues(alpha: 0.68),
-          ),
+        color: HoopTraceColors.ink.withValues(alpha: 0.68),
+      ),
     );
   }
 
@@ -182,18 +185,18 @@ class _HistoryMatchRow extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: HoopTraceColors.red,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: HoopTraceColors.red,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Text(
             '${match.redScore} : ${match.blueScore}',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
         ),
         Expanded(
@@ -203,9 +206,9 @@ class _HistoryMatchRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.end,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: HoopTraceColors.blue,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: HoopTraceColors.blue,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -242,16 +245,16 @@ class _Meta extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: HoopTraceColors.ink.withValues(alpha: 0.58),
-              ),
+            color: HoopTraceColors.ink.withValues(alpha: 0.58),
+          ),
         ),
         Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
       ],
     );

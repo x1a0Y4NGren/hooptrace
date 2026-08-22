@@ -26,8 +26,9 @@ class ScoreSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        side == TeamSide.red ? HoopTraceColors.red : HoopTraceColors.blue;
+    final color = side == TeamSide.red
+        ? HoopTraceColors.red
+        : HoopTraceColors.blue;
 
     return ColoredBox(
       color: color.withValues(alpha: 0.08),
@@ -60,11 +61,11 @@ class ScoreSidePanel extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    color: color,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: color,
+                                fontWeight: FontWeight.w800,
+                              ),
                         ),
                         SizedBox(height: gap),
                         SizedBox(
@@ -73,9 +74,7 @@ class ScoreSidePanel extends StatelessWidget {
                             fit: BoxFit.scaleDown,
                             child: Text(
                               '$score',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .displayLarge
+                              style: Theme.of(context).textTheme.displayLarge
                                   ?.copyWith(
                                     color: HoopTraceColors.ink,
                                     fontWeight: FontWeight.w900,

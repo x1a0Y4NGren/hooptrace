@@ -14,8 +14,8 @@ class PlayerEditorPage extends StatefulWidget {
     String Function()? idFactory,
     DateTime Function()? now,
     super.key,
-  })  : idFactory = idFactory ?? const Uuid().v4,
-        now = now ?? DateTime.now;
+  }) : idFactory = idFactory ?? const Uuid().v4,
+       now = now ?? DateTime.now;
 
   final PlayerRepository repository;
   final String? playerId;
@@ -116,9 +116,9 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('保存失败，请重试。')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('保存失败，请重试。')));
     }
   }
 
@@ -146,9 +146,9 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
       if (mounted) widget.onDeleted?.call();
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('删除失败，请重试。')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('删除失败，请重试。')));
     }
   }
 

@@ -68,10 +68,7 @@ void main() {
     expect(find.text('2 : 0'), findsOneWidget);
 
     await tester.tap(
-      find.ancestor(
-        of: find.text('2 : 0'),
-        matching: find.byType(InkWell),
-      ),
+      find.ancestor(of: find.text('2 : 0'), matching: find.byType(InkWell)),
     );
     await _pumpUntilFound(tester, find.byType(ReplayPage));
     expect(find.byType(ReplayPage), findsOneWidget);

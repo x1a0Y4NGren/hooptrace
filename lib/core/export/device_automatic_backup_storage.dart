@@ -8,8 +8,8 @@ class DeviceAutomaticBackupStorage
   DeviceAutomaticBackupStorage({
     AutomaticBackupStorage? fallback,
     bool? useAndroidSaf,
-  })  : _fallback = fallback ?? const IoAutomaticBackupStorage(),
-        _useAndroidSaf = useAndroidSaf ?? Platform.isAndroid;
+  }) : _fallback = fallback ?? const IoAutomaticBackupStorage(),
+       _useAndroidSaf = useAndroidSaf ?? Platform.isAndroid;
 
   static const channelName = 'io.github.x1a0y4ngren.hooptrace/automatic_backup';
   static const _channel = MethodChannel(channelName);
@@ -42,10 +42,9 @@ class DeviceAutomaticBackupStorage
   Future<bool> directoryExists(String directory) async {
     if (!_useAndroidSaf) return _fallback.directoryExists(directory);
     if (!_isContentUri(directory)) return false;
-    return await _channel.invokeMethod<bool>(
-          'directoryExists',
-          {'directory': directory},
-        ) ??
+    return await _channel.invokeMethod<bool>('directoryExists', {
+          'directory': directory,
+        }) ??
         false;
   }
 
@@ -65,14 +64,11 @@ class DeviceAutomaticBackupStorage
     if (!_isContentUri(directory)) {
       throw BackupDirectoryUnavailableException(directory);
     }
-    final destination = await _channel.invokeMethod<String>(
-      'writeBackup',
-      {
-        'directory': directory,
-        'fileName': fileName,
-        'bytes': bytes,
-      },
-    );
+    final destination = await _channel.invokeMethod<String>('writeBackup', {
+      'directory': directory,
+      'fileName': fileName,
+      'bytes': bytes,
+    });
     if (destination == null || destination.isEmpty) {
       throw const AutomaticBackupWriteException();
     }

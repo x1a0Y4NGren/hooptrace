@@ -22,16 +22,13 @@ class ReplayAnalyticsSummary extends StatelessWidget {
     final largestLead = analytics.largestLeadSide == null
         ? '无'
         : '${_sideName(analytics.largestLeadSide!)} '
-            '+${analytics.largestLeadPoints}';
+              '+${analytics.largestLeadPoints}';
 
     return Column(
       key: const Key('replay-analytics-summary'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _AnalyticsHeading(
-          title: '比赛分析',
-          icon: Icons.insights_outlined,
-        ),
+        const _AnalyticsHeading(title: '比赛分析', icon: Icons.insights_outlined),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
@@ -117,9 +114,9 @@ class _AnalyticsHeading extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -135,9 +132,9 @@ class _AnalyticsSubheading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
+      style: Theme.of(
+        context,
+      ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w700),
     );
   }
 }
@@ -164,9 +161,9 @@ class _AnalyticsMetric extends StatelessWidget {
           Text(label, style: Theme.of(context).textTheme.labelMedium),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -182,10 +179,12 @@ class _ScoringFlowItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        entry.side == TeamSide.red ? HoopTraceColors.red : HoopTraceColors.blue;
+    final color = entry.side == TeamSide.red
+        ? HoopTraceColors.red
+        : HoopTraceColors.blue;
     return Semantics(
-      label: '$sideName 得 ${entry.points} 分，'
+      label:
+          '$sideName 得 ${entry.points} 分，'
           '${entry.redScore} 比 ${entry.blueScore}',
       child: Container(
         width: 80,
@@ -199,9 +198,9 @@ class _ScoringFlowItem extends StatelessWidget {
           children: [
             Text(
               '${entry.redScore} : ${entry.blueScore}',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
             ),
             Text(
               '$sideName +${entry.points}',
@@ -217,10 +216,7 @@ class _ScoringFlowItem extends StatelessWidget {
 }
 
 class _KeyPossessionRow extends StatelessWidget {
-  const _KeyPossessionRow({
-    required this.possession,
-    required this.sideName,
-  });
+  const _KeyPossessionRow({required this.possession, required this.sideName});
 
   final KeyPossession possession;
   final String sideName;
@@ -247,9 +243,9 @@ class _KeyPossessionRow extends StatelessWidget {
           Expanded(
             child: Text(
               '$sideName · ${_label(possession.type)}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           Text('${possession.redScore} : ${possession.blueScore}'),

@@ -22,10 +22,7 @@ void main() {
   });
 
   test('pointFromLocal clamps positions into normalized court bounds', () {
-    final point = pointFromLocal(
-      const Offset(250, -20),
-      const Size(200, 100),
-    );
+    final point = pointFromLocal(const Offset(250, -20), const Size(200, 100));
 
     expect(point.x, 1);
     expect(point.y, 0);

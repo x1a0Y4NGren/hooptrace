@@ -25,7 +25,8 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
       targetScore: detail.match.ruleTemplateSnapshot.targetScore,
       winByTwo: detail.match.ruleTemplateSnapshot.winByTwo,
     ),
-    isFinished: detail.match.status == MatchStatus.finished ||
+    isFinished:
+        detail.match.status == MatchStatus.finished ||
         detail.match.status == MatchStatus.archived,
     events: [
       for (final event in detail.events)

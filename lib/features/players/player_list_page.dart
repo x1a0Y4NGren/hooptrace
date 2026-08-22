@@ -97,10 +97,7 @@ class _PlayerEmptyState extends StatelessWidget {
           children: [
             const Icon(Icons.people_outline, size: 56),
             const SizedBox(height: 16),
-            Text(
-              '还没有保存的球员',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('还没有保存的球员', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
             const Text('临时球员仍可直接参加比赛；保存档案后，下次更容易找到。'),
             const SizedBox(height: 24),
@@ -146,10 +143,10 @@ class _PlayerLoadError extends StatelessWidget {
 }
 
 Color _sideColor(TeamSide? side) => switch (side) {
-      TeamSide.red => HoopTraceColors.red,
-      TeamSide.blue => HoopTraceColors.blue,
-      null => HoopTraceColors.orange,
-    };
+  TeamSide.red => HoopTraceColors.red,
+  TeamSide.blue => HoopTraceColors.blue,
+  null => HoopTraceColors.orange,
+};
 
 String _playerSummary(Player player) {
   final side = switch (player.preferredSide) {

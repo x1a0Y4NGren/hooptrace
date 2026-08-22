@@ -43,44 +43,48 @@ void main() {
     );
   });
 
-  test('moves a confirmed location and audits coordinates atomically',
-      () async {
-    await repository.moveShotLocation(
-      locationId: 'location-1',
-      point: CourtPoint(x: 0.8, y: 0.7),
-      reason: '录像复核',
-    );
+  test(
+    'moves a confirmed location and audits coordinates atomically',
+    () async {
+      await repository.moveShotLocation(
+        locationId: 'location-1',
+        point: CourtPoint(x: 0.8, y: 0.7),
+        reason: '录像复核',
+      );
 
-    final detail = (await repository.getMatchDetail('match-1'))!;
-    expect(detail.shotLocations.single.point.toJson(), {'x': 0.8, 'y': 0.7});
-    final audit = (await repository.listAuditLogs('match-1')).single;
-    expect(audit.targetId, 'location-1');
-    expect(audit.action.name, 'edit');
-    expect(audit.reason, '录像复核');
-    expect(audit.diff.before, containsPair('x', 0.2));
-    expect(audit.diff.after, containsPair('y', 0.7));
-  });
+      final detail = (await repository.getMatchDetail('match-1'))!;
+      expect(detail.shotLocations.single.point.toJson(), {'x': 0.8, 'y': 0.7});
+      final audit = (await repository.listAuditLogs('match-1')).single;
+      expect(audit.targetId, 'location-1');
+      expect(audit.action.name, 'edit');
+      expect(audit.reason, '录像复核');
+      expect(audit.diff.before, containsPair('x', 0.2));
+      expect(audit.diff.after, containsPair('y', 0.7));
+    },
+  );
 
-  test('soft delete and note edit keep history and write audit snapshots',
-      () async {
-    await repository.updateEventNote(
-      eventId: 'global-event-id',
-      note: '右侧出手',
-    );
-    await repository.softDeleteEvent(
-      eventId: 'global-event-id',
-      reason: '误触',
-    );
+  test(
+    'soft delete and note edit keep history and write audit snapshots',
+    () async {
+      await repository.updateEventNote(
+        eventId: 'global-event-id',
+        note: '右侧出手',
+      );
+      await repository.softDeleteEvent(
+        eventId: 'global-event-id',
+        reason: '误触',
+      );
 
-    final detail = (await repository.getMatchDetail('match-1'))!;
-    expect(detail.events.single.isDeleted, isTrue);
-    expect(detail.redScore, 0);
-    expect(detail.shotAttemptCount, 0);
-    final logs = await repository.listAuditLogs('match-1');
-    expect(logs.map((log) => log.targetId), everyElement('global-event-id'));
-    expect(logs.map((log) => log.action.name), ['delete', 'edit']);
-    expect(jsonEncode(logs.last.diff.after), contains('右侧出手'));
-  });
+      final detail = (await repository.getMatchDetail('match-1'))!;
+      expect(detail.events.single.isDeleted, isTrue);
+      expect(detail.redScore, 0);
+      expect(detail.shotAttemptCount, 0);
+      final logs = await repository.listAuditLogs('match-1');
+      expect(logs.map((log) => log.targetId), everyElement('global-event-id'));
+      expect(logs.map((log) => log.action.name), ['delete', 'edit']);
+      expect(jsonEncode(logs.last.diff.after), contains('右侧出手'));
+    },
+  );
 
   test('rapid audit entries keep real wall-clock timestamps', () async {
     for (var index = 0; index < 3; index++) {

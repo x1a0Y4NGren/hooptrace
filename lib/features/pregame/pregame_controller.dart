@@ -83,8 +83,8 @@ class PregameController {
   PregameController({
     PregameState state = const PregameState(),
     List<RuleTemplate> templates = const [],
-  })  : _state = state,
-        _templates = List.of(templates);
+  }) : _state = state,
+       _templates = List.of(templates);
 
   PregameState _state;
   List<RuleTemplate> _templates;
@@ -96,18 +96,20 @@ class PregameController {
     if (_templates.any((item) => item.id == _state.ruleTemplateId)) return;
     final fallback =
         _templates.where((item) => item.id == 'free').firstOrNull ??
-            _templates.firstOrNull;
+        _templates.firstOrNull;
     if (fallback != null) setRuleTemplateId(fallback.id);
   }
 
   void setRedName(String value) {
-    _state =
-        _state.copyWith(redName: _fallbackName(value, defaultRedPlayerName));
+    _state = _state.copyWith(
+      redName: _fallbackName(value, defaultRedPlayerName),
+    );
   }
 
   void setBlueName(String value) {
-    _state =
-        _state.copyWith(blueName: _fallbackName(value, defaultBluePlayerName));
+    _state = _state.copyWith(
+      blueName: _fallbackName(value, defaultBluePlayerName),
+    );
   }
 
   void setRuleTemplateId(String value) {

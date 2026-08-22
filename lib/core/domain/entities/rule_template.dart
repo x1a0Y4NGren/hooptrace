@@ -37,16 +37,16 @@ class RuleTemplate {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        name,
-        Object.hashAll(scoreButtons),
-        targetScore,
-        timeLimitSeconds,
-        winByTwo,
-        foulLimit,
-        possessionHintEnabled,
-        Object.hashAll(customEventTypes),
-      );
+    id,
+    name,
+    Object.hashAll(scoreButtons),
+    targetScore,
+    timeLimitSeconds,
+    winByTwo,
+    foulLimit,
+    possessionHintEnabled,
+    Object.hashAll(customEventTypes),
+  );
 
   static bool _listsEqual<T>(List<T> left, List<T> right) {
     if (left.length != right.length) return false;

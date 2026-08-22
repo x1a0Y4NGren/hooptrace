@@ -66,8 +66,9 @@ void main() {
     expect(controller.state.redFouls, 2);
     expect(controller.state.blueFouls, 1);
     expect(
-      controller.state.events
-          .where((event) => event.type == MatchEventType.foul),
+      controller.state.events.where(
+        (event) => event.type == MatchEventType.foul,
+      ),
       hasLength(3),
     );
   });

@@ -24,14 +24,9 @@ void main() {
     await tester.pump();
 
     final bytes = await tester.runAsync(
-      () => ReplayImageExporter.capture(
-        boundaryKey,
-        pixelRatio: 2,
-      ),
+      () => ReplayImageExporter.capture(boundaryKey, pixelRatio: 2),
     );
-    final codec = await tester.runAsync(
-      () => ui.instantiateImageCodec(bytes!),
-    );
+    final codec = await tester.runAsync(() => ui.instantiateImageCodec(bytes!));
     final frame = await tester.runAsync(codec!.getNextFrame);
     addTearDown(codec.dispose);
     addTearDown(frame!.image.dispose);

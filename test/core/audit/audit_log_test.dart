@@ -10,10 +10,7 @@ void main() {
       targetId: 'event-1',
       action: AuditAction.edit,
       createdAt: DateTime.utc(2026),
-      diff: const AuditDiff(
-        before: {'points': 2},
-        after: {'points': 3},
-      ),
+      diff: const AuditDiff(before: {'points': 2}, after: {'points': 3}),
     );
 
     expect(entry.diff.before['points'], 2);

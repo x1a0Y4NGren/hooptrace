@@ -8,19 +8,21 @@ class MatchAnalyticsCalculator {
     int? targetScore,
     bool winByTwo = false,
   }) {
-    final orderedEvents = events
-        .asMap()
-        .entries
-        .where((entry) => !entry.value.isDeleted)
-        .map((entry) => _IndexedEvent(entry.key, entry.value))
-        .toList()
-      ..sort((first, second) {
-        final timeComparison =
-            first.event.occurredAt.compareTo(second.event.occurredAt);
-        return timeComparison == 0
-            ? first.index.compareTo(second.index)
-            : timeComparison;
-      });
+    final orderedEvents =
+        events
+            .asMap()
+            .entries
+            .where((entry) => !entry.value.isDeleted)
+            .map((entry) => _IndexedEvent(entry.key, entry.value))
+            .toList()
+          ..sort((first, second) {
+            final timeComparison = first.event.occurredAt.compareTo(
+              second.event.occurredAt,
+            );
+            return timeComparison == 0
+                ? first.index.compareTo(second.index)
+                : timeComparison;
+          });
 
     var redScore = 0;
     var blueScore = 0;

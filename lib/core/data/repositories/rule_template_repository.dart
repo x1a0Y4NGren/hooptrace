@@ -10,11 +10,7 @@ class RuleTemplateRepository {
   final AppDatabase _database;
 
   static const builtIns = [
-    RuleTemplate(
-      id: 'free',
-      name: '自由计分',
-      scoreButtons: [1, 2, 3],
-    ),
+    RuleTemplate(id: 'free', name: '自由计分', scoreButtons: [1, 2, 3]),
     RuleTemplate(
       id: 'eleven_win_by_two',
       name: '11 分制（领先 2 分）',
@@ -45,7 +41,9 @@ class RuleTemplateRepository {
   }
 
   Future<void> save(RuleTemplate template, {bool isBuiltIn = false}) {
-    return _database.into(_database.ruleTemplates).insertOnConflictUpdate(
+    return _database
+        .into(_database.ruleTemplates)
+        .insertOnConflictUpdate(
           RuleTemplatesCompanion.insert(
             id: template.id,
             name: template.name,
@@ -91,10 +89,9 @@ class RuleTemplateRepository {
   }
 
   Future<void> deleteCustom(String id) {
-    return (_database.delete(_database.ruleTemplates)
-          ..where(
-            (template) => template.id.equals(id) & template.isBuiltIn.not(),
-          ))
+    return (_database.delete(_database.ruleTemplates)..where(
+          (template) => template.id.equals(id) & template.isBuiltIn.not(),
+        ))
         .go();
   }
 
@@ -103,7 +100,7 @@ class RuleTemplateRepository {
     final customEventTypes = metadata is List
         ? metadata.cast<String>()
         : ((metadata as Map)['eventTypes'] as List<Object?>? ?? const [])
-            .cast<String>();
+              .cast<String>();
     final possessionHintEnabled = metadata is Map
         ? metadata['possessionHintEnabled'] as bool? ?? false
         : false;

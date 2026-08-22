@@ -32,15 +32,17 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
     super.initState();
     final template = widget.template;
     _name = TextEditingController(text: template?.name ?? '');
-    _target =
-        TextEditingController(text: template?.targetScore?.toString() ?? '');
+    _target = TextEditingController(
+      text: template?.targetScore?.toString() ?? '',
+    );
     _timeLimit = TextEditingController(
       text: template?.timeLimitSeconds == null
           ? ''
           : '${template!.timeLimitSeconds! ~/ 60}',
     );
-    _foulLimit =
-        TextEditingController(text: template?.foulLimit?.toString() ?? '');
+    _foulLimit = TextEditingController(
+      text: template?.foulLimit?.toString() ?? '',
+    );
     _scoreButtons = TextEditingController(
       text: template?.scoreButtons.join(',') ?? '1,2,3',
     );
@@ -161,7 +163,8 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
           labelText: label,
           border: const OutlineInputBorder(),
         ),
-        validator: validator ??
+        validator:
+            validator ??
             (numeric
                 ? (value) => _validateOptionalPositive(value, label)
                 : null),

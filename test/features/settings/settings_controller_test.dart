@@ -21,11 +21,7 @@ void main() {
     gateway = _Gateway();
     storage = _Storage();
     final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
-    automaticBackup = AutomaticBackupService(
-      database,
-      codec,
-      storage: storage,
-    );
+    automaticBackup = AutomaticBackupService(database, codec, storage: storage);
     controller = SettingsController(
       exports: ExportCoordinator(
         database,
@@ -49,22 +45,24 @@ void main() {
     expect(controller.backupState.directory, isNull);
   });
 
-  test('enabling prompts for and stores a directory before first backup',
-      () async {
-    gateway.pickedDirectory = const BackupDirectorySelection(
-      reference: '/approved',
-      displayName: 'Approved backups',
-    );
-    storage.availableDirectories.add('/approved');
-    await controller.load();
+  test(
+    'enabling prompts for and stores a directory before first backup',
+    () async {
+      gateway.pickedDirectory = const BackupDirectorySelection(
+        reference: '/approved',
+        displayName: 'Approved backups',
+      );
+      storage.availableDirectories.add('/approved');
+      await controller.load();
 
-    expect(await controller.setAutomaticBackupEnabled(true), isTrue);
+      expect(await controller.setAutomaticBackupEnabled(true), isTrue);
 
-    expect(controller.backupState.enabled, isTrue);
-    expect(controller.backupState.directory, '/approved');
-    expect(controller.backupState.directoryLabel, 'Approved backups');
-    expect(storage.writeCount, 1);
-  });
+      expect(controller.backupState.enabled, isTrue);
+      expect(controller.backupState.directory, '/approved');
+      expect(controller.backupState.directoryLabel, 'Approved backups');
+      expect(storage.writeCount, 1);
+    },
+  );
 
   test('cancelled directory picker leaves automatic backup disabled', () async {
     await controller.load();

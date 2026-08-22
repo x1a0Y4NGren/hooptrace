@@ -1,8 +1,5 @@
 class CourtPoint {
-  CourtPoint({
-    required this.x,
-    required this.y,
-  }) {
+  CourtPoint({required this.x, required this.y}) {
     if (x < 0 || x > 1 || y < 0 || y > 1) {
       throw ArgumentError('CourtPoint coordinates must be normalized.');
     }

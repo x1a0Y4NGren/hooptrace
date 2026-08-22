@@ -4,11 +4,7 @@ import 'package:flutter/services.dart';
 enum HoopTraceOrientationMode { portraitFriendly, landscapeRequired }
 
 class OrientationShell extends StatefulWidget {
-  const OrientationShell({
-    required this.mode,
-    required this.child,
-    super.key,
-  });
+  const OrientationShell({required this.mode, required this.child, super.key});
 
   final HoopTraceOrientationMode mode;
   final Widget child;

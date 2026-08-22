@@ -44,8 +44,9 @@ class _PregamePageState extends State<PregamePage> {
     super.initState();
     _controller = PregameController(templates: widget.templates);
     _redNameController = TextEditingController(text: _controller.state.redName);
-    _blueNameController =
-        TextEditingController(text: _controller.state.blueName);
+    _blueNameController = TextEditingController(
+      text: _controller.state.blueName,
+    );
   }
 
   @override

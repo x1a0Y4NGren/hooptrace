@@ -152,13 +152,15 @@ class _SettingsPageState extends State<SettingsPage> {
                         title: const Text('自动备份'),
                         subtitle: Text(backup.enabled ? '已开启' : '已关闭'),
                         value: backup.enabled,
-                        onChanged:
-                            controller.busy ? null : _setAutomaticBackupEnabled,
+                        onChanged: controller.busy
+                            ? null
+                            : _setAutomaticBackupEnabled,
                       ),
                       _SettingTile(
                         icon: Icons.folder_outlined,
                         title: '备份位置',
-                        subtitle: backup.directoryLabel ??
+                        subtitle:
+                            backup.directoryLabel ??
                             backup.directory ??
                             '未选择，只会访问你明确选择的文件夹',
                         enabled: !controller.busy,
@@ -230,9 +232,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('恢复完整备份？'),
-        content: const Text(
-          '导入文件通过版本、结构和校验和验证后，将一次性替换当前设备上的全部本地数据。此操作无法撤销。',
-        ),
+        content: const Text('导入文件通过版本、结构和校验和验证后，将一次性替换当前设备上的全部本地数据。此操作无法撤销。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -272,8 +272,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _setAutomaticBackupEnabled(bool enabled) async {
     try {
-      final changed =
-          await widget.controller.setAutomaticBackupEnabled(enabled);
+      final changed = await widget.controller.setAutomaticBackupEnabled(
+        enabled,
+      );
       if (!mounted) return;
       if (!changed) {
         _showMessage('未选择文件夹，自动备份保持关闭');
@@ -366,9 +367,9 @@ class _SettingsSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
             child: Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
           ),
           ...children,

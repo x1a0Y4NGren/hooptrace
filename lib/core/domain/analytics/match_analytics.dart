@@ -1,11 +1,6 @@
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
-enum KeyPossessionType {
-  tie,
-  overtake,
-  matchPoint,
-  scoringRun,
-}
+enum KeyPossessionType { tie, overtake, matchPoint, scoringRun }
 
 class ScoringFlowEntry {
   const ScoringFlowEntry({
@@ -36,14 +31,8 @@ class ScoringFlowEntry {
   }
 
   @override
-  int get hashCode => Object.hash(
-        eventId,
-        side,
-        points,
-        redScore,
-        blueScore,
-        occurredAt,
-      );
+  int get hashCode =>
+      Object.hash(eventId, side, points, redScore, blueScore, occurredAt);
 }
 
 class KeyPossession {
@@ -75,14 +64,8 @@ class KeyPossession {
   }
 
   @override
-  int get hashCode => Object.hash(
-        type,
-        eventId,
-        side,
-        redScore,
-        blueScore,
-        occurredAt,
-      );
+  int get hashCode =>
+      Object.hash(type, eventId, side, redScore, blueScore, occurredAt);
 }
 
 class MatchAnalytics {
@@ -95,8 +78,8 @@ class MatchAnalytics {
     required this.missedShotCount,
     required this.shootingPercentage,
     required List<KeyPossession> keyPossessions,
-  })  : scoringFlow = List.unmodifiable(scoringFlow),
-        keyPossessions = List.unmodifiable(keyPossessions);
+  }) : scoringFlow = List.unmodifiable(scoringFlow),
+       keyPossessions = List.unmodifiable(keyPossessions);
 
   final List<ScoringFlowEntry> scoringFlow;
   final TeamSide? largestLeadSide;
@@ -122,15 +105,15 @@ class MatchAnalytics {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(scoringFlow),
-        largestLeadSide,
-        largestLeadPoints,
-        leadChanges,
-        madeShotCount,
-        missedShotCount,
-        shootingPercentage,
-        Object.hashAll(keyPossessions),
-      );
+    Object.hashAll(scoringFlow),
+    largestLeadSide,
+    largestLeadPoints,
+    leadChanges,
+    madeShotCount,
+    missedShotCount,
+    shootingPercentage,
+    Object.hashAll(keyPossessions),
+  );
 }
 
 bool _listEquals<T>(List<T> first, List<T> second) {
