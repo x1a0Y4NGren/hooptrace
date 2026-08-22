@@ -732,7 +732,14 @@ class MatchCommandService {
                 runningSinceUtc: Value(
                   command.timerEnabled ? command.startedAt : null,
                 ),
-                regulationSeconds: Value(command.regulationSeconds),
+                // Count-up clocks may arrive from older callers with an
+                // unused duration; the persisted clock contract keeps that
+                // field null. A countdown duration is validated above.
+                regulationSeconds: Value(
+                  command.clockMode == ClockMode.countdown
+                      ? command.regulationSeconds
+                      : null,
+                ),
               ),
             );
         await _database
@@ -2044,11 +2051,6 @@ class MatchCommandService {
           message: 'Countdown duration must be between 1 and 180 minutes.',
         );
       }
-    } else if (command.regulationSeconds != null) {
-      throw CommandValidationFailure(
-        command: command,
-        message: 'Count-up clocks cannot have a regulation duration.',
-      );
     }
   }
 
