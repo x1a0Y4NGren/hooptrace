@@ -365,6 +365,50 @@ void main() {
       });
     },
   );
+
+  test(
+    'link rejects a missing match and a participant from another match',
+    () async {
+      await withTestDatabase((database) async {
+        await _insertPlayer(database, 'player-cross-match', 'Cross match');
+        final service = MatchCommandService(database);
+        final first = await _start(service, 'task7-link-first-match');
+        await service.finish(
+          FinishMatchCommand(matchId: first.match.id, endedAt: DateTime.now()),
+        );
+        final second = await _start(service, 'task7-link-second-match');
+        await service.finish(
+          FinishMatchCommand(matchId: second.match.id, endedAt: DateTime.now()),
+        );
+        final secondParticipant = await _participant(
+          database,
+          matchId: second.match.id,
+          side: 'red',
+        );
+
+        await expectLater(
+          service.linkParticipant(
+            LinkMatchParticipantCommand(
+              matchId: first.match.id,
+              participantId: secondParticipant.id,
+              playerProfileId: 'player-cross-match',
+            ),
+          ),
+          throwsA(isA<CommandValidationFailure>()),
+        );
+        await expectLater(
+          service.linkParticipant(
+            LinkMatchParticipantCommand(
+              matchId: 'missing-match',
+              participantId: secondParticipant.id,
+              playerProfileId: 'player-cross-match',
+            ),
+          ),
+          throwsA(isA<CommandValidationFailure>()),
+        );
+      });
+    },
+  );
 }
 
 Future<MatchDetail> _start(
