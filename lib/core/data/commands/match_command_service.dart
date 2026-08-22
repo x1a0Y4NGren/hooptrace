@@ -719,9 +719,7 @@ class MatchCommandService {
     });
   }
 
-  Future<MatchDetail> confirmShotLocation(
-    ConfirmShotLocationCommand command,
-  ) {
+  Future<MatchDetail> confirmShotLocation(ConfirmShotLocationCommand command) {
     return _execute(command, () {
       return _database.transaction(() async {
         final duplicate = await _returnForDuplicate(command);
