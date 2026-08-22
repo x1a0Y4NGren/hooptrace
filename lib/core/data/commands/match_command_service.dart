@@ -2211,7 +2211,8 @@ class MatchCommandService {
           command.regulationSeconds! % 60 != 0) {
         throw CommandValidationFailure(
           command: command,
-          message: 'Countdown duration must be between 1 and 180 minutes.',
+          message:
+              'Countdown duration must be a whole minute between 1 and 180 minutes.',
         );
       }
     }

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
 void main() {
@@ -190,4 +191,91 @@ void main() {
     expect(controller.state.redPlayerProfileId, isNull);
     expect(controller.state.redName, defaultRedPlayerName);
   });
+
+  test('clearing a participant name remains empty and requires validation', () {
+    final controller = PregameController()
+      ..setRedName('')
+      ..setBlueName('')
+      ..setRecordingMode(RecordingMode.simple);
+
+    expect(controller.state.redName, isEmpty);
+    expect(controller.state.blueName, isEmpty);
+    expect(
+      controller.validate().errors,
+      containsAll([
+        PregameValidationError.redParticipantRequired,
+        PregameValidationError.blueParticipantRequired,
+      ]),
+    );
+  });
+
+  test('disabling timer normalizes clock mode to count-up', () {
+    final controller = PregameController()
+      ..setTimerEnabled(true)
+      ..setClockMode(ClockMode.countdown)
+      ..setTimerEnabled(false);
+
+    expect(controller.state.timerEnabled, isFalse);
+    expect(controller.state.clockMode, ClockMode.countUp);
+  });
+
+  test('countdown input preserves raw values and rejects invalid text', () {
+    final controller =
+        PregameController(
+            state: const PregameState(recordingMode: RecordingMode.simple),
+          )
+          ..setTimerEnabled(true)
+          ..setClockMode(ClockMode.countdown);
+
+    controller.setTimeLimitMinutes(181);
+    expect(controller.state.timeLimitMinutes, 181);
+    expect(
+      controller.validate().errors,
+      contains(PregameValidationError.invalidCountdownDuration),
+    );
+
+    controller.setCountdownMinutesText('');
+    expect(controller.state.countdownMinutesText, isEmpty);
+    expect(
+      controller.validate().errors,
+      contains(PregameValidationError.invalidCountdownDuration),
+    );
+
+    controller.setCountdownMinutesText('abc');
+    expect(controller.state.countdownMinutesText, 'abc');
+    expect(
+      controller.validate().errors,
+      contains(PregameValidationError.invalidCountdownDuration),
+    );
+  });
+
+  test(
+    'target score edits are per-match overrides and template changes clear them',
+    () {
+      final templates = [
+        const RuleTemplate(
+          id: 'eleven',
+          name: 'Eleven',
+          scoreButtons: [1, 2, 3],
+          targetScore: 11,
+        ),
+        const RuleTemplate(
+          id: 'untimed',
+          name: 'Untimed',
+          scoreButtons: [1, 2, 3],
+        ),
+      ];
+      final controller = PregameController(templates: templates)
+        ..setRuleTemplateId('eleven')
+        ..setTargetScore(17);
+
+      expect(controller.createMatchSetup().targetScore, 17);
+
+      controller.setRuleTemplateId('untimed');
+      expect(controller.createMatchSetup().targetScore, isNull);
+
+      controller.setRuleTemplateId('eleven');
+      expect(controller.createMatchSetup().targetScore, 11);
+    },
+  );
 }

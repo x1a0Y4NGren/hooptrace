@@ -19,6 +19,21 @@ enum PregameValidationError {
   invalidCountdownDuration,
 }
 
+String pregameValidationErrorText(PregameValidationError error) {
+  return switch (error) {
+    PregameValidationError.redParticipantRequired => '请输入红方姓名。',
+    PregameValidationError.blueParticipantRequired => '请输入蓝方姓名。',
+    PregameValidationError.duplicatePlayerProfile => '同一球员档案不能同时用于红方和蓝方。',
+    PregameValidationError.redPlayerProfileMissing =>
+      '红方所选球员档案已不存在，请重新选择或改用临时姓名。',
+    PregameValidationError.bluePlayerProfileMissing =>
+      '蓝方所选球员档案已不存在，请重新选择或改用临时姓名。',
+    PregameValidationError.recordingModeRequired => '请选择记录模式后再开始比赛。',
+    PregameValidationError.countdownTimerRequired => '倒计时必须先打开计时开关。',
+    PregameValidationError.invalidCountdownDuration => '倒计时分钟数必须是 1 到 180 分钟。',
+  };
+}
+
 class PregameValidationResult {
   const PregameValidationResult(this.errors);
 
@@ -79,7 +94,10 @@ class PregameState {
     this.timerEnabled = false,
     this.clockMode = ClockMode.countUp,
     this.targetScore = 11,
+    this.targetScoreOverridden = false,
     this.timeLimitMinutes = 10,
+    this.countdownMinutesText = '10',
+    this.countdownDurationInputInvalid = false,
     this.winByTwo = false,
     this.recordingMode,
     this.trackingCoverage = TrackingCoverage.scoresOnly,
@@ -94,7 +112,10 @@ class PregameState {
   final bool timerEnabled;
   final ClockMode clockMode;
   final int targetScore;
+  final bool targetScoreOverridden;
   final int timeLimitMinutes;
+  final String countdownMinutesText;
+  final bool countdownDurationInputInvalid;
   final bool winByTwo;
   final RecordingMode? recordingMode;
   final TrackingCoverage trackingCoverage;
@@ -111,7 +132,10 @@ class PregameState {
     bool? timerEnabled,
     ClockMode? clockMode,
     int? targetScore,
+    bool? targetScoreOverridden,
     int? timeLimitMinutes,
+    String? countdownMinutesText,
+    bool? countdownDurationInputInvalid,
     bool? winByTwo,
     RecordingMode? recordingMode,
     bool clearRecordingMode = false,
@@ -131,7 +155,12 @@ class PregameState {
       timerEnabled: timerEnabled ?? this.timerEnabled,
       clockMode: clockMode ?? this.clockMode,
       targetScore: targetScore ?? this.targetScore,
+      targetScoreOverridden:
+          targetScoreOverridden ?? this.targetScoreOverridden,
       timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
+      countdownMinutesText: countdownMinutesText ?? this.countdownMinutesText,
+      countdownDurationInputInvalid:
+          countdownDurationInputInvalid ?? this.countdownDurationInputInvalid,
       winByTwo: winByTwo ?? this.winByTwo,
       recordingMode: clearRecordingMode
           ? null
@@ -177,14 +206,14 @@ class PregameController {
 
   void setRedName(String value) {
     _state = _state.copyWith(
-      redName: _fallbackName(value, defaultRedPlayerName),
+      redName: value.trim(),
       clearRedPlayerProfileId: true,
     );
   }
 
   void setBlueName(String value) {
     _state = _state.copyWith(
-      blueName: _fallbackName(value, defaultBluePlayerName),
+      blueName: value.trim(),
       clearBluePlayerProfileId: true,
     );
   }
@@ -217,12 +246,17 @@ class PregameController {
           ? true
           : _state.timerEnabled,
       targetScore: selected?.targetScore ?? _state.targetScore,
+      targetScoreOverridden: false,
       clockMode: selected?.timeLimitSeconds != null
           ? ClockMode.countdown
           : ClockMode.countUp,
       timeLimitMinutes: selected?.timeLimitSeconds == null
           ? _state.timeLimitMinutes
           : selected!.timeLimitSeconds! ~/ 60,
+      countdownMinutesText: selected?.timeLimitSeconds == null
+          ? _state.countdownMinutesText
+          : '${selected!.timeLimitSeconds! ~/ 60}',
+      countdownDurationInputInvalid: false,
       winByTwo: selected?.winByTwo ?? false,
     );
   }
@@ -244,7 +278,10 @@ class PregameController {
   }
 
   void setTimerEnabled(bool value) {
-    _state = _state.copyWith(timerEnabled: value);
+    _state = _state.copyWith(
+      timerEnabled: value,
+      clockMode: value ? _state.clockMode : ClockMode.countUp,
+    );
   }
 
   void setWinByTwo(bool value) {
@@ -252,11 +289,27 @@ class PregameController {
   }
 
   void setTargetScore(int value) {
-    _state = _state.copyWith(targetScore: value.clamp(1, 99));
+    _state = _state.copyWith(
+      targetScore: value.clamp(1, 99),
+      targetScoreOverridden: true,
+    );
   }
 
   void setTimeLimitMinutes(int value) {
-    _state = _state.copyWith(timeLimitMinutes: value.clamp(1, 180));
+    _state = _state.copyWith(
+      timeLimitMinutes: value,
+      countdownMinutesText: '$value',
+      countdownDurationInputInvalid: false,
+    );
+  }
+
+  void setCountdownMinutesText(String value) {
+    final parsed = int.tryParse(value);
+    _state = _state.copyWith(
+      countdownMinutesText: value,
+      timeLimitMinutes: parsed ?? _state.timeLimitMinutes,
+      countdownDurationInputInvalid: value.trim().isEmpty || parsed == null,
+    );
   }
 
   void setAdvancedExpanded(bool value) {
@@ -290,7 +343,12 @@ class PregameController {
       if (!_state.timerEnabled) {
         errors.add(PregameValidationError.countdownTimerRequired);
       }
-      if (_state.timeLimitMinutes < 1 || _state.timeLimitMinutes > 180) {
+      final parsed = int.tryParse(_state.countdownMinutesText);
+      if (_state.countdownDurationInputInvalid ||
+          parsed == null ||
+          parsed != _state.timeLimitMinutes ||
+          _state.timeLimitMinutes < 1 ||
+          _state.timeLimitMinutes > 180) {
         errors.add(PregameValidationError.invalidCountdownDuration);
       }
     }
@@ -309,7 +367,9 @@ class PregameController {
       bluePlayerProfileId: _state.bluePlayerProfileId,
       ruleTemplateId: _state.ruleTemplateId,
       ruleTemplateName: selected?.name,
-      targetScore: selected == null ? _state.targetScore : selected.targetScore,
+      targetScore: selected == null || _state.targetScoreOverridden
+          ? _state.targetScore
+          : selected.targetScore,
       timerEnabled: _state.timerEnabled,
       timeLimitMinutes: _state.timeLimitMinutes,
       winByTwo: _state.winByTwo,
@@ -350,10 +410,5 @@ class PregameController {
 
   Player? _findPlayer(String id) {
     return _players.where((player) => player.id == id).firstOrNull;
-  }
-
-  static String _fallbackName(String value, String fallback) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? fallback : trimmed;
   }
 }

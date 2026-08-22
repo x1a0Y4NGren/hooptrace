@@ -132,4 +132,52 @@ void main() {
       ),
     );
   });
+
+  test('validation exception uses readable labels instead of enum names', () {
+    const setup = MatchSetup(
+      matchId: 'match-readable-error',
+      redName: '',
+      blueName: 'Blue',
+      ruleTemplateId: 'free',
+      targetScore: null,
+      timerEnabled: false,
+      timeLimitMinutes: 10,
+      winByTwo: false,
+    );
+
+    expect(
+      () => buildStartMatchCommand(setup),
+      throwsA(
+        isA<PregameSetupValidationException>().having(
+          (error) => error.toString(),
+          'message',
+          allOf(contains('请输入红方姓名'), isNot(contains('redParticipantRequired'))),
+        ),
+      ),
+    );
+  });
+
+  test('a target override is persisted into the mapped rule snapshot', () {
+    final controller =
+        PregameController(
+            templates: const [
+              RuleTemplate(
+                id: 'target-template',
+                name: 'Target template',
+                scoreButtons: [1, 2, 3],
+                targetScore: 11,
+              ),
+            ],
+          )
+          ..setRuleTemplateId('target-template')
+          ..setTargetScore(17)
+          ..setRecordingMode(RecordingMode.detailed);
+
+    final command = buildStartMatchCommand(
+      controller.createMatchSetup(),
+      now: DateTime.utc(2026, 8, 23, 10),
+    );
+
+    expect(command.ruleTemplate.targetScore, 17);
+  });
 }

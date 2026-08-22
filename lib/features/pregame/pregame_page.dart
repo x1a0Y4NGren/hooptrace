@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
@@ -15,8 +16,6 @@ const pregameTimerText = '计时';
 const pregameWinByTwoText = '领先 2 分获胜';
 const pregameAdvancedText = '高级设置';
 const pregameTargetScoreText = '目标分';
-const pregameTimeLimitText = '时间限制';
-const pregameMinuteText = '分钟';
 const pregamePointText = '分';
 const pregameStartMatchText = '开始比赛';
 const pregameRecordingModeText = '记录模式（必选）';
@@ -25,21 +24,6 @@ const pregameClockModeText = '计时方式';
 const pregameTemporaryParticipantText = '临时姓名（未关联档案）';
 
 const _temporaryProfileId = '__temporary_profile__';
-
-String pregameValidationErrorText(PregameValidationError error) {
-  return switch (error) {
-    PregameValidationError.redParticipantRequired => '请输入红方姓名。',
-    PregameValidationError.blueParticipantRequired => '请输入蓝方姓名。',
-    PregameValidationError.duplicatePlayerProfile => '同一球员档案不能同时用于红方和蓝方。',
-    PregameValidationError.redPlayerProfileMissing =>
-      '红方所选球员档案已不存在，请重新选择或改用临时姓名。',
-    PregameValidationError.bluePlayerProfileMissing =>
-      '蓝方所选球员档案已不存在，请重新选择或改用临时姓名。',
-    PregameValidationError.recordingModeRequired => '请选择记录模式后再开始比赛。',
-    PregameValidationError.countdownTimerRequired => '倒计时必须先打开计时开关。',
-    PregameValidationError.invalidCountdownDuration => '倒计时分钟数必须是 1 到 180 分钟。',
-  };
-}
 
 class PregamePage extends StatefulWidget {
   const PregamePage({
@@ -80,7 +64,7 @@ class _PregamePageState extends State<PregamePage> {
       text: _controller.state.blueName,
     );
     _countdownMinutesController = TextEditingController(
-      text: '${_controller.state.timeLimitMinutes}',
+      text: _controller.state.countdownMinutesText,
     );
   }
 
@@ -292,20 +276,22 @@ class _PregamePageState extends State<PregamePage> {
                     TextField(
                       key: const Key('pregame-countdown-minutes'),
                       controller: _countdownMinutesController,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: false,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '倒计时分钟（1–180）',
                         helperText: '倒计时必须设置在 1 到 180 分钟之间。',
                         suffixText: '分钟',
                         border: OutlineInputBorder(),
+                        errorText: _countdownErrorText(state),
                       ),
                       onChanged: (value) {
-                        final minutes = int.tryParse(value);
-                        if (minutes == null) return;
-                        _controller.setTimeLimitMinutes(minutes);
-                        _clearValidation();
+                        setState(() {
+                          _controller.setCountdownMinutesText(value);
+                          _clearValidation();
+                        });
                       },
                     ),
                   ],
@@ -339,19 +325,6 @@ class _PregamePageState extends State<PregamePage> {
                         });
                       },
                     ),
-                    if (!state.timerEnabled)
-                      _NumberSetting(
-                        label: pregameTimeLimitText,
-                        suffix: pregameMinuteText,
-                        value: state.timeLimitMinutes,
-                        onChanged: (value) {
-                          setState(() {
-                            _controller.setTimeLimitMinutes(value);
-                            _syncCountdownMinutesController();
-                            _clearValidation();
-                          });
-                        },
-                      ),
                   ],
                 ),
                 if (_validationErrors.isNotEmpty) ...[
@@ -435,7 +408,7 @@ class _PregamePageState extends State<PregamePage> {
   }
 
   void _syncCountdownMinutesController() {
-    final text = '${_controller.state.timeLimitMinutes}';
+    final text = _controller.state.countdownMinutesText;
     if (_countdownMinutesController.text == text) return;
     _countdownMinutesController.value = _countdownMinutesController.value
         .copyWith(
@@ -443,6 +416,18 @@ class _PregamePageState extends State<PregamePage> {
           selection: TextSelection.collapsed(offset: text.length),
           composing: TextRange.empty,
         );
+  }
+
+  static String? _countdownErrorText(PregameState state) {
+    final parsed = int.tryParse(state.countdownMinutesText);
+    if (state.countdownDurationInputInvalid ||
+        parsed == null ||
+        parsed != state.timeLimitMinutes ||
+        state.timeLimitMinutes < 1 ||
+        state.timeLimitMinutes > 180) {
+      return '请输入 1 到 180 之间的整数分钟。';
+    }
+    return null;
   }
 
   static String _templateLabel(RuleTemplate template) {
@@ -582,22 +567,26 @@ class _SelectionButton<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          backgroundColor: selected
-              ? Theme.of(context).colorScheme.primaryContainer
-              : null,
-          side: BorderSide(
-            color: selected
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.outline,
-            width: selected ? 2 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: SizedBox(
+        height: 48,
+        child: OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            backgroundColor: selected
+                ? Theme.of(context).colorScheme.primaryContainer
+                : null,
+            side: BorderSide(
+              color: selected
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
+              width: selected ? 2 : 1,
+            ),
           ),
+          onPressed: onPressed,
+          child: Text(label),
         ),
-        onPressed: onPressed,
-        child: Text(label),
       ),
     );
   }
@@ -642,13 +631,11 @@ class _NumberSetting extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
-    this.suffix = pregamePointText,
   });
 
   final String label;
   final int value;
   final ValueChanged<int> onChanged;
-  final String suffix;
 
   @override
   Widget build(BuildContext context) {
@@ -658,7 +645,7 @@ class _NumberSetting extends StatelessWidget {
       trailing: SegmentedButton<int>(
         segments: [
           ButtonSegment(value: value - 1, label: const Icon(Icons.remove)),
-          ButtonSegment(value: value, label: Text('$value$suffix')),
+          ButtonSegment(value: value, label: Text('$value$pregamePointText')),
           ButtonSegment(value: value + 1, label: const Icon(Icons.add)),
         ],
         selected: {value},
