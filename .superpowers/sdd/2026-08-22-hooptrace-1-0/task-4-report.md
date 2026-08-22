@@ -194,12 +194,15 @@ soft-delete undo, and a retryable confirmation failure. The retry test verifies
 that the same receipt/command ID is committed after retry and that the pending
 state is retained until the retry commits. A controller busy guard prevents
 parallel score/foul/confirm/undo/retry commands from publishing conflicting
-projections.
+projections. Skip is rejected while confirmation is in flight, and both the
+controller and production foul button reject a foul while a shot location is
+pending so undo cannot target the wrong event. After rejection, undo still
+soft-deletes the pending shot event.
 
 ```text
 flutter test --no-pub test/features/scoring/scoring_controller_test.dart \
   test/features/scoring/scoring_page_test.dart --reporter compact
-# 24 tests passed
+# 26 tests passed
 
 dart format --output=none --set-exit-if-changed \
   lib/features/scoring/scoring_controller.dart \
