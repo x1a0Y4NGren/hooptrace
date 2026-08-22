@@ -51,7 +51,7 @@ void main() {
             await (database.select(database.auditLogs)
                   ..where((row) => row.id.equals('task7-link-finished-audit')))
                 .getSingle();
-        expect(audit.action, 'link');
+        expect(audit.action, 'edit');
         expect(audit.beforeJson, contains('"playerProfileId":null'));
         expect(audit.afterJson, contains('"playerProfileId":"player-red"'));
         expect(audit.afterJson, contains('"nameSnapshot":"Red temporary"'));

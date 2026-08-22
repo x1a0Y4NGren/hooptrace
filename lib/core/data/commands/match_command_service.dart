@@ -1187,7 +1187,11 @@ class MatchCommandService {
           id: command.auditId,
           matchId: command.matchId,
           targetId: command.participantId,
-          action: 'link',
+          // Participant linking is a participant edit in the existing audit
+          // vocabulary. Reusing `edit` keeps older replay/backup readers able
+          // to decode the row while the before/after payload identifies the
+          // exact link operation.
+          action: 'edit',
           before: before,
           after: _participantJson(updated),
           reason: command.reason,
