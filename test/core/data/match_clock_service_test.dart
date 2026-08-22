@@ -182,6 +182,13 @@ void main() {
     final target = await service.record(targetCommand);
     expect(target.decision?.kind, MatchDecisionKind.finishOrContinue);
     expect(target.decision?.reason, MatchDecisionReason.winByTwoRequired);
+    final targetAudits = await database.select(database.auditLogs).get();
+    expect(
+      targetAudits.any(
+        (row) => row.action == 'edit' && row.reason == 'decision-clock',
+      ),
+      isTrue,
+    );
 
     final duplicateTarget = await service.record(targetCommand);
     expect(duplicateTarget.decision?.reason, MatchDecisionReason.winByTwoRequired);
@@ -206,6 +213,37 @@ void main() {
       _score(commandId: 'next-score', eventId: 'next-event', points: 1),
     );
     expect(nextScore.decision, isNotNull);
+  });
+
+  test('win-by-two finishes at an exact two-point lead', () async {
+    final database = createTestDatabase();
+    final service = MatchCommandService(database, now: () => _anchor);
+    await service.start(
+      _start(
+        ruleTemplate: const RuleTemplate(
+          id: 'target-11-exact',
+          name: 'Target',
+          scoreButtons: [1, 2, 3],
+          targetScore: 11,
+          winByTwo: true,
+        ),
+      ),
+    );
+    await service.record(
+      RecordMatchEventCommand(
+        commandId: 'blue-nine',
+        matchId: 'match-clock',
+        eventId: 'blue-nine-event',
+        side: TeamSide.blue,
+        points: 9,
+        occurredAt: _anchor,
+      ),
+    );
+    final result = await service.record(_score(points: 11));
+
+    expect(result.decision?.reason, MatchDecisionReason.targetReached);
+    expect(result.decision?.canFinish, isTrue);
+    expect(result.decision?.canContinue, isTrue);
   });
 
   test('foul limit is exposed as a warning and never finishes the match', () async {
