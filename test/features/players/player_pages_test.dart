@@ -2,16 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/features/players/player_editor_page.dart';
 import 'package:hooptrace/features/players/player_list_page.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   testWidgets('player list exposes empty, create and edit flows',
       (tester) async {
-    final database = AppDatabase.inMemory();
+    final database = createTestDatabase();
     final repository = PlayerRepository(database);
     var created = false;
     Player? edited;
@@ -51,7 +52,7 @@ void main() {
 
   testWidgets('player editor creates and updates persisted fields',
       (tester) async {
-    final database = AppDatabase.inMemory();
+    final database = createTestDatabase();
     final repository = PlayerRepository(database);
     var saved = false;
 

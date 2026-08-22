@@ -8,12 +8,14 @@ import 'package:hooptrace/core/domain/entities/shot_location.dart' as domain;
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   late AppDatabase database;
   late MatchRepository repository;
 
   setUp(() async {
-    database = AppDatabase.inMemory();
+    database = createTestDatabase();
     repository = MatchRepository(database);
     await repository.createMinimalMatch(
       id: 'match-1',
@@ -40,8 +42,6 @@ void main() {
       ),
     );
   });
-
-  tearDown(() => database.close());
 
   test('moves a confirmed location and audits coordinates atomically',
       () async {

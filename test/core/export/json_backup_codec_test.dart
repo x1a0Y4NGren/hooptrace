@@ -5,29 +5,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   group('JsonBackupCodec', () {
     test('round-trips all eight persisted table groups', () async {
-      final source = AppDatabase.inMemory();
-      final restored = AppDatabase.inMemory();
-      addTearDown(source.close);
-      addTearDown(restored.close);
-      await _seedCompleteBackup(source);
+      final exported = await withTestDatabase((source) async {
+        await _seedCompleteBackup(source);
+        return JsonBackupCodec(
+          source,
+          appVersion: '0.1.0+1',
+          now: () => DateTime.utc(2026, 7, 18, 9, 30),
+        ).export();
+      });
+      final restored = createTestDatabase();
       final exportedAt = DateTime.utc(2026, 7, 18, 9, 30);
-      final codec = JsonBackupCodec(
-        source,
-        appVersion: '0.1.0+1',
-        now: () => exportedAt,
-      );
+      await JsonBackupCodec(restored, appVersion: '0.1.0+1').restore(exported);
 
-      final json = await codec.export();
-      await JsonBackupCodec(restored, appVersion: '0.1.0+1').restore(json);
-
-      final document = jsonDecode(json) as Map<String, dynamic>;
+      final document = jsonDecode(exported) as Map<String, dynamic>;
       final manifest = document['manifest'] as Map<String, dynamic>;
       expect(manifest['appName'], 'HoopTrace');
       expect(manifest['appVersion'], '0.1.0+1');
-      expect(manifest['schemaVersion'], source.schemaVersion);
+      expect(manifest['schemaVersion'], restored.schemaVersion);
       expect(manifest['exportedAt'], exportedAt.toIso8601String());
       expect(manifest['recordCounts'], {
         'matches': 1,
@@ -78,8 +77,7 @@ void main() {
     });
 
     test('uses deterministic payload ordering', () async {
-      final database = AppDatabase.inMemory();
-      addTearDown(database.close);
+      final database = createTestDatabase();
       await _seedCompleteBackup(database);
       final codec = JsonBackupCodec(
         database,
@@ -91,8 +89,7 @@ void main() {
     });
 
     test('rejects a future schema with a typed exception', () async {
-      final database = AppDatabase.inMemory();
-      addTearDown(database.close);
+      final database = createTestDatabase();
       final codec = JsonBackupCodec(
         database,
         appVersion: '0.1.0+1',
@@ -116,8 +113,7 @@ void main() {
 
     test('rejects a modified payload with a typed checksum exception',
         () async {
-      final database = AppDatabase.inMemory();
-      addTearDown(database.close);
+      final database = createTestDatabase();
       await _seedCompleteBackup(database);
       final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
       final document = jsonDecode(await codec.export()) as Map<String, dynamic>;
@@ -132,11 +128,14 @@ void main() {
     });
 
     test('fully validates before replacing existing local data', () async {
-      final source = AppDatabase.inMemory();
-      final destination = AppDatabase.inMemory();
-      addTearDown(source.close);
-      addTearDown(destination.close);
-      await _seedCompleteBackup(source);
+      final exported = await withTestDatabase((source) async {
+        await _seedCompleteBackup(source);
+        return JsonBackupCodec(
+          source,
+          appVersion: '0.1.0+1',
+        ).export();
+      });
+      final destination = createTestDatabase();
       await destination.into(destination.matches).insert(
             Matche(
               id: 'keep-me',
@@ -151,10 +150,6 @@ void main() {
               note: null,
             ),
           );
-      final exported = await JsonBackupCodec(
-        source,
-        appVersion: '0.1.0+1',
-      ).export();
       final document = jsonDecode(exported) as Map<String, dynamic>;
       final data = document['data'] as Map<String, dynamic>;
       final events = data['matchEvents'] as List<dynamic>;
@@ -173,11 +168,14 @@ void main() {
 
     test('rejects invalid domain values before replacing existing data',
         () async {
-      final source = AppDatabase.inMemory();
-      final destination = AppDatabase.inMemory();
-      addTearDown(source.close);
-      addTearDown(destination.close);
-      await _seedCompleteBackup(source);
+      final exported = await withTestDatabase((source) async {
+        await _seedCompleteBackup(source);
+        return JsonBackupCodec(
+          source,
+          appVersion: '0.1.0+1',
+        ).export();
+      });
+      final destination = createTestDatabase();
       await destination.into(destination.players).insert(
             PlayerRow(
               id: 'keep-player',
@@ -187,10 +185,6 @@ void main() {
               note: null,
             ),
           );
-      final exported = await JsonBackupCodec(
-        source,
-        appVersion: '0.1.0+1',
-      ).export();
       final document = jsonDecode(exported) as Map<String, dynamic>;
       final data = document['data'] as Map<String, dynamic>;
       final events = data['matchEvents'] as List<dynamic>;
@@ -212,11 +206,14 @@ void main() {
     });
 
     test('rolls back replacement when a database write fails', () async {
-      final source = AppDatabase.inMemory();
-      final destination = AppDatabase.inMemory();
-      addTearDown(source.close);
-      addTearDown(destination.close);
-      await _seedCompleteBackup(source);
+      final exported = await withTestDatabase((source) async {
+        await _seedCompleteBackup(source);
+        return JsonBackupCodec(
+          source,
+          appVersion: '0.1.0+1',
+        ).export();
+      });
+      final destination = createTestDatabase();
       await destination.into(destination.matches).insert(
             Matche(
               id: 'keep-me',
@@ -239,13 +236,8 @@ void main() {
           SELECT RAISE(ABORT, 'forced restore failure');
         END;
       ''');
-      final backup = await JsonBackupCodec(
-        source,
-        appVersion: '0.1.0+1',
-      ).export();
-
       await expectLater(
-        JsonBackupCodec(destination, appVersion: '0.1.0+1').restore(backup),
+        JsonBackupCodec(destination, appVersion: '0.1.0+1').restore(exported),
         throwsA(isA<BackupRestoreException>()),
       );
       final matches = await destination.select(destination.matches).get();

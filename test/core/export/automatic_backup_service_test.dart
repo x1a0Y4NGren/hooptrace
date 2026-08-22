@@ -7,6 +7,8 @@ import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   group('AutomaticBackupService', () {
     late AppDatabase database;
@@ -14,7 +16,7 @@ void main() {
     late AutomaticBackupService service;
 
     setUp(() {
-      database = AppDatabase.inMemory();
+      database = createTestDatabase();
       storage = _MemoryBackupStorage();
       service = AutomaticBackupService(
         database,
@@ -27,8 +29,6 @@ void main() {
         now: () => DateTime.utc(2026, 8, 21, 9, 5, 7),
       );
     });
-
-    tearDown(() => database.close());
 
     test('is disabled by default and cannot enable without a directory',
         () async {

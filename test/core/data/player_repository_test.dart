@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   test('player repository creates, updates, watches and deletes players',
       () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = PlayerRepository(database);
     final emissions = <List<Player>>[];
     final subscription = repository.watchAll().listen(emissions.add);

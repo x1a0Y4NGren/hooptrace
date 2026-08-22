@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/match_session_coordinator.dart';
-import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
+import '../test_helpers/test_database.dart';
+
 void main() {
   test('persists the latest scoring snapshot including undo', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     final coordinator = MatchSessionCoordinator(repository);
     addTearDown(coordinator.dispose);
@@ -39,8 +39,7 @@ void main() {
   });
 
   test('finished sessions do not overwrite later replay edits', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     final coordinator = MatchSessionCoordinator(repository);
     addTearDown(coordinator.dispose);

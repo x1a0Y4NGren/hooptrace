@@ -8,10 +8,11 @@ import 'package:hooptrace/core/domain/entities/shot_location.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   test('match repository stores and reads score events', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
 
     final repository = MatchRepository(database);
     await repository.createMinimalMatch(
@@ -63,8 +64,7 @@ void main() {
 
   test('database rejects persisted score rows without side and points',
       () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
 
     final repository = MatchRepository(database);
     await repository.createMinimalMatch(
@@ -87,8 +87,7 @@ void main() {
   });
 
   test('stores complete pre-match information', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     final match = _match(
       id: 'match-full',
@@ -119,8 +118,7 @@ void main() {
   });
 
   test('upserts events and shot locations without duplicating them', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     await repository.saveMatch(_match(id: 'match-1'));
     final occurredAt = DateTime.utc(2026, 7, 10, 9);
@@ -174,8 +172,7 @@ void main() {
   });
 
   test('saves an event and its shot location atomically', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     await repository.saveMatch(_match(id: 'match-1'));
     final event = MatchEvent.score(
@@ -203,8 +200,7 @@ void main() {
   });
 
   test('replaces a match snapshot without retaining an undone event', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     await repository.saveMatch(_match(id: 'match-1'));
     final occurredAt = DateTime.utc(2026, 7, 10, 9);
@@ -265,8 +261,7 @@ void main() {
   });
 
   test('finishes a match and reads complete replay statistics', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     final startedAt = DateTime.utc(2026, 7, 10, 9);
     final endedAt = startedAt.add(const Duration(minutes: 12, seconds: 30));
@@ -347,8 +342,7 @@ void main() {
   });
 
   test('lists and watches history in most-recent-first order', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     final older = DateTime.utc(2026, 7, 9, 10);
     final newer = DateTime.utc(2026, 7, 10, 10);
@@ -394,8 +388,7 @@ void main() {
   });
 
   test('returns null for a missing match', () async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
 
     expect(
       await MatchRepository(database).getMatchDetail('missing'),

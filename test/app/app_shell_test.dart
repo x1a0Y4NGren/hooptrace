@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
-import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
+import '../test_helpers/test_database.dart';
+
 void main() {
   testWidgets('HoopTrace app starts on home route', (tester) async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
 
@@ -25,8 +25,7 @@ void main() {
   testWidgets('start scoring route enters landscape scoring shell', (
     tester,
   ) async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
 
@@ -45,7 +44,7 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(1095, 616));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final database = AppDatabase.inMemory();
+    final database = createTestDatabase();
     await tester.pumpWidget(HoopTraceApp(database: database));
     await _pumpUntilFound(tester, find.text('\u5f00\u59cb\u8ba1\u5206'));
 

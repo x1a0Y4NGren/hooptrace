@@ -7,6 +7,8 @@ import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   late AppDatabase database;
   late _Gateway gateway;
@@ -15,7 +17,7 @@ void main() {
   late SettingsController controller;
 
   setUp(() {
-    database = AppDatabase.inMemory();
+    database = createTestDatabase();
     gateway = _Gateway();
     storage = _Storage();
     final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
@@ -37,7 +39,6 @@ void main() {
 
   tearDown(() async {
     controller.dispose();
-    await database.close();
   });
 
   test('loads disabled automatic backup state by default', () async {

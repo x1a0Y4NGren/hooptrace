@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
+
+import '../../test_helpers/test_database.dart';
 
 void main() {
   testWidgets('lists built-ins and persists a custom template from editor', (
     tester,
   ) async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = RuleTemplateRepository(database);
     await repository.ensureBuiltIns();
 

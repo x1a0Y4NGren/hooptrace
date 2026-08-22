@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
-import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 
+import '../test_helpers/test_database.dart';
+
 void main() {
   testWidgets('switching replay route loads the requested match', (
     tester,
   ) async {
-    final database = AppDatabase.inMemory();
-    addTearDown(database.close);
+    final database = createTestDatabase();
     final repository = MatchRepository(database);
     await _createFinishedMatch(repository, 'match-a', 'Alpha', 1);
     await _createFinishedMatch(repository, 'match-b', 'Bravo', 3);

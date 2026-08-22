@@ -8,6 +8,8 @@ import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   group('ExportCoordinator', () {
     late AppDatabase database;
@@ -17,7 +19,7 @@ void main() {
     late ExportCoordinator coordinator;
 
     setUp(() async {
-      database = AppDatabase.inMemory();
+      database = createTestDatabase();
       gateway = _MemoryExportGateway();
       backupStorage = _MemoryBackupStorage();
       final codec = JsonBackupCodec(
@@ -40,8 +42,6 @@ void main() {
       );
       await _seed(database);
     });
-
-    tearDown(() => database.close());
 
     test('shares a complete JSON backup with a stable filename', () async {
       await coordinator.shareJsonBackup();
@@ -97,9 +97,15 @@ void main() {
       backupStorage.availableDirectories.add('/approved');
       await automaticBackup.configureDirectory('/approved');
       await automaticBackup.enable();
-      final source = AppDatabase.inMemory();
-      addTearDown(source.close);
-      await source.into(source.players).insert(
+      await database.delete(database.shotLocations).go();
+      await database.delete(database.possessionSegments).go();
+      await database.delete(database.auditLogs).go();
+      await database.delete(database.matchEvents).go();
+      await database.delete(database.matches).go();
+      await database.delete(database.ruleTemplates).go();
+      await database.delete(database.appSettings).go();
+      await database.delete(database.players).go();
+      await database.into(database.players).insert(
             PlayerRow(
               id: 'replacement',
               nickname: '新球员',
@@ -109,7 +115,7 @@ void main() {
             ),
           );
       final backup = await JsonBackupCodec(
-        source,
+        database,
         appVersion: '0.1.0+1',
       ).export();
       gateway.pickedBackup = ExportArtifact.text(

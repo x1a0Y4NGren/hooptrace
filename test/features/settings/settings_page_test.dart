@@ -2,19 +2,20 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
+import '../../test_helpers/test_database.dart';
+
 void main() {
   testWidgets('settings exposes usable local export and backup controls',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final database = AppDatabase.inMemory();
+    final database = createTestDatabase();
     addTearDown(database.close);
     final gateway = _Gateway();
     final storage = _Storage()..availableDirectories.add('/approved');
