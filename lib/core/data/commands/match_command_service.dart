@@ -20,7 +20,11 @@ import 'package:uuid/uuid.dart';
 export 'package:hooptrace/core/domain/clock/clock_engine.dart'
     show ClockEngine, ClockProjection, ClockRecoveryReason, MatchClockEngine;
 export 'package:hooptrace/core/domain/entities/match_detail.dart'
-    show MatchDecisionKind, MatchDecisionReason, MatchDecision, MatchRuleWarning;
+    show
+        MatchDecisionKind,
+        MatchDecisionReason,
+        MatchDecision,
+        MatchRuleWarning;
 
 /// A test-only hook which is intentionally absent from the default service.
 /// Hooks run after the business rows have been written but before the Drift
@@ -358,7 +362,7 @@ class PauseMatchCommand extends MatchCommand {
     required DateTime occurredAt,
     String? eventId,
   }) : eventId =
-         eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
+           eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
        occurredAt = occurredAt.toUtc();
 
   @override
@@ -385,7 +389,7 @@ class ResumeMatchCommand extends MatchCommand {
     required DateTime occurredAt,
     String? eventId,
   }) : eventId =
-         eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
+           eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
        occurredAt = occurredAt.toUtc();
 
   @override
@@ -415,7 +419,7 @@ class ContinueMatchCommand extends MatchCommand {
     required DateTime occurredAt,
     String? eventId,
   }) : eventId =
-         eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
+           eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
        occurredAt = occurredAt.toUtc();
 
   @override
@@ -906,6 +910,10 @@ class MatchCommandService {
             projectionMatchId: before.matchId,
           );
         }
+        final beforeProjection = await _projectionInTransaction(
+          command.matchId,
+        );
+        await _guardEventMutation(command, before);
         late final MatchEvent replacement;
         try {
           replacement = _correctedEvent(before, command);
@@ -939,6 +947,12 @@ class MatchCommandService {
           after: afterJson,
           reason: command.reason,
         );
+        final afterProjection = await _projectionInTransaction(command.matchId);
+        await _applyPostScoreRules(
+          command.matchId,
+          scoreChanged: _scoresChanged(beforeProjection, afterProjection),
+          decisionEventId: '${command.commandId}:decision',
+        );
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.beforeCommit);
@@ -967,6 +981,10 @@ class MatchCommandService {
             projectionMatchId: before.matchId,
           );
         }
+        final beforeProjection = await _projectionInTransaction(
+          command.matchId,
+        );
+        await _guardEventMutation(command, before);
         final beforeJson = _eventJson(before);
         final afterJson = <String, Object?>{...beforeJson, 'isDeleted': true};
         await (_database.update(_database.matchEvents)
@@ -980,6 +998,12 @@ class MatchCommandService {
           before: beforeJson,
           after: afterJson,
           reason: command.reason,
+        );
+        final afterProjection = await _projectionInTransaction(command.matchId);
+        await _applyPostScoreRules(
+          command.matchId,
+          scoreChanged: _scoresChanged(beforeProjection, afterProjection),
+          decisionEventId: '${command.commandId}:decision',
         );
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         final result = await _writeReceipt(command);
@@ -1125,7 +1149,8 @@ class MatchCommandService {
         if (label == 'resume' &&
             clockProjection.phase == ClockPhase.regulationExpired) {
           final detail = await _projectionInTransaction(command.matchId);
-          final decision = detail?.decision ??
+          final decision =
+              detail?.decision ??
               _decisionForScores(
                 reason: MatchDecisionReason.regulationExpired,
                 detail: detail,
@@ -1148,12 +1173,8 @@ class MatchCommandService {
         };
         final beforeClock = _clockJson(_clockState(row));
         final nextClock = label == 'pause' || !timerEnabled
-            ? clockProjection.normalizedState.copyWith(
-                runningSinceUtc: null,
-              )
-            : clockProjection.normalizedState.copyWith(
-                runningSinceUtc: now,
-              );
+            ? clockProjection.normalizedState.copyWith(runningSinceUtc: null)
+            : clockProjection.normalizedState.copyWith(runningSinceUtc: now);
         await _updateClock(nextClock);
         await _database
             .into(_database.matchEvents)
@@ -1211,7 +1232,8 @@ class MatchCommandService {
           await _persistClockProjection(clockProjection);
         }
         final detail = await _projectionInTransaction(command.matchId);
-        final decision = detail?.decision ??
+        final decision =
+            detail?.decision ??
             _decisionFromLabel(
               await _latestDecisionLabel(command.matchId),
               redScore: detail?.redScore ?? 0,
@@ -1301,6 +1323,17 @@ class MatchCommandService {
             command: command,
             projectionMatchId: active?.matchId ?? command.matchId,
           );
+        }
+        if (lifecycle == MatchLifecycle.finished) {
+          final detail = await _projectionInTransaction(command.matchId);
+          final decision = detail?.decision;
+          if (decision != null && !decision.canFinish) {
+            throw EndConditionFailure(
+              command: command,
+              decision: decision,
+              projectionMatchId: command.matchId,
+            );
+          }
         }
         final endedAt = switch (command) {
           FinishMatchCommand(:final endedAt) => endedAt,
@@ -1561,7 +1594,8 @@ class MatchCommandService {
             state: _clockState(clockRow),
             now: _now().toUtc(),
           );
-    final decision = _decisionFromLabel(
+    final decision =
+        _decisionFromLabel(
           await _latestDecisionLabel(matchId),
           redScore: detail.redScore,
           blueScore: detail.blueScore,
@@ -1598,15 +1632,15 @@ class MatchCommandService {
   }
 
   Future<void> _updateClock(ClockState state) {
-    return (_database.update(_database.matchClocks)
-          ..where((clock) => clock.id.equals(state.id)))
-        .write(
-          MatchClocksCompanion(
-            phase: Value(state.phase.name),
-            accumulatedSeconds: Value(state.accumulatedSeconds),
-            runningSinceUtc: Value(state.runningSinceUtc),
-          ),
-        );
+    return (_database.update(
+      _database.matchClocks,
+    )..where((clock) => clock.id.equals(state.id))).write(
+      MatchClocksCompanion(
+        phase: Value(state.phase.name),
+        accumulatedSeconds: Value(state.accumulatedSeconds),
+        runningSinceUtc: Value(state.runningSinceUtc),
+      ),
+    );
   }
 
   Future<void> _persistClockProjection(ClockProjection projection) {
@@ -1623,8 +1657,7 @@ class MatchCommandService {
                     event.isDeleted.equals(false),
               )
               ..orderBy([
-                (_) =>
-                    OrderingTerm.desc(const CustomExpression<int>('rowid')),
+                (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
               ]))
             .get();
     return rows.isEmpty ? null : rows.first.customLabel;
@@ -1656,6 +1689,28 @@ class MatchCommandService {
     }
   }
 
+  Future<void> _guardEventMutation(
+    MatchCommand command,
+    MatchEventRow event,
+  ) async {
+    if (event.type == EventKind.pause.name && event.customLabel != null) {
+      throw CommandValidationFailure(
+        command: command,
+        message: 'System semantic events cannot be corrected or undone.',
+        projectionMatchId: command.matchId,
+      );
+    }
+    final detail = await _projectionInTransaction(command.matchId);
+    final decision = detail?.decision;
+    if (decision != null) {
+      throw EndConditionFailure(
+        command: command,
+        decision: decision,
+        projectionMatchId: command.matchId,
+      );
+    }
+  }
+
   Future<MatchCommandFailure?> _preflightRecord(
     RecordMatchEventCommand command,
   ) async {
@@ -1671,7 +1726,8 @@ class MatchCommandService {
     if (projection.recoveryReason != null) {
       return ClockRecoveryFailure(
         command: command,
-        recoveryMessage: projection.recoveryMessage ??
+        recoveryMessage:
+            projection.recoveryMessage ??
             'The clock was paused because the device clock moved backward.',
         projectionMatchId: command.matchId,
       );
@@ -1705,7 +1761,8 @@ class MatchCommandService {
     if (projection.recoveryReason != null) {
       return ClockRecoveryFailure(
         command: command,
-        recoveryMessage: projection.recoveryMessage ??
+        recoveryMessage:
+            projection.recoveryMessage ??
             'The clock was paused because the device clock moved backward.',
         projectionMatchId: command.matchId,
       );
@@ -1722,7 +1779,8 @@ class MatchCommandService {
     if (label == 'resume' && projection.recoveryReason != null) {
       return ClockRecoveryFailure(
         command: command,
-        recoveryMessage: projection.recoveryMessage ??
+        recoveryMessage:
+            projection.recoveryMessage ??
             'The clock was paused because the device clock moved backward.',
         projectionMatchId: command.matchId,
       );
@@ -1730,10 +1788,22 @@ class MatchCommandService {
     return null;
   }
 
-  Future<void> _applyPostEventRules(RecordMatchEventCommand command) async {
-    final detail = await _projectionInTransaction(command.matchId);
+  Future<void> _applyPostEventRules(RecordMatchEventCommand command) {
+    return _applyPostScoreRules(
+      command.matchId,
+      scoreChanged: _isMadeScore(command),
+      decisionEventId: '${command.commandId}:decision',
+    );
+  }
+
+  Future<void> _applyPostScoreRules(
+    String matchId, {
+    required bool scoreChanged,
+    required String decisionEventId,
+  }) async {
+    final detail = await _projectionInTransaction(matchId);
     if (detail == null) return;
-    final row = await _clockRow(command.matchId);
+    final row = await _clockRow(matchId);
     if (row == null) return;
     final beforeClock = _clockState(row);
     final now = _now().toUtc();
@@ -1745,7 +1815,7 @@ class MatchCommandService {
     MatchDecisionReason? reason;
     if (clock.phase == ClockPhase.regulationExpired) {
       reason = MatchDecisionReason.regulationExpired;
-    } else if (_isMadeScore(command)) {
+    } else if (scoreChanged) {
       final template = detail.match.ruleTemplateSnapshot;
       final target = template.targetScore;
       if (target != null) {
@@ -1764,13 +1834,13 @@ class MatchCommandService {
     }
     if (reason == null) return;
 
-    final existingDecision = await _latestDecisionLabel(command.matchId);
+    final existingDecision = await _latestDecisionLabel(matchId);
     if (existingDecision != null) return;
     final nextClock = clock.normalizedState.copyWith(runningSinceUtc: null);
     await _updateClock(nextClock);
     await _writeAudit(
       id: _newUuid(),
-      matchId: command.matchId,
+      matchId: matchId,
       targetId: row.id,
       action: 'edit',
       before: _clockJson(beforeClock),
@@ -1781,14 +1851,20 @@ class MatchCommandService {
         .into(_database.matchEvents)
         .insert(
           MatchEventsCompanion.insert(
-            id: '${command.commandId}:decision',
-            matchId: command.matchId,
+            id: decisionEventId,
+            matchId: matchId,
             type: EventKind.pause.name,
             points: const Value(0),
             occurredAt: now,
             customLabel: Value('decision:${reason.name}'),
           ),
         );
+  }
+
+  static bool _scoresChanged(MatchDetail? before, MatchDetail? after) {
+    if (before == null || after == null) return false;
+    return before.redScore != after.redScore ||
+        before.blueScore != after.blueScore;
   }
 
   static bool _isMadeScore(RecordMatchEventCommand command) {
@@ -1831,7 +1907,8 @@ class MatchCommandService {
     final resolvedRed = redScore ?? detail?.redScore ?? 0;
     final resolvedBlue = blueScore ?? detail?.blueScore ?? 0;
     final message = switch (reason) {
-      MatchDecisionReason.targetReached => 'Target score reached. Finish or continue?',
+      MatchDecisionReason.targetReached =>
+        'Target score reached. Finish or continue?',
       MatchDecisionReason.winByTwoRequired =>
         'Target reached, but a two-point lead is required. Continue?',
       MatchDecisionReason.regulationExpired =>
@@ -1842,6 +1919,7 @@ class MatchCommandService {
       reason: reason,
       redScore: resolvedRed,
       blueScore: resolvedBlue,
+      canFinish: reason != MatchDecisionReason.winByTwoRequired,
       message: message,
     );
   }
