@@ -1644,7 +1644,54 @@ class MatchCommandService {
   }
 
   Future<void> _persistClockProjection(ClockProjection projection) {
-    return _updateClock(projection.normalizedState);
+    return _persistClockProjectionAndRecovery(projection);
+  }
+
+  Future<void> _persistClockProjectionAndRecovery(
+    ClockProjection projection,
+  ) async {
+    await _updateClock(projection.normalizedState);
+    if (projection.recoveryReason !=
+        ClockRecoveryReason.wallClockMovedBackward) {
+      return;
+    }
+    final state = projection.state;
+    final key = _fingerprint(<String, Object?>{
+      'clockId': state.id,
+      'matchId': state.matchId,
+      'reason': projection.recoveryReason!.name,
+      'runningSinceUtc': state.runningSinceUtc?.toUtc().toIso8601String(),
+    });
+    final eventId = 'clock-recovery-$key';
+    if (await _eventRow(eventId) == null) {
+      await _database
+          .into(_database.matchEvents)
+          .insert(
+            MatchEventsCompanion.insert(
+              id: eventId,
+              matchId: state.matchId,
+              type: EventKind.pause.name,
+              points: const Value(0),
+              occurredAt: projection.nowUtc,
+              customLabel: const Value('pause'),
+            ),
+          );
+    }
+    final auditId = 'clock-recovery-audit-$key';
+    final audit = await (_database.select(
+      _database.auditLogs,
+    )..where((row) => row.id.equals(auditId))).getSingleOrNull();
+    if (audit == null) {
+      await _writeAudit(
+        id: auditId,
+        matchId: state.matchId,
+        targetId: state.id,
+        action: 'edit',
+        before: _clockJson(state),
+        after: _clockJson(projection.normalizedState),
+        reason: 'clock-recovery',
+      );
+    }
   }
 
   Future<String?> _latestSemanticLabel(String matchId) async {
