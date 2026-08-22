@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
@@ -237,6 +238,7 @@ void main() {
           name: 'Free',
           scoreButtons: [1, 2, 3],
         ),
+        recordingMode: RecordingMode.simple,
         createdAt: DateTime.utc(2026, 8, 23, 9),
         startedAt: DateTime.utc(2026, 8, 23, 9),
       );
@@ -295,6 +297,7 @@ void main() {
             name: 'Free',
             scoreButtons: [1, 2, 3],
           ),
+          recordingMode: RecordingMode.simple,
           createdAt: DateTime.utc(2026, 8, 23, 9),
           startedAt: DateTime.utc(2026, 8, 23, 9),
         ),
@@ -350,6 +353,7 @@ void main() {
             name: 'Free',
             scoreButtons: [1, 2, 3],
           ),
+          recordingMode: RecordingMode.simple,
           createdAt: DateTime.utc(2026, 8, 23, 9),
           startedAt: DateTime.utc(2026, 8, 23, 9),
         ),

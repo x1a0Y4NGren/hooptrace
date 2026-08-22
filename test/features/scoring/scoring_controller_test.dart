@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
-import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
@@ -144,6 +143,7 @@ void main() {
             name: 'Free',
             scoreButtons: [1, 2, 3],
           ),
+          recordingMode: RecordingMode.simple,
           createdAt: DateTime.utc(2026, 8, 23, 9),
           startedAt: DateTime.utc(2026, 8, 23, 9),
         );
@@ -478,6 +478,7 @@ Future<MatchDetail> _startCommandBackedMatch(MatchCommandService service) {
         name: 'Free',
         scoreButtons: [1, 2, 3],
       ),
+      recordingMode: RecordingMode.simple,
       createdAt: DateTime.utc(2026, 8, 23, 9),
       startedAt: DateTime.utc(2026, 8, 23, 9),
     ),

@@ -66,7 +66,7 @@ class StartMatchCommand extends MatchCommand {
     required String redName,
     required String blueName,
     required RuleTemplate ruleTemplate,
-    RecordingMode recordingMode = RecordingMode.simple,
+    required RecordingMode recordingMode,
     TrackingCoverage trackingCoverage = TrackingCoverage.scoresOnly,
     ClockMode clockMode = ClockMode.countUp,
     int? regulationSeconds,

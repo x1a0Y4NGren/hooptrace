@@ -4,9 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/entities/match.dart';
-import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
+import 'package:hooptrace/features/pregame/start_match_mapper.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 
 /// Coordinates scoring routes while keeping the old snapshot adapter
@@ -73,27 +73,7 @@ class MatchSessionCoordinator extends ChangeNotifier {
       return beginMatch(setup);
     }
     final now = DateTime.now().toUtc();
-    final command = StartMatchCommand(
-      matchId: setup.matchId,
-      redName: setup.redName,
-      blueName: setup.blueName,
-      ruleTemplate: RuleTemplate(
-        id: setup.ruleTemplateId,
-        name: setup.ruleTemplateName ?? setup.ruleTemplateId,
-        scoreButtons: List.unmodifiable(setup.scoreButtons),
-        targetScore: setup.targetScore,
-        timeLimitSeconds: setup.timerEnabled
-            ? setup.timeLimitMinutes * 60
-            : null,
-        winByTwo: setup.winByTwo,
-        foulLimit: setup.foulLimit,
-        possessionHintEnabled: setup.possessionHintEnabled,
-        customEventTypes: List.unmodifiable(setup.customEventTypes),
-      ),
-      timerEnabled: setup.timerEnabled,
-      createdAt: now,
-      startedAt: now,
-    );
+    final command = buildStartMatchCommand(setup, now: now);
     final projection = await service.start(command);
     final controller = ScoringController.fromCommittedProjection(
       projection,

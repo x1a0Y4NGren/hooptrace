@@ -317,13 +317,13 @@ void main() {
         _start(
           timerEnabled: true,
           clockMode: ClockMode.countdown,
-          regulationSeconds: 10,
+          regulationSeconds: 60,
         ),
       );
 
       final expired = await MatchCommandService(
         database,
-        now: () => _anchor.add(const Duration(seconds: 10)),
+        now: () => _anchor.add(const Duration(seconds: 60)),
       ).readClock('match-clock');
       expect(expired?.phase, ClockPhase.regulationExpired);
       expect(expired?.displaySeconds, 0);
@@ -441,14 +441,14 @@ void main() {
         _start(
           timerEnabled: true,
           clockMode: ClockMode.countdown,
-          regulationSeconds: 10,
+          regulationSeconds: 60,
         ),
       );
 
       final failure = await _captureFailure(
         () => MatchCommandService(
           database,
-          now: () => _anchor.add(const Duration(seconds: 10)),
+          now: () => _anchor.add(const Duration(seconds: 60)),
         ).record(_score()),
       );
 
@@ -752,12 +752,12 @@ void main() {
         _start(
           timerEnabled: true,
           clockMode: ClockMode.countdown,
-          regulationSeconds: 10,
+          regulationSeconds: 60,
         ),
       );
       await database.customUpdate(
         'UPDATE match_clocks SET accumulated_seconds = ? WHERE match_id = ?',
-        variables: [Variable.withInt(10), Variable.withString('match-clock')],
+        variables: [Variable.withInt(60), Variable.withString('match-clock')],
         updates: {database.matchClocks},
       );
       final projection = await MatchCommandService(
@@ -768,7 +768,7 @@ void main() {
       expect(projection?.displaySeconds, 0);
       final row = await database.select(database.matchClocks).getSingle();
       expect(row.phase, ClockPhase.regulationExpired.name);
-      expect(row.accumulatedSeconds, 10);
+      expect(row.accumulatedSeconds, 60);
     },
   );
 
@@ -883,19 +883,19 @@ void main() {
         _start(
           timerEnabled: true,
           clockMode: ClockMode.countdown,
-          regulationSeconds: 10,
+          regulationSeconds: 60,
         ),
       );
       final failure = await _captureFailure(
         () =>
             MatchCommandService(
               database,
-              now: () => _anchor.add(const Duration(seconds: 10)),
+              now: () => _anchor.add(const Duration(seconds: 60)),
             ).pause(
               PauseMatchCommand(
                 commandId: 'pause-at-expiry',
                 matchId: 'match-clock',
-                occurredAt: _anchor.add(const Duration(seconds: 10)),
+                occurredAt: _anchor.add(const Duration(seconds: 60)),
               ),
             ),
       );
@@ -1330,6 +1330,7 @@ StartMatchCommand _start({
   redName: 'Red',
   blueName: 'Blue',
   ruleTemplate: ruleTemplate,
+  recordingMode: RecordingMode.simple,
   clockMode: clockMode,
   regulationSeconds: regulationSeconds,
   timerEnabled: timerEnabled,

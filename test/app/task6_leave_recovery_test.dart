@@ -5,6 +5,7 @@ import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
@@ -161,6 +162,7 @@ Future<void> _startMatch(
         name: '自由计分',
         scoreButtons: [1, 2, 3],
       ),
+      recordingMode: RecordingMode.simple,
       timerEnabled: timerEnabled,
       regulationSeconds: timerEnabled ? 600 : null,
       createdAt: now,

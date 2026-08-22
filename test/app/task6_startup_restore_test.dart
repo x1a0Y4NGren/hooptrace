@@ -5,6 +5,7 @@ import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 
@@ -127,6 +128,7 @@ void main() {
           name: '自由计分',
           scoreButtons: [1, 2, 3],
         ),
+        recordingMode: RecordingMode.simple,
         createdAt: now,
         startedAt: now,
       ),

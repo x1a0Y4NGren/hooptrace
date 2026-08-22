@@ -108,6 +108,7 @@ void main() {
             name: '自由计分',
             scoreButtons: [1, 2, 3],
           ),
+          recordingMode: RecordingMode.simple,
           timerEnabled: true,
           regulationSeconds: 600,
           createdAt: now,

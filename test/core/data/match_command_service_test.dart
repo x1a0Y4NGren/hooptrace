@@ -448,6 +448,7 @@ StartMatchCommand _startCommand({
       name: 'Free',
       scoreButtons: [1, 2, 3],
     ),
+    recordingMode: RecordingMode.simple,
     startedAt: DateTime.utc(2026, 8, 22, 9),
   );
 }

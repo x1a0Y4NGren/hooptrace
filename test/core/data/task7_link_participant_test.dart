@@ -459,6 +459,7 @@ Future<MatchDetail> _start(
         name: 'Free',
         scoreButtons: [1, 2, 3],
       ),
+      recordingMode: RecordingMode.simple,
       createdAt: DateTime.utc(2026, 8, 23, 10),
       startedAt: DateTime.utc(2026, 8, 23, 10),
     ),

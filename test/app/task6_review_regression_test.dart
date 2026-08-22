@@ -8,6 +8,7 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/provider_router.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
@@ -32,6 +33,7 @@ void main() {
             name: '自由计分',
             scoreButtons: [1, 2, 3],
           ),
+          recordingMode: RecordingMode.simple,
           createdAt: now,
           startedAt: now,
         ),
@@ -101,6 +103,7 @@ void main() {
             name: '自由计分',
             scoreButtons: [1, 2, 3],
           ),
+          recordingMode: RecordingMode.simple,
           createdAt: now,
           startedAt: now,
         ),
@@ -166,6 +169,7 @@ void main() {
             name: '自由计分',
             scoreButtons: [1, 2, 3],
           ),
+          recordingMode: RecordingMode.simple,
           createdAt: now,
           startedAt: now,
         ),
