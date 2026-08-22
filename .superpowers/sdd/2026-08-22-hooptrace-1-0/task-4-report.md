@@ -76,15 +76,16 @@ The reducer was then minimally extended to count made `fieldGoal` and
 - `63d1398 fix: persist record command audit`
 - `43d066f fix: score made shot events in projections`
 - `840928d feat: expose command kernel compatibility aliases`
+- `9114cba fix: validate shot location event types`
 
 ## Verification
 
 ```text
 flutter test test/core/data/match_command_service_test.dart --reporter expanded
-# 11 tests passed
+# 12 tests passed
 
 flutter test --reporter expanded
-# 152 tests passed, 0 failures
+# 153 tests passed, 0 failures
 
 flutter analyze
 # No issues found
