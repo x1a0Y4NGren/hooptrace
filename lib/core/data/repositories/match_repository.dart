@@ -4,7 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/audit/audit_diff.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
-import 'package:hooptrace/core/domain/entities/match.dart';
+import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
@@ -28,11 +28,11 @@ class MatchRepository {
     required DateTime createdAt,
   }) {
     return saveMatch(
-      Match(
+      domain_match.Match(
         id: id,
         redName: redName,
         blueName: blueName,
-        status: MatchStatus.active,
+        status: domain_match.MatchStatus.active,
         ruleTemplateSnapshot: const RuleTemplate(
           id: 'free',
           name: 'Free scoring',
@@ -43,25 +43,49 @@ class MatchRepository {
     );
   }
 
-  Future<void> saveMatch(Match match) {
-    return _database
-        .into(_database.matches)
-        .insertOnConflictUpdate(
-          MatchesCompanion.insert(
-            id: match.id,
-            redName: match.redName,
-            blueName: match.blueName,
-            status: match.status.name,
-            ruleTemplateJson: jsonEncode(
-              _ruleTemplateToJson(match.ruleTemplateSnapshot),
+  Future<void> saveMatch(domain_match.Match match) {
+    return _database.transaction(() async {
+      await _database
+          .into(_database.matches)
+          .insertOnConflictUpdate(
+            MatchesCompanion.insert(
+              id: match.id,
+              redName: Value(match.redName),
+              blueName: Value(match.blueName),
+              status: Value(match.status.name),
+              lifecycle: Value(match.lifecycle.name),
+              recordingMode: Value(match.recordingMode.name),
+              trackingCoverage: Value(match.trackingCoverage.name),
+              ruleTemplateJson: jsonEncode(
+                _ruleTemplateToJson(match.ruleTemplateSnapshot),
+              ),
+              createdAt: match.createdAt,
+              startedAt: Value(match.startedAt),
+              endedAt: Value(match.endedAt),
+              timerEnabled: Value(match.timerEnabled),
+              note: Value(match.note),
             ),
-            createdAt: match.createdAt,
-            startedAt: Value(match.startedAt),
-            endedAt: Value(match.endedAt),
-            timerEnabled: Value(match.timerEnabled),
-            note: Value(match.note),
-          ),
-        );
+          );
+
+      // Participant rows are the canonical ownership projection. Legacy name
+      // columns above remain populated for v0.1 repository/backup fixtures.
+      await (_database.delete(
+        _database.matchParticipants,
+      )..where((participant) => participant.matchId.equals(match.id))).go();
+      for (final participant in match.participants) {
+        await _database
+            .into(_database.matchParticipants)
+            .insert(
+              MatchParticipantsCompanion.insert(
+                id: participant.id,
+                matchId: participant.matchId,
+                side: participant.side.name,
+                nameSnapshot: participant.nameSnapshot,
+                playerProfileId: Value(participant.playerProfileId),
+              ),
+            );
+      }
+    });
   }
 
   Future<void> addEvent(MatchEvent event) => saveEvent(event);
@@ -161,7 +185,7 @@ class MatchRepository {
           _database.matches,
         )..where((match) => match.id.equals(matchId))).write(
           MatchesCompanion(
-            status: Value(MatchStatus.finished.name),
+            status: Value(domain_match.MatchStatus.finished.name),
             endedAt: Value(endedAt),
           ),
         );
@@ -346,10 +370,18 @@ class MatchRepository {
         ..orderBy([(event) => OrderingTerm.asc(event.occurredAt)]);
       final locationQuery = _database.select(_database.shotLocations)
         ..where((location) => location.matchId.equals(matchId));
+      final participantQuery = _database.select(_database.matchParticipants)
+        ..where((participant) => participant.matchId.equals(matchId));
       final eventRows = await eventQuery.get();
       final locationRows = await locationQuery.get();
+      final participantRows = await participantQuery.get();
 
-      return _buildDetail(matchRow, eventRows, locationRows);
+      return _buildDetail(
+        matchRow,
+        eventRows,
+        locationRows,
+        participantRows: participantRows,
+      );
     });
   }
 
@@ -357,8 +389,8 @@ class MatchRepository {
     final query = _database.select(_database.matches)
       ..where(
         (match) => match.status.isIn([
-          MatchStatus.finished.name,
-          MatchStatus.archived.name,
+          domain_match.MatchStatus.finished.name,
+          domain_match.MatchStatus.archived.name,
         ]),
       )
       ..orderBy([
@@ -411,20 +443,47 @@ class MatchRepository {
       occurredAt: row.occurredAt.toUtc(),
       note: row.note,
       customType: row.customEventType,
+      outcome: row.outcome == null
+          ? null
+          : ShotOutcome.values.byName(row.outcome!),
+      matchClockPositionSeconds: row.matchClockPositionSeconds,
       isDeleted: row.isDeleted,
     );
   }
 
-  static Match mapMatchRow(Matche row) {
-    return Match(
+  static domain_match.Match mapMatchRow(
+    Matche row, {
+    List<dynamic>? participantRows,
+  }) {
+    final participants =
+        participantRows
+            ?.map(
+              (participant) => domain_match.MatchParticipant(
+                id: participant.id,
+                matchId: participant.matchId,
+                side: TeamSide.values.byName(participant.side),
+                nameSnapshot: participant.nameSnapshot,
+                playerProfileId: participant.playerProfileId,
+              ),
+            )
+            .toList(growable: false) ??
+        const <domain_match.MatchParticipant>[];
+    return domain_match.Match(
       id: row.id,
       createdAt: row.createdAt.toUtc(),
       startedAt: row.startedAt?.toUtc(),
       endedAt: row.endedAt?.toUtc(),
-      status: MatchStatus.values.byName(row.status),
+      status: domain_match.MatchStatus.values.byName(row.status),
       redName: row.redName,
       blueName: row.blueName,
+      participants: participants.length == 2 ? participants : const [],
       ruleTemplateSnapshot: _ruleTemplateFromJson(row.ruleTemplateJson),
+      recordingMode: domain_match.RecordingMode.values.byName(
+        row.recordingMode,
+      ),
+      trackingCoverage: domain_match.TrackingCoverage.values.byName(
+        row.trackingCoverage,
+      ),
       timerEnabled: row.timerEnabled,
       note: row.note,
     );
@@ -437,8 +496,11 @@ class MatchRepository {
       type: event.type.name,
       side: Value(event.side?.name),
       points: Value(event.points),
+      outcome: Value(event.outcome?.name),
+      matchClockPositionSeconds: Value(event.matchClockPositionSeconds),
       occurredAt: event.occurredAt,
       note: Value(event.note),
+      customLabel: Value(event.customLabel),
       customEventType: Value(event.customType),
       isDeleted: Value(event.isDeleted),
     );
@@ -470,8 +532,9 @@ class MatchRepository {
   static MatchDetail _buildDetail(
     Matche matchRow,
     List<MatchEventRow> eventRows,
-    List<ShotLocation> locationRows,
-  ) {
+    List<ShotLocation> locationRows, {
+    List<dynamic> participantRows = const [],
+  }) {
     final events = eventRows.map(mapEventRow).toList(growable: false);
     final locations = locationRows
         .map(_mapShotLocationRow)
@@ -495,7 +558,7 @@ class MatchRepository {
         .toSet();
 
     return MatchDetail(
-      match: mapMatchRow(matchRow),
+      match: mapMatchRow(matchRow, participantRows: participantRows),
       events: List.unmodifiable(events),
       shotLocations: List.unmodifiable(locations),
       redScore: score.redScore,
@@ -542,6 +605,7 @@ class MatchRepository {
       'winByTwo': template.winByTwo,
       'foulLimit': template.foulLimit,
       'possessionHintEnabled': template.possessionHintEnabled,
+      'possessionPolicy': template.possessionPolicy.name,
       'customEventTypes': template.customEventTypes,
     };
   }
@@ -560,6 +624,9 @@ class MatchRepository {
       winByTwo: json['winByTwo'] as bool? ?? false,
       foulLimit: (json['foulLimit'] as num?)?.toInt(),
       possessionHintEnabled: json['possessionHintEnabled'] as bool? ?? false,
+      possessionPolicy: json['possessionPolicy'] == null
+          ? PossessionPolicy.manual
+          : PossessionPolicy.values.byName(json['possessionPolicy'] as String),
       customEventTypes: (json['customEventTypes'] as List<Object?>? ?? const [])
           .cast<String>(),
     );

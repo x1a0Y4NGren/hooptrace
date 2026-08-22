@@ -1,15 +1,9 @@
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
-enum MatchEventType {
-  score,
-  miss,
-  foul,
-  reward,
-  pause,
-  interruption,
-  note,
-  custom,
-}
+import 'package:hooptrace/core/domain/domain_enums.dart';
+
+export 'package:hooptrace/core/domain/domain_enums.dart'
+    show EventKind, MatchEventType, ShotOutcome;
 
 class MatchEvent {
   MatchEvent({
@@ -20,16 +14,26 @@ class MatchEvent {
     required this.points,
     required this.occurredAt,
     this.note,
-    this.customType,
+    ShotOutcome? outcome,
+    this.matchClockPositionSeconds,
+    String? customLabel,
+    String? customType,
     this.isDeleted = false,
-  }) {
-    if (type == MatchEventType.score) {
+  }) : outcome = outcome,
+       customLabel = _normalizeLabel(customLabel ?? customType) {
+    if (type == EventKind.score || type == EventKind.fieldGoal) {
       if (side == null) {
         throw ArgumentError('Score events require a side.');
       }
-      if (points <= 0) {
+      if ((this.outcome ?? ShotOutcome.made) == ShotOutcome.made && points <= 0) {
         throw ArgumentError('Score points must be positive.');
       }
+    }
+    if (type == EventKind.freeThrow && (side == null || points <= 0)) {
+      throw ArgumentError('Free-throw events require a side and positive points.');
+    }
+    if (matchClockPositionSeconds != null && matchClockPositionSeconds! < 0) {
+      throw ArgumentError('Match-clock positions cannot be negative.');
     }
   }
 
@@ -50,6 +54,7 @@ class MatchEvent {
       side: side,
       points: points,
       occurredAt: occurredAt,
+      outcome: ShotOutcome.made,
     );
   }
 
@@ -60,6 +65,16 @@ class MatchEvent {
   final int points;
   final DateTime occurredAt;
   final String? note;
-  final String? customType;
+  final ShotOutcome? outcome;
+  final int? matchClockPositionSeconds;
+  final String? customLabel;
+
+  /// Compatibility getter for the v0.1 database field name.
+  String? get customType => customLabel;
   final bool isDeleted;
+
+  static String? _normalizeLabel(String? value) {
+    final normalized = value?.trim();
+    return normalized == null || normalized.isEmpty ? null : normalized;
+  }
 }

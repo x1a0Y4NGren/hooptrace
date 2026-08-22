@@ -1,3 +1,8 @@
+import 'package:hooptrace/core/domain/domain_enums.dart';
+
+export 'package:hooptrace/core/domain/domain_enums.dart'
+    show PossessionPolicy;
+
 class RuleTemplate {
   const RuleTemplate({
     required this.id,
@@ -8,6 +13,7 @@ class RuleTemplate {
     this.winByTwo = false,
     this.foulLimit,
     this.possessionHintEnabled = false,
+    this.possessionPolicy = PossessionPolicy.manual,
     this.customEventTypes = const [],
   });
 
@@ -19,6 +25,7 @@ class RuleTemplate {
   final bool winByTwo;
   final int? foulLimit;
   final bool possessionHintEnabled;
+  final PossessionPolicy possessionPolicy;
   final List<String> customEventTypes;
 
   @override
@@ -32,6 +39,7 @@ class RuleTemplate {
         other.winByTwo == winByTwo &&
         other.foulLimit == foulLimit &&
         other.possessionHintEnabled == possessionHintEnabled &&
+        other.possessionPolicy == possessionPolicy &&
         _listsEqual(other.customEventTypes, customEventTypes);
   }
 
@@ -45,6 +53,7 @@ class RuleTemplate {
     winByTwo,
     foulLimit,
     possessionHintEnabled,
+    possessionPolicy,
     Object.hashAll(customEventTypes),
   );
 

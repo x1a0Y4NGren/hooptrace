@@ -26,7 +26,8 @@ class $MatchesTable extends Matches with TableInfo<$MatchesTable, Matche> {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _blueNameMeta = const VerificationMeta(
     'blueName',
@@ -37,7 +38,8 @@ class $MatchesTable extends Matches with TableInfo<$MatchesTable, Matche> {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
   );
   static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
@@ -46,7 +48,44 @@ class $MatchesTable extends Matches with TableInfo<$MatchesTable, Matche> {
     aliasedName,
     false,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('draft'),
+  );
+  static const VerificationMeta _lifecycleMeta = const VerificationMeta(
+    'lifecycle',
+  );
+  @override
+  late final GeneratedColumn<String> lifecycle = GeneratedColumn<String>(
+    'lifecycle',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('draft'),
+  );
+  static const VerificationMeta _recordingModeMeta = const VerificationMeta(
+    'recordingMode',
+  );
+  @override
+  late final GeneratedColumn<String> recordingMode = GeneratedColumn<String>(
+    'recording_mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('simple'),
+  );
+  static const VerificationMeta _trackingCoverageMeta = const VerificationMeta(
+    'trackingCoverage',
+  );
+  @override
+  late final GeneratedColumn<String> trackingCoverage = GeneratedColumn<String>(
+    'tracking_coverage',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('scoresOnly'),
   );
   static const VerificationMeta _ruleTemplateJsonMeta = const VerificationMeta(
     'ruleTemplateJson',
@@ -122,6 +161,9 @@ class $MatchesTable extends Matches with TableInfo<$MatchesTable, Matche> {
     redName,
     blueName,
     status,
+    lifecycle,
+    recordingMode,
+    trackingCoverage,
     ruleTemplateJson,
     createdAt,
     startedAt,
@@ -151,24 +193,42 @@ class $MatchesTable extends Matches with TableInfo<$MatchesTable, Matche> {
         _redNameMeta,
         redName.isAcceptableOrUnknown(data['red_name']!, _redNameMeta),
       );
-    } else if (isInserting) {
-      context.missing(_redNameMeta);
     }
     if (data.containsKey('blue_name')) {
       context.handle(
         _blueNameMeta,
         blueName.isAcceptableOrUnknown(data['blue_name']!, _blueNameMeta),
       );
-    } else if (isInserting) {
-      context.missing(_blueNameMeta);
     }
     if (data.containsKey('status')) {
       context.handle(
         _statusMeta,
         status.isAcceptableOrUnknown(data['status']!, _statusMeta),
       );
-    } else if (isInserting) {
-      context.missing(_statusMeta);
+    }
+    if (data.containsKey('lifecycle')) {
+      context.handle(
+        _lifecycleMeta,
+        lifecycle.isAcceptableOrUnknown(data['lifecycle']!, _lifecycleMeta),
+      );
+    }
+    if (data.containsKey('recording_mode')) {
+      context.handle(
+        _recordingModeMeta,
+        recordingMode.isAcceptableOrUnknown(
+          data['recording_mode']!,
+          _recordingModeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tracking_coverage')) {
+      context.handle(
+        _trackingCoverageMeta,
+        trackingCoverage.isAcceptableOrUnknown(
+          data['tracking_coverage']!,
+          _trackingCoverageMeta,
+        ),
+      );
     }
     if (data.containsKey('rule_template_json')) {
       context.handle(
@@ -241,6 +301,18 @@ class $MatchesTable extends Matches with TableInfo<$MatchesTable, Matche> {
         DriftSqlType.string,
         data['${effectivePrefix}status'],
       )!,
+      lifecycle: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lifecycle'],
+      )!,
+      recordingMode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}recording_mode'],
+      )!,
+      trackingCoverage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tracking_coverage'],
+      )!,
       ruleTemplateJson: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}rule_template_json'],
@@ -276,9 +348,14 @@ class $MatchesTable extends Matches with TableInfo<$MatchesTable, Matche> {
 
 class Matche extends DataClass implements Insertable<Matche> {
   final String id;
+
+  /// Deprecated compatibility columns. Participant rows are canonical for 1.0.
   final String redName;
   final String blueName;
   final String status;
+  final String lifecycle;
+  final String recordingMode;
+  final String trackingCoverage;
   final String ruleTemplateJson;
   final DateTime createdAt;
   final DateTime? startedAt;
@@ -290,6 +367,9 @@ class Matche extends DataClass implements Insertable<Matche> {
     required this.redName,
     required this.blueName,
     required this.status,
+    this.lifecycle = 'draft',
+    this.recordingMode = 'simple',
+    this.trackingCoverage = 'scoresOnly',
     required this.ruleTemplateJson,
     required this.createdAt,
     this.startedAt,
@@ -304,6 +384,9 @@ class Matche extends DataClass implements Insertable<Matche> {
     map['red_name'] = Variable<String>(redName);
     map['blue_name'] = Variable<String>(blueName);
     map['status'] = Variable<String>(status);
+    map['lifecycle'] = Variable<String>(lifecycle);
+    map['recording_mode'] = Variable<String>(recordingMode);
+    map['tracking_coverage'] = Variable<String>(trackingCoverage);
     map['rule_template_json'] = Variable<String>(ruleTemplateJson);
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || startedAt != null) {
@@ -325,6 +408,9 @@ class Matche extends DataClass implements Insertable<Matche> {
       redName: Value(redName),
       blueName: Value(blueName),
       status: Value(status),
+      lifecycle: Value(lifecycle),
+      recordingMode: Value(recordingMode),
+      trackingCoverage: Value(trackingCoverage),
       ruleTemplateJson: Value(ruleTemplateJson),
       createdAt: Value(createdAt),
       startedAt: startedAt == null && nullToAbsent
@@ -348,6 +434,15 @@ class Matche extends DataClass implements Insertable<Matche> {
       redName: serializer.fromJson<String>(json['redName']),
       blueName: serializer.fromJson<String>(json['blueName']),
       status: serializer.fromJson<String>(json['status']),
+      lifecycle: json['lifecycle'] == null
+          ? 'draft'
+          : serializer.fromJson<String>(json['lifecycle']),
+      recordingMode: json['recordingMode'] == null
+          ? 'simple'
+          : serializer.fromJson<String>(json['recordingMode']),
+      trackingCoverage: json['trackingCoverage'] == null
+          ? 'scoresOnly'
+          : serializer.fromJson<String>(json['trackingCoverage']),
       ruleTemplateJson: serializer.fromJson<String>(json['ruleTemplateJson']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       startedAt: serializer.fromJson<DateTime?>(json['startedAt']),
@@ -364,6 +459,9 @@ class Matche extends DataClass implements Insertable<Matche> {
       'redName': serializer.toJson<String>(redName),
       'blueName': serializer.toJson<String>(blueName),
       'status': serializer.toJson<String>(status),
+      'lifecycle': serializer.toJson<String>(lifecycle),
+      'recordingMode': serializer.toJson<String>(recordingMode),
+      'trackingCoverage': serializer.toJson<String>(trackingCoverage),
       'ruleTemplateJson': serializer.toJson<String>(ruleTemplateJson),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'startedAt': serializer.toJson<DateTime?>(startedAt),
@@ -378,6 +476,9 @@ class Matche extends DataClass implements Insertable<Matche> {
     String? redName,
     String? blueName,
     String? status,
+    String? lifecycle,
+    String? recordingMode,
+    String? trackingCoverage,
     String? ruleTemplateJson,
     DateTime? createdAt,
     Value<DateTime?> startedAt = const Value.absent(),
@@ -389,6 +490,9 @@ class Matche extends DataClass implements Insertable<Matche> {
     redName: redName ?? this.redName,
     blueName: blueName ?? this.blueName,
     status: status ?? this.status,
+    lifecycle: lifecycle ?? this.lifecycle,
+    recordingMode: recordingMode ?? this.recordingMode,
+    trackingCoverage: trackingCoverage ?? this.trackingCoverage,
     ruleTemplateJson: ruleTemplateJson ?? this.ruleTemplateJson,
     createdAt: createdAt ?? this.createdAt,
     startedAt: startedAt.present ? startedAt.value : this.startedAt,
@@ -402,6 +506,13 @@ class Matche extends DataClass implements Insertable<Matche> {
       redName: data.redName.present ? data.redName.value : this.redName,
       blueName: data.blueName.present ? data.blueName.value : this.blueName,
       status: data.status.present ? data.status.value : this.status,
+      lifecycle: data.lifecycle.present ? data.lifecycle.value : this.lifecycle,
+      recordingMode: data.recordingMode.present
+          ? data.recordingMode.value
+          : this.recordingMode,
+      trackingCoverage: data.trackingCoverage.present
+          ? data.trackingCoverage.value
+          : this.trackingCoverage,
       ruleTemplateJson: data.ruleTemplateJson.present
           ? data.ruleTemplateJson.value
           : this.ruleTemplateJson,
@@ -422,6 +533,9 @@ class Matche extends DataClass implements Insertable<Matche> {
           ..write('redName: $redName, ')
           ..write('blueName: $blueName, ')
           ..write('status: $status, ')
+          ..write('lifecycle: $lifecycle, ')
+          ..write('recordingMode: $recordingMode, ')
+          ..write('trackingCoverage: $trackingCoverage, ')
           ..write('ruleTemplateJson: $ruleTemplateJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('startedAt: $startedAt, ')
@@ -438,6 +552,9 @@ class Matche extends DataClass implements Insertable<Matche> {
     redName,
     blueName,
     status,
+    lifecycle,
+    recordingMode,
+    trackingCoverage,
     ruleTemplateJson,
     createdAt,
     startedAt,
@@ -453,6 +570,9 @@ class Matche extends DataClass implements Insertable<Matche> {
           other.redName == this.redName &&
           other.blueName == this.blueName &&
           other.status == this.status &&
+          other.lifecycle == this.lifecycle &&
+          other.recordingMode == this.recordingMode &&
+          other.trackingCoverage == this.trackingCoverage &&
           other.ruleTemplateJson == this.ruleTemplateJson &&
           other.createdAt == this.createdAt &&
           other.startedAt == this.startedAt &&
@@ -466,6 +586,9 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
   final Value<String> redName;
   final Value<String> blueName;
   final Value<String> status;
+  final Value<String> lifecycle;
+  final Value<String> recordingMode;
+  final Value<String> trackingCoverage;
   final Value<String> ruleTemplateJson;
   final Value<DateTime> createdAt;
   final Value<DateTime?> startedAt;
@@ -478,6 +601,9 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
     this.redName = const Value.absent(),
     this.blueName = const Value.absent(),
     this.status = const Value.absent(),
+    this.lifecycle = const Value.absent(),
+    this.recordingMode = const Value.absent(),
+    this.trackingCoverage = const Value.absent(),
     this.ruleTemplateJson = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.startedAt = const Value.absent(),
@@ -488,9 +614,12 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
   });
   MatchesCompanion.insert({
     required String id,
-    required String redName,
-    required String blueName,
-    required String status,
+    this.redName = const Value.absent(),
+    this.blueName = const Value.absent(),
+    this.status = const Value.absent(),
+    this.lifecycle = const Value.absent(),
+    this.recordingMode = const Value.absent(),
+    this.trackingCoverage = const Value.absent(),
     required String ruleTemplateJson,
     required DateTime createdAt,
     this.startedAt = const Value.absent(),
@@ -499,9 +628,6 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
     this.note = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
-       redName = Value(redName),
-       blueName = Value(blueName),
-       status = Value(status),
        ruleTemplateJson = Value(ruleTemplateJson),
        createdAt = Value(createdAt);
   static Insertable<Matche> custom({
@@ -509,6 +635,9 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
     Expression<String>? redName,
     Expression<String>? blueName,
     Expression<String>? status,
+    Expression<String>? lifecycle,
+    Expression<String>? recordingMode,
+    Expression<String>? trackingCoverage,
     Expression<String>? ruleTemplateJson,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? startedAt,
@@ -522,6 +651,9 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
       if (redName != null) 'red_name': redName,
       if (blueName != null) 'blue_name': blueName,
       if (status != null) 'status': status,
+      if (lifecycle != null) 'lifecycle': lifecycle,
+      if (recordingMode != null) 'recording_mode': recordingMode,
+      if (trackingCoverage != null) 'tracking_coverage': trackingCoverage,
       if (ruleTemplateJson != null) 'rule_template_json': ruleTemplateJson,
       if (createdAt != null) 'created_at': createdAt,
       if (startedAt != null) 'started_at': startedAt,
@@ -537,6 +669,9 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
     Value<String>? redName,
     Value<String>? blueName,
     Value<String>? status,
+    Value<String>? lifecycle,
+    Value<String>? recordingMode,
+    Value<String>? trackingCoverage,
     Value<String>? ruleTemplateJson,
     Value<DateTime>? createdAt,
     Value<DateTime?>? startedAt,
@@ -550,6 +685,9 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
       redName: redName ?? this.redName,
       blueName: blueName ?? this.blueName,
       status: status ?? this.status,
+      lifecycle: lifecycle ?? this.lifecycle,
+      recordingMode: recordingMode ?? this.recordingMode,
+      trackingCoverage: trackingCoverage ?? this.trackingCoverage,
       ruleTemplateJson: ruleTemplateJson ?? this.ruleTemplateJson,
       createdAt: createdAt ?? this.createdAt,
       startedAt: startedAt ?? this.startedAt,
@@ -574,6 +712,15 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
     }
     if (status.present) {
       map['status'] = Variable<String>(status.value);
+    }
+    if (lifecycle.present) {
+      map['lifecycle'] = Variable<String>(lifecycle.value);
+    }
+    if (recordingMode.present) {
+      map['recording_mode'] = Variable<String>(recordingMode.value);
+    }
+    if (trackingCoverage.present) {
+      map['tracking_coverage'] = Variable<String>(trackingCoverage.value);
     }
     if (ruleTemplateJson.present) {
       map['rule_template_json'] = Variable<String>(ruleTemplateJson.value);
@@ -606,12 +753,1139 @@ class MatchesCompanion extends UpdateCompanion<Matche> {
           ..write('redName: $redName, ')
           ..write('blueName: $blueName, ')
           ..write('status: $status, ')
+          ..write('lifecycle: $lifecycle, ')
+          ..write('recordingMode: $recordingMode, ')
+          ..write('trackingCoverage: $trackingCoverage, ')
           ..write('ruleTemplateJson: $ruleTemplateJson, ')
           ..write('createdAt: $createdAt, ')
           ..write('startedAt: $startedAt, ')
           ..write('endedAt: $endedAt, ')
           ..write('timerEnabled: $timerEnabled, ')
           ..write('note: $note, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MatchParticipantsTable extends MatchParticipants
+    with TableInfo<$MatchParticipantsTable, MatchParticipant> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MatchParticipantsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _matchIdMeta = const VerificationMeta(
+    'matchId',
+  );
+  @override
+  late final GeneratedColumn<String> matchId = GeneratedColumn<String>(
+    'match_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES matches (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _sideMeta = const VerificationMeta('side');
+  @override
+  late final GeneratedColumn<String> side = GeneratedColumn<String>(
+    'side',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameSnapshotMeta = const VerificationMeta(
+    'nameSnapshot',
+  );
+  @override
+  late final GeneratedColumn<String> nameSnapshot = GeneratedColumn<String>(
+    'name_snapshot',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _playerProfileIdMeta = const VerificationMeta(
+    'playerProfileId',
+  );
+  @override
+  late final GeneratedColumn<String> playerProfileId = GeneratedColumn<String>(
+    'player_profile_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    matchId,
+    side,
+    nameSnapshot,
+    playerProfileId,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'match_participants';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MatchParticipant> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('match_id')) {
+      context.handle(
+        _matchIdMeta,
+        matchId.isAcceptableOrUnknown(data['match_id']!, _matchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_matchIdMeta);
+    }
+    if (data.containsKey('side')) {
+      context.handle(
+        _sideMeta,
+        side.isAcceptableOrUnknown(data['side']!, _sideMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_sideMeta);
+    }
+    if (data.containsKey('name_snapshot')) {
+      context.handle(
+        _nameSnapshotMeta,
+        nameSnapshot.isAcceptableOrUnknown(
+          data['name_snapshot']!,
+          _nameSnapshotMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_nameSnapshotMeta);
+    }
+    if (data.containsKey('player_profile_id')) {
+      context.handle(
+        _playerProfileIdMeta,
+        playerProfileId.isAcceptableOrUnknown(
+          data['player_profile_id']!,
+          _playerProfileIdMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MatchParticipant map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MatchParticipant(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      matchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}match_id'],
+      )!,
+      side: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}side'],
+      )!,
+      nameSnapshot: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name_snapshot'],
+      )!,
+      playerProfileId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}player_profile_id'],
+      ),
+    );
+  }
+
+  @override
+  $MatchParticipantsTable createAlias(String alias) {
+    return $MatchParticipantsTable(attachedDatabase, alias);
+  }
+}
+
+class MatchParticipant extends DataClass
+    implements Insertable<MatchParticipant> {
+  final String id;
+  final String matchId;
+  final String side;
+  final String nameSnapshot;
+  final String? playerProfileId;
+  const MatchParticipant({
+    required this.id,
+    required this.matchId,
+    required this.side,
+    required this.nameSnapshot,
+    this.playerProfileId,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['match_id'] = Variable<String>(matchId);
+    map['side'] = Variable<String>(side);
+    map['name_snapshot'] = Variable<String>(nameSnapshot);
+    if (!nullToAbsent || playerProfileId != null) {
+      map['player_profile_id'] = Variable<String>(playerProfileId);
+    }
+    return map;
+  }
+
+  MatchParticipantsCompanion toCompanion(bool nullToAbsent) {
+    return MatchParticipantsCompanion(
+      id: Value(id),
+      matchId: Value(matchId),
+      side: Value(side),
+      nameSnapshot: Value(nameSnapshot),
+      playerProfileId: playerProfileId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(playerProfileId),
+    );
+  }
+
+  factory MatchParticipant.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MatchParticipant(
+      id: serializer.fromJson<String>(json['id']),
+      matchId: serializer.fromJson<String>(json['matchId']),
+      side: serializer.fromJson<String>(json['side']),
+      nameSnapshot: serializer.fromJson<String>(json['nameSnapshot']),
+      playerProfileId: serializer.fromJson<String?>(json['playerProfileId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'matchId': serializer.toJson<String>(matchId),
+      'side': serializer.toJson<String>(side),
+      'nameSnapshot': serializer.toJson<String>(nameSnapshot),
+      'playerProfileId': serializer.toJson<String?>(playerProfileId),
+    };
+  }
+
+  MatchParticipant copyWith({
+    String? id,
+    String? matchId,
+    String? side,
+    String? nameSnapshot,
+    Value<String?> playerProfileId = const Value.absent(),
+  }) => MatchParticipant(
+    id: id ?? this.id,
+    matchId: matchId ?? this.matchId,
+    side: side ?? this.side,
+    nameSnapshot: nameSnapshot ?? this.nameSnapshot,
+    playerProfileId: playerProfileId.present
+        ? playerProfileId.value
+        : this.playerProfileId,
+  );
+  MatchParticipant copyWithCompanion(MatchParticipantsCompanion data) {
+    return MatchParticipant(
+      id: data.id.present ? data.id.value : this.id,
+      matchId: data.matchId.present ? data.matchId.value : this.matchId,
+      side: data.side.present ? data.side.value : this.side,
+      nameSnapshot: data.nameSnapshot.present
+          ? data.nameSnapshot.value
+          : this.nameSnapshot,
+      playerProfileId: data.playerProfileId.present
+          ? data.playerProfileId.value
+          : this.playerProfileId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MatchParticipant(')
+          ..write('id: $id, ')
+          ..write('matchId: $matchId, ')
+          ..write('side: $side, ')
+          ..write('nameSnapshot: $nameSnapshot, ')
+          ..write('playerProfileId: $playerProfileId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, matchId, side, nameSnapshot, playerProfileId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MatchParticipant &&
+          other.id == this.id &&
+          other.matchId == this.matchId &&
+          other.side == this.side &&
+          other.nameSnapshot == this.nameSnapshot &&
+          other.playerProfileId == this.playerProfileId);
+}
+
+class MatchParticipantsCompanion extends UpdateCompanion<MatchParticipant> {
+  final Value<String> id;
+  final Value<String> matchId;
+  final Value<String> side;
+  final Value<String> nameSnapshot;
+  final Value<String?> playerProfileId;
+  final Value<int> rowid;
+  const MatchParticipantsCompanion({
+    this.id = const Value.absent(),
+    this.matchId = const Value.absent(),
+    this.side = const Value.absent(),
+    this.nameSnapshot = const Value.absent(),
+    this.playerProfileId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MatchParticipantsCompanion.insert({
+    required String id,
+    required String matchId,
+    required String side,
+    required String nameSnapshot,
+    this.playerProfileId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       matchId = Value(matchId),
+       side = Value(side),
+       nameSnapshot = Value(nameSnapshot);
+  static Insertable<MatchParticipant> custom({
+    Expression<String>? id,
+    Expression<String>? matchId,
+    Expression<String>? side,
+    Expression<String>? nameSnapshot,
+    Expression<String>? playerProfileId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (matchId != null) 'match_id': matchId,
+      if (side != null) 'side': side,
+      if (nameSnapshot != null) 'name_snapshot': nameSnapshot,
+      if (playerProfileId != null) 'player_profile_id': playerProfileId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MatchParticipantsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? matchId,
+    Value<String>? side,
+    Value<String>? nameSnapshot,
+    Value<String?>? playerProfileId,
+    Value<int>? rowid,
+  }) {
+    return MatchParticipantsCompanion(
+      id: id ?? this.id,
+      matchId: matchId ?? this.matchId,
+      side: side ?? this.side,
+      nameSnapshot: nameSnapshot ?? this.nameSnapshot,
+      playerProfileId: playerProfileId ?? this.playerProfileId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (matchId.present) {
+      map['match_id'] = Variable<String>(matchId.value);
+    }
+    if (side.present) {
+      map['side'] = Variable<String>(side.value);
+    }
+    if (nameSnapshot.present) {
+      map['name_snapshot'] = Variable<String>(nameSnapshot.value);
+    }
+    if (playerProfileId.present) {
+      map['player_profile_id'] = Variable<String>(playerProfileId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MatchParticipantsCompanion(')
+          ..write('id: $id, ')
+          ..write('matchId: $matchId, ')
+          ..write('side: $side, ')
+          ..write('nameSnapshot: $nameSnapshot, ')
+          ..write('playerProfileId: $playerProfileId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MatchClocksTable extends MatchClocks
+    with TableInfo<$MatchClocksTable, MatchClock> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MatchClocksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _matchIdMeta = const VerificationMeta(
+    'matchId',
+  );
+  @override
+  late final GeneratedColumn<String> matchId = GeneratedColumn<String>(
+    'match_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES matches (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _modeMeta = const VerificationMeta('mode');
+  @override
+  late final GeneratedColumn<String> mode = GeneratedColumn<String>(
+    'mode',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('countUp'),
+  );
+  static const VerificationMeta _phaseMeta = const VerificationMeta('phase');
+  @override
+  late final GeneratedColumn<String> phase = GeneratedColumn<String>(
+    'phase',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('regulation'),
+  );
+  static const VerificationMeta _accumulatedSecondsMeta =
+      const VerificationMeta('accumulatedSeconds');
+  @override
+  late final GeneratedColumn<int> accumulatedSeconds = GeneratedColumn<int>(
+    'accumulated_seconds',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _runningSinceUtcMeta = const VerificationMeta(
+    'runningSinceUtc',
+  );
+  @override
+  late final GeneratedColumn<DateTime> runningSinceUtc =
+      GeneratedColumn<DateTime>(
+        'running_since_utc',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _regulationSecondsMeta = const VerificationMeta(
+    'regulationSeconds',
+  );
+  @override
+  late final GeneratedColumn<int> regulationSeconds = GeneratedColumn<int>(
+    'regulation_seconds',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    matchId,
+    mode,
+    phase,
+    accumulatedSeconds,
+    runningSinceUtc,
+    regulationSeconds,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'match_clocks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<MatchClock> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('match_id')) {
+      context.handle(
+        _matchIdMeta,
+        matchId.isAcceptableOrUnknown(data['match_id']!, _matchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_matchIdMeta);
+    }
+    if (data.containsKey('mode')) {
+      context.handle(
+        _modeMeta,
+        mode.isAcceptableOrUnknown(data['mode']!, _modeMeta),
+      );
+    }
+    if (data.containsKey('phase')) {
+      context.handle(
+        _phaseMeta,
+        phase.isAcceptableOrUnknown(data['phase']!, _phaseMeta),
+      );
+    }
+    if (data.containsKey('accumulated_seconds')) {
+      context.handle(
+        _accumulatedSecondsMeta,
+        accumulatedSeconds.isAcceptableOrUnknown(
+          data['accumulated_seconds']!,
+          _accumulatedSecondsMeta,
+        ),
+      );
+    }
+    if (data.containsKey('running_since_utc')) {
+      context.handle(
+        _runningSinceUtcMeta,
+        runningSinceUtc.isAcceptableOrUnknown(
+          data['running_since_utc']!,
+          _runningSinceUtcMeta,
+        ),
+      );
+    }
+    if (data.containsKey('regulation_seconds')) {
+      context.handle(
+        _regulationSecondsMeta,
+        regulationSeconds.isAcceptableOrUnknown(
+          data['regulation_seconds']!,
+          _regulationSecondsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  MatchClock map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MatchClock(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      matchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}match_id'],
+      )!,
+      mode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mode'],
+      )!,
+      phase: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phase'],
+      )!,
+      accumulatedSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}accumulated_seconds'],
+      )!,
+      runningSinceUtc: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}running_since_utc'],
+      ),
+      regulationSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}regulation_seconds'],
+      ),
+    );
+  }
+
+  @override
+  $MatchClocksTable createAlias(String alias) {
+    return $MatchClocksTable(attachedDatabase, alias);
+  }
+}
+
+class MatchClock extends DataClass implements Insertable<MatchClock> {
+  final String id;
+  final String matchId;
+  final String mode;
+  final String phase;
+  final int accumulatedSeconds;
+  final DateTime? runningSinceUtc;
+  final int? regulationSeconds;
+  const MatchClock({
+    required this.id,
+    required this.matchId,
+    required this.mode,
+    required this.phase,
+    required this.accumulatedSeconds,
+    this.runningSinceUtc,
+    this.regulationSeconds,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['match_id'] = Variable<String>(matchId);
+    map['mode'] = Variable<String>(mode);
+    map['phase'] = Variable<String>(phase);
+    map['accumulated_seconds'] = Variable<int>(accumulatedSeconds);
+    if (!nullToAbsent || runningSinceUtc != null) {
+      map['running_since_utc'] = Variable<DateTime>(runningSinceUtc);
+    }
+    if (!nullToAbsent || regulationSeconds != null) {
+      map['regulation_seconds'] = Variable<int>(regulationSeconds);
+    }
+    return map;
+  }
+
+  MatchClocksCompanion toCompanion(bool nullToAbsent) {
+    return MatchClocksCompanion(
+      id: Value(id),
+      matchId: Value(matchId),
+      mode: Value(mode),
+      phase: Value(phase),
+      accumulatedSeconds: Value(accumulatedSeconds),
+      runningSinceUtc: runningSinceUtc == null && nullToAbsent
+          ? const Value.absent()
+          : Value(runningSinceUtc),
+      regulationSeconds: regulationSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(regulationSeconds),
+    );
+  }
+
+  factory MatchClock.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MatchClock(
+      id: serializer.fromJson<String>(json['id']),
+      matchId: serializer.fromJson<String>(json['matchId']),
+      mode: serializer.fromJson<String>(json['mode']),
+      phase: serializer.fromJson<String>(json['phase']),
+      accumulatedSeconds: serializer.fromJson<int>(json['accumulatedSeconds']),
+      runningSinceUtc: serializer.fromJson<DateTime?>(json['runningSinceUtc']),
+      regulationSeconds: serializer.fromJson<int?>(json['regulationSeconds']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'matchId': serializer.toJson<String>(matchId),
+      'mode': serializer.toJson<String>(mode),
+      'phase': serializer.toJson<String>(phase),
+      'accumulatedSeconds': serializer.toJson<int>(accumulatedSeconds),
+      'runningSinceUtc': serializer.toJson<DateTime?>(runningSinceUtc),
+      'regulationSeconds': serializer.toJson<int?>(regulationSeconds),
+    };
+  }
+
+  MatchClock copyWith({
+    String? id,
+    String? matchId,
+    String? mode,
+    String? phase,
+    int? accumulatedSeconds,
+    Value<DateTime?> runningSinceUtc = const Value.absent(),
+    Value<int?> regulationSeconds = const Value.absent(),
+  }) => MatchClock(
+    id: id ?? this.id,
+    matchId: matchId ?? this.matchId,
+    mode: mode ?? this.mode,
+    phase: phase ?? this.phase,
+    accumulatedSeconds: accumulatedSeconds ?? this.accumulatedSeconds,
+    runningSinceUtc: runningSinceUtc.present
+        ? runningSinceUtc.value
+        : this.runningSinceUtc,
+    regulationSeconds: regulationSeconds.present
+        ? regulationSeconds.value
+        : this.regulationSeconds,
+  );
+  MatchClock copyWithCompanion(MatchClocksCompanion data) {
+    return MatchClock(
+      id: data.id.present ? data.id.value : this.id,
+      matchId: data.matchId.present ? data.matchId.value : this.matchId,
+      mode: data.mode.present ? data.mode.value : this.mode,
+      phase: data.phase.present ? data.phase.value : this.phase,
+      accumulatedSeconds: data.accumulatedSeconds.present
+          ? data.accumulatedSeconds.value
+          : this.accumulatedSeconds,
+      runningSinceUtc: data.runningSinceUtc.present
+          ? data.runningSinceUtc.value
+          : this.runningSinceUtc,
+      regulationSeconds: data.regulationSeconds.present
+          ? data.regulationSeconds.value
+          : this.regulationSeconds,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MatchClock(')
+          ..write('id: $id, ')
+          ..write('matchId: $matchId, ')
+          ..write('mode: $mode, ')
+          ..write('phase: $phase, ')
+          ..write('accumulatedSeconds: $accumulatedSeconds, ')
+          ..write('runningSinceUtc: $runningSinceUtc, ')
+          ..write('regulationSeconds: $regulationSeconds')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    matchId,
+    mode,
+    phase,
+    accumulatedSeconds,
+    runningSinceUtc,
+    regulationSeconds,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MatchClock &&
+          other.id == this.id &&
+          other.matchId == this.matchId &&
+          other.mode == this.mode &&
+          other.phase == this.phase &&
+          other.accumulatedSeconds == this.accumulatedSeconds &&
+          other.runningSinceUtc == this.runningSinceUtc &&
+          other.regulationSeconds == this.regulationSeconds);
+}
+
+class MatchClocksCompanion extends UpdateCompanion<MatchClock> {
+  final Value<String> id;
+  final Value<String> matchId;
+  final Value<String> mode;
+  final Value<String> phase;
+  final Value<int> accumulatedSeconds;
+  final Value<DateTime?> runningSinceUtc;
+  final Value<int?> regulationSeconds;
+  final Value<int> rowid;
+  const MatchClocksCompanion({
+    this.id = const Value.absent(),
+    this.matchId = const Value.absent(),
+    this.mode = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.accumulatedSeconds = const Value.absent(),
+    this.runningSinceUtc = const Value.absent(),
+    this.regulationSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MatchClocksCompanion.insert({
+    required String id,
+    required String matchId,
+    this.mode = const Value.absent(),
+    this.phase = const Value.absent(),
+    this.accumulatedSeconds = const Value.absent(),
+    this.runningSinceUtc = const Value.absent(),
+    this.regulationSeconds = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       matchId = Value(matchId);
+  static Insertable<MatchClock> custom({
+    Expression<String>? id,
+    Expression<String>? matchId,
+    Expression<String>? mode,
+    Expression<String>? phase,
+    Expression<int>? accumulatedSeconds,
+    Expression<DateTime>? runningSinceUtc,
+    Expression<int>? regulationSeconds,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (matchId != null) 'match_id': matchId,
+      if (mode != null) 'mode': mode,
+      if (phase != null) 'phase': phase,
+      if (accumulatedSeconds != null) 'accumulated_seconds': accumulatedSeconds,
+      if (runningSinceUtc != null) 'running_since_utc': runningSinceUtc,
+      if (regulationSeconds != null) 'regulation_seconds': regulationSeconds,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MatchClocksCompanion copyWith({
+    Value<String>? id,
+    Value<String>? matchId,
+    Value<String>? mode,
+    Value<String>? phase,
+    Value<int>? accumulatedSeconds,
+    Value<DateTime?>? runningSinceUtc,
+    Value<int?>? regulationSeconds,
+    Value<int>? rowid,
+  }) {
+    return MatchClocksCompanion(
+      id: id ?? this.id,
+      matchId: matchId ?? this.matchId,
+      mode: mode ?? this.mode,
+      phase: phase ?? this.phase,
+      accumulatedSeconds: accumulatedSeconds ?? this.accumulatedSeconds,
+      runningSinceUtc: runningSinceUtc ?? this.runningSinceUtc,
+      regulationSeconds: regulationSeconds ?? this.regulationSeconds,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (matchId.present) {
+      map['match_id'] = Variable<String>(matchId.value);
+    }
+    if (mode.present) {
+      map['mode'] = Variable<String>(mode.value);
+    }
+    if (phase.present) {
+      map['phase'] = Variable<String>(phase.value);
+    }
+    if (accumulatedSeconds.present) {
+      map['accumulated_seconds'] = Variable<int>(accumulatedSeconds.value);
+    }
+    if (runningSinceUtc.present) {
+      map['running_since_utc'] = Variable<DateTime>(runningSinceUtc.value);
+    }
+    if (regulationSeconds.present) {
+      map['regulation_seconds'] = Variable<int>(regulationSeconds.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MatchClocksCompanion(')
+          ..write('id: $id, ')
+          ..write('matchId: $matchId, ')
+          ..write('mode: $mode, ')
+          ..write('phase: $phase, ')
+          ..write('accumulatedSeconds: $accumulatedSeconds, ')
+          ..write('runningSinceUtc: $runningSinceUtc, ')
+          ..write('regulationSeconds: $regulationSeconds, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ActiveSessionsTable extends ActiveSessions
+    with TableInfo<$ActiveSessionsTable, ActiveSession> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ActiveSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
+  static const VerificationMeta _matchIdMeta = const VerificationMeta(
+    'matchId',
+  );
+  @override
+  late final GeneratedColumn<String> matchId = GeneratedColumn<String>(
+    'match_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES matches (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _claimedAtUtcMeta = const VerificationMeta(
+    'claimedAtUtc',
+  );
+  @override
+  late final GeneratedColumn<DateTime> claimedAtUtc = GeneratedColumn<DateTime>(
+    'claimed_at_utc',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, matchId, claimedAtUtc];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'active_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ActiveSession> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('match_id')) {
+      context.handle(
+        _matchIdMeta,
+        matchId.isAcceptableOrUnknown(data['match_id']!, _matchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_matchIdMeta);
+    }
+    if (data.containsKey('claimed_at_utc')) {
+      context.handle(
+        _claimedAtUtcMeta,
+        claimedAtUtc.isAcceptableOrUnknown(
+          data['claimed_at_utc']!,
+          _claimedAtUtcMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ActiveSession map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ActiveSession(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      matchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}match_id'],
+      )!,
+      claimedAtUtc: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}claimed_at_utc'],
+      )!,
+    );
+  }
+
+  @override
+  $ActiveSessionsTable createAlias(String alias) {
+    return $ActiveSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class ActiveSession extends DataClass implements Insertable<ActiveSession> {
+  final String id;
+  final String matchId;
+  final DateTime claimedAtUtc;
+  const ActiveSession({
+    required this.id,
+    required this.matchId,
+    required this.claimedAtUtc,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['match_id'] = Variable<String>(matchId);
+    map['claimed_at_utc'] = Variable<DateTime>(claimedAtUtc);
+    return map;
+  }
+
+  ActiveSessionsCompanion toCompanion(bool nullToAbsent) {
+    return ActiveSessionsCompanion(
+      id: Value(id),
+      matchId: Value(matchId),
+      claimedAtUtc: Value(claimedAtUtc),
+    );
+  }
+
+  factory ActiveSession.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ActiveSession(
+      id: serializer.fromJson<String>(json['id']),
+      matchId: serializer.fromJson<String>(json['matchId']),
+      claimedAtUtc: serializer.fromJson<DateTime>(json['claimedAtUtc']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'matchId': serializer.toJson<String>(matchId),
+      'claimedAtUtc': serializer.toJson<DateTime>(claimedAtUtc),
+    };
+  }
+
+  ActiveSession copyWith({
+    String? id,
+    String? matchId,
+    DateTime? claimedAtUtc,
+  }) => ActiveSession(
+    id: id ?? this.id,
+    matchId: matchId ?? this.matchId,
+    claimedAtUtc: claimedAtUtc ?? this.claimedAtUtc,
+  );
+  ActiveSession copyWithCompanion(ActiveSessionsCompanion data) {
+    return ActiveSession(
+      id: data.id.present ? data.id.value : this.id,
+      matchId: data.matchId.present ? data.matchId.value : this.matchId,
+      claimedAtUtc: data.claimedAtUtc.present
+          ? data.claimedAtUtc.value
+          : this.claimedAtUtc,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActiveSession(')
+          ..write('id: $id, ')
+          ..write('matchId: $matchId, ')
+          ..write('claimedAtUtc: $claimedAtUtc')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, matchId, claimedAtUtc);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ActiveSession &&
+          other.id == this.id &&
+          other.matchId == this.matchId &&
+          other.claimedAtUtc == this.claimedAtUtc);
+}
+
+class ActiveSessionsCompanion extends UpdateCompanion<ActiveSession> {
+  final Value<String> id;
+  final Value<String> matchId;
+  final Value<DateTime> claimedAtUtc;
+  final Value<int> rowid;
+  const ActiveSessionsCompanion({
+    this.id = const Value.absent(),
+    this.matchId = const Value.absent(),
+    this.claimedAtUtc = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ActiveSessionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String matchId,
+    this.claimedAtUtc = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : matchId = Value(matchId);
+  static Insertable<ActiveSession> custom({
+    Expression<String>? id,
+    Expression<String>? matchId,
+    Expression<DateTime>? claimedAtUtc,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (matchId != null) 'match_id': matchId,
+      if (claimedAtUtc != null) 'claimed_at_utc': claimedAtUtc,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ActiveSessionsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? matchId,
+    Value<DateTime>? claimedAtUtc,
+    Value<int>? rowid,
+  }) {
+    return ActiveSessionsCompanion(
+      id: id ?? this.id,
+      matchId: matchId ?? this.matchId,
+      claimedAtUtc: claimedAtUtc ?? this.claimedAtUtc,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (matchId.present) {
+      map['match_id'] = Variable<String>(matchId.value);
+    }
+    if (claimedAtUtc.present) {
+      map['claimed_at_utc'] = Variable<DateTime>(claimedAtUtc.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ActiveSessionsCompanion(')
+          ..write('id: $id, ')
+          ..write('matchId: $matchId, ')
+          ..write('claimedAtUtc: $claimedAtUtc, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -644,7 +1918,7 @@ class $MatchEventsTable extends MatchEvents
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES matches (id)',
+      'REFERENCES matches (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _typeMeta = const VerificationMeta('type');
@@ -675,6 +1949,28 @@ class $MatchEventsTable extends MatchEvents
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _outcomeMeta = const VerificationMeta(
+    'outcome',
+  );
+  @override
+  late final GeneratedColumn<String> outcome = GeneratedColumn<String>(
+    'outcome',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _matchClockPositionSecondsMeta =
+      const VerificationMeta('matchClockPositionSeconds');
+  @override
+  late final GeneratedColumn<int> matchClockPositionSeconds =
+      GeneratedColumn<int>(
+        'match_clock_position_seconds',
+        aliasedName,
+        true,
+        type: DriftSqlType.int,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _occurredAtMeta = const VerificationMeta(
     'occurredAt',
   );
@@ -690,6 +1986,17 @@ class $MatchEventsTable extends MatchEvents
   @override
   late final GeneratedColumn<String> note = GeneratedColumn<String>(
     'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _customLabelMeta = const VerificationMeta(
+    'customLabel',
+  );
+  @override
+  late final GeneratedColumn<String> customLabel = GeneratedColumn<String>(
+    'custom_label',
     aliasedName,
     true,
     type: DriftSqlType.string,
@@ -728,8 +2035,11 @@ class $MatchEventsTable extends MatchEvents
     type,
     side,
     points,
+    outcome,
+    matchClockPositionSeconds,
     occurredAt,
     note,
+    customLabel,
     customEventType,
     isDeleted,
   ];
@@ -778,6 +2088,21 @@ class $MatchEventsTable extends MatchEvents
         points.isAcceptableOrUnknown(data['points']!, _pointsMeta),
       );
     }
+    if (data.containsKey('outcome')) {
+      context.handle(
+        _outcomeMeta,
+        outcome.isAcceptableOrUnknown(data['outcome']!, _outcomeMeta),
+      );
+    }
+    if (data.containsKey('match_clock_position_seconds')) {
+      context.handle(
+        _matchClockPositionSecondsMeta,
+        matchClockPositionSeconds.isAcceptableOrUnknown(
+          data['match_clock_position_seconds']!,
+          _matchClockPositionSecondsMeta,
+        ),
+      );
+    }
     if (data.containsKey('occurred_at')) {
       context.handle(
         _occurredAtMeta,
@@ -790,6 +2115,15 @@ class $MatchEventsTable extends MatchEvents
       context.handle(
         _noteMeta,
         note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('custom_label')) {
+      context.handle(
+        _customLabelMeta,
+        customLabel.isAcceptableOrUnknown(
+          data['custom_label']!,
+          _customLabelMeta,
+        ),
       );
     }
     if (data.containsKey('custom_event_type')) {
@@ -836,6 +2170,14 @@ class $MatchEventsTable extends MatchEvents
         DriftSqlType.int,
         data['${effectivePrefix}points'],
       )!,
+      outcome: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}outcome'],
+      ),
+      matchClockPositionSeconds: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}match_clock_position_seconds'],
+      ),
       occurredAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}occurred_at'],
@@ -843,6 +2185,10 @@ class $MatchEventsTable extends MatchEvents
       note: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}note'],
+      ),
+      customLabel: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}custom_label'],
       ),
       customEventType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
@@ -867,8 +2213,13 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
   final String type;
   final String? side;
   final int points;
+  final String? outcome;
+  final int? matchClockPositionSeconds;
   final DateTime occurredAt;
   final String? note;
+  final String? customLabel;
+
+  /// Deprecated codec field retained so v0.1 fixtures remain readable.
   final String? customEventType;
   final bool isDeleted;
   const MatchEventRow({
@@ -877,8 +2228,11 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
     required this.type,
     this.side,
     required this.points,
+    this.outcome,
+    this.matchClockPositionSeconds,
     required this.occurredAt,
     this.note,
+    this.customLabel,
     this.customEventType,
     required this.isDeleted,
   });
@@ -892,9 +2246,20 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
       map['side'] = Variable<String>(side);
     }
     map['points'] = Variable<int>(points);
+    if (!nullToAbsent || outcome != null) {
+      map['outcome'] = Variable<String>(outcome);
+    }
+    if (!nullToAbsent || matchClockPositionSeconds != null) {
+      map['match_clock_position_seconds'] = Variable<int>(
+        matchClockPositionSeconds,
+      );
+    }
     map['occurred_at'] = Variable<DateTime>(occurredAt);
     if (!nullToAbsent || note != null) {
       map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || customLabel != null) {
+      map['custom_label'] = Variable<String>(customLabel);
     }
     if (!nullToAbsent || customEventType != null) {
       map['custom_event_type'] = Variable<String>(customEventType);
@@ -910,8 +2275,18 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
       type: Value(type),
       side: side == null && nullToAbsent ? const Value.absent() : Value(side),
       points: Value(points),
+      outcome: outcome == null && nullToAbsent
+          ? const Value.absent()
+          : Value(outcome),
+      matchClockPositionSeconds:
+          matchClockPositionSeconds == null && nullToAbsent
+          ? const Value.absent()
+          : Value(matchClockPositionSeconds),
       occurredAt: Value(occurredAt),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      customLabel: customLabel == null && nullToAbsent
+          ? const Value.absent()
+          : Value(customLabel),
       customEventType: customEventType == null && nullToAbsent
           ? const Value.absent()
           : Value(customEventType),
@@ -930,8 +2305,13 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
       type: serializer.fromJson<String>(json['type']),
       side: serializer.fromJson<String?>(json['side']),
       points: serializer.fromJson<int>(json['points']),
+      outcome: serializer.fromJson<String?>(json['outcome']),
+      matchClockPositionSeconds: serializer.fromJson<int?>(
+        json['matchClockPositionSeconds'],
+      ),
       occurredAt: serializer.fromJson<DateTime>(json['occurredAt']),
       note: serializer.fromJson<String?>(json['note']),
+      customLabel: serializer.fromJson<String?>(json['customLabel']),
       customEventType: serializer.fromJson<String?>(json['customEventType']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
@@ -945,8 +2325,13 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
       'type': serializer.toJson<String>(type),
       'side': serializer.toJson<String?>(side),
       'points': serializer.toJson<int>(points),
+      'outcome': serializer.toJson<String?>(outcome),
+      'matchClockPositionSeconds': serializer.toJson<int?>(
+        matchClockPositionSeconds,
+      ),
       'occurredAt': serializer.toJson<DateTime>(occurredAt),
       'note': serializer.toJson<String?>(note),
+      'customLabel': serializer.toJson<String?>(customLabel),
       'customEventType': serializer.toJson<String?>(customEventType),
       'isDeleted': serializer.toJson<bool>(isDeleted),
     };
@@ -958,8 +2343,11 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
     String? type,
     Value<String?> side = const Value.absent(),
     int? points,
+    Value<String?> outcome = const Value.absent(),
+    Value<int?> matchClockPositionSeconds = const Value.absent(),
     DateTime? occurredAt,
     Value<String?> note = const Value.absent(),
+    Value<String?> customLabel = const Value.absent(),
     Value<String?> customEventType = const Value.absent(),
     bool? isDeleted,
   }) => MatchEventRow(
@@ -968,8 +2356,13 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
     type: type ?? this.type,
     side: side.present ? side.value : this.side,
     points: points ?? this.points,
+    outcome: outcome.present ? outcome.value : this.outcome,
+    matchClockPositionSeconds: matchClockPositionSeconds.present
+        ? matchClockPositionSeconds.value
+        : this.matchClockPositionSeconds,
     occurredAt: occurredAt ?? this.occurredAt,
     note: note.present ? note.value : this.note,
+    customLabel: customLabel.present ? customLabel.value : this.customLabel,
     customEventType: customEventType.present
         ? customEventType.value
         : this.customEventType,
@@ -982,10 +2375,17 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
       type: data.type.present ? data.type.value : this.type,
       side: data.side.present ? data.side.value : this.side,
       points: data.points.present ? data.points.value : this.points,
+      outcome: data.outcome.present ? data.outcome.value : this.outcome,
+      matchClockPositionSeconds: data.matchClockPositionSeconds.present
+          ? data.matchClockPositionSeconds.value
+          : this.matchClockPositionSeconds,
       occurredAt: data.occurredAt.present
           ? data.occurredAt.value
           : this.occurredAt,
       note: data.note.present ? data.note.value : this.note,
+      customLabel: data.customLabel.present
+          ? data.customLabel.value
+          : this.customLabel,
       customEventType: data.customEventType.present
           ? data.customEventType.value
           : this.customEventType,
@@ -1001,8 +2401,11 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
           ..write('type: $type, ')
           ..write('side: $side, ')
           ..write('points: $points, ')
+          ..write('outcome: $outcome, ')
+          ..write('matchClockPositionSeconds: $matchClockPositionSeconds, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('note: $note, ')
+          ..write('customLabel: $customLabel, ')
           ..write('customEventType: $customEventType, ')
           ..write('isDeleted: $isDeleted')
           ..write(')'))
@@ -1016,8 +2419,11 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
     type,
     side,
     points,
+    outcome,
+    matchClockPositionSeconds,
     occurredAt,
     note,
+    customLabel,
     customEventType,
     isDeleted,
   );
@@ -1030,8 +2436,11 @@ class MatchEventRow extends DataClass implements Insertable<MatchEventRow> {
           other.type == this.type &&
           other.side == this.side &&
           other.points == this.points &&
+          other.outcome == this.outcome &&
+          other.matchClockPositionSeconds == this.matchClockPositionSeconds &&
           other.occurredAt == this.occurredAt &&
           other.note == this.note &&
+          other.customLabel == this.customLabel &&
           other.customEventType == this.customEventType &&
           other.isDeleted == this.isDeleted);
 }
@@ -1042,8 +2451,11 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
   final Value<String> type;
   final Value<String?> side;
   final Value<int> points;
+  final Value<String?> outcome;
+  final Value<int?> matchClockPositionSeconds;
   final Value<DateTime> occurredAt;
   final Value<String?> note;
+  final Value<String?> customLabel;
   final Value<String?> customEventType;
   final Value<bool> isDeleted;
   final Value<int> rowid;
@@ -1053,8 +2465,11 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
     this.type = const Value.absent(),
     this.side = const Value.absent(),
     this.points = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.matchClockPositionSeconds = const Value.absent(),
     this.occurredAt = const Value.absent(),
     this.note = const Value.absent(),
+    this.customLabel = const Value.absent(),
     this.customEventType = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1065,8 +2480,11 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
     required String type,
     this.side = const Value.absent(),
     this.points = const Value.absent(),
+    this.outcome = const Value.absent(),
+    this.matchClockPositionSeconds = const Value.absent(),
     required DateTime occurredAt,
     this.note = const Value.absent(),
+    this.customLabel = const Value.absent(),
     this.customEventType = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1080,8 +2498,11 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
     Expression<String>? type,
     Expression<String>? side,
     Expression<int>? points,
+    Expression<String>? outcome,
+    Expression<int>? matchClockPositionSeconds,
     Expression<DateTime>? occurredAt,
     Expression<String>? note,
+    Expression<String>? customLabel,
     Expression<String>? customEventType,
     Expression<bool>? isDeleted,
     Expression<int>? rowid,
@@ -1092,8 +2513,12 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
       if (type != null) 'type': type,
       if (side != null) 'side': side,
       if (points != null) 'points': points,
+      if (outcome != null) 'outcome': outcome,
+      if (matchClockPositionSeconds != null)
+        'match_clock_position_seconds': matchClockPositionSeconds,
       if (occurredAt != null) 'occurred_at': occurredAt,
       if (note != null) 'note': note,
+      if (customLabel != null) 'custom_label': customLabel,
       if (customEventType != null) 'custom_event_type': customEventType,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
@@ -1106,8 +2531,11 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
     Value<String>? type,
     Value<String?>? side,
     Value<int>? points,
+    Value<String?>? outcome,
+    Value<int?>? matchClockPositionSeconds,
     Value<DateTime>? occurredAt,
     Value<String?>? note,
+    Value<String?>? customLabel,
     Value<String?>? customEventType,
     Value<bool>? isDeleted,
     Value<int>? rowid,
@@ -1118,8 +2546,12 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
       type: type ?? this.type,
       side: side ?? this.side,
       points: points ?? this.points,
+      outcome: outcome ?? this.outcome,
+      matchClockPositionSeconds:
+          matchClockPositionSeconds ?? this.matchClockPositionSeconds,
       occurredAt: occurredAt ?? this.occurredAt,
       note: note ?? this.note,
+      customLabel: customLabel ?? this.customLabel,
       customEventType: customEventType ?? this.customEventType,
       isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
@@ -1144,11 +2576,22 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
     if (points.present) {
       map['points'] = Variable<int>(points.value);
     }
+    if (outcome.present) {
+      map['outcome'] = Variable<String>(outcome.value);
+    }
+    if (matchClockPositionSeconds.present) {
+      map['match_clock_position_seconds'] = Variable<int>(
+        matchClockPositionSeconds.value,
+      );
+    }
     if (occurredAt.present) {
       map['occurred_at'] = Variable<DateTime>(occurredAt.value);
     }
     if (note.present) {
       map['note'] = Variable<String>(note.value);
+    }
+    if (customLabel.present) {
+      map['custom_label'] = Variable<String>(customLabel.value);
     }
     if (customEventType.present) {
       map['custom_event_type'] = Variable<String>(customEventType.value);
@@ -1170,8 +2613,11 @@ class MatchEventsCompanion extends UpdateCompanion<MatchEventRow> {
           ..write('type: $type, ')
           ..write('side: $side, ')
           ..write('points: $points, ')
+          ..write('outcome: $outcome, ')
+          ..write('matchClockPositionSeconds: $matchClockPositionSeconds, ')
           ..write('occurredAt: $occurredAt, ')
           ..write('note: $note, ')
+          ..write('customLabel: $customLabel, ')
           ..write('customEventType: $customEventType, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
@@ -1206,7 +2652,7 @@ class $ShotLocationsTable extends ShotLocations
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES matches (id)',
+      'REFERENCES matches (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _eventIdMeta = const VerificationMeta(
@@ -1220,7 +2666,7 @@ class $ShotLocationsTable extends ShotLocations
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES match_events (id)',
+      'REFERENCES match_events (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _xMeta = const VerificationMeta('x');
@@ -2571,7 +4017,7 @@ class $PossessionSegmentsTable extends PossessionSegments
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES matches (id)',
+      'REFERENCES matches (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _sideMeta = const VerificationMeta('side');
@@ -2594,7 +4040,7 @@ class $PossessionSegmentsTable extends PossessionSegments
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES match_events (id)',
+      'REFERENCES match_events (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _endedAtEventIdMeta = const VerificationMeta(
@@ -2608,7 +4054,7 @@ class $PossessionSegmentsTable extends PossessionSegments
     type: DriftSqlType.string,
     requiredDuringInsert: false,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES match_events (id)',
+      'REFERENCES match_events (id) ON DELETE SET NULL',
     ),
   );
   static const VerificationMeta _reasonMeta = const VerificationMeta('reason');
@@ -2620,6 +4066,16 @@ class $PossessionSegmentsTable extends PossessionSegments
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('manual'),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2628,6 +4084,7 @@ class $PossessionSegmentsTable extends PossessionSegments
     startedAtEventId,
     endedAtEventId,
     reason,
+    source,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2688,6 +4145,12 @@ class $PossessionSegmentsTable extends PossessionSegments
         reason.isAcceptableOrUnknown(data['reason']!, _reasonMeta),
       );
     }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
     return context;
   }
 
@@ -2721,6 +4184,10 @@ class $PossessionSegmentsTable extends PossessionSegments
         DriftSqlType.string,
         data['${effectivePrefix}reason'],
       ),
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
     );
   }
 
@@ -2738,6 +4205,7 @@ class PossessionSegment extends DataClass
   final String startedAtEventId;
   final String? endedAtEventId;
   final String? reason;
+  final String source;
   const PossessionSegment({
     required this.id,
     required this.matchId,
@@ -2745,6 +4213,7 @@ class PossessionSegment extends DataClass
     required this.startedAtEventId,
     this.endedAtEventId,
     this.reason,
+    this.source = 'manual',
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2759,6 +4228,7 @@ class PossessionSegment extends DataClass
     if (!nullToAbsent || reason != null) {
       map['reason'] = Variable<String>(reason);
     }
+    map['source'] = Variable<String>(source);
     return map;
   }
 
@@ -2774,6 +4244,7 @@ class PossessionSegment extends DataClass
       reason: reason == null && nullToAbsent
           ? const Value.absent()
           : Value(reason),
+      source: Value(source),
     );
   }
 
@@ -2789,6 +4260,7 @@ class PossessionSegment extends DataClass
       startedAtEventId: serializer.fromJson<String>(json['startedAtEventId']),
       endedAtEventId: serializer.fromJson<String?>(json['endedAtEventId']),
       reason: serializer.fromJson<String?>(json['reason']),
+      source: serializer.fromJson<String>(json['source']),
     );
   }
   @override
@@ -2801,6 +4273,7 @@ class PossessionSegment extends DataClass
       'startedAtEventId': serializer.toJson<String>(startedAtEventId),
       'endedAtEventId': serializer.toJson<String?>(endedAtEventId),
       'reason': serializer.toJson<String?>(reason),
+      'source': serializer.toJson<String>(source),
     };
   }
 
@@ -2811,6 +4284,7 @@ class PossessionSegment extends DataClass
     String? startedAtEventId,
     Value<String?> endedAtEventId = const Value.absent(),
     Value<String?> reason = const Value.absent(),
+    String? source,
   }) => PossessionSegment(
     id: id ?? this.id,
     matchId: matchId ?? this.matchId,
@@ -2820,6 +4294,7 @@ class PossessionSegment extends DataClass
         ? endedAtEventId.value
         : this.endedAtEventId,
     reason: reason.present ? reason.value : this.reason,
+    source: source ?? this.source,
   );
   PossessionSegment copyWithCompanion(PossessionSegmentsCompanion data) {
     return PossessionSegment(
@@ -2833,6 +4308,7 @@ class PossessionSegment extends DataClass
           ? data.endedAtEventId.value
           : this.endedAtEventId,
       reason: data.reason.present ? data.reason.value : this.reason,
+      source: data.source.present ? data.source.value : this.source,
     );
   }
 
@@ -2844,14 +4320,22 @@ class PossessionSegment extends DataClass
           ..write('side: $side, ')
           ..write('startedAtEventId: $startedAtEventId, ')
           ..write('endedAtEventId: $endedAtEventId, ')
-          ..write('reason: $reason')
+          ..write('reason: $reason, ')
+          ..write('source: $source')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, matchId, side, startedAtEventId, endedAtEventId, reason);
+  int get hashCode => Object.hash(
+    id,
+    matchId,
+    side,
+    startedAtEventId,
+    endedAtEventId,
+    reason,
+    source,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2861,7 +4345,8 @@ class PossessionSegment extends DataClass
           other.side == this.side &&
           other.startedAtEventId == this.startedAtEventId &&
           other.endedAtEventId == this.endedAtEventId &&
-          other.reason == this.reason);
+          other.reason == this.reason &&
+          other.source == this.source);
 }
 
 class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
@@ -2871,6 +4356,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
   final Value<String> startedAtEventId;
   final Value<String?> endedAtEventId;
   final Value<String?> reason;
+  final Value<String> source;
   final Value<int> rowid;
   const PossessionSegmentsCompanion({
     this.id = const Value.absent(),
@@ -2879,6 +4365,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
     this.startedAtEventId = const Value.absent(),
     this.endedAtEventId = const Value.absent(),
     this.reason = const Value.absent(),
+    this.source = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   PossessionSegmentsCompanion.insert({
@@ -2888,6 +4375,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
     required String startedAtEventId,
     this.endedAtEventId = const Value.absent(),
     this.reason = const Value.absent(),
+    this.source = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        matchId = Value(matchId),
@@ -2900,6 +4388,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
     Expression<String>? startedAtEventId,
     Expression<String>? endedAtEventId,
     Expression<String>? reason,
+    Expression<String>? source,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2909,6 +4398,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
       if (startedAtEventId != null) 'started_at_event_id': startedAtEventId,
       if (endedAtEventId != null) 'ended_at_event_id': endedAtEventId,
       if (reason != null) 'reason': reason,
+      if (source != null) 'source': source,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2920,6 +4410,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
     Value<String>? startedAtEventId,
     Value<String?>? endedAtEventId,
     Value<String?>? reason,
+    Value<String>? source,
     Value<int>? rowid,
   }) {
     return PossessionSegmentsCompanion(
@@ -2929,6 +4420,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
       startedAtEventId: startedAtEventId ?? this.startedAtEventId,
       endedAtEventId: endedAtEventId ?? this.endedAtEventId,
       reason: reason ?? this.reason,
+      source: source ?? this.source,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2954,6 +4446,9 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
     if (reason.present) {
       map['reason'] = Variable<String>(reason.value);
     }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2969,6 +4464,7 @@ class PossessionSegmentsCompanion extends UpdateCompanion<PossessionSegment> {
           ..write('startedAtEventId: $startedAtEventId, ')
           ..write('endedAtEventId: $endedAtEventId, ')
           ..write('reason: $reason, ')
+          ..write('source: $source, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3001,7 +4497,7 @@ class $AuditLogsTable extends AuditLogs
     type: DriftSqlType.string,
     requiredDuringInsert: true,
     defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES matches (id)',
+      'REFERENCES matches (id) ON DELETE CASCADE',
     ),
   );
   static const VerificationMeta _targetIdMeta = const VerificationMeta(
@@ -3757,6 +5253,10 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $MatchesTable matches = $MatchesTable(this);
+  late final $MatchParticipantsTable matchParticipants =
+      $MatchParticipantsTable(this);
+  late final $MatchClocksTable matchClocks = $MatchClocksTable(this);
+  late final $ActiveSessionsTable activeSessions = $ActiveSessionsTable(this);
   late final $MatchEventsTable matchEvents = $MatchEventsTable(this);
   late final $ShotLocationsTable shotLocations = $ShotLocationsTable(this);
   late final $PlayersTable players = $PlayersTable(this);
@@ -3771,6 +5271,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     matches,
+    matchParticipants,
+    matchClocks,
+    activeSessions,
     matchEvents,
     shotLocations,
     players,
@@ -3779,14 +5282,90 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     auditLogs,
     appSettings,
   ];
+  @override
+  StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('match_participants', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('match_clocks', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('active_sessions', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('match_events', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('shot_locations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'match_events',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('shot_locations', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('possession_segments', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'match_events',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('possession_segments', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'match_events',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('possession_segments', kind: UpdateKind.update)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('audit_logs', kind: UpdateKind.delete)],
+    ),
+  ]);
 }
 
 typedef $$MatchesTableCreateCompanionBuilder =
     MatchesCompanion Function({
       required String id,
-      required String redName,
-      required String blueName,
-      required String status,
+      Value<String> redName,
+      Value<String> blueName,
+      Value<String> status,
+      Value<String> lifecycle,
+      Value<String> recordingMode,
+      Value<String> trackingCoverage,
       required String ruleTemplateJson,
       required DateTime createdAt,
       Value<DateTime?> startedAt,
@@ -3801,6 +5380,9 @@ typedef $$MatchesTableUpdateCompanionBuilder =
       Value<String> redName,
       Value<String> blueName,
       Value<String> status,
+      Value<String> lifecycle,
+      Value<String> recordingMode,
+      Value<String> trackingCoverage,
       Value<String> ruleTemplateJson,
       Value<DateTime> createdAt,
       Value<DateTime?> startedAt,
@@ -3813,6 +5395,63 @@ typedef $$MatchesTableUpdateCompanionBuilder =
 final class $$MatchesTableReferences
     extends BaseReferences<_$AppDatabase, $MatchesTable, Matche> {
   $$MatchesTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$MatchParticipantsTable, List<MatchParticipant>>
+  _matchParticipantsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.matchParticipants,
+        aliasName: 'matches__id__match_participants__match_id',
+      );
+
+  $$MatchParticipantsTableProcessedTableManager get matchParticipantsRefs {
+    final manager = $$MatchParticipantsTableTableManager(
+      $_db,
+      $_db.matchParticipants,
+    ).filter((f) => f.matchId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _matchParticipantsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$MatchClocksTable, List<MatchClock>>
+  _matchClocksRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.matchClocks,
+    aliasName: 'matches__id__match_clocks__match_id',
+  );
+
+  $$MatchClocksTableProcessedTableManager get matchClocksRefs {
+    final manager = $$MatchClocksTableTableManager(
+      $_db,
+      $_db.matchClocks,
+    ).filter((f) => f.matchId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_matchClocksRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<$ActiveSessionsTable, List<ActiveSession>>
+  _activeSessionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
+    db.activeSessions,
+    aliasName: 'matches__id__active_sessions__match_id',
+  );
+
+  $$ActiveSessionsTableProcessedTableManager get activeSessionsRefs {
+    final manager = $$ActiveSessionsTableTableManager(
+      $_db,
+      $_db.activeSessions,
+    ).filter((f) => f.matchId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(_activeSessionsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
 
   static MultiTypedResultKey<$MatchEventsTable, List<MatchEventRow>>
   _matchEventsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
@@ -3919,6 +5558,21 @@ class $$MatchesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get lifecycle => $composableBuilder(
+    column: $table.lifecycle,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get recordingMode => $composableBuilder(
+    column: $table.recordingMode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackingCoverage => $composableBuilder(
+    column: $table.trackingCoverage,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get ruleTemplateJson => $composableBuilder(
     column: $table.ruleTemplateJson,
     builder: (column) => ColumnFilters(column),
@@ -3948,6 +5602,81 @@ class $$MatchesTableFilterComposer
     column: $table.note,
     builder: (column) => ColumnFilters(column),
   );
+
+  Expression<bool> matchParticipantsRefs(
+    Expression<bool> Function($$MatchParticipantsTableFilterComposer f) f,
+  ) {
+    final $$MatchParticipantsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.matchParticipants,
+      getReferencedColumn: (t) => t.matchId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchParticipantsTableFilterComposer(
+            $db: $db,
+            $table: $db.matchParticipants,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> matchClocksRefs(
+    Expression<bool> Function($$MatchClocksTableFilterComposer f) f,
+  ) {
+    final $$MatchClocksTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.matchClocks,
+      getReferencedColumn: (t) => t.matchId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchClocksTableFilterComposer(
+            $db: $db,
+            $table: $db.matchClocks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<bool> activeSessionsRefs(
+    Expression<bool> Function($$ActiveSessionsTableFilterComposer f) f,
+  ) {
+    final $$ActiveSessionsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activeSessions,
+      getReferencedColumn: (t) => t.matchId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActiveSessionsTableFilterComposer(
+            $db: $db,
+            $table: $db.activeSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<bool> matchEventsRefs(
     Expression<bool> Function($$MatchEventsTableFilterComposer f) f,
@@ -4079,6 +5808,21 @@ class $$MatchesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get lifecycle => $composableBuilder(
+    column: $table.lifecycle,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get recordingMode => $composableBuilder(
+    column: $table.recordingMode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trackingCoverage => $composableBuilder(
+    column: $table.trackingCoverage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get ruleTemplateJson => $composableBuilder(
     column: $table.ruleTemplateJson,
     builder: (column) => ColumnOrderings(column),
@@ -4131,6 +5875,19 @@ class $$MatchesTableAnnotationComposer
   GeneratedColumn<String> get status =>
       $composableBuilder(column: $table.status, builder: (column) => column);
 
+  GeneratedColumn<String> get lifecycle =>
+      $composableBuilder(column: $table.lifecycle, builder: (column) => column);
+
+  GeneratedColumn<String> get recordingMode => $composableBuilder(
+    column: $table.recordingMode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get trackingCoverage => $composableBuilder(
+    column: $table.trackingCoverage,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get ruleTemplateJson => $composableBuilder(
     column: $table.ruleTemplateJson,
     builder: (column) => column,
@@ -4152,6 +5909,82 @@ class $$MatchesTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  Expression<T> matchParticipantsRefs<T extends Object>(
+    Expression<T> Function($$MatchParticipantsTableAnnotationComposer a) f,
+  ) {
+    final $$MatchParticipantsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.matchParticipants,
+          getReferencedColumn: (t) => t.matchId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$MatchParticipantsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.matchParticipants,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> matchClocksRefs<T extends Object>(
+    Expression<T> Function($$MatchClocksTableAnnotationComposer a) f,
+  ) {
+    final $$MatchClocksTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.matchClocks,
+      getReferencedColumn: (t) => t.matchId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchClocksTableAnnotationComposer(
+            $db: $db,
+            $table: $db.matchClocks,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
+
+  Expression<T> activeSessionsRefs<T extends Object>(
+    Expression<T> Function($$ActiveSessionsTableAnnotationComposer a) f,
+  ) {
+    final $$ActiveSessionsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.id,
+      referencedTable: $db.activeSessions,
+      getReferencedColumn: (t) => t.matchId,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$ActiveSessionsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.activeSessions,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return f(composer);
+  }
 
   Expression<T> matchEventsRefs<T extends Object>(
     Expression<T> Function($$MatchEventsTableAnnotationComposer a) f,
@@ -4269,6 +6102,9 @@ class $$MatchesTableTableManager
           (Matche, $$MatchesTableReferences),
           Matche,
           PrefetchHooks Function({
+            bool matchParticipantsRefs,
+            bool matchClocksRefs,
+            bool activeSessionsRefs,
             bool matchEventsRefs,
             bool shotLocationsRefs,
             bool possessionSegmentsRefs,
@@ -4292,6 +6128,9 @@ class $$MatchesTableTableManager
                 Value<String> redName = const Value.absent(),
                 Value<String> blueName = const Value.absent(),
                 Value<String> status = const Value.absent(),
+                Value<String> lifecycle = const Value.absent(),
+                Value<String> recordingMode = const Value.absent(),
+                Value<String> trackingCoverage = const Value.absent(),
                 Value<String> ruleTemplateJson = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> startedAt = const Value.absent(),
@@ -4304,6 +6143,9 @@ class $$MatchesTableTableManager
                 redName: redName,
                 blueName: blueName,
                 status: status,
+                lifecycle: lifecycle,
+                recordingMode: recordingMode,
+                trackingCoverage: trackingCoverage,
                 ruleTemplateJson: ruleTemplateJson,
                 createdAt: createdAt,
                 startedAt: startedAt,
@@ -4315,9 +6157,12 @@ class $$MatchesTableTableManager
           createCompanionCallback:
               ({
                 required String id,
-                required String redName,
-                required String blueName,
-                required String status,
+                Value<String> redName = const Value.absent(),
+                Value<String> blueName = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> lifecycle = const Value.absent(),
+                Value<String> recordingMode = const Value.absent(),
+                Value<String> trackingCoverage = const Value.absent(),
                 required String ruleTemplateJson,
                 required DateTime createdAt,
                 Value<DateTime?> startedAt = const Value.absent(),
@@ -4330,6 +6175,9 @@ class $$MatchesTableTableManager
                 redName: redName,
                 blueName: blueName,
                 status: status,
+                lifecycle: lifecycle,
+                recordingMode: recordingMode,
+                trackingCoverage: trackingCoverage,
                 ruleTemplateJson: ruleTemplateJson,
                 createdAt: createdAt,
                 startedAt: startedAt,
@@ -4348,6 +6196,9 @@ class $$MatchesTableTableManager
               .toList(),
           prefetchHooksCallback:
               ({
+                matchParticipantsRefs = false,
+                matchClocksRefs = false,
+                activeSessionsRefs = false,
                 matchEventsRefs = false,
                 shotLocationsRefs = false,
                 possessionSegmentsRefs = false,
@@ -4356,6 +6207,9 @@ class $$MatchesTableTableManager
                 return PrefetchHooks(
                   db: db,
                   explicitlyWatchedTables: [
+                    if (matchParticipantsRefs) db.matchParticipants,
+                    if (matchClocksRefs) db.matchClocks,
+                    if (activeSessionsRefs) db.activeSessions,
                     if (matchEventsRefs) db.matchEvents,
                     if (shotLocationsRefs) db.shotLocations,
                     if (possessionSegmentsRefs) db.possessionSegments,
@@ -4364,6 +6218,69 @@ class $$MatchesTableTableManager
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
                     return [
+                      if (matchParticipantsRefs)
+                        await $_getPrefetchedData<
+                          Matche,
+                          $MatchesTable,
+                          MatchParticipant
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MatchesTableReferences
+                              ._matchParticipantsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MatchesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).matchParticipantsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.matchId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (matchClocksRefs)
+                        await $_getPrefetchedData<
+                          Matche,
+                          $MatchesTable,
+                          MatchClock
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MatchesTableReferences
+                              ._matchClocksRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MatchesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).matchClocksRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.matchId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (activeSessionsRefs)
+                        await $_getPrefetchedData<
+                          Matche,
+                          $MatchesTable,
+                          ActiveSession
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MatchesTableReferences
+                              ._activeSessionsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MatchesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).activeSessionsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.matchId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                       if (matchEventsRefs)
                         await $_getPrefetchedData<
                           Matche,
@@ -4469,11 +6386,1000 @@ typedef $$MatchesTableProcessedTableManager =
       (Matche, $$MatchesTableReferences),
       Matche,
       PrefetchHooks Function({
+        bool matchParticipantsRefs,
+        bool matchClocksRefs,
+        bool activeSessionsRefs,
         bool matchEventsRefs,
         bool shotLocationsRefs,
         bool possessionSegmentsRefs,
         bool auditLogsRefs,
       })
+    >;
+typedef $$MatchParticipantsTableCreateCompanionBuilder =
+    MatchParticipantsCompanion Function({
+      required String id,
+      required String matchId,
+      required String side,
+      required String nameSnapshot,
+      Value<String?> playerProfileId,
+      Value<int> rowid,
+    });
+typedef $$MatchParticipantsTableUpdateCompanionBuilder =
+    MatchParticipantsCompanion Function({
+      Value<String> id,
+      Value<String> matchId,
+      Value<String> side,
+      Value<String> nameSnapshot,
+      Value<String?> playerProfileId,
+      Value<int> rowid,
+    });
+
+final class $$MatchParticipantsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $MatchParticipantsTable,
+          MatchParticipant
+        > {
+  $$MatchParticipantsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MatchesTable _matchIdTable(_$AppDatabase db) =>
+      db.matches.createAlias('match_participants__match_id__matches__id');
+
+  $$MatchesTableProcessedTableManager get matchId {
+    final $_column = $_itemColumn<String>('match_id')!;
+
+    final manager = $$MatchesTableTableManager(
+      $_db,
+      $_db.matches,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_matchIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MatchParticipantsTableFilterComposer
+    extends Composer<_$AppDatabase, $MatchParticipantsTable> {
+  $$MatchParticipantsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get side => $composableBuilder(
+    column: $table.side,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get nameSnapshot => $composableBuilder(
+    column: $table.nameSnapshot,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get playerProfileId => $composableBuilder(
+    column: $table.playerProfileId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$MatchesTableFilterComposer get matchId {
+    final $$MatchesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableFilterComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MatchParticipantsTableOrderingComposer
+    extends Composer<_$AppDatabase, $MatchParticipantsTable> {
+  $$MatchParticipantsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get side => $composableBuilder(
+    column: $table.side,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get nameSnapshot => $composableBuilder(
+    column: $table.nameSnapshot,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get playerProfileId => $composableBuilder(
+    column: $table.playerProfileId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MatchesTableOrderingComposer get matchId {
+    final $$MatchesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableOrderingComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MatchParticipantsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MatchParticipantsTable> {
+  $$MatchParticipantsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get side =>
+      $composableBuilder(column: $table.side, builder: (column) => column);
+
+  GeneratedColumn<String> get nameSnapshot => $composableBuilder(
+    column: $table.nameSnapshot,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get playerProfileId => $composableBuilder(
+    column: $table.playerProfileId,
+    builder: (column) => column,
+  );
+
+  $$MatchesTableAnnotationComposer get matchId {
+    final $$MatchesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MatchParticipantsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MatchParticipantsTable,
+          MatchParticipant,
+          $$MatchParticipantsTableFilterComposer,
+          $$MatchParticipantsTableOrderingComposer,
+          $$MatchParticipantsTableAnnotationComposer,
+          $$MatchParticipantsTableCreateCompanionBuilder,
+          $$MatchParticipantsTableUpdateCompanionBuilder,
+          (MatchParticipant, $$MatchParticipantsTableReferences),
+          MatchParticipant,
+          PrefetchHooks Function({bool matchId})
+        > {
+  $$MatchParticipantsTableTableManager(
+    _$AppDatabase db,
+    $MatchParticipantsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MatchParticipantsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MatchParticipantsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MatchParticipantsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> matchId = const Value.absent(),
+                Value<String> side = const Value.absent(),
+                Value<String> nameSnapshot = const Value.absent(),
+                Value<String?> playerProfileId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MatchParticipantsCompanion(
+                id: id,
+                matchId: matchId,
+                side: side,
+                nameSnapshot: nameSnapshot,
+                playerProfileId: playerProfileId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String matchId,
+                required String side,
+                required String nameSnapshot,
+                Value<String?> playerProfileId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MatchParticipantsCompanion.insert(
+                id: id,
+                matchId: matchId,
+                side: side,
+                nameSnapshot: nameSnapshot,
+                playerProfileId: playerProfileId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$MatchParticipantsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({matchId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (matchId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.matchId,
+                                referencedTable:
+                                    $$MatchParticipantsTableReferences
+                                        ._matchIdTable(db),
+                                referencedColumn:
+                                    $$MatchParticipantsTableReferences
+                                        ._matchIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MatchParticipantsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MatchParticipantsTable,
+      MatchParticipant,
+      $$MatchParticipantsTableFilterComposer,
+      $$MatchParticipantsTableOrderingComposer,
+      $$MatchParticipantsTableAnnotationComposer,
+      $$MatchParticipantsTableCreateCompanionBuilder,
+      $$MatchParticipantsTableUpdateCompanionBuilder,
+      (MatchParticipant, $$MatchParticipantsTableReferences),
+      MatchParticipant,
+      PrefetchHooks Function({bool matchId})
+    >;
+typedef $$MatchClocksTableCreateCompanionBuilder =
+    MatchClocksCompanion Function({
+      required String id,
+      required String matchId,
+      Value<String> mode,
+      Value<String> phase,
+      Value<int> accumulatedSeconds,
+      Value<DateTime?> runningSinceUtc,
+      Value<int?> regulationSeconds,
+      Value<int> rowid,
+    });
+typedef $$MatchClocksTableUpdateCompanionBuilder =
+    MatchClocksCompanion Function({
+      Value<String> id,
+      Value<String> matchId,
+      Value<String> mode,
+      Value<String> phase,
+      Value<int> accumulatedSeconds,
+      Value<DateTime?> runningSinceUtc,
+      Value<int?> regulationSeconds,
+      Value<int> rowid,
+    });
+
+final class $$MatchClocksTableReferences
+    extends BaseReferences<_$AppDatabase, $MatchClocksTable, MatchClock> {
+  $$MatchClocksTableReferences(super.$_db, super.$_table, super.$_typedResult);
+
+  static $MatchesTable _matchIdTable(_$AppDatabase db) =>
+      db.matches.createAlias('match_clocks__match_id__matches__id');
+
+  $$MatchesTableProcessedTableManager get matchId {
+    final $_column = $_itemColumn<String>('match_id')!;
+
+    final manager = $$MatchesTableTableManager(
+      $_db,
+      $_db.matches,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_matchIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$MatchClocksTableFilterComposer
+    extends Composer<_$AppDatabase, $MatchClocksTable> {
+  $$MatchClocksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phase => $composableBuilder(
+    column: $table.phase,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get accumulatedSeconds => $composableBuilder(
+    column: $table.accumulatedSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get runningSinceUtc => $composableBuilder(
+    column: $table.runningSinceUtc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get regulationSeconds => $composableBuilder(
+    column: $table.regulationSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$MatchesTableFilterComposer get matchId {
+    final $$MatchesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableFilterComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MatchClocksTableOrderingComposer
+    extends Composer<_$AppDatabase, $MatchClocksTable> {
+  $$MatchClocksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mode => $composableBuilder(
+    column: $table.mode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phase => $composableBuilder(
+    column: $table.phase,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get accumulatedSeconds => $composableBuilder(
+    column: $table.accumulatedSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get runningSinceUtc => $composableBuilder(
+    column: $table.runningSinceUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get regulationSeconds => $composableBuilder(
+    column: $table.regulationSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MatchesTableOrderingComposer get matchId {
+    final $$MatchesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableOrderingComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MatchClocksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $MatchClocksTable> {
+  $$MatchClocksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get mode =>
+      $composableBuilder(column: $table.mode, builder: (column) => column);
+
+  GeneratedColumn<String> get phase =>
+      $composableBuilder(column: $table.phase, builder: (column) => column);
+
+  GeneratedColumn<int> get accumulatedSeconds => $composableBuilder(
+    column: $table.accumulatedSeconds,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get runningSinceUtc => $composableBuilder(
+    column: $table.runningSinceUtc,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get regulationSeconds => $composableBuilder(
+    column: $table.regulationSeconds,
+    builder: (column) => column,
+  );
+
+  $$MatchesTableAnnotationComposer get matchId {
+    final $$MatchesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$MatchClocksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $MatchClocksTable,
+          MatchClock,
+          $$MatchClocksTableFilterComposer,
+          $$MatchClocksTableOrderingComposer,
+          $$MatchClocksTableAnnotationComposer,
+          $$MatchClocksTableCreateCompanionBuilder,
+          $$MatchClocksTableUpdateCompanionBuilder,
+          (MatchClock, $$MatchClocksTableReferences),
+          MatchClock,
+          PrefetchHooks Function({bool matchId})
+        > {
+  $$MatchClocksTableTableManager(_$AppDatabase db, $MatchClocksTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MatchClocksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MatchClocksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MatchClocksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> matchId = const Value.absent(),
+                Value<String> mode = const Value.absent(),
+                Value<String> phase = const Value.absent(),
+                Value<int> accumulatedSeconds = const Value.absent(),
+                Value<DateTime?> runningSinceUtc = const Value.absent(),
+                Value<int?> regulationSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MatchClocksCompanion(
+                id: id,
+                matchId: matchId,
+                mode: mode,
+                phase: phase,
+                accumulatedSeconds: accumulatedSeconds,
+                runningSinceUtc: runningSinceUtc,
+                regulationSeconds: regulationSeconds,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String matchId,
+                Value<String> mode = const Value.absent(),
+                Value<String> phase = const Value.absent(),
+                Value<int> accumulatedSeconds = const Value.absent(),
+                Value<DateTime?> runningSinceUtc = const Value.absent(),
+                Value<int?> regulationSeconds = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => MatchClocksCompanion.insert(
+                id: id,
+                matchId: matchId,
+                mode: mode,
+                phase: phase,
+                accumulatedSeconds: accumulatedSeconds,
+                runningSinceUtc: runningSinceUtc,
+                regulationSeconds: regulationSeconds,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$MatchClocksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({matchId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (matchId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.matchId,
+                                referencedTable: $$MatchClocksTableReferences
+                                    ._matchIdTable(db),
+                                referencedColumn: $$MatchClocksTableReferences
+                                    ._matchIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$MatchClocksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $MatchClocksTable,
+      MatchClock,
+      $$MatchClocksTableFilterComposer,
+      $$MatchClocksTableOrderingComposer,
+      $$MatchClocksTableAnnotationComposer,
+      $$MatchClocksTableCreateCompanionBuilder,
+      $$MatchClocksTableUpdateCompanionBuilder,
+      (MatchClock, $$MatchClocksTableReferences),
+      MatchClock,
+      PrefetchHooks Function({bool matchId})
+    >;
+typedef $$ActiveSessionsTableCreateCompanionBuilder =
+    ActiveSessionsCompanion Function({
+      Value<String> id,
+      required String matchId,
+      Value<DateTime> claimedAtUtc,
+      Value<int> rowid,
+    });
+typedef $$ActiveSessionsTableUpdateCompanionBuilder =
+    ActiveSessionsCompanion Function({
+      Value<String> id,
+      Value<String> matchId,
+      Value<DateTime> claimedAtUtc,
+      Value<int> rowid,
+    });
+
+final class $$ActiveSessionsTableReferences
+    extends BaseReferences<_$AppDatabase, $ActiveSessionsTable, ActiveSession> {
+  $$ActiveSessionsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MatchesTable _matchIdTable(_$AppDatabase db) =>
+      db.matches.createAlias('active_sessions__match_id__matches__id');
+
+  $$MatchesTableProcessedTableManager get matchId {
+    final $_column = $_itemColumn<String>('match_id')!;
+
+    final manager = $$MatchesTableTableManager(
+      $_db,
+      $_db.matches,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_matchIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$ActiveSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $ActiveSessionsTable> {
+  $$ActiveSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get claimedAtUtc => $composableBuilder(
+    column: $table.claimedAtUtc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$MatchesTableFilterComposer get matchId {
+    final $$MatchesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableFilterComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActiveSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ActiveSessionsTable> {
+  $$ActiveSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get claimedAtUtc => $composableBuilder(
+    column: $table.claimedAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MatchesTableOrderingComposer get matchId {
+    final $$MatchesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableOrderingComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActiveSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ActiveSessionsTable> {
+  $$ActiveSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get claimedAtUtc => $composableBuilder(
+    column: $table.claimedAtUtc,
+    builder: (column) => column,
+  );
+
+  $$MatchesTableAnnotationComposer get matchId {
+    final $$MatchesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$ActiveSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $ActiveSessionsTable,
+          ActiveSession,
+          $$ActiveSessionsTableFilterComposer,
+          $$ActiveSessionsTableOrderingComposer,
+          $$ActiveSessionsTableAnnotationComposer,
+          $$ActiveSessionsTableCreateCompanionBuilder,
+          $$ActiveSessionsTableUpdateCompanionBuilder,
+          (ActiveSession, $$ActiveSessionsTableReferences),
+          ActiveSession,
+          PrefetchHooks Function({bool matchId})
+        > {
+  $$ActiveSessionsTableTableManager(
+    _$AppDatabase db,
+    $ActiveSessionsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ActiveSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ActiveSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ActiveSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> matchId = const Value.absent(),
+                Value<DateTime> claimedAtUtc = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ActiveSessionsCompanion(
+                id: id,
+                matchId: matchId,
+                claimedAtUtc: claimedAtUtc,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                required String matchId,
+                Value<DateTime> claimedAtUtc = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ActiveSessionsCompanion.insert(
+                id: id,
+                matchId: matchId,
+                claimedAtUtc: claimedAtUtc,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$ActiveSessionsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({matchId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (matchId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.matchId,
+                                referencedTable: $$ActiveSessionsTableReferences
+                                    ._matchIdTable(db),
+                                referencedColumn:
+                                    $$ActiveSessionsTableReferences
+                                        ._matchIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$ActiveSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $ActiveSessionsTable,
+      ActiveSession,
+      $$ActiveSessionsTableFilterComposer,
+      $$ActiveSessionsTableOrderingComposer,
+      $$ActiveSessionsTableAnnotationComposer,
+      $$ActiveSessionsTableCreateCompanionBuilder,
+      $$ActiveSessionsTableUpdateCompanionBuilder,
+      (ActiveSession, $$ActiveSessionsTableReferences),
+      ActiveSession,
+      PrefetchHooks Function({bool matchId})
     >;
 typedef $$MatchEventsTableCreateCompanionBuilder =
     MatchEventsCompanion Function({
@@ -4482,8 +7388,11 @@ typedef $$MatchEventsTableCreateCompanionBuilder =
       required String type,
       Value<String?> side,
       Value<int> points,
+      Value<String?> outcome,
+      Value<int?> matchClockPositionSeconds,
       required DateTime occurredAt,
       Value<String?> note,
+      Value<String?> customLabel,
       Value<String?> customEventType,
       Value<bool> isDeleted,
       Value<int> rowid,
@@ -4495,8 +7404,11 @@ typedef $$MatchEventsTableUpdateCompanionBuilder =
       Value<String> type,
       Value<String?> side,
       Value<int> points,
+      Value<String?> outcome,
+      Value<int?> matchClockPositionSeconds,
       Value<DateTime> occurredAt,
       Value<String?> note,
+      Value<String?> customLabel,
       Value<String?> customEventType,
       Value<bool> isDeleted,
       Value<int> rowid,
@@ -4616,6 +7528,16 @@ class $$MatchEventsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get matchClockPositionSeconds => $composableBuilder(
+    column: $table.matchClockPositionSeconds,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<DateTime> get occurredAt => $composableBuilder(
     column: $table.occurredAt,
     builder: (column) => ColumnFilters(column),
@@ -4623,6 +7545,11 @@ class $$MatchEventsTableFilterComposer
 
   ColumnFilters<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get customLabel => $composableBuilder(
+    column: $table.customLabel,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4764,6 +7691,16 @@ class $$MatchEventsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get outcome => $composableBuilder(
+    column: $table.outcome,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get matchClockPositionSeconds => $composableBuilder(
+    column: $table.matchClockPositionSeconds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get occurredAt => $composableBuilder(
     column: $table.occurredAt,
     builder: (column) => ColumnOrderings(column),
@@ -4771,6 +7708,11 @@ class $$MatchEventsTableOrderingComposer
 
   ColumnOrderings<String> get note => $composableBuilder(
     column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get customLabel => $composableBuilder(
+    column: $table.customLabel,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -4829,6 +7771,14 @@ class $$MatchEventsTableAnnotationComposer
   GeneratedColumn<int> get points =>
       $composableBuilder(column: $table.points, builder: (column) => column);
 
+  GeneratedColumn<String> get outcome =>
+      $composableBuilder(column: $table.outcome, builder: (column) => column);
+
+  GeneratedColumn<int> get matchClockPositionSeconds => $composableBuilder(
+    column: $table.matchClockPositionSeconds,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get occurredAt => $composableBuilder(
     column: $table.occurredAt,
     builder: (column) => column,
@@ -4836,6 +7786,11 @@ class $$MatchEventsTableAnnotationComposer
 
   GeneratedColumn<String> get note =>
       $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get customLabel => $composableBuilder(
+    column: $table.customLabel,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<String> get customEventType => $composableBuilder(
     column: $table.customEventType,
@@ -4984,8 +7939,11 @@ class $$MatchEventsTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<String?> side = const Value.absent(),
                 Value<int> points = const Value.absent(),
+                Value<String?> outcome = const Value.absent(),
+                Value<int?> matchClockPositionSeconds = const Value.absent(),
                 Value<DateTime> occurredAt = const Value.absent(),
                 Value<String?> note = const Value.absent(),
+                Value<String?> customLabel = const Value.absent(),
                 Value<String?> customEventType = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -4995,8 +7953,11 @@ class $$MatchEventsTableTableManager
                 type: type,
                 side: side,
                 points: points,
+                outcome: outcome,
+                matchClockPositionSeconds: matchClockPositionSeconds,
                 occurredAt: occurredAt,
                 note: note,
+                customLabel: customLabel,
                 customEventType: customEventType,
                 isDeleted: isDeleted,
                 rowid: rowid,
@@ -5008,8 +7969,11 @@ class $$MatchEventsTableTableManager
                 required String type,
                 Value<String?> side = const Value.absent(),
                 Value<int> points = const Value.absent(),
+                Value<String?> outcome = const Value.absent(),
+                Value<int?> matchClockPositionSeconds = const Value.absent(),
                 required DateTime occurredAt,
                 Value<String?> note = const Value.absent(),
+                Value<String?> customLabel = const Value.absent(),
                 Value<String?> customEventType = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -5019,8 +7983,11 @@ class $$MatchEventsTableTableManager
                 type: type,
                 side: side,
                 points: points,
+                outcome: outcome,
+                matchClockPositionSeconds: matchClockPositionSeconds,
                 occurredAt: occurredAt,
                 note: note,
+                customLabel: customLabel,
                 customEventType: customEventType,
                 isDeleted: isDeleted,
                 rowid: rowid,
@@ -6089,6 +9056,7 @@ typedef $$PossessionSegmentsTableCreateCompanionBuilder =
       required String startedAtEventId,
       Value<String?> endedAtEventId,
       Value<String?> reason,
+      Value<String> source,
       Value<int> rowid,
     });
 typedef $$PossessionSegmentsTableUpdateCompanionBuilder =
@@ -6099,6 +9067,7 @@ typedef $$PossessionSegmentsTableUpdateCompanionBuilder =
       Value<String> startedAtEventId,
       Value<String?> endedAtEventId,
       Value<String?> reason,
+      Value<String> source,
       Value<int> rowid,
     });
 
@@ -6191,6 +9160,11 @@ class $$PossessionSegmentsTableFilterComposer
 
   ColumnFilters<String> get reason => $composableBuilder(
     column: $table.reason,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6288,6 +9262,11 @@ class $$PossessionSegmentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$MatchesTableOrderingComposer get matchId {
     final $$MatchesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -6375,6 +9354,9 @@ class $$PossessionSegmentsTableAnnotationComposer
 
   GeneratedColumn<String> get reason =>
       $composableBuilder(column: $table.reason, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
 
   $$MatchesTableAnnotationComposer get matchId {
     final $$MatchesTableAnnotationComposer composer = $composerBuilder(
@@ -6489,6 +9471,7 @@ class $$PossessionSegmentsTableTableManager
                 Value<String> startedAtEventId = const Value.absent(),
                 Value<String?> endedAtEventId = const Value.absent(),
                 Value<String?> reason = const Value.absent(),
+                Value<String> source = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PossessionSegmentsCompanion(
                 id: id,
@@ -6497,6 +9480,7 @@ class $$PossessionSegmentsTableTableManager
                 startedAtEventId: startedAtEventId,
                 endedAtEventId: endedAtEventId,
                 reason: reason,
+                source: source,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -6507,6 +9491,7 @@ class $$PossessionSegmentsTableTableManager
                 required String startedAtEventId,
                 Value<String?> endedAtEventId = const Value.absent(),
                 Value<String?> reason = const Value.absent(),
+                Value<String> source = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => PossessionSegmentsCompanion.insert(
                 id: id,
@@ -6515,6 +9500,7 @@ class $$PossessionSegmentsTableTableManager
                 startedAtEventId: startedAtEventId,
                 endedAtEventId: endedAtEventId,
                 reason: reason,
+                source: source,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -7169,6 +10155,12 @@ class $AppDatabaseManager {
   $AppDatabaseManager(this._db);
   $$MatchesTableTableManager get matches =>
       $$MatchesTableTableManager(_db, _db.matches);
+  $$MatchParticipantsTableTableManager get matchParticipants =>
+      $$MatchParticipantsTableTableManager(_db, _db.matchParticipants);
+  $$MatchClocksTableTableManager get matchClocks =>
+      $$MatchClocksTableTableManager(_db, _db.matchClocks);
+  $$ActiveSessionsTableTableManager get activeSessions =>
+      $$ActiveSessionsTableTableManager(_db, _db.activeSessions);
   $$MatchEventsTableTableManager get matchEvents =>
       $$MatchEventsTableTableManager(_db, _db.matchEvents);
   $$ShotLocationsTableTableManager get shotLocations =>
