@@ -150,5 +150,25 @@ void main() {
       ),
       throwsArgumentError,
     );
+    expect(
+      () => event(
+        type: MatchEventType.fieldGoal,
+        points: 0,
+        outcome: ShotOutcome.notApplicable,
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      MatchEvent(
+        id: 'custom-timeout',
+        matchId: 'match-1',
+        type: MatchEventType.custom,
+        side: null,
+        points: 0,
+        outcome: ShotOutcome.notApplicable,
+        occurredAt: DateTime.utc(2026, 5, 12, 12),
+      ).outcome,
+      ShotOutcome.notApplicable,
+    );
   });
 }

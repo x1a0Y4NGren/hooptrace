@@ -26,7 +26,9 @@ class MatchEvent {
           throw ArgumentError('Score events require a side and points.');
         }
       case EventKind.fieldGoal:
-        if (side == null || outcome == null) {
+        if (side == null ||
+            outcome == null ||
+            (outcome != ShotOutcome.made && outcome != ShotOutcome.missed)) {
           throw ArgumentError(
             'Field-goal events require a side and shot outcome.',
           );
@@ -38,7 +40,9 @@ class MatchEvent {
           throw ArgumentError('Missed field goals must have zero points.');
         }
       case EventKind.freeThrow:
-        if (side == null || outcome == null) {
+        if (side == null ||
+            outcome == null ||
+            (outcome != ShotOutcome.made && outcome != ShotOutcome.missed)) {
           throw ArgumentError(
             'Free-throw events require a side and shot outcome.',
           );
