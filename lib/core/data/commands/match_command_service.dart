@@ -6,7 +6,6 @@ import 'package:drift/drift.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
-import 'package:hooptrace/core/domain/entities/match.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
@@ -92,7 +91,7 @@ class StartMatchCommand extends MatchCommand {
   }
 
   StartMatchCommand._({
-    String? commandId,
+    super.commandId,
     String? matchId,
     required this.redName,
     required this.blueName,
@@ -113,8 +112,7 @@ class StartMatchCommand extends MatchCommand {
   }) : matchId = matchId ?? _newUuid(),
        redParticipantId = redParticipantId ?? _newUuid(),
        blueParticipantId = blueParticipantId ?? _newUuid(),
-       clockId = clockId ?? _newUuid(),
-       super(commandId: commandId);
+       clockId = clockId ?? _newUuid();
 
   @override
   final String matchId;
@@ -177,7 +175,7 @@ class MatchShotLocationInput {
 
 class RecordMatchEventCommand extends MatchCommand {
   RecordMatchEventCommand({
-    String? commandId,
+    super.commandId,
     required this.matchId,
     String? eventId,
     this.type = EventKind.score,
@@ -194,8 +192,7 @@ class RecordMatchEventCommand extends MatchCommand {
        occurredAt = occurredAt.toUtc(),
        shotLocationId = shotLocation == null
            ? null
-           : (shotLocationId ?? shotLocation.id ?? _newUuid()),
-       super(commandId: commandId);
+           : (shotLocationId ?? shotLocation.id ?? _newUuid());
 
   @override
   final String matchId;
@@ -233,7 +230,7 @@ class RecordMatchEventCommand extends MatchCommand {
 
 class CorrectMatchEventCommand extends MatchCommand {
   CorrectMatchEventCommand({
-    String? commandId,
+    super.commandId,
     required this.matchId,
     required this.eventId,
     this.type,
@@ -245,8 +242,7 @@ class CorrectMatchEventCommand extends MatchCommand {
     this.matchClockPositionSeconds,
     this.reason,
     String? auditId,
-  }) : auditId = auditId ?? _newUuid(),
-       super(commandId: commandId);
+  }) : auditId = auditId ?? _newUuid();
 
   @override
   final String matchId;
@@ -283,13 +279,12 @@ class CorrectMatchEventCommand extends MatchCommand {
 
 class UndoMatchEventCommand extends MatchCommand {
   UndoMatchEventCommand({
-    String? commandId,
+    super.commandId,
     required this.matchId,
     required this.eventId,
     this.reason,
     String? auditId,
-  }) : auditId = auditId ?? _newUuid(),
-       super(commandId: commandId);
+  }) : auditId = auditId ?? _newUuid();
 
   @override
   final String matchId;
@@ -312,13 +307,12 @@ class UndoMatchEventCommand extends MatchCommand {
 
 class PauseMatchCommand extends MatchCommand {
   PauseMatchCommand({
-    String? commandId,
+    super.commandId,
     required this.matchId,
     required DateTime occurredAt,
     String? eventId,
   }) : eventId = eventId ?? _newUuid(),
-       occurredAt = occurredAt.toUtc(),
-       super(commandId: commandId);
+       occurredAt = occurredAt.toUtc();
 
   @override
   final String matchId;
@@ -339,13 +333,12 @@ class PauseMatchCommand extends MatchCommand {
 
 class ResumeMatchCommand extends MatchCommand {
   ResumeMatchCommand({
-    String? commandId,
+    super.commandId,
     required this.matchId,
     required DateTime occurredAt,
     String? eventId,
   }) : eventId = eventId ?? _newUuid(),
-       occurredAt = occurredAt.toUtc(),
-       super(commandId: commandId);
+       occurredAt = occurredAt.toUtc();
 
   @override
   final String matchId;
@@ -366,11 +359,10 @@ class ResumeMatchCommand extends MatchCommand {
 
 class FinishMatchCommand extends MatchCommand {
   FinishMatchCommand({
-    String? commandId,
+    super.commandId,
     required this.matchId,
     required DateTime endedAt,
-  }) : endedAt = endedAt.toUtc(),
-       super(commandId: commandId);
+  }) : endedAt = endedAt.toUtc();
 
   @override
   final String matchId;
@@ -389,11 +381,10 @@ class FinishMatchCommand extends MatchCommand {
 
 class AbandonMatchCommand extends MatchCommand {
   AbandonMatchCommand({
-    String? commandId,
+    super.commandId,
     required this.matchId,
     required DateTime endedAt,
-  }) : endedAt = endedAt.toUtc(),
-       super(commandId: commandId);
+  }) : endedAt = endedAt.toUtc();
 
   @override
   final String matchId;
@@ -523,6 +514,24 @@ class MatchCommandService {
           );
         }
         _validateStart(command);
+        if (command.redPlayerProfileId != null &&
+            await _playerRow(command.redPlayerProfileId!) == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'Missing red player profile ${command.redPlayerProfileId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (command.bluePlayerProfileId != null &&
+            await _playerRow(command.bluePlayerProfileId!) == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'Missing blue player profile ${command.bluePlayerProfileId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
 
         await _database
             .into(_database.matches)
@@ -655,7 +664,16 @@ class MatchCommandService {
             projectionMatchId: before.matchId,
           );
         }
-        final replacement = _correctedEvent(before, command);
+        late final MatchEvent replacement;
+        try {
+          replacement = _correctedEvent(before, command);
+        } on ArgumentError catch (error) {
+          throw CommandValidationFailure(
+            command: command,
+            message: error.message?.toString() ?? error.toString(),
+            projectionMatchId: command.matchId,
+          );
+        }
         final beforeJson = _eventJson(before);
         final afterJson = _eventJsonFromEvent(replacement);
         await (_database.update(_database.matchEvents)
@@ -742,13 +760,13 @@ class MatchCommandService {
         if (await _returnForDuplicate(command)) return;
         await _requireActiveMatch(command);
         final eventId = switch (command) {
-          PauseMatchCommand value => value.eventId,
-          ResumeMatchCommand value => value.eventId,
+          PauseMatchCommand(:final eventId) => eventId,
+          ResumeMatchCommand(:final eventId) => eventId,
           _ => throw StateError('Unsupported semantic command.'),
         };
         final occurredAt = switch (command) {
-          PauseMatchCommand value => value.occurredAt,
-          ResumeMatchCommand value => value.occurredAt,
+          PauseMatchCommand(:final occurredAt) => occurredAt,
+          ResumeMatchCommand(:final occurredAt) => occurredAt,
           _ => _now().toUtc(),
         };
         await _database
@@ -785,6 +803,14 @@ class MatchCommandService {
             message: 'Missing match ${command.matchId}.',
           );
         }
+        final active = await _activeRow();
+        if (row.lifecycle == MatchLifecycle.active.name &&
+            active?.matchId != command.matchId) {
+          throw ActiveMatchConflictFailure(
+            command: command,
+            projectionMatchId: active?.matchId ?? command.matchId,
+          );
+        }
         if (row.lifecycle == MatchLifecycle.abandoned.name &&
             lifecycle == MatchLifecycle.finished) {
           throw CommandValidationFailure(
@@ -794,8 +820,8 @@ class MatchCommandService {
           );
         }
         final endedAt = switch (command) {
-          FinishMatchCommand value => value.endedAt,
-          AbandonMatchCommand value => value.endedAt,
+          FinishMatchCommand(:final endedAt) => endedAt,
+          AbandonMatchCommand(:final endedAt) => endedAt,
           _ => _now().toUtc(),
         };
         await (_database.update(
@@ -806,9 +832,12 @@ class MatchCommandService {
             endedAt: Value(endedAt),
           ),
         );
-        await (_database.delete(
-          _database.activeSessions,
-        )..where((session) => session.id.equals('active'))).go();
+        await (_database.delete(_database.activeSessions)..where(
+              (session) =>
+                  session.id.equals('active') &
+                  session.matchId.equals(command.matchId),
+            ))
+            .go();
         await _inject(MatchCommandFailurePoint.afterLifecycleWritten);
         await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
@@ -980,6 +1009,12 @@ class MatchCommandService {
     return query.getSingleOrNull();
   }
 
+  Future<PlayerRow?> _playerRow(String id) {
+    final query = _database.select(_database.players)
+      ..where((row) => row.id.equals(id));
+    return query.getSingleOrNull();
+  }
+
   Future<MatchDetail?> _projection(String matchId) {
     return _repository.getMatchDetail(matchId);
   }
@@ -1034,6 +1069,14 @@ class MatchCommandService {
           message: 'Shot location is invalid: $error',
         );
       }
+    }
+    try {
+      _eventFromCommand(command);
+    } on ArgumentError catch (error) {
+      throw CommandValidationFailure(
+        command: command,
+        message: error.message?.toString() ?? error.toString(),
+      );
     }
   }
 

@@ -118,6 +118,12 @@ class MatchRepository {
     });
   }
 
+  /// Legacy v0.1 full-snapshot synchronization path.
+  ///
+  /// New live scoring must use [MatchCommandService]. This method remains
+  /// only for compatibility with the pre-1.0 coordinator and is deliberately
+  /// not used by the command kernel.
+  @Deprecated('Use MatchCommandService commands instead.')
   Future<void> replaceMatchSnapshot(
     String matchId, {
     required List<MatchEvent> events,
@@ -262,7 +268,9 @@ class MatchRepository {
 
   Future<List<AuditLogEntry>> listAuditLogs(String matchId) async {
     final query = _database.select(_database.auditLogs)
-      ..where((log) => log.matchId.equals(matchId))
+      ..where(
+        (log) => log.matchId.equals(matchId) & log.action.isNotIn(['command']),
+      )
       ..orderBy([
         (log) => OrderingTerm.desc(log.createdAt),
         (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),

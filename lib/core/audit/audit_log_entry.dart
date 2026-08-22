@@ -1,6 +1,6 @@
 import 'package:hooptrace/core/audit/audit_diff.dart';
 
-enum AuditAction { create, undo, edit, delete, import, restore }
+enum AuditAction { create, undo, edit, delete, import, restore, command }
 
 class AuditLogEntry {
   const AuditLogEntry({

@@ -7,6 +7,11 @@ import 'package:hooptrace/core/domain/entities/shot_location.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 
+/// Legacy in-memory coordinator retained for the pre-1.0 UI bridge.
+///
+/// New consumers must compose [MatchCommandService] and read committed Drift
+/// projections; this coordinator is not a command-service fallback.
+@Deprecated('Use MatchCommandService and committed Drift projections.')
 class MatchSessionCoordinator extends ChangeNotifier {
   MatchSessionCoordinator(this._repository);
 
