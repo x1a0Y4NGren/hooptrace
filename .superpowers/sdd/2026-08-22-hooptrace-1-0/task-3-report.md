@@ -78,6 +78,8 @@ git status --short
 
 The native test creates a real temporary SQLite file with `PRAGMA user_version = 1` and a sentinel row, verifies the typed rejection before Drift opens, and verifies both the pragma and sentinel remain unchanged. The app's production `openAppDatabase()` now uses the same raw setup probe against `getApplicationDocumentsDirectory()/hooptrace.sqlite`.
 
+The final vocabulary hardening was also TDD-driven: the new invalid EventKind/side/free-throw/outcome assertions first failed because three database writes were accepted, then passed after the `MatchEvents` CHECK constraints were added. The fix-round test file now has 9 passing tests; the expanded suite has 136 passing tests.
+
 ## Concerns / self-review
 
 - Existing v0.1 backup/repository fixtures construct generated `Matche` and possession rows directly. Those fixtures were updated to provide the canonical lifecycle/participant fields, and `app_database.g.dart` was regenerated from source rather than hand-edited; a second generator run produced zero diff.
