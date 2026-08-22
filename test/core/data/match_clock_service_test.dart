@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -7,6 +8,7 @@ import 'package:hooptrace/core/domain/entities/clock_state.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/core/export/json_backup_codec.dart';
 
 import '../../test_helpers/test_database.dart';
 
@@ -89,6 +91,86 @@ void main() {
       _expectClockProjectionEqual(first.clock!, duplicate.clock!);
     },
   );
+
+  test(
+    'restored running-clock receipt returns the original first projection',
+    () async {
+      late final RecordMatchEventCommand command;
+      final exported = await withTestDatabase((source) async {
+        final startedAt = _anchor;
+        final projectedAt = _anchor.add(const Duration(seconds: 5));
+        final service = MatchCommandService(source, now: () => startedAt);
+        await service.start(_start(timerEnabled: true));
+        command = RecordMatchEventCommand(
+          commandId: 'clock-backup-receipt',
+          matchId: 'match-clock',
+          eventId: 'clock-backup-event',
+          side: TeamSide.red,
+          points: 1,
+          occurredAt: projectedAt,
+        );
+        await MatchCommandService(source, now: () => projectedAt).record(
+          command,
+        );
+        return JsonBackupCodec(
+          source,
+          appVersion: '0.1.0+1',
+          now: () => projectedAt,
+        ).export();
+      });
+
+      final restored = createTestDatabase();
+      await JsonBackupCodec(restored, appVersion: '0.1.0+1').restore(exported);
+      final duplicate = await MatchCommandService(
+        restored,
+        now: () => _anchor.add(const Duration(seconds: 30)),
+      ).record(command);
+      expect(duplicate.clock, isNotNull);
+      expect(duplicate.clock?.displaySeconds, 5);
+      expect(duplicate.clock?.state.accumulatedSeconds, 0);
+      expect(duplicate.clock?.normalizedState.accumulatedSeconds, 5);
+    },
+  );
+
+  test('legacy clock receipt shape remains readable', () async {
+    final database = createTestDatabase();
+    final projectedAt = _anchor.add(const Duration(seconds: 5));
+    await MatchCommandService(database, now: () => _anchor).start(
+      _start(timerEnabled: true),
+    );
+    final command = RecordMatchEventCommand(
+      commandId: 'legacy-clock-receipt',
+      matchId: 'match-clock',
+      eventId: 'legacy-clock-event',
+      side: TeamSide.red,
+      points: 1,
+      occurredAt: projectedAt,
+    );
+    await MatchCommandService(database, now: () => projectedAt).record(command);
+    final receipt = await (database.select(database.auditLogs)
+          ..where((row) => row.id.equals(command.commandId)))
+        .getSingle();
+    final after = jsonDecode(receipt.afterJson) as Map<String, Object?>;
+    final projection = after['projection'] as Map<String, Object?>;
+    final clock = projection['clock'] as Map<String, Object?>;
+    clock.remove('state');
+    clock.remove('normalizedState');
+    await database.customUpdate(
+      'UPDATE audit_logs SET after_json = ? WHERE id = ?',
+      variables: [
+        Variable.withString(jsonEncode(after)),
+        Variable.withString(command.commandId),
+      ],
+      updates: {database.auditLogs},
+    );
+
+    final duplicate = await MatchCommandService(
+      database,
+      now: () => _anchor.add(const Duration(seconds: 30)),
+    ).record(command);
+    expect(duplicate.clock?.displaySeconds, 5);
+    expect(duplicate.clock?.phase, ClockPhase.regulation);
+  });
 
   test(
     'pause and resume atomically persist anchors and semantic audit rows',
