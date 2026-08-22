@@ -157,6 +157,55 @@ void main() {
   );
 
   test(
+    'wall-clock rollback writes one recoverable system pause and rebuilt resume continues',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final rollbackAt = _anchor.subtract(const Duration(seconds: 2));
+      final first = await MatchCommandService(
+        database,
+        now: () => rollbackAt,
+      ).readClock('match-clock');
+      final second = await MatchCommandService(
+        database,
+        now: () => rollbackAt,
+      ).readClock('match-clock');
+
+      expect(first?.recoveryReason, ClockRecoveryReason.wallClockMovedBackward);
+      expect(second?.recoveryReason, isNull);
+      final events = await database.select(database.matchEvents).get();
+      expect(events, hasLength(1));
+      expect(events.single.type, EventKind.pause.name);
+      expect(events.single.customLabel, 'pause');
+      final recoveryAudits = (await database.select(database.auditLogs).get())
+          .where((row) => row.action == 'edit' && row.reason == 'clock-recovery')
+          .toList();
+      expect(recoveryAudits, hasLength(1));
+
+      final resumedAt = _anchor.add(const Duration(seconds: 5));
+      final resumed = await MatchCommandService(
+        database,
+        now: () => resumedAt,
+      ).resume(
+        ResumeMatchCommand(
+          commandId: 'recovery-resume',
+          matchId: 'match-clock',
+          occurredAt: resumedAt,
+        ),
+      );
+      expect(resumed.clock?.runningSinceUtc, resumedAt);
+      final continued = await MatchCommandService(
+        database,
+        now: () => resumedAt.add(const Duration(seconds: 3)),
+      ).readClock('match-clock');
+      expect(continued?.displaySeconds, 3);
+    },
+  );
+
+  test(
     'record at the exact countdown boundary commits expiry before rejecting input',
     () async {
       final database = createTestDatabase();
