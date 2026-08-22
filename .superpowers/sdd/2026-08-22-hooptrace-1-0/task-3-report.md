@@ -53,10 +53,10 @@ The independent review identified nine important behavior gaps and three analyze
 
 ```text
 flutter test test/core/data/schema_v2_fix_round1_test.dart test/core/data/match_repository_test.dart test/core/export/json_backup_codec_test.dart --reporter expanded
-# 25 tests passed
+# 26 tests passed
 
 flutter test --reporter expanded
-# 135 tests passed, 0 failures
+# 136 tests passed, 0 failures
 
 flutter analyze
 # No issues found! (ran in 8.2s)
