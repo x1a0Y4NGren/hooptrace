@@ -1117,6 +1117,17 @@ class MatchCommandService {
       );
     }
     if (command.shotLocation != null) {
+      const locationEventTypes = <EventKind>{
+        EventKind.score,
+        EventKind.fieldGoal,
+        EventKind.miss,
+      };
+      if (!locationEventTypes.contains(command.type)) {
+        throw CommandValidationFailure(
+          command: command,
+          message: 'Shot locations require a field-goal event.',
+        );
+      }
       try {
         CourtPoint(x: command.shotLocation!.x, y: command.shotLocation!.y);
       } on Object catch (error) {

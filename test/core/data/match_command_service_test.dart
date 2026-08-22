@@ -169,6 +169,38 @@ void main() {
   );
 
   test(
+    'record rejects shot locations for non-shot events before writing rows',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database);
+      await service.start(
+        _startCommand(
+          commandId: 'start-location-validation',
+          matchId: 'match-location-validation',
+        ),
+      );
+      final failure = await _captureFailure(
+        () => service.record(
+          RecordMatchEventCommand(
+            commandId: 'invalid-location',
+            matchId: 'match-location-validation',
+            eventId: 'invalid-location-event',
+            type: EventKind.foul,
+            side: TeamSide.red,
+            points: 0,
+            occurredAt: DateTime.utc(2026, 8, 22, 10),
+            shotLocation: const MatchShotLocationInput(x: 0.5, y: 0.5),
+          ),
+        ),
+      );
+
+      expect(failure, isA<CommandValidationFailure>());
+      expect(await database.select(database.matchEvents).get(), isEmpty);
+      expect(await database.select(database.shotLocations).get(), isEmpty);
+    },
+  );
+
+  test(
     'correct preserves event identity and writes human-readable before/after audit atomically',
     () async {
       final database = createTestDatabase();
