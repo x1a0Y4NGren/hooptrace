@@ -430,17 +430,14 @@ class MatchRepository {
         _database.matchClocks,
       },
     );
-    final changes = query.watch().asyncMap((rows) async {
+    // Drift's watched query emits its current result immediately and then
+    // emits again when any table in [readsFrom] changes. Keep that single
+    // source of initial state; a second manual getActiveMatch() emission here
+    // races the watched query and makes consumers observe duplicate starts.
+    return query.watch().asyncMap((rows) async {
       if (rows.isEmpty) return null;
       return getMatchDetail(rows.single.read<String>('match_id'));
     });
-    return (() async* {
-      // Drift emits an initial query result in normal operation. The explicit
-      // read also makes the recovery stream deterministic when a provider is
-      // attached immediately after a committed start transaction.
-      yield await getActiveMatch();
-      yield* changes;
-    })();
   }
 
   /// Reactive detail stream for a live scoring route. It tracks the same
@@ -459,14 +456,12 @@ class MatchRepository {
         _database.activeSessions,
       },
     );
-    final changes = query.watch().asyncMap((rows) async {
+    // As above, query.watch() supplies the one initial snapshot and all later
+    // projection updates. Do not prepend a second imperative read.
+    return query.watch().asyncMap((rows) async {
       if (rows.isEmpty) return null;
       return getMatchDetail(matchId);
     });
-    return (() async* {
-      yield await getMatchDetail(matchId);
-      yield* changes;
-    })();
   }
 
   Stream<MatchDetail?> watchMatchDetail(String matchId) =>

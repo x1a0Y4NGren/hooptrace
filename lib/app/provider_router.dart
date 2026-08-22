@@ -192,16 +192,32 @@ class _ScoringRoute extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final detail = ref.watch(liveMatchProvider(matchId));
-    final controller = ref.watch(scoringControllerProvider(matchId));
-    if (detail.isLoading || controller == null) return const _RouteLoading();
-    if (detail.hasError || detail.valueOrNull == null) {
-      return const _RouteMessage(title: '比赛未在进行中', message: '请从主页继续一场活动比赛。');
+    // A missing/terminal/error projection is a real route state. Check it
+    // before controller availability so a controller that is still being
+    // reconstructed cannot mask a useful explanation with an endless
+    // loading page.
+    if (detail.hasError) {
+      return _RouteMessage(title: '无法读取比赛', message: '${detail.error}');
     }
-    return ScoringPage(
-      controller: controller,
-      onOpenReplay: () => context.push('/matches/$matchId/replay'),
-      onRequestLeave: () => _leaveScoring(context, ref, matchId),
-    );
+    if (detail.hasValue) {
+      final projection = detail.valueOrNull;
+      if (projection == null || projection.match.lifecycle.name != 'active') {
+        return const _RouteMessage(title: '比赛未在进行中', message: '请从主页继续一场活动比赛。');
+      }
+      final controller = ref.watch(scoringControllerProvider(matchId));
+      if (controller == null) {
+        return const _RouteMessage(
+          title: '正在恢复比赛',
+          message: '已读取比赛，但计分状态还在恢复，请稍候。',
+        );
+      }
+      return ScoringPage(
+        controller: controller,
+        onOpenReplay: () => context.push('/matches/$matchId/replay'),
+        onRequestLeave: () => _leaveScoring(context, ref, matchId),
+      );
+    }
+    return const _RouteLoading();
   }
 }
 

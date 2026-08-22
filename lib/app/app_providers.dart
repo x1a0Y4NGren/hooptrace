@@ -154,25 +154,42 @@ final liveMatchProvider = StreamProvider.autoDispose
 /// controller, preserving a pending location only until its command commits.
 final scoringControllerProvider = Provider.autoDispose
     .family<ScoringController?, String>((ref, matchId) {
-      final detail = ref.watch(liveMatchProvider(matchId)).valueOrNull;
-      if (detail == null || detail.match.lifecycle.name != 'active') {
-        return null;
+      // Do not watch the live projection here. Watching it would invalidate
+      // this provider on every committed score/location/clock write and
+      // silently throw away controller-local interaction state (for example
+      // a pending shot location). The live stream is listened to below and
+      // only the first projection/terminal lifecycle transition invalidates
+      // this provider.
+      final initial = ref.read(liveMatchProvider(matchId)).valueOrNull;
+      ScoringController? controller;
+      if (initial != null && initial.match.lifecycle.name == 'active') {
+        controller = ScoringController.fromCommittedProjection(
+          initial,
+          ref.read(matchCommandServiceProvider),
+        );
       }
-
-      final controller = ScoringController.fromCommittedProjection(
-        detail,
-        ref.watch(matchCommandServiceProvider),
-      );
       ref.listen<AsyncValue<MatchDetail?>>(liveMatchProvider(matchId), (
         _,
         next,
       ) {
         final projection = next.valueOrNull;
-        if (projection != null) {
-          controller.replaceCommittedProjection(projection);
+        final isActive = projection?.match.lifecycle.name == 'active';
+        if (controller == null) {
+          if (isActive) {
+            // The provider may have been first read while the stream was
+            // loading. Re-evaluate once the initial committed projection is
+            // available, then keep that controller stable for later writes.
+            ref.invalidateSelf();
+          }
+          return;
         }
+        if (!isActive) {
+          ref.invalidateSelf();
+          return;
+        }
+        controller.replaceCommittedProjection(projection!);
       });
-      ref.onDispose(controller.dispose);
+      ref.onDispose(() => controller?.dispose());
       return controller;
     });
 
