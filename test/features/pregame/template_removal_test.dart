@@ -22,7 +22,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.byType(DropdownButtonFormField<String>));
+    await tester.tap(find.byKey(const Key('pregame-rule-template')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('15 point game').last);
     await tester.pumpAndSettle();

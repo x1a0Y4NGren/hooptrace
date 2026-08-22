@@ -18,6 +18,11 @@ void main() {
     expect(find.text('计时'), findsOneWidget);
     expect(find.text('开始比赛'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.text('高级设置'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('高级设置'));
     await tester.pumpAndSettle();
 
@@ -48,6 +53,17 @@ void main() {
     await tester.enterText(
       find.byKey(const Key('pregame-blue-name')),
       'Blue B',
+    );
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('pregame-recording-simple')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
+    await tester.scrollUntilVisible(
+      find.text('开始比赛'),
+      300,
+      scrollable: find.byType(Scrollable).first,
     );
     await tester.tap(find.text('开始比赛'));
 

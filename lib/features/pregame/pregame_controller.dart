@@ -213,6 +213,9 @@ class PregameController {
     final selected = _templates.where((item) => item.id == value).firstOrNull;
     _state = _state.copyWith(
       ruleTemplateId: value,
+      timerEnabled: selected?.timeLimitSeconds != null
+          ? true
+          : _state.timerEnabled,
       targetScore: selected?.targetScore ?? _state.targetScore,
       clockMode: selected?.timeLimitSeconds != null
           ? ClockMode.countdown

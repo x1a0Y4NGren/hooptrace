@@ -8,6 +8,7 @@ import 'package:hooptrace/app/match_view_data_mapper.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
+import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
@@ -212,19 +213,53 @@ class _PregameRoute extends ConsumerWidget {
     }
 
     final templates = ref.watch(ruleTemplatesProvider);
+    final players = ref.watch(playerProfilesProvider);
     return templates.when(
       loading: () => const _RouteLoading(),
-      error: (error, stackTrace) => PregamePage(
-        templates: RuleTemplateRepositoryFallback.templates,
-        onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
+      error: (error, stackTrace) => _buildPregamePage(
+        context,
+        ref,
+        RuleTemplateRepositoryFallback.templates,
+        players,
+        templatesError: true,
       ),
-      data: (values) => PregamePage(
-        templates: values,
-        onManageRules: () => context.push('/settings/rules'),
-        onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
-      ),
+      data: (values) => _buildPregamePage(context, ref, values, players),
     );
   }
+}
+
+Widget _buildPregamePage(
+  BuildContext context,
+  WidgetRef ref,
+  List<RuleTemplate> templates,
+  AsyncValue<List<Player>> players, {
+  bool templatesError = false,
+}) {
+  return players.when(
+    loading: () => PregamePage(
+      templates: templates,
+      playersNotice: templatesError
+          ? '规则模板暂时无法读取，已使用内置规则；正在加载球员档案。'
+          : '正在加载球员档案；也可以先输入临时姓名。',
+      onManageRules: () => context.push('/settings/rules'),
+      onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
+    ),
+    error: (error, stackTrace) => PregamePage(
+      templates: templates,
+      playersNotice: templatesError
+          ? '规则模板和球员档案暂时无法读取；可以使用临时姓名后重试。'
+          : '球员档案暂时无法读取；可以使用临时姓名后重试。',
+      onManageRules: () => context.push('/settings/rules'),
+      onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
+    ),
+    data: (values) => PregamePage(
+      templates: templates,
+      players: values,
+      playersNotice: templatesError ? '规则模板暂时无法读取，已使用内置规则。' : null,
+      onManageRules: () => context.push('/settings/rules'),
+      onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
+    ),
+  );
 }
 
 class _ScoringRoute extends ConsumerWidget {
@@ -500,9 +535,12 @@ Future<void> _startMatch(
     if (context.mounted) context.go('/scoring/${setup.matchId}');
   } on PregameSetupValidationException catch (error) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('请完成赛前设置：${error.result.errors.join('、')}')),
-      );
+      final message = error.result.errors
+          .map(pregameValidationErrorText)
+          .join('\n');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
   } on MatchCommandFailure catch (error) {
     if (context.mounted) {

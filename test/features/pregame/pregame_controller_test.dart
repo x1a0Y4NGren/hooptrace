@@ -42,6 +42,16 @@ void main() {
     expect(setup.targetScore, isNull);
   });
 
+  test('timed templates enable their countdown default consistently', () {
+    final controller = PregameController(
+      templates: RuleTemplateRepository.builtIns,
+    )..setRuleTemplateId('timed_ten');
+
+    expect(controller.state.timerEnabled, isTrue);
+    expect(controller.state.clockMode, ClockMode.countdown);
+    expect(controller.state.timeLimitMinutes, 10);
+  });
+
   test('profile selection stores the profile id and current name snapshot', () {
     final player = Player(
       id: 'player-red',

@@ -10,6 +10,7 @@ import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
+import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
@@ -84,6 +85,12 @@ final matchRepositoryProvider = Provider<MatchRepository>(
 final playerRepositoryProvider = Provider<PlayerRepository>(
   (ref) => PlayerRepository(ref.watch(appDatabaseProvider)),
 );
+
+/// The pre-game route consumes this stream directly so profile edits become
+/// available without rebuilding the page's local setup controller.
+final playerProfilesProvider = StreamProvider<List<Player>>((ref) {
+  return ref.watch(playerRepositoryProvider).watchAll();
+});
 
 final ruleTemplateRepositoryProvider = Provider<RuleTemplateRepository>(
   (ref) => RuleTemplateRepository(ref.watch(appDatabaseProvider)),

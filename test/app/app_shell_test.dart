@@ -41,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PregamePage), findsOneWidget);
 
-    await tester.tap(find.text(pregameStartMatchText));
+    await _selectSimpleAndStart(tester);
     await tester.pumpAndSettle();
 
     expect(find.byType(OrientationShell), findsOneWidget);
@@ -62,7 +62,7 @@ void main() {
 
     await tester.tap(find.text('\u5f00\u59cb\u8ba1\u5206'));
     await _pumpUntilFound(tester, find.byType(PregamePage));
-    await tester.tap(find.text(pregameStartMatchText));
+    await _selectSimpleAndStart(tester);
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     await tester.tap(find.byKey(const Key('red-score-2')));
     await tester.pump();
@@ -103,4 +103,19 @@ Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
     );
   }
   fail('Timed out waiting for the expected widget.');
+}
+
+Future<void> _selectSimpleAndStart(WidgetTester tester) async {
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('pregame-recording-simple')),
+    300,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(find.byKey(const Key('pregame-recording-simple')));
+  await tester.scrollUntilVisible(
+    find.text(pregameStartMatchText),
+    300,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.tap(find.text(pregameStartMatchText));
 }
