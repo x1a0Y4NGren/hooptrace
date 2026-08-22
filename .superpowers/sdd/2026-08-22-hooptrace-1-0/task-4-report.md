@@ -4,15 +4,26 @@
 
 Implemented a Drift-backed `MatchCommandService` for `start`, `record`,
 `correct`, `undo`, `pause`, `resume`, `finish`, and `abandon`. Every public
-method runs its writes in one awaited Drift transaction and then re-reads a
-`MatchDetail` projection after the transaction commits. No UI state is
-published from inside a transaction.
+method generates command/entity UUIDs before entering one awaited Drift
+transaction. The transaction writes event/location/audit/receipt state and
+builds the resulting `MatchDetail` from transaction-local rows; the public
+method returns that projection only after the transaction commits. No UI
+state is published from inside a transaction.
 
 The service reuses `audit_logs` as a durable command-receipt ledger rather
 than adding a schema-v2 table. Receipt rows use `action = command`, contain a
-SHA-256 payload fingerprint, and are hidden from normal audit-log rendering.
-Record, correction, and undo also write their business audit rows in the same
-transaction as the event mutation and receipt.
+SHA-256 payload fingerprint, and persist the first committed projection in
+their JSON. Record, correction, undo, pause/resume, finish, and abandon also
+write their business mutation/audit state in the same transaction as the
+receipt.
+
+The production scoring route now constructs a command-backed coordinator in
+`HoopTraceApp`. `AppRouter` waits for `startCommitted`/`loadCommitted`, and
+`ScoringPage` sends score/foul/undo operations through the service and updates
+only from the committed projection. The legacy snapshot adapter remains only
+for explicit non-command compatibility construction, is documented as
+retired, and is marked deprecated; the production route cannot fall back to
+`replaceMatchSnapshot`.
 
 ## TDD RED evidence
 
@@ -41,35 +52,77 @@ test/core/data/match_command_service_test.dart:165:7
 The reducer was then minimally extended to count made `fieldGoal` and
 `freeThrow` events while ignoring misses.
 
+The fix-round review tests were then run before each corresponding change. The
+first review RED included:
+
+```text
+duplicate start expected 0 actual 2
+finish draft returned MatchDetail instead of CommandValidationFailure
+pause/resume returned MatchDetail instead of enforcing alternating state
+score with location returned MatchDetail instead of rejecting the old location
+mutable rule template changed to [1, 2, 3]
+fieldGoal counters expected 1 actual 0
+watcher observed a non-empty projection before the transaction committed
+production scoring route created 0 command receipts
+```
+
+After fixture-only corrections (backup timestamps and direct button callback
+invocation for the off-screen responsive layout), the production route still
+failed its durable assertion with `commandReceipts length >= 2`, actual `0`.
+The bridge was implemented and the app integration test went GREEN.
+
+For the final validation rule, the test was written first and produced:
+
+```text
+flutter test --no-pub test/core/data/match_command_review_test.dart \
+  --plain-name "correction rejects a non-made score outcome" --reporter expanded
+Expected throws CommandValidationFailure; Actual emitted Future<MatchDetail>
+```
+
+The command validation was then added; the same test passed (`+1`).
+
 ## Design and idempotency keys
 
 - `StartMatchCommand` generates command, match, participant, and clock UUIDs
-  before entering the transaction.
+  before the transaction. Its rule-template lists are copied and wrapped in
+  unmodifiable lists, so equivalent commands have stable immutable payloads
+  and fingerprints.
 - `RecordMatchEventCommand` generates command, event, optional location, and
-  create-audit UUIDs before entering the transaction.
-- Correction and undo generate command and audit UUIDs before entering the
-  transaction; event `id` and `match_id` are never changed.
-- Pause/resume generate command and semantic-event UUIDs. Finish/abandon use
-  the command UUID as their durable receipt key.
-- A command receipt is looked up by its primary key (`audit_logs.id`). Equal
-  fingerprints return the post-commit projection without reapplying writes;
-  different fingerprints raise `CommandConflictFailure` with the last
-  committed projection. This remains valid after constructing a new service
-  instance or restoring the persisted graph.
+  audit UUIDs before the transaction. New command locations are restricted to
+  `fieldGoal`; score outcomes are restricted to `made` and are validated before
+  reducer writes.
+- Correction and undo generate command/audit UUIDs before the transaction;
+  correction never changes event `id` or `match_id`, and undo soft-deletes for
+  auditability. Correction/undo audit JSON contains human-readable before and
+  after values.
+- Pause/resume generate command and semantic-event UUIDs. The latest semantic
+  event is read by SQLite insertion order, enforcing pause → resume → pause
+  sequencing without implementing Task 5 elapsed-time algorithms.
+- A receipt is looked up by its primary key (`audit_logs.id`). Equal
+  fingerprints decode and return the receipt's original committed projection,
+  not the current match projection after later commands; different
+  fingerprints raise `CommandConflictFailure` with the last committed
+  projection. The persisted projection survives a new service instance and
+  backup/restore.
 - `active_sessions(id = 'active')` is claimed and released in the same
   transaction as match lifecycle changes. SQLite's serialized writer plus the
   fixed primary key rejects simultaneous starts; the service maps the loser to
   `ActiveMatchConflictFailure`.
+- Finish/abandon require lifecycle `active`, atomically delete the active row,
+  and transition to terminal state. Duplicate command IDs return the original
+  receipt; draft/finished/abandoned/archived transitions are typed validation
+  failures.
 - `CommandTransactionFailure` carries `lastCommittedProjection`, the
   immutable command, `retryable`, and an explicit `retry()` closure. The test
-  failure injector runs after writes and before transaction completion, proving
-  rollback leaves no event or receipt behind.
-- The old snapshot path is explicitly `@Deprecated` on
-  `MatchRepository.replaceMatchSnapshot` and `MatchSessionCoordinator`; the
-  new command kernel never calls it. `listAuditLogs` excludes internal
-  command-receipt rows.
+  failure injection occurs after business writes and before transaction
+  completion, proving rollback leaves no event, receipt, or watcher-visible
+  projection behind.
+- `MatchRepository.buildDetail` includes `fieldGoal` location IDs in located
+  and attempt counters. `listAuditLogs` excludes internal command receipts.
 
 ## Commits
+
+Original implementation and hardening:
 
 - `06519c2 feat: add transactional match command kernel`
 - `3e0cb05 fix: retire snapshot command fallback`
@@ -78,39 +131,36 @@ The reducer was then minimally extended to count made `fieldGoal` and
 - `840928d feat: expose command kernel compatibility aliases`
 - `9114cba fix: validate shot location event types`
 
+Fix round:
+
+- `865e2b6` test: capture command kernel review regressions
+- `e9f3a2d` test: stabilize command review fixtures
+- `e40fb7b` fix: retain immutable command projections
+- `31e6d33` fix: route production scoring through commands
+- `83b0b5e` test: remove redundant review import
+- `2558759` fix: validate corrected score outcomes
+- `0dae003` docs: mark legacy snapshot bridge retired
+
 ## Verification
 
 ```text
-flutter test test/core/data/match_command_service_test.dart --reporter expanded
-# 12 tests passed
+flutter test --no-pub --reporter expanded
+# 163 tests passed, 0 failures
 
-flutter test --reporter expanded
-# 153 tests passed, 0 failures
+flutter analyze --no-pub
+# No issues found! (ran in 3.5s)
 
-flutter analyze
-# No issues found
+flutter test --no-pub test/core/data/match_command_review_test.dart --reporter expanded
+# 9 review tests passed
 
-dart run build_runner build --delete-conflicting-outputs
-# Built; generated outputs unchanged
-
-dart run drift_dev schema dump lib/core/data/app_database.dart drift_schemas/drift_schema_v2.json
-dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
-# completed; generated schema/helper outputs unchanged
+flutter test --no-pub test/app/command_backed_scoring_test.dart --reporter expanded
+# production command-backed scoring route passed
 
 dart format --output=none --set-exit-if-changed lib test
-# exit 0, 117 files checked, 0 changed
+# Formatted 119 files (0 changed)
 
 git diff --check
-# clean
-
-flutter build apk --debug
-# Built build/app/outputs/flutter-apk/app-debug.apk
-
-HOOPTRACE_ALLOW_UNSIGNED_RELEASE=true flutter build apk --release --no-shrink
-# Built build/app/outputs/flutter-apk/app-release.apk
-
-git status --short
-# clean
+# clean (Git may report the repository's LF/CRLF normalization warning)
 ```
 
 ## Concerns / self-review
@@ -121,6 +171,10 @@ git status --short
 - Clock persistence is initialized by `start` and semantic pause/resume events
   are recorded, but elapsed-time reconstruction and end-condition algorithms
   remain Task 5 scope.
-- Riverpod/UI composition and full retirement of the legacy controller remain
-  Task 6 scope; the legacy bridge is marked deprecated and is not a fallback
-  from the command service.
+- The command-backed route commits score/foul/undo before updating the visible
+  controller. The existing location dialog's legacy mark action is not used to
+  write a new command location; command locations are deliberately
+  `fieldGoal`-only until the later location/UI work.
+- Riverpod/UI composition remains Task 6 scope. The production bridge is
+  command-backed now, while the explicit legacy coordinator constructor is
+  retained only for compatibility and cannot be selected by `HoopTraceApp`.
