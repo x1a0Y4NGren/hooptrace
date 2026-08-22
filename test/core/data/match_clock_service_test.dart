@@ -50,9 +50,10 @@ void main() {
       final database = createTestDatabase();
       final startedAt = _anchor;
       final projectedAt = _anchor.add(const Duration(seconds: 5));
-      await MatchCommandService(database, now: () => startedAt).start(
-        _start(timerEnabled: true),
-      );
+      await MatchCommandService(
+        database,
+        now: () => startedAt,
+      ).start(_start(timerEnabled: true));
       final command = RecordMatchEventCommand(
         commandId: 'clock-receipt-round-trip',
         matchId: 'match-clock',
@@ -65,10 +66,11 @@ void main() {
         database,
         now: () => projectedAt,
       ).record(command);
-      final receipt = await (database.select(database.auditLogs)
-            ..where((row) => row.id.equals(command.commandId)))
-          .getSingle();
-      final receiptAfter = jsonDecode(receipt.afterJson) as Map<String, Object?>;
+      final receipt = await (database.select(
+        database.auditLogs,
+      )..where((row) => row.id.equals(command.commandId))).getSingle();
+      final receiptAfter =
+          jsonDecode(receipt.afterJson) as Map<String, Object?>;
       final receiptClock =
           (receiptAfter['projection'] as Map<String, Object?>)['clock']
               as Map<String, Object?>;
@@ -79,8 +81,8 @@ void main() {
         0,
       );
       expect(
-        (receiptClock['normalizedState'] as Map<String, Object?>)
-            ['accumulatedSeconds'],
+        (receiptClock['normalizedState']
+            as Map<String, Object?>)['accumulatedSeconds'],
         5,
       );
 
@@ -109,9 +111,10 @@ void main() {
           points: 1,
           occurredAt: projectedAt,
         );
-        await MatchCommandService(source, now: () => projectedAt).record(
-          command,
-        );
+        await MatchCommandService(
+          source,
+          now: () => projectedAt,
+        ).record(command);
         return JsonBackupCodec(
           source,
           appVersion: '0.1.0+1',
@@ -135,9 +138,10 @@ void main() {
   test('legacy clock receipt shape remains readable', () async {
     final database = createTestDatabase();
     final projectedAt = _anchor.add(const Duration(seconds: 5));
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(timerEnabled: true),
-    );
+    await MatchCommandService(
+      database,
+      now: () => _anchor,
+    ).start(_start(timerEnabled: true));
     final command = RecordMatchEventCommand(
       commandId: 'legacy-clock-receipt',
       matchId: 'match-clock',
@@ -147,9 +151,9 @@ void main() {
       occurredAt: projectedAt,
     );
     await MatchCommandService(database, now: () => projectedAt).record(command);
-    final receipt = await (database.select(database.auditLogs)
-          ..where((row) => row.id.equals(command.commandId)))
-        .getSingle();
+    final receipt = await (database.select(
+      database.auditLogs,
+    )..where((row) => row.id.equals(command.commandId))).getSingle();
     final after = jsonDecode(receipt.afterJson) as Map<String, Object?>;
     final projection = after['projection'] as Map<String, Object?>;
     final clock = projection['clock'] as Map<String, Object?>;
@@ -314,21 +318,21 @@ void main() {
       expect(events.single.type, EventKind.pause.name);
       expect(events.single.customLabel, 'pause');
       final recoveryAudits = (await database.select(database.auditLogs).get())
-          .where((row) => row.action == 'edit' && row.reason == 'clock-recovery')
+          .where(
+            (row) => row.action == 'edit' && row.reason == 'clock-recovery',
+          )
           .toList();
       expect(recoveryAudits, hasLength(1));
 
       final resumedAt = _anchor.add(const Duration(seconds: 5));
-      final resumed = await MatchCommandService(
-        database,
-        now: () => resumedAt,
-      ).resume(
-        ResumeMatchCommand(
-          commandId: 'recovery-resume',
-          matchId: 'match-clock',
-          occurredAt: resumedAt,
-        ),
-      );
+      final resumed = await MatchCommandService(database, now: () => resumedAt)
+          .resume(
+            ResumeMatchCommand(
+              commandId: 'recovery-resume',
+              matchId: 'match-clock',
+              occurredAt: resumedAt,
+            ),
+          );
       expect(resumed.clock?.runningSinceUtc, resumedAt);
       final continued = await MatchCommandService(
         database,
@@ -571,21 +575,23 @@ void main() {
       expect(row.accumulatedSeconds, 5);
       expect(row.runningSinceUtc, isNull);
       expect(
-        (await database.select(database.matchEvents).get())
-            .where((event) => event.customLabel == 'resume'),
+        (await database.select(database.matchEvents).get()).where(
+          (event) => event.customLabel == 'resume',
+        ),
         isEmpty,
       );
 
-      final resumed = await MatchCommandService(
-        database,
-        now: () => _anchor.add(const Duration(seconds: 8)),
-      ).resume(
-        ResumeMatchCommand(
-          commandId: 'rollback-resume-success',
-          matchId: 'match-clock',
-          occurredAt: _anchor.add(const Duration(seconds: 8)),
-        ),
-      );
+      final resumed =
+          await MatchCommandService(
+            database,
+            now: () => _anchor.add(const Duration(seconds: 8)),
+          ).resume(
+            ResumeMatchCommand(
+              commandId: 'rollback-resume-success',
+              matchId: 'match-clock',
+              occurredAt: _anchor.add(const Duration(seconds: 8)),
+            ),
+          );
       expect(
         resumed.clock?.runningSinceUtc,
         _anchor.add(const Duration(seconds: 8)),
@@ -654,18 +660,10 @@ void main() {
       await MatchCommandService(
         database,
         now: () => _anchor,
-      ).start(
-        _start(
-          clockMode: ClockMode.countdown,
-          regulationSeconds: 10,
-        ),
-      );
+      ).start(_start(clockMode: ClockMode.countdown, regulationSeconds: 10));
       await database.customUpdate(
         'UPDATE match_clocks SET accumulated_seconds = ? WHERE match_id = ?',
-        variables: [
-          Variable.withInt(10),
-          Variable.withString('match-clock'),
-        ],
+        variables: [Variable.withInt(10), Variable.withString('match-clock')],
         updates: {database.matchClocks},
       );
       final projection = await MatchCommandService(
@@ -701,8 +699,9 @@ void main() {
     expect(row.accumulatedSeconds, 6);
     expect(row.runningSinceUtc, isNull);
     expect(
-      (await database.select(database.matchEvents).get())
-          .where((event) => event.customLabel == 'pause'),
+      (await database.select(database.matchEvents).get()).where(
+        (event) => event.customLabel == 'pause',
+      ),
       hasLength(1),
     );
   });
@@ -731,8 +730,9 @@ void main() {
       ).readClock('match-clock');
       expect(projection?.displaySeconds, 6);
       expect(
-        (await database.select(database.matchEvents).get())
-            .where((event) => event.id == 'concurrent-score-event'),
+        (await database.select(database.matchEvents).get()).where(
+          (event) => event.id == 'concurrent-score-event',
+        ),
         hasLength(1),
       );
     },
@@ -1196,7 +1196,10 @@ Future<MatchCommandFailure> _captureFailure(
   }
 }
 
-void _expectClockProjectionEqual(ClockProjection expected, ClockProjection actual) {
+void _expectClockProjectionEqual(
+  ClockProjection expected,
+  ClockProjection actual,
+) {
   _expectClockStateEqual(expected.state, actual.state);
   _expectClockStateEqual(expected.normalizedState, actual.normalizedState);
   expect(actual.nowUtc, expected.nowUtc);
