@@ -1,12 +1,7 @@
 // ignore_for_file: depend_on_referenced_packages
 
-import 'dart:ffi';
-import 'dart:io';
-
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:sqlite3/open.dart';
-import 'package:sqlite3/sqlite3.dart' show Sqlite3, sqlite3;
 
 part 'app_database.g.dart';
 
@@ -141,20 +136,8 @@ class AppSettings extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
-  AppDatabase.inMemory() : super(NativeDatabase.memory(sqlite3: _sqlite3));
+  AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
   int get schemaVersion => 1;
-}
-
-DynamicLibrary _openWindowsSqlite() {
-  return DynamicLibrary.open(r'C:\Windows\System32\winsqlite3.dll');
-}
-
-Future<Sqlite3> _sqlite3() async {
-  if (Platform.isWindows) {
-    open.overrideFor(OperatingSystem.windows, _openWindowsSqlite);
-  }
-
-  return sqlite3;
 }

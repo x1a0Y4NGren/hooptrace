@@ -3228,8 +3228,7 @@ final class $$MatchesTableReferences
   static MultiTypedResultKey<$MatchEventsTable, List<MatchEventRow>>
       _matchEventsRefsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.matchEvents,
-              aliasName:
-                  $_aliasNameGenerator(db.matches.id, db.matchEvents.matchId));
+              aliasName: 'matches__id__match_events__match_id');
 
   $$MatchEventsTableProcessedTableManager get matchEventsRefs {
     final manager = $$MatchEventsTableTableManager($_db, $_db.matchEvents)
@@ -3243,8 +3242,7 @@ final class $$MatchesTableReferences
   static MultiTypedResultKey<$ShotLocationsTable, List<ShotLocation>>
       _shotLocationsRefsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.shotLocations,
-              aliasName: $_aliasNameGenerator(
-                  db.matches.id, db.shotLocations.matchId));
+              aliasName: 'matches__id__shot_locations__match_id');
 
   $$ShotLocationsTableProcessedTableManager get shotLocationsRefs {
     final manager = $$ShotLocationsTableTableManager($_db, $_db.shotLocations)
@@ -3258,8 +3256,7 @@ final class $$MatchesTableReferences
   static MultiTypedResultKey<$PossessionSegmentsTable, List<PossessionSegment>>
       _possessionSegmentsRefsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.possessionSegments,
-              aliasName: $_aliasNameGenerator(
-                  db.matches.id, db.possessionSegments.matchId));
+              aliasName: 'matches__id__possession_segments__match_id');
 
   $$PossessionSegmentsTableProcessedTableManager get possessionSegmentsRefs {
     final manager =
@@ -3273,9 +3270,9 @@ final class $$MatchesTableReferences
   }
 
   static MultiTypedResultKey<$AuditLogsTable, List<AuditLog>>
-      _auditLogsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.auditLogs,
-          aliasName: $_aliasNameGenerator(db.matches.id, db.auditLogs.matchId));
+      _auditLogsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.auditLogs,
+              aliasName: 'matches__id__audit_logs__match_id');
 
   $$AuditLogsTableProcessedTableManager get auditLogsRefs {
     final manager = $$AuditLogsTableTableManager($_db, $_db.auditLogs)
@@ -3782,8 +3779,8 @@ final class $$MatchEventsTableReferences
     extends BaseReferences<_$AppDatabase, $MatchEventsTable, MatchEventRow> {
   $$MatchEventsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $MatchesTable _matchIdTable(_$AppDatabase db) => db.matches
-      .createAlias($_aliasNameGenerator(db.matchEvents.matchId, db.matches.id));
+  static $MatchesTable _matchIdTable(_$AppDatabase db) =>
+      db.matches.createAlias('match_events__match_id__matches__id');
 
   $$MatchesTableProcessedTableManager get matchId {
     final $_column = $_itemColumn<String>('match_id')!;
@@ -3799,8 +3796,7 @@ final class $$MatchEventsTableReferences
   static MultiTypedResultKey<$ShotLocationsTable, List<ShotLocation>>
       _shotLocationsRefsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.shotLocations,
-              aliasName: $_aliasNameGenerator(
-                  db.matchEvents.id, db.shotLocations.eventId));
+              aliasName: 'match_events__id__shot_locations__event_id');
 
   $$ShotLocationsTableProcessedTableManager get shotLocationsRefs {
     final manager = $$ShotLocationsTableTableManager($_db, $_db.shotLocations)
@@ -3814,8 +3810,8 @@ final class $$MatchEventsTableReferences
   static MultiTypedResultKey<$PossessionSegmentsTable, List<PossessionSegment>>
       _startedPossessionSegmentsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.possessionSegments,
-              aliasName: $_aliasNameGenerator(
-                  db.matchEvents.id, db.possessionSegments.startedAtEventId));
+              aliasName:
+                  'match_events__id__possession_segments__started_at_event_id');
 
   $$PossessionSegmentsTableProcessedTableManager get startedPossessionSegments {
     final manager =
@@ -3832,8 +3828,8 @@ final class $$MatchEventsTableReferences
   static MultiTypedResultKey<$PossessionSegmentsTable, List<PossessionSegment>>
       _endedPossessionSegmentsTable(_$AppDatabase db) =>
           MultiTypedResultKey.fromTable(db.possessionSegments,
-              aliasName: $_aliasNameGenerator(
-                  db.matchEvents.id, db.possessionSegments.endedAtEventId));
+              aliasName:
+                  'match_events__id__possession_segments__ended_at_event_id');
 
   $$PossessionSegmentsTableProcessedTableManager get endedPossessionSegments {
     final manager = $$PossessionSegmentsTableTableManager(
@@ -4349,8 +4345,7 @@ final class $$ShotLocationsTableReferences
       super.$_db, super.$_table, super.$_typedResult);
 
   static $MatchesTable _matchIdTable(_$AppDatabase db) =>
-      db.matches.createAlias(
-          $_aliasNameGenerator(db.shotLocations.matchId, db.matches.id));
+      db.matches.createAlias('shot_locations__match_id__matches__id');
 
   $$MatchesTableProcessedTableManager get matchId {
     final $_column = $_itemColumn<String>('match_id')!;
@@ -4364,8 +4359,7 @@ final class $$ShotLocationsTableReferences
   }
 
   static $MatchEventsTable _eventIdTable(_$AppDatabase db) =>
-      db.matchEvents.createAlias(
-          $_aliasNameGenerator(db.shotLocations.eventId, db.matchEvents.id));
+      db.matchEvents.createAlias('shot_locations__event_id__match_events__id');
 
   $$MatchEventsTableProcessedTableManager get eventId {
     final $_column = $_itemColumn<String>('event_id')!;
@@ -5121,8 +5115,7 @@ final class $$PossessionSegmentsTableReferences extends BaseReferences<
       super.$_db, super.$_table, super.$_typedResult);
 
   static $MatchesTable _matchIdTable(_$AppDatabase db) =>
-      db.matches.createAlias(
-          $_aliasNameGenerator(db.possessionSegments.matchId, db.matches.id));
+      db.matches.createAlias('possession_segments__match_id__matches__id');
 
   $$MatchesTableProcessedTableManager get matchId {
     final $_column = $_itemColumn<String>('match_id')!;
@@ -5136,8 +5129,8 @@ final class $$PossessionSegmentsTableReferences extends BaseReferences<
   }
 
   static $MatchEventsTable _startedAtEventIdTable(_$AppDatabase db) =>
-      db.matchEvents.createAlias($_aliasNameGenerator(
-          db.possessionSegments.startedAtEventId, db.matchEvents.id));
+      db.matchEvents.createAlias(
+          'possession_segments__started_at_event_id__match_events__id');
 
   $$MatchEventsTableProcessedTableManager get startedAtEventId {
     final $_column = $_itemColumn<String>('started_at_event_id')!;
@@ -5150,9 +5143,9 @@ final class $$PossessionSegmentsTableReferences extends BaseReferences<
         manager.$state.copyWith(prefetchedData: [item]));
   }
 
-  static $MatchEventsTable _endedAtEventIdTable(_$AppDatabase db) =>
-      db.matchEvents.createAlias($_aliasNameGenerator(
-          db.possessionSegments.endedAtEventId, db.matchEvents.id));
+  static $MatchEventsTable _endedAtEventIdTable(_$AppDatabase db) => db
+      .matchEvents
+      .createAlias('possession_segments__ended_at_event_id__match_events__id');
 
   $$MatchEventsTableProcessedTableManager? get endedAtEventId {
     final $_column = $_itemColumn<String>('ended_at_event_id');
@@ -5574,8 +5567,8 @@ final class $$AuditLogsTableReferences
     extends BaseReferences<_$AppDatabase, $AuditLogsTable, AuditLog> {
   $$AuditLogsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
-  static $MatchesTable _matchIdTable(_$AppDatabase db) => db.matches
-      .createAlias($_aliasNameGenerator(db.auditLogs.matchId, db.matches.id));
+  static $MatchesTable _matchIdTable(_$AppDatabase db) =>
+      db.matches.createAlias('audit_logs__match_id__matches__id');
 
   $$MatchesTableProcessedTableManager get matchId {
     final $_column = $_itemColumn<String>('match_id')!;
