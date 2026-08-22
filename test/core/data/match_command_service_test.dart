@@ -57,8 +57,10 @@ void main() {
         commandId: 'record-1',
         matchId: 'match-2',
         eventId: 'event-1',
+        type: EventKind.fieldGoal,
         side: TeamSide.red,
         points: 2,
+        outcome: ShotOutcome.made,
         occurredAt: DateTime.utc(2026, 8, 22, 10),
         shotLocation: const MatchShotLocationInput(x: 0.25, y: 0.75),
       );

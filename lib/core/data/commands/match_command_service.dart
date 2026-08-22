@@ -6,9 +6,11 @@ import 'package:drift/drift.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
+import 'package:hooptrace/core/domain/entities/shot_location.dart' as domain;
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:uuid/uuid.dart';
@@ -73,7 +75,7 @@ class StartMatchCommand extends MatchCommand {
       matchId: matchId,
       redName: redName,
       blueName: blueName,
-      ruleTemplate: ruleTemplate,
+      ruleTemplate: _copyRuleTemplate(ruleTemplate),
       recordingMode: recordingMode,
       trackingCoverage: trackingCoverage,
       clockMode: clockMode,
@@ -513,9 +515,10 @@ class MatchCommandService {
   late final MatchRepository _repository = MatchRepository(_database);
 
   Future<MatchDetail> start(StartMatchCommand command) {
-    return _execute(command, () async {
-      await _database.transaction(() async {
-        if (await _returnForDuplicate(command)) return;
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
         final active = await _activeRow();
         if (active != null) {
           throw ActiveMatchConflictFailure(
@@ -616,17 +619,19 @@ class MatchCommandService {
               ),
             );
         await _inject(MatchCommandFailurePoint.afterMatchWritten);
-        await _writeReceipt(command);
+        final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
       });
     });
   }
 
   Future<MatchDetail> record(RecordMatchEventCommand command) {
-    return _execute(command, () async {
-      await _database.transaction(() async {
-        if (await _returnForDuplicate(command)) return;
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
         await _requireActiveMatch(command);
         _validateRecord(command);
         final existing = await _eventRow(command.eventId);
@@ -671,17 +676,19 @@ class MatchCommandService {
           after: after,
         );
         await _inject(MatchCommandFailurePoint.afterEventWritten);
-        await _writeReceipt(command);
+        final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
       });
     });
   }
 
   Future<MatchDetail> correct(CorrectMatchEventCommand command) {
-    return _execute(command, () async {
-      await _database.transaction(() async {
-        if (await _returnForDuplicate(command)) return;
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
         final before = await _eventRow(command.eventId);
         if (before == null) {
           throw CommandValidationFailure(
@@ -722,16 +729,18 @@ class MatchCommandService {
           reason: command.reason,
         );
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
-        await _writeReceipt(command);
+        final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
       });
     });
   }
 
   Future<MatchDetail> undo(UndoMatchEventCommand command) {
-    return _execute(command, () async {
-      await _database.transaction(() async {
-        if (await _returnForDuplicate(command)) return;
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
         final before = await _eventRow(command.eventId);
         if (before == null) {
           throw CommandValidationFailure(
@@ -762,8 +771,9 @@ class MatchCommandService {
           reason: command.reason,
         );
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
-        await _writeReceipt(command);
+        final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
       });
     });
   }
@@ -811,10 +821,33 @@ class MatchCommandService {
     MatchCommand command, {
     required String label,
   }) {
-    return _execute(command, () async {
-      await _database.transaction(() async {
-        if (await _returnForDuplicate(command)) return;
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
         await _requireActiveMatch(command);
+        final semanticRows =
+            await (_database.select(_database.matchEvents)
+                  ..where(
+                    (event) =>
+                        event.matchId.equals(command.matchId) &
+                        event.type.equals(EventKind.pause.name) &
+                        event.isDeleted.equals(false),
+                  )
+                  ..orderBy([(event) => OrderingTerm.desc(event.occurredAt)]))
+                .get();
+        final latestSemantic = semanticRows.isEmpty ? null : semanticRows.first;
+        final isPaused = latestSemantic?.customLabel == 'pause';
+        if ((label == 'pause' && isPaused) ||
+            (label == 'resume' && !isPaused)) {
+          throw CommandValidationFailure(
+            command: command,
+            message: label == 'pause'
+                ? 'Match ${command.matchId} is already paused.'
+                : 'Match ${command.matchId} is not paused.',
+            projectionMatchId: command.matchId,
+          );
+        }
         final eventId = switch (command) {
           PauseMatchCommand(:final eventId) => eventId,
           ResumeMatchCommand(:final eventId) => eventId,
@@ -838,9 +871,10 @@ class MatchCommandService {
               ),
             );
         await _inject(MatchCommandFailurePoint.afterEventWritten);
-        await _writeReceipt(command);
+        final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
       });
     });
   }
@@ -849,9 +883,10 @@ class MatchCommandService {
     MatchCommand command,
     MatchLifecycle lifecycle,
   ) {
-    return _execute(command, () async {
-      await _database.transaction(() async {
-        if (await _returnForDuplicate(command)) return;
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
         final row = await _matchRow(command.matchId);
         if (row == null) {
           throw CommandValidationFailure(
@@ -859,20 +894,18 @@ class MatchCommandService {
             message: 'Missing match ${command.matchId}.',
           );
         }
+        if (row.lifecycle != MatchLifecycle.active.name) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Only an active match can become terminal.',
+            projectionMatchId: command.matchId,
+          );
+        }
         final active = await _activeRow();
-        if (row.lifecycle == MatchLifecycle.active.name &&
-            active?.matchId != command.matchId) {
+        if (active?.matchId != command.matchId) {
           throw ActiveMatchConflictFailure(
             command: command,
             projectionMatchId: active?.matchId ?? command.matchId,
-          );
-        }
-        if (row.lifecycle == MatchLifecycle.abandoned.name &&
-            lifecycle == MatchLifecycle.finished) {
-          throw CommandValidationFailure(
-            command: command,
-            message: 'An abandoned match cannot be finished.',
-            projectionMatchId: command.matchId,
           );
         }
         final endedAt = switch (command) {
@@ -895,29 +928,20 @@ class MatchCommandService {
             ))
             .go();
         await _inject(MatchCommandFailurePoint.afterLifecycleWritten);
-        await _writeReceipt(command);
+        final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
       });
     });
   }
 
   Future<MatchDetail> _execute(
     MatchCommand command,
-    Future<void> Function() operation,
+    Future<MatchDetail> Function() operation,
   ) async {
     try {
-      await operation();
-      final projection = await _projection(command.matchId);
-      if (projection == null) {
-        throw CommandTransactionFailure(
-          command: command,
-          message: 'Command committed without a readable projection.',
-          cause: StateError('Projection disappeared after command commit.'),
-          stackTrace: StackTrace.current,
-        );
-      }
-      return projection;
+      return await operation();
     } on MatchCommandFailure catch (failure) {
       failure.lastCommittedProjection = await _projection(
         failure.projectionMatchId ?? command.matchId,
@@ -949,9 +973,9 @@ class MatchCommandService {
     }
   }
 
-  Future<bool> _returnForDuplicate(MatchCommand command) async {
+  Future<MatchDetail?> _returnForDuplicate(MatchCommand command) async {
     final receipt = await _receipt(command.commandId);
-    if (receipt == null) return false;
+    if (receipt == null) return null;
     final before = _decodeObject(receipt.beforeJson);
     final storedFingerprint = before['fingerprint'];
     if (storedFingerprint != command.fingerprint) {
@@ -960,11 +984,23 @@ class MatchCommandService {
         projectionMatchId: before['matchId'] as String?,
       );
     }
-    return true;
+    final after = _decodeObject(receipt.afterJson);
+    final storedProjection = after['projection'];
+    if (storedProjection is Map) {
+      return _projectionFromJson(storedProjection.cast<String, Object?>());
+    }
+    // Receipts written by the pre-projection kernel remain readable. They do
+    // not have an immutable result, so use the current committed projection
+    // only as a compatibility fallback for those legacy rows.
+    return _projection(command.matchId);
   }
 
-  Future<void> _writeReceipt(MatchCommand command) {
-    return _database
+  Future<MatchDetail> _writeReceipt(MatchCommand command) async {
+    final projection = await _projectionInTransaction(command.matchId);
+    if (projection == null) {
+      throw StateError('Command committed without a readable projection.');
+    }
+    await _database
         .into(_database.auditLogs)
         .insert(
           AuditLogsCompanion.insert(
@@ -982,11 +1018,13 @@ class MatchCommandService {
               'committed': true,
               'commandType': command.commandType,
               'matchId': command.matchId,
+              'projection': _projectionJson(projection),
             }),
             reason: const Value.absent(),
             createdAt: _now().toUtc(),
           ),
         );
+    return projection;
   }
 
   Future<void> _writeAudit({
@@ -1075,6 +1113,28 @@ class MatchCommandService {
     return _repository.getMatchDetail(matchId);
   }
 
+  Future<MatchDetail?> _projectionInTransaction(String matchId) async {
+    final match = await _matchRow(matchId);
+    if (match == null) return null;
+    final events =
+        await (_database.select(_database.matchEvents)
+              ..where((event) => event.matchId.equals(matchId))
+              ..orderBy([(event) => OrderingTerm.asc(event.occurredAt)]))
+            .get();
+    final locations = await (_database.select(
+      _database.shotLocations,
+    )..where((location) => location.matchId.equals(matchId))).get();
+    final participants = await (_database.select(
+      _database.matchParticipants,
+    )..where((participant) => participant.matchId.equals(matchId))).get();
+    return MatchRepository.buildDetail(
+      match,
+      events,
+      locations,
+      participantRows: participants,
+    );
+  }
+
   Future<void> _inject(MatchCommandFailurePoint point) async {
     await _failureInjector?.call(point);
     await _failureHook?.call();
@@ -1116,13 +1176,17 @@ class MatchCommandService {
         message: 'Match-clock positions cannot be negative.',
       );
     }
+    if (command.type == EventKind.score &&
+        command.outcome != null &&
+        command.outcome != ShotOutcome.made) {
+      throw CommandValidationFailure(
+        command: command,
+        message: 'Score events must have a made outcome.',
+        projectionMatchId: command.matchId,
+      );
+    }
     if (command.shotLocation != null) {
-      const locationEventTypes = <EventKind>{
-        EventKind.score,
-        EventKind.fieldGoal,
-        EventKind.miss,
-      };
-      if (!locationEventTypes.contains(command.type)) {
+      if (command.type != EventKind.fieldGoal) {
         throw CommandValidationFailure(
           command: command,
           message: 'Shot locations require a field-goal event.',
@@ -1240,6 +1304,168 @@ class MatchCommandService {
       };
 }
 
+Map<String, Object?> _projectionJson(MatchDetail detail) {
+  return <String, Object?>{
+    'match': <String, Object?>{
+      'id': detail.match.id,
+      'createdAt': detail.match.createdAt.toUtc().toIso8601String(),
+      'startedAt': detail.match.startedAt?.toUtc().toIso8601String(),
+      'endedAt': detail.match.endedAt?.toUtc().toIso8601String(),
+      'lifecycle': detail.match.lifecycle.name,
+      'recordingMode': detail.match.recordingMode.name,
+      'trackingCoverage': detail.match.trackingCoverage.name,
+      'timerEnabled': detail.match.timerEnabled,
+      'note': detail.match.note,
+      'ruleTemplate': _ruleTemplateJson(detail.match.ruleTemplateSnapshot),
+      'participants': [
+        for (final participant in detail.match.participants)
+          <String, Object?>{
+            'id': participant.id,
+            'matchId': participant.matchId,
+            'side': participant.side.name,
+            'nameSnapshot': participant.nameSnapshot,
+            'playerProfileId': participant.playerProfileId,
+          },
+      ],
+    },
+    'events': detail.events
+        .map(MatchCommandService._eventJsonFromEvent)
+        .toList(),
+    'shotLocations': [
+      for (final location in detail.shotLocations)
+        <String, Object?>{
+          'id': location.id,
+          'matchId': location.matchId,
+          'eventId': location.eventId,
+          'x': location.point.x,
+          'y': location.point.y,
+          'isConfirmed': location.isConfirmed,
+        },
+    ],
+    'redScore': detail.redScore,
+    'blueScore': detail.blueScore,
+    'redFouls': detail.redFouls,
+    'blueFouls': detail.blueFouls,
+    'shotAttemptCount': detail.shotAttemptCount,
+    'locatedShotCount': detail.locatedShotCount,
+  };
+}
+
+MatchDetail _projectionFromJson(Map<String, Object?> json) {
+  final matchJson = (json['match'] as Map).cast<String, Object?>();
+  final participantJson =
+      (matchJson['participants'] as List<Object?>?) ?? const <Object?>[];
+  final participants = participantJson
+      .map((raw) {
+        final value = (raw as Map).cast<String, Object?>();
+        return domain_match.MatchParticipant(
+          id: value['id'] as String,
+          matchId: value['matchId'] as String,
+          side: TeamSide.values.byName(value['side'] as String),
+          nameSnapshot: value['nameSnapshot'] as String,
+          playerProfileId: value['playerProfileId'] as String?,
+        );
+      })
+      .toList(growable: false);
+  final ruleJson = (matchJson['ruleTemplate'] as Map).cast<String, Object?>();
+  final match = domain_match.Match(
+    id: matchJson['id'] as String,
+    createdAt: DateTime.parse(matchJson['createdAt'] as String).toUtc(),
+    startedAt: _dateFromJson(matchJson['startedAt']),
+    endedAt: _dateFromJson(matchJson['endedAt']),
+    lifecycle: MatchLifecycle.values.byName(matchJson['lifecycle'] as String),
+    participants: participants,
+    recordingMode: RecordingMode.values.byName(
+      matchJson['recordingMode'] as String,
+    ),
+    trackingCoverage: TrackingCoverage.values.byName(
+      matchJson['trackingCoverage'] as String,
+    ),
+    ruleTemplateSnapshot: _ruleTemplateFromMap(ruleJson),
+    timerEnabled: matchJson['timerEnabled'] as bool? ?? false,
+    note: matchJson['note'] as String?,
+  );
+
+  final eventJson = (json['events'] as List<Object?>?) ?? const <Object?>[];
+  final events = eventJson
+      .map((raw) {
+        final value = (raw as Map).cast<String, Object?>();
+        return MatchEvent(
+          id: value['id'] as String,
+          matchId: value['matchId'] as String,
+          type: EventKind.values.byName(value['type'] as String),
+          side: value['side'] == null
+              ? null
+              : TeamSide.values.byName(value['side'] as String),
+          points: (value['points'] as num).toInt(),
+          occurredAt: DateTime.parse(value['occurredAt'] as String).toUtc(),
+          note: value['note'] as String?,
+          customLabel: value['customLabel'] as String?,
+          outcome: value['outcome'] == null
+              ? null
+              : ShotOutcome.values.byName(value['outcome'] as String),
+          matchClockPositionSeconds:
+              (value['matchClockPositionSeconds'] as num?)?.toInt(),
+          isDeleted: value['isDeleted'] as bool? ?? false,
+        );
+      })
+      .toList(growable: false);
+
+  final locationJson =
+      (json['shotLocations'] as List<Object?>?) ?? const <Object?>[];
+  final locations = locationJson
+      .map((raw) {
+        final value = (raw as Map).cast<String, Object?>();
+        return domain.ShotLocation(
+          id: value['id'] as String,
+          matchId: value['matchId'] as String,
+          eventId: value['eventId'] as String,
+          point: CourtPoint(
+            x: (value['x'] as num).toDouble(),
+            y: (value['y'] as num).toDouble(),
+          ),
+          isConfirmed: value['isConfirmed'] as bool,
+        );
+      })
+      .toList(growable: false);
+
+  return MatchDetail(
+    match: match,
+    events: List.unmodifiable(events),
+    shotLocations: List.unmodifiable(locations),
+    redScore: (json['redScore'] as num).toInt(),
+    blueScore: (json['blueScore'] as num).toInt(),
+    redFouls: (json['redFouls'] as num).toInt(),
+    blueFouls: (json['blueFouls'] as num).toInt(),
+    shotAttemptCount: (json['shotAttemptCount'] as num).toInt(),
+    locatedShotCount: (json['locatedShotCount'] as num).toInt(),
+  );
+}
+
+DateTime? _dateFromJson(Object? value) {
+  return value == null ? null : DateTime.parse(value as String).toUtc();
+}
+
+RuleTemplate _ruleTemplateFromMap(Map<String, Object?> json) {
+  return RuleTemplate(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    scoreButtons: ((json['scoreButtons'] as List<Object?>?) ?? const [])
+        .map((value) => (value as num).toInt())
+        .toList(growable: false),
+    targetScore: (json['targetScore'] as num?)?.toInt(),
+    timeLimitSeconds: (json['timeLimitSeconds'] as num?)?.toInt(),
+    winByTwo: json['winByTwo'] as bool? ?? false,
+    foulLimit: (json['foulLimit'] as num?)?.toInt(),
+    possessionHintEnabled: json['possessionHintEnabled'] as bool? ?? false,
+    possessionPolicy: json['possessionPolicy'] == null
+        ? PossessionPolicy.manual
+        : PossessionPolicy.values.byName(json['possessionPolicy'] as String),
+    customEventTypes: ((json['customEventTypes'] as List<Object?>?) ?? const [])
+        .cast<String>(),
+  );
+}
+
 class _UnknownCommand extends MatchCommand {
   _UnknownCommand(String commandId) : super(commandId: commandId);
 
@@ -1272,6 +1498,21 @@ Map<String, Object?> _ruleTemplateJson(RuleTemplate template) =>
       'possessionPolicy': template.possessionPolicy.name,
       'customEventTypes': template.customEventTypes,
     };
+
+RuleTemplate _copyRuleTemplate(RuleTemplate template) {
+  return RuleTemplate(
+    id: template.id,
+    name: template.name,
+    scoreButtons: List.unmodifiable(template.scoreButtons),
+    targetScore: template.targetScore,
+    timeLimitSeconds: template.timeLimitSeconds,
+    winByTwo: template.winByTwo,
+    foulLimit: template.foulLimit,
+    possessionHintEnabled: template.possessionHintEnabled,
+    possessionPolicy: template.possessionPolicy,
+    customEventTypes: List.unmodifiable(template.customEventTypes),
+  );
+}
 
 String _fingerprint(Map<String, Object?> payload) =>
     sha256.convert(utf8.encode(jsonEncode(payload))).toString();

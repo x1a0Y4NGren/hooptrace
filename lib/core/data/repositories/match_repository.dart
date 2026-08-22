@@ -382,7 +382,7 @@ class MatchRepository {
       final locationRows = await locationQuery.get();
       final participantRows = await participantQuery.get();
 
-      return _buildDetail(
+      return buildDetail(
         matchRow,
         eventRows,
         locationRows,
@@ -532,7 +532,12 @@ class MatchRepository {
     );
   }
 
-  static MatchDetail _buildDetail(
+  /// Builds a committed projection from rows that were read by the caller.
+  ///
+  /// Command handlers use this inside their transaction so a receipt can
+  /// retain the exact projection produced by that commit without opening a
+  /// nested transaction or observing a later state.
+  static MatchDetail buildDetail(
     Matche matchRow,
     List<MatchEventRow> eventRows,
     List<ShotLocation> locationRows, {
@@ -548,6 +553,7 @@ class MatchRepository {
         .where(
           (event) =>
               event.type == MatchEventType.score ||
+              event.type == MatchEventType.fieldGoal ||
               event.type == MatchEventType.miss,
         )
         .map((event) => event.id)
