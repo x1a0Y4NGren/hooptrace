@@ -143,15 +143,30 @@ class ScoringController extends ChangeNotifier {
   final RuleEngine _ruleEngine = RuleEngine();
   MatchScoringState _state;
   bool _commandBusy = false;
+  bool _disposed = false;
 
   MatchScoringState get state => _state;
 
   bool get isCommandBacked => _commandService != null;
 
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    super.dispose();
+  }
+
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   Future<bool> recordScoreCommitted({
     required TeamSide side,
     required int points,
   }) async {
+    if (_disposed) return false;
     final service = _commandService;
     if (service == null) {
       return addScore(side: side, points: points);
@@ -170,6 +185,7 @@ class ScoringController extends ChangeNotifier {
     );
     try {
       final projection = await service.record(command);
+      if (_disposed) return false;
       _replaceFromProjection(
         projection,
         pendingLocation: _pendingForRecord(command),
@@ -182,6 +198,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> recordFoulCommitted(TeamSide side) async {
+    if (_disposed) return false;
     final service = _commandService;
     if (service == null) {
       if (_state.pendingLocation != null) return false;
@@ -200,6 +217,7 @@ class ScoringController extends ChangeNotifier {
           occurredAt: DateTime.now().toUtc(),
         ),
       );
+      if (_disposed) return false;
       _replaceFromProjection(projection);
       notifyListeners();
       return true;
@@ -209,6 +227,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<void> undoLastEventCommitted() async {
+    if (_disposed) return;
     final service = _commandService;
     if (service == null) {
       undoLastEvent();
@@ -224,6 +243,7 @@ class ScoringController extends ChangeNotifier {
           reason: 'Scoring UI undo',
         ),
       );
+      if (_disposed) return;
       _replaceFromProjection(projection);
       notifyListeners();
     } finally {
@@ -232,6 +252,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   bool addScore({required TeamSide side, required int points}) {
+    if (_disposed) return false;
     if (isCommandBacked) {
       unawaited(recordScoreCommitted(side: side, points: points));
       return true;
@@ -271,6 +292,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   void updatePendingLocation(CourtPoint point) {
+    if (_disposed) return;
     final pending = _state.pendingLocation;
     if (pending == null) {
       return;
@@ -280,6 +302,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<void> confirmPendingLocation([CourtPoint? point]) async {
+    if (_disposed) return;
     final pending = _state.pendingLocation;
     if (pending == null) {
       return;
@@ -297,6 +320,7 @@ class ScoringController extends ChangeNotifier {
             point: confirmedPoint,
           ),
         );
+        if (_disposed) return;
         _replaceFromProjection(projection);
         notifyListeners();
       } finally {
@@ -323,10 +347,11 @@ class ScoringController extends ChangeNotifier {
   /// failure. The original command object is retained by the failure, so a
   /// retry cannot accidentally allocate a second event or receipt.
   Future<void> retryCommand(MatchCommandFailure failure) async {
-    if (_commandBusy) return;
+    if (_disposed || _commandBusy) return;
     _commandBusy = true;
     try {
       final projection = await failure.retry();
+      if (_disposed) return;
       final command = failure.command;
       _replaceFromProjection(
         projection,
@@ -341,7 +366,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   bool skipPendingLocation() {
-    if (_state.pendingLocation == null || _commandBusy) {
+    if (_disposed || _state.pendingLocation == null || _commandBusy) {
       return false;
     }
     _state = _state.copyWith(clearPendingLocation: true);
@@ -350,7 +375,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   void undoLastEvent() {
-    if (_state.events.isEmpty) {
+    if (_disposed || _state.events.isEmpty) {
       return;
     }
     final lastEvent = _state.events.last;
@@ -372,6 +397,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   void addFoul(TeamSide side) {
+    if (_disposed) return;
     if (isCommandBacked) {
       unawaited(recordFoulCommitted(side));
       return;
@@ -456,6 +482,7 @@ class ScoringController extends ChangeNotifier {
     MatchDetail projection, {
     PendingShotLocation? pendingLocation,
   }) {
+    if (_disposed) return;
     _state = _stateFromProjection(projection);
     if (pendingLocation != null) {
       _state = _state.copyWith(pendingLocation: pendingLocation);
@@ -466,6 +493,7 @@ class ScoringController extends ChangeNotifier {
   /// the reactive composition root. This intentionally does not issue a
   /// command or retain any database rows in memory.
   void replaceCommittedProjection(MatchDetail projection) {
+    if (_disposed) return;
     final pending = _state.pendingLocation;
     _replaceFromProjection(projection, pendingLocation: pending);
     notifyListeners();

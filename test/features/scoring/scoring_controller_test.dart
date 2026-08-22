@@ -319,6 +319,151 @@ void main() {
       });
     },
   );
+
+  test(
+    'committed score completing after dispose commits but does not touch controller',
+    () async {
+      await withTestDatabase((database) async {
+        final startService = MatchCommandService(database);
+        final start = await _startCommandBackedMatch(startService);
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        final service = MatchCommandService(
+          database,
+          failureInjector: (point) async {
+            if (point == MatchCommandFailurePoint.beforeCommit) {
+              entered.complete();
+              await release.future;
+            }
+          },
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        var notifications = 0;
+        controller.addListener(() => notifications++);
+
+        final command = controller.recordScoreCommitted(
+          side: TeamSide.red,
+          points: 2,
+        );
+        await entered.future;
+        controller.dispose();
+        release.complete();
+
+        await command;
+        expect(
+          await (database.select(
+            database.matchEvents,
+          )..where((row) => row.matchId.equals(start.match.id))).get(),
+          hasLength(1),
+        );
+        expect(notifications, 0);
+      });
+    },
+  );
+
+  test(
+    'foul, undo, and confirmation completing after dispose do not notify',
+    () async {
+      await withTestDatabase((database) async {
+        final startService = MatchCommandService(database);
+        final start = await _startCommandBackedMatch(startService);
+
+        final foulEntered = Completer<void>();
+        final foulRelease = Completer<void>();
+        final foulService = MatchCommandService(
+          database,
+          failureInjector: (point) async {
+            if (point == MatchCommandFailurePoint.beforeCommit) {
+              foulEntered.complete();
+              await foulRelease.future;
+            }
+          },
+        );
+        final foulController = ScoringController.fromCommittedProjection(
+          start,
+          foulService,
+        );
+        final foulCommand = foulController.recordFoulCommitted(TeamSide.red);
+        await foulEntered.future;
+        foulController.dispose();
+        foulRelease.complete();
+        await foulCommand;
+
+        final scoreProjection = await startService.record(
+          RecordMatchEventCommand(
+            matchId: start.match.id,
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: DateTime.now().toUtc(),
+          ),
+        );
+
+        final undoEntered = Completer<void>();
+        final undoRelease = Completer<void>();
+        final undoService = MatchCommandService(
+          database,
+          failureInjector: (point) async {
+            if (point == MatchCommandFailurePoint.beforeCommit) {
+              undoEntered.complete();
+              await undoRelease.future;
+            }
+          },
+        );
+        final undoController = ScoringController.fromCommittedProjection(
+          scoreProjection,
+          undoService,
+        );
+        final undoCommand = undoController.undoLastEventCommitted();
+        await undoEntered.future;
+        undoController.dispose();
+        undoRelease.complete();
+        await undoCommand;
+
+        final confirmEntered = Completer<void>();
+        final confirmRelease = Completer<void>();
+        var beforeCommitCalls = 0;
+        final confirmService = MatchCommandService(
+          database,
+          failureInjector: (point) async {
+            if (point == MatchCommandFailurePoint.beforeCommit &&
+                ++beforeCommitCalls == 2) {
+              confirmEntered.complete();
+              await confirmRelease.future;
+            }
+          },
+        );
+        final confirmController = ScoringController.fromCommittedProjection(
+          scoreProjection,
+          confirmService,
+        );
+        await confirmController.recordScoreCommitted(
+          side: TeamSide.blue,
+          points: 3,
+        );
+        final confirmCommand = confirmController.confirmPendingLocation();
+        await confirmEntered.future;
+        confirmController.dispose();
+        confirmRelease.complete();
+        await confirmCommand;
+
+        expect(
+          await (database.select(
+            database.matchEvents,
+          )..where((row) => row.matchId.equals(start.match.id))).get(),
+          hasLength(3),
+        );
+        expect(
+          await database.select(database.shotLocations).get(),
+          hasLength(1),
+        );
+      });
+    },
+  );
 }
 
 Future<MatchDetail> _startCommandBackedMatch(MatchCommandService service) {
