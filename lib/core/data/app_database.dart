@@ -249,7 +249,17 @@ class AppSettings extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
-  AppDatabase.inMemory() : super(NativeDatabase.memory());
+  /// In-memory fixtures are predominantly used by Flutter tests. Closing
+  /// query streams synchronously keeps provider/container rebuild assertions
+  /// deterministic while production databases retain Drift's normal one-turn
+  /// stream cache.
+  AppDatabase.inMemory()
+    : super(
+        DatabaseConnection(
+          NativeDatabase.memory(),
+          closeStreamsSynchronously: true,
+        ),
+      );
 
   /// Used by tests and bootstrap code to explicitly check an opened executor.
   Future<void> assertCompatible() async {

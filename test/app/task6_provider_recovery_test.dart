@@ -161,7 +161,7 @@ void main() {
   ) async {
     final database = createTestDatabase();
     _closeDatabaseAfterWidgetTest(tester, database);
-    final now = DateTime.utc(2026, 8, 23, 12);
+    final now = DateTime.now().toUtc();
     final commandService = MatchCommandService(database);
     await commandService.start(
       StartMatchCommand(
@@ -253,7 +253,11 @@ Future<void> _eventually(bool Function() predicate) async {
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
   for (var attempt = 0; attempt < 100; attempt++) {
     await tester.pump(const Duration(milliseconds: 20));
-    if (finder.evaluate().isNotEmpty) return;
+    if (finder.evaluate().isNotEmpty) {
+      // Let the bounded go_router transition finish before the next tap.
+      await tester.pump(const Duration(milliseconds: 300));
+      return;
+    }
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 5)),
     );

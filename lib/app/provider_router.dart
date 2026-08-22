@@ -534,7 +534,9 @@ Future<void> _leaveScoring(
     }
   }
   if ((action == 'keep' || action == 'pause') && context.mounted) {
-    context.pop();
+    // Scoring is entered with `go`, so there may be no back-stack entry to
+    // pop. Leaving must return to the durable home projection explicitly.
+    context.go('/');
   }
 }
 
