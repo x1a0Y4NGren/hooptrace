@@ -56,7 +56,7 @@ flutter test test/core/data/schema_v2_fix_round1_test.dart test/core/data/match_
 # 26 tests passed
 
 flutter test --reporter expanded
-# 136 tests passed, 0 failures
+# 136 tests passed at the fix-round-1 checkpoint; superseded by the fresh fix-round-2 count below
 
 flutter analyze
 # No issues found! (ran in 8.2s)
@@ -78,7 +78,49 @@ git status --short
 
 The native test creates a real temporary SQLite file with `PRAGMA user_version = 1` and a sentinel row, verifies the typed rejection before Drift opens, and verifies both the pragma and sentinel remain unchanged. The app's production `openAppDatabase()` now uses the same raw setup probe against `getApplicationDocumentsDirectory()/hooptrace.sqlite`.
 
-The final vocabulary hardening was also TDD-driven: the new invalid EventKind/side/free-throw/outcome assertions first failed because three database writes were accepted, then passed after the `MatchEvents` CHECK constraints were added. The fix-round test file now has 9 passing tests; the expanded suite has 136 passing tests.
+The final vocabulary hardening was also TDD-driven: the new invalid EventKind/side/free-throw/outcome assertions first failed because three database writes were accepted, then passed after the `MatchEvents` CHECK constraints were added. The fix-round test file had 9 passing tests at that checkpoint; the fresh fix-round-2 targeted and expanded counts are recorded below.
+
+## Fix round 2 evidence
+
+The scoped re-review follow-up was completed in small commits:
+
+- `5b3f05d fix: validate v2 backup graphs and shot outcomes` — pre-transaction graph validation and legal/illegal shot combinations.
+- `cf3bd2d test: verify official v2 schema snapshot` — official `GeneratedHelper` plus `SchemaVerifier` runtime validation test.
+- `aa9c1a4 chore: refresh generated v2 schema baseline` — refreshed official schema dump/helper after constraint changes.
+- `6a284ba test: reject non-shot outcomes for shots` — explicit domain policy for shot outcomes versus custom `notApplicable`.
+- `b60a5ec chore: clear codec analyzer import` — final analyzer cleanup.
+
+RED evidence was captured before each behavior implementation. The backup RED run accepted a missing participant and an active session pointing at a finished match; the shot RED run rejected legal missed free throws, accepted field-goal events without an outcome, and rejected the corresponding domain combinations. The official schema verifier test then passed against the generated v2 helper.
+
+Fresh final verification:
+
+```text
+flutter test test/core/domain/domain_entities_test.dart test/core/data/schema_v2_test.dart test/core/data/schema_v2_fix_round1_test.dart test/core/export/json_backup_codec_test.dart --reporter expanded
+# 32 tests passed
+
+flutter test --reporter expanded
+# 142 tests passed, 0 failures
+
+flutter analyze
+# No issues found! (ran in 8.2s)
+
+dart run build_runner build --delete-conflicting-outputs
+# completed with no tracked generated diff
+
+dart run drift_dev schema dump lib/core/data/app_database.dart drift_schemas/drift_schema_v2.json
+dart run drift_dev schema generate drift_schemas/ test/generated_migrations/
+# completed with no tracked schema/helper diff
+
+dart format --output=none --set-exit-if-changed lib test
+# FORMAT_EXIT=0
+
+git diff --check
+# clean
+git status --short
+# clean
+```
+
+The backup codec now requires exactly one red and one blue participant for every match, validates profile references, enforces one clock per match, validates active-session lifecycle ownership, and checks possession source plus event/match consistency before opening the replacement transaction. Shot domain/SQL rules allow missed free throws (`points = 0`) and missed field goals, require made shots to carry positive points, and preserve `custom + notApplicable`.
 
 ## Concerns / self-review
 
