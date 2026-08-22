@@ -346,6 +346,28 @@ void main() {
     expect(row.phase, ClockPhase.regulationExpired.name);
     expect(row.runningSinceUtc, isNull);
   });
+
+  test('finishing a timed match freezes its persisted clock atomically', () async {
+    final database = createTestDatabase();
+    await MatchCommandService(database, now: () => _anchor).start(
+      _start(timerEnabled: true),
+    );
+    await MatchCommandService(
+      database,
+      now: () => _anchor.add(const Duration(seconds: 5)),
+    ).finish(
+      FinishMatchCommand(
+        commandId: 'finish-clock',
+        matchId: 'match-clock',
+        endedAt: _anchor.add(const Duration(seconds: 5)),
+      ),
+    );
+
+    final row = await database.select(database.matchClocks).getSingle();
+    expect(row.accumulatedSeconds, 5);
+    expect(row.runningSinceUtc, isNull);
+    expect(row.phase, ClockPhase.regulation.name);
+  });
 }
 
 Future<MatchCommandFailure> _captureFailure(
