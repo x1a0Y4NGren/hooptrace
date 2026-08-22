@@ -177,9 +177,13 @@ class _ScoringPageState extends State<ScoringPage> {
                       child: Align(
                         alignment: Alignment.bottomCenter,
                         child: PendingLocationBar(
-                          onConfirm: _controller.confirmPendingLocation,
+                          onConfirm: () {
+                            unawaited(_confirmPendingLocation());
+                          },
                           onSkip: _controller.skipPendingLocation,
-                          onUndo: _controller.undoLastEvent,
+                          onUndo: () {
+                            unawaited(_undoPendingEvent());
+                          },
                         ),
                       ),
                     ),
@@ -281,6 +285,30 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _commitFoul(TeamSide side) async {
     try {
       await _controller.recordFoulCommitted(side);
+    } on MatchCommandFailure catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+      }
+    }
+  }
+
+  Future<void> _confirmPendingLocation() async {
+    try {
+      await _controller.confirmPendingLocation();
+    } on MatchCommandFailure catch (failure) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(failure.message)));
+      }
+    }
+  }
+
+  Future<void> _undoPendingEvent() async {
+    try {
+      await _controller.undoLastEventCommitted();
     } on MatchCommandFailure catch (failure) {
       if (mounted) {
         ScaffoldMessenger.of(

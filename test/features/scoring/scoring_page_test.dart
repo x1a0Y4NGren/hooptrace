@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
@@ -7,6 +10,8 @@ import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
+
+import '../../test_helpers/test_database.dart';
 
 void main() {
   testWidgets('scoring page shows court-first landscape controls', (
@@ -213,5 +218,51 @@ void main() {
 
     expect(openCount, 1);
     expect(find.text(scoringResolvePendingText), findsOneWidget);
+  });
+
+  testWidgets('command-backed pending undo awaits soft-delete command', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final command = StartMatchCommand(
+        commandId: 'page-undo-start-command',
+        matchId: 'page-undo-match',
+        redName: 'Red',
+        blueName: 'Blue',
+        ruleTemplate: const RuleTemplate(
+          id: 'free',
+          name: 'Free',
+          scoreButtons: [1, 2, 3],
+        ),
+        createdAt: DateTime.utc(2026, 8, 23, 9),
+        startedAt: DateTime.utc(2026, 8, 23, 9),
+      );
+      final projection = await service.start(command);
+      final controller = ScoringController.fromCommittedProjection(
+        projection,
+        service,
+      );
+
+      await tester.pumpWidget(MaterialApp(home: ScoringPage(controller: controller)));
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      await tester.pump();
+      expect(find.text(undoText), findsOneWidget);
+
+      await tester.tap(find.text(undoText));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+
+      final event = await database.select(database.matchEvents).getSingle();
+      expect(event.isDeleted, isTrue);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    });
   });
 }
