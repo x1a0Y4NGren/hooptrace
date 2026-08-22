@@ -2346,9 +2346,14 @@ MatchDetail _projectionFromJson(Map<String, Object?> json) {
   final clockJson = json['clock'];
   if (clockJson is Map) {
     final value = clockJson.cast<String, Object?>();
-    final legacyState = _clockStateFromJson(value);
     final stateJson = value['state'];
     final normalizedJson = value['normalizedState'];
+    final fallbackStateJson = stateJson is Map
+        ? stateJson.cast<String, Object?>()
+        : normalizedJson is Map
+        ? normalizedJson.cast<String, Object?>()
+        : value;
+    final legacyState = _clockStateFromJson(fallbackStateJson);
     final state = stateJson is Map
         ? _clockStateFromJson(stateJson.cast<String, Object?>())
         : legacyState;
