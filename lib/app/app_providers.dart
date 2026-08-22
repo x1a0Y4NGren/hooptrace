@@ -71,6 +71,8 @@ final databaseBootstrapProvider = FutureProvider<DatabaseBootstrapState>((
   }
 });
 
+typedef AppStartupTask = Future<void> Function();
+
 extension AsyncValueNullable<ValueT> on AsyncValue<ValueT> {
   ValueT? get valueOrNull => value;
 }
@@ -89,10 +91,7 @@ final ruleTemplateRepositoryProvider = Provider<RuleTemplateRepository>(
 
 final ruleTemplatesProvider = StreamProvider<List<RuleTemplate>>((ref) {
   final repository = ref.watch(ruleTemplateRepositoryProvider);
-  return (() async* {
-    await repository.ensureBuiltIns();
-    yield* repository.watchAll();
-  })();
+  return repository.watchAll();
 });
 
 final clockEngineProvider = Provider<ClockEngine>((ref) => const ClockEngine());
@@ -118,6 +117,41 @@ final automaticBackupServiceProvider = Provider<AutomaticBackupService>((ref) {
     ref.watch(backupCodecProvider),
     storage: ref.watch(backupStorageProvider),
   );
+});
+
+/// Startup tasks are function providers instead of hard-coded calls so a
+/// provider container can verify ordering/counts without touching a user's
+/// backup directory. The production functions still delegate to the real
+/// repository/service instances owned by this composition root.
+final startupEnsureBuiltInsProvider = Provider<AppStartupTask>((ref) {
+  final repository = ref.watch(ruleTemplateRepositoryProvider);
+  return repository.ensureBuiltIns;
+});
+
+final startupAutomaticBackupProvider = Provider<AppStartupTask>((ref) {
+  final automaticBackup = ref.watch(automaticBackupServiceProvider);
+  return () async {
+    await automaticBackup.runIfEnabled();
+  };
+});
+
+/// Compatibility errors remain visible to the bootstrap screen. Only the
+/// optional automatic backup task is best-effort: a moved/unavailable backup
+/// directory must not prevent the local app from opening.
+final databaseStartupProvider = FutureProvider<DatabaseBootstrapState>((
+  ref,
+) async {
+  final bootstrap = await ref.watch(databaseBootstrapProvider.future);
+  if (!bootstrap.isReady) return bootstrap;
+
+  await ref.watch(startupEnsureBuiltInsProvider)();
+  try {
+    await ref.watch(startupAutomaticBackupProvider)();
+  } on Object {
+    // Automatic backup is an auxiliary startup task. Its next explicit or
+    // scheduled run can retry after the directory is repaired.
+  }
+  return bootstrap;
 });
 
 final exportGatewayProvider = Provider<ExportGateway>((ref) {
@@ -199,7 +233,7 @@ final settingsControllerProvider = Provider.autoDispose<SettingsController>((
   ref,
 ) {
   final activeState = ref.watch(activeMatchProvider);
-  final canRestore = activeState.hasValue && activeState.valueOrNull == null;
+  final canRestore = canRestoreBackupFor(activeState);
   final controller = SettingsController(
     exports: ref.watch(exportCoordinatorProvider),
     automaticBackup: ref.watch(automaticBackupServiceProvider),
@@ -208,3 +242,13 @@ final settingsControllerProvider = Provider.autoDispose<SettingsController>((
   ref.onDispose(controller.dispose);
   return controller;
 });
+
+/// Restore is safe only after the active-match query has settled successfully
+/// to a genuine null. Riverpod may retain a previous value while refreshing,
+/// so loading/error flags must be checked before inspecting [valueOrNull].
+bool canRestoreBackupFor(AsyncValue<MatchDetail?> activeState) {
+  return !activeState.isLoading &&
+      !activeState.hasError &&
+      activeState.hasValue &&
+      activeState.valueOrNull == null;
+}

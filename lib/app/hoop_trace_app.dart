@@ -32,7 +32,7 @@ class _HoopTraceAppView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bootstrap = ref.watch(databaseBootstrapProvider);
+    final bootstrap = ref.watch(databaseStartupProvider);
     return bootstrap.when(
       loading: () => _buildMaterialApp(home: const _BootstrapLoadingPage()),
       error: (error, stackTrace) =>
