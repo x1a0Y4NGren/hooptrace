@@ -10,7 +10,7 @@ class PregameSetupValidationException implements Exception {
 
   @override
   String toString() {
-    return 'PregameSetupValidationException: ${result.errors.map(pregameValidationErrorText).join(' ')}';
+    return 'PregameSetupValidationException: ${result.errors.map(pregameValidationErrorMessage).join(' ')}';
   }
 }
 

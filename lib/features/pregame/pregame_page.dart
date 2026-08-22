@@ -25,6 +25,12 @@ const pregameTemporaryParticipantText = '临时姓名（未关联档案）';
 
 const _temporaryProfileId = '__temporary_profile__';
 
+/// Kept as a page-level compatibility helper for route consumers; the
+/// canonical human-readable validation vocabulary lives in the controller.
+String pregameValidationErrorText(PregameValidationError error) {
+  return pregameValidationErrorMessage(error);
+}
+
 class PregamePage extends StatefulWidget {
   const PregamePage({
     this.onStartMatch,

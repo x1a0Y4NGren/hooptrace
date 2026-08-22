@@ -19,7 +19,7 @@ enum PregameValidationError {
   invalidCountdownDuration,
 }
 
-String pregameValidationErrorText(PregameValidationError error) {
+String pregameValidationErrorMessage(PregameValidationError error) {
   return switch (error) {
     PregameValidationError.redParticipantRequired => '请输入红方姓名。',
     PregameValidationError.blueParticipantRequired => '请输入蓝方姓名。',
