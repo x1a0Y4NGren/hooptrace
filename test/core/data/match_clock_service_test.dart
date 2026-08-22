@@ -400,6 +400,40 @@ void main() {
   );
 
   test(
+    'concurrent rollback reads create one deterministic recovery event and audit',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final rollbackAt = _anchor.subtract(const Duration(seconds: 2));
+      await Future.wait([
+        MatchCommandService(
+          database,
+          now: () => rollbackAt,
+        ).readClock('match-clock'),
+        MatchCommandService(
+          database,
+          now: () => rollbackAt,
+        ).readClock('match-clock'),
+      ]);
+      expect(
+        (await database.select(database.matchEvents).get()).where(
+          (event) => event.customLabel == 'pause',
+        ),
+        hasLength(1),
+      );
+      expect(
+        (await database.select(database.auditLogs).get()).where(
+          (row) => row.reason == 'clock-recovery',
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
     'record at the exact countdown boundary commits expiry before rejecting input',
     () async {
       final database = createTestDatabase();
