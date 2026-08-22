@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
+import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 import '../../test_helpers/test_database.dart';
@@ -9,211 +10,251 @@ import '../../test_helpers/test_database.dart';
 final _anchor = DateTime.utc(2026, 8, 23, 10);
 
 void main() {
-  test('reconstructed command services derive the same persisted running clock', () async {
-    final database = createTestDatabase();
-    await MatchCommandService(
-      database,
-      now: () => _anchor,
-    ).start(_start(timerEnabled: true));
+  test(
+    'reconstructed command services derive the same persisted running clock',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
 
-    final later = _anchor.add(const Duration(seconds: 15));
-    final first = await MatchCommandService(
-      database,
-      now: () => later,
-    ).readClock('match-clock');
-    final rebuilt = await MatchCommandService(
-      database,
-      now: () => later,
-    ).readClock('match-clock');
+      final later = _anchor.add(const Duration(seconds: 15));
+      final first = await MatchCommandService(
+        database,
+        now: () => later,
+      ).readClock('match-clock');
+      final rebuilt = await MatchCommandService(
+        database,
+        now: () => later,
+      ).readClock('match-clock');
 
-    expect(first?.displaySeconds, 15);
-    expect(rebuilt?.displaySeconds, 15);
-    expect(
-      (await database.select(database.matchClocks).getSingle()).accumulatedSeconds,
-      0,
-    );
-  });
+      expect(first?.displaySeconds, 15);
+      expect(rebuilt?.displaySeconds, 15);
+      expect(
+        (await database.select(database.matchClocks).getSingle())
+            .accumulatedSeconds,
+        0,
+      );
+    },
+  );
 
-  test('pause and resume atomically persist anchors and semantic audit rows', () async {
-    final database = createTestDatabase();
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(timerEnabled: true),
-    );
-    final pausedAt = _anchor.add(const Duration(seconds: 9));
-    final service = MatchCommandService(database, now: () => pausedAt);
+  test(
+    'pause and resume atomically persist anchors and semantic audit rows',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final pausedAt = _anchor.add(const Duration(seconds: 9));
+      final service = MatchCommandService(database, now: () => pausedAt);
 
-    final paused = await service.pause(
-      PauseMatchCommand(
-        commandId: 'clock-pause',
-        matchId: 'match-clock',
-        occurredAt: pausedAt,
-      ),
-    );
-    var row = await database.select(database.matchClocks).getSingle();
-    expect(row.accumulatedSeconds, 9);
-    expect(row.runningSinceUtc, isNull);
-    expect(paused.clock?.displaySeconds, 9);
+      final paused = await service.pause(
+        PauseMatchCommand(
+          commandId: 'clock-pause',
+          matchId: 'match-clock',
+          occurredAt: pausedAt,
+        ),
+      );
+      var row = await database.select(database.matchClocks).getSingle();
+      expect(row.accumulatedSeconds, 9);
+      expect(row.runningSinceUtc, isNull);
+      expect(paused.clock?.displaySeconds, 9);
 
-    final resumedAt = pausedAt.add(const Duration(seconds: 20));
-    final resumed = await MatchCommandService(database, now: () => resumedAt).resume(
-      ResumeMatchCommand(
-        commandId: 'clock-resume',
-        matchId: 'match-clock',
-        occurredAt: resumedAt,
-      ),
-    );
-    row = await database.select(database.matchClocks).getSingle();
-    expect(row.accumulatedSeconds, 9);
-    expect(row.runningSinceUtc?.toUtc(), resumedAt);
-    expect(resumed.clock?.displaySeconds, 9);
+      final resumedAt = pausedAt.add(const Duration(seconds: 20));
+      final resumed = await MatchCommandService(database, now: () => resumedAt)
+          .resume(
+            ResumeMatchCommand(
+              commandId: 'clock-resume',
+              matchId: 'match-clock',
+              occurredAt: resumedAt,
+            ),
+          );
+      row = await database.select(database.matchClocks).getSingle();
+      expect(row.accumulatedSeconds, 9);
+      expect(row.runningSinceUtc?.toUtc(), resumedAt);
+      expect(resumed.clock?.displaySeconds, 9);
 
-    final audits = await database.select(database.auditLogs).get();
-    expect(audits.where((row) => row.action == 'command'), hasLength(3));
-    expect(audits.where((row) => row.action == 'edit'), hasLength(2));
-  });
+      final audits = await database.select(database.auditLogs).get();
+      expect(audits.where((row) => row.action == 'command'), hasLength(3));
+      expect(audits.where((row) => row.action == 'edit'), hasLength(2));
+    },
+  );
 
-  test('backward wall-clock read pauses once and returns a recovery reason', () async {
-    final database = createTestDatabase();
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(timerEnabled: true),
-    );
+  test(
+    'backward wall-clock read pauses once and returns a recovery reason',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
 
-    final rollback = await MatchCommandService(
-      database,
-      now: () => _anchor.subtract(const Duration(seconds: 2)),
-    ).readClock('match-clock');
-    final secondRead = await MatchCommandService(
-      database,
-      now: () => _anchor.subtract(const Duration(seconds: 2)),
-    ).readClock('match-clock');
+      final rollback = await MatchCommandService(
+        database,
+        now: () => _anchor.subtract(const Duration(seconds: 2)),
+      ).readClock('match-clock');
+      final secondRead = await MatchCommandService(
+        database,
+        now: () => _anchor.subtract(const Duration(seconds: 2)),
+      ).readClock('match-clock');
 
-    expect(rollback?.recoveryReason, ClockRecoveryReason.wallClockMovedBackward);
-    expect(rollback?.displaySeconds, 0);
-    expect(secondRead?.recoveryReason, isNull);
-    expect((await database.select(database.matchClocks).getSingle()).runningSinceUtc, isNull);
-  });
+      expect(
+        rollback?.recoveryReason,
+        ClockRecoveryReason.wallClockMovedBackward,
+      );
+      expect(rollback?.displaySeconds, 0);
+      expect(secondRead?.recoveryReason, isNull);
+      expect(
+        (await database.select(database.matchClocks).getSingle())
+            .runningSinceUtc,
+        isNull,
+      );
+    },
+  );
 
-  test('countdown expiry pauses input and continue starts overtime without auto-finishing', () async {
-    final database = createTestDatabase();
-    final service = MatchCommandService(database, now: () => _anchor);
-    await service.start(
-      _start(
-        timerEnabled: true,
-        clockMode: ClockMode.countdown,
-        regulationSeconds: 10,
-      ),
-    );
+  test(
+    'countdown expiry pauses input and continue starts overtime without auto-finishing',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          timerEnabled: true,
+          clockMode: ClockMode.countdown,
+          regulationSeconds: 10,
+        ),
+      );
 
-    final expired = await MatchCommandService(
-      database,
-      now: () => _anchor.add(const Duration(seconds: 10)),
-    ).readClock('match-clock');
-    expect(expired?.phase, ClockPhase.regulationExpired);
-    expect(expired?.displaySeconds, 0);
-
-    final continued = await MatchCommandService(
-      database,
-      now: () => _anchor.add(const Duration(seconds: 12)),
-    ).continueMatch(
-      ContinueMatchCommand(
-        commandId: 'continue-ot',
-        matchId: 'match-clock',
-        occurredAt: _anchor.add(const Duration(seconds: 12)),
-      ),
-    );
-
-    expect(continued.clock?.phase, ClockPhase.overtime);
-    expect(continued.clock?.displaySeconds, 0);
-    expect(continued.match.lifecycle, MatchLifecycle.active);
-    expect((await database.select(database.matchClocks).getSingle()).phase, 'overtime');
-  });
-
-  test('record at the exact countdown boundary commits expiry before rejecting input', () async {
-    final database = createTestDatabase();
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(
-        timerEnabled: true,
-        clockMode: ClockMode.countdown,
-        regulationSeconds: 10,
-      ),
-    );
-
-    final failure = await _captureFailure(
-      () => MatchCommandService(
+      final expired = await MatchCommandService(
         database,
         now: () => _anchor.add(const Duration(seconds: 10)),
-      ).record(_score()),
-    );
+      ).readClock('match-clock');
+      expect(expired?.phase, ClockPhase.regulationExpired);
+      expect(expired?.displaySeconds, 0);
 
-    expect(failure, isA<EndConditionFailure>());
-    final row = await database.select(database.matchClocks).getSingle();
-    expect(row.phase, ClockPhase.regulationExpired.name);
-    expect(row.runningSinceUtc, isNull);
-    expect(await database.select(database.matchEvents).get(), isEmpty);
-  });
+      final continued =
+          await MatchCommandService(
+            database,
+            now: () => _anchor.add(const Duration(seconds: 12)),
+          ).continueMatch(
+            ContinueMatchCommand(
+              commandId: 'continue-ot',
+              matchId: 'match-clock',
+              occurredAt: _anchor.add(const Duration(seconds: 12)),
+            ),
+          );
 
-  test('target acknowledgement is not repeated until the next score change', () async {
-    final database = createTestDatabase();
-    final service = MatchCommandService(database, now: () => _anchor);
-    await service.start(
-      _start(
-        ruleTemplate: const RuleTemplate(
-          id: 'target-11',
-          name: 'Target',
-          scoreButtons: [1, 2, 3],
-          targetScore: 11,
-          winByTwo: true,
+      expect(continued.clock?.phase, ClockPhase.overtime);
+      expect(continued.clock?.displaySeconds, 0);
+      expect(continued.match.lifecycle, MatchLifecycle.active);
+      expect(
+        (await database.select(database.matchClocks).getSingle()).phase,
+        'overtime',
+      );
+    },
+  );
+
+  test(
+    'record at the exact countdown boundary commits expiry before rejecting input',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(database, now: () => _anchor).start(
+        _start(
+          timerEnabled: true,
+          clockMode: ClockMode.countdown,
+          regulationSeconds: 10,
         ),
-      ),
-    );
+      );
 
-    await service.record(
-      RecordMatchEventCommand(
-        commandId: 'blue-lead',
-        matchId: 'match-clock',
-        eventId: 'blue-lead-event',
-        side: TeamSide.blue,
-        points: 10,
-        occurredAt: _anchor,
-      ),
-    );
+      final failure = await _captureFailure(
+        () => MatchCommandService(
+          database,
+          now: () => _anchor.add(const Duration(seconds: 10)),
+        ).record(_score()),
+      );
 
-    final targetCommand = _score(points: 11);
-    final target = await service.record(targetCommand);
-    expect(target.decision?.kind, MatchDecisionKind.finishOrContinue);
-    expect(target.decision?.reason, MatchDecisionReason.winByTwoRequired);
-    final targetAudits = await database.select(database.auditLogs).get();
-    expect(
-      targetAudits.any(
-        (row) => row.action == 'edit' && row.reason == 'decision-clock',
-      ),
-      isTrue,
-    );
+      expect(failure, isA<EndConditionFailure>());
+      final row = await database.select(database.matchClocks).getSingle();
+      expect(row.phase, ClockPhase.regulationExpired.name);
+      expect(row.runningSinceUtc, isNull);
+      expect(await database.select(database.matchEvents).get(), isEmpty);
+    },
+  );
 
-    final duplicateTarget = await service.record(targetCommand);
-    expect(duplicateTarget.decision?.reason, MatchDecisionReason.winByTwoRequired);
+  test(
+    'target acknowledgement is not repeated until the next score change',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'target-11',
+            name: 'Target',
+            scoreButtons: [1, 2, 3],
+            targetScore: 11,
+            winByTwo: true,
+          ),
+        ),
+      );
 
-    await expectLater(
-      service.record(
-        _score(commandId: 'blocked-score', eventId: 'blocked-event', points: 1),
-      ),
-      throwsA(isA<EndConditionFailure>()),
-    );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'blue-lead',
+          matchId: 'match-clock',
+          eventId: 'blue-lead-event',
+          side: TeamSide.blue,
+          points: 10,
+          occurredAt: _anchor,
+        ),
+      );
 
-    final continued = await service.continueMatch(
-      ContinueMatchCommand(
-        commandId: 'continue-target',
-        matchId: 'match-clock',
-        occurredAt: _anchor,
-      ),
-    );
-    expect(continued.decision, isNull);
+      final targetCommand = _score(points: 11);
+      final target = await service.record(targetCommand);
+      expect(target.decision?.kind, MatchDecisionKind.finishOrContinue);
+      expect(target.decision?.reason, MatchDecisionReason.winByTwoRequired);
+      final targetAudits = await database.select(database.auditLogs).get();
+      expect(
+        targetAudits.any(
+          (row) => row.action == 'edit' && row.reason == 'decision-clock',
+        ),
+        isTrue,
+      );
 
-    final nextScore = await service.record(
-      _score(commandId: 'next-score', eventId: 'next-event', points: 1),
-    );
-    expect(nextScore.decision, isNotNull);
-  });
+      final duplicateTarget = await service.record(targetCommand);
+      expect(
+        duplicateTarget.decision?.reason,
+        MatchDecisionReason.winByTwoRequired,
+      );
+
+      await expectLater(
+        service.record(
+          _score(
+            commandId: 'blocked-score',
+            eventId: 'blocked-event',
+            points: 1,
+          ),
+        ),
+        throwsA(isA<EndConditionFailure>()),
+      );
+
+      final continued = await service.continueMatch(
+        ContinueMatchCommand(
+          commandId: 'continue-target',
+          matchId: 'match-clock',
+          occurredAt: _anchor,
+        ),
+      );
+      expect(continued.decision, isNull);
+
+      final nextScore = await service.record(
+        _score(commandId: 'next-score', eventId: 'next-event', points: 1),
+      );
+      expect(nextScore.decision, isNotNull);
+    },
+  );
 
   test('win-by-two finishes at an exact two-point lead', () async {
     final database = createTestDatabase();
@@ -246,42 +287,49 @@ void main() {
     expect(result.decision?.canContinue, isTrue);
   });
 
-  test('foul limit is exposed as a warning and never finishes the match', () async {
-    final database = createTestDatabase();
-    final service = MatchCommandService(database, now: () => _anchor);
-    await service.start(
-      _start(
-        ruleTemplate: const RuleTemplate(
-          id: 'fouls',
-          name: 'Fouls',
-          scoreButtons: [1],
-          foulLimit: 1,
+  test(
+    'foul limit is exposed as a warning and never finishes the match',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'fouls',
+            name: 'Fouls',
+            scoreButtons: [1],
+            foulLimit: 1,
+          ),
         ),
-      ),
-    );
+      );
 
-    final result = await service.record(
-      RecordMatchEventCommand(
-        commandId: 'foul-command',
-        matchId: 'match-clock',
-        eventId: 'foul-event',
-        type: EventKind.foul,
-        side: TeamSide.red,
-        points: 0,
-        occurredAt: _anchor,
-      ),
-    );
+      final result = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'foul-command',
+          matchId: 'match-clock',
+          eventId: 'foul-event',
+          type: EventKind.foul,
+          side: TeamSide.red,
+          points: 0,
+          occurredAt: _anchor,
+        ),
+      );
 
-    expect(result.warnings, isNotEmpty);
-    expect(result.match.lifecycle, MatchLifecycle.active);
-    expect(await database.select(database.activeSessions).get(), hasLength(1));
-  });
+      expect(result.warnings, isNotEmpty);
+      expect(result.match.lifecycle, MatchLifecycle.active);
+      expect(
+        await database.select(database.activeSessions).get(),
+        hasLength(1),
+      );
+    },
+  );
 
   test('manual pause and resume reject illegal repeated sequences', () async {
     final database = createTestDatabase();
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(timerEnabled: true),
-    );
+    await MatchCommandService(
+      database,
+      now: () => _anchor,
+    ).start(_start(timerEnabled: true));
     final service = MatchCommandService(database, now: () => _anchor);
     await service.pause(
       PauseMatchCommand(
@@ -319,85 +367,408 @@ void main() {
     );
   });
 
-  test('pause at a countdown boundary keeps the persisted expiry decision', () async {
-    final database = createTestDatabase();
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(
-        timerEnabled: true,
-        clockMode: ClockMode.countdown,
-        regulationSeconds: 10,
-      ),
-    );
-    final failure = await _captureFailure(
-      () => MatchCommandService(
-        database,
-        now: () => _anchor.add(const Duration(seconds: 10)),
-      ).pause(
-        PauseMatchCommand(
-          commandId: 'pause-at-expiry',
-          matchId: 'match-clock',
-          occurredAt: _anchor.add(const Duration(seconds: 10)),
+  test(
+    'pause at a countdown boundary keeps the persisted expiry decision',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(database, now: () => _anchor).start(
+        _start(
+          timerEnabled: true,
+          clockMode: ClockMode.countdown,
+          regulationSeconds: 10,
         ),
-      ),
-    );
+      );
+      final failure = await _captureFailure(
+        () =>
+            MatchCommandService(
+              database,
+              now: () => _anchor.add(const Duration(seconds: 10)),
+            ).pause(
+              PauseMatchCommand(
+                commandId: 'pause-at-expiry',
+                matchId: 'match-clock',
+                occurredAt: _anchor.add(const Duration(seconds: 10)),
+              ),
+            ),
+      );
 
-    expect(failure, isA<EndConditionFailure>());
-    final row = await database.select(database.matchClocks).getSingle();
-    expect(row.phase, ClockPhase.regulationExpired.name);
-    expect(row.runningSinceUtc, isNull);
-  });
+      expect(failure, isA<EndConditionFailure>());
+      final row = await database.select(database.matchClocks).getSingle();
+      expect(row.phase, ClockPhase.regulationExpired.name);
+      expect(row.runningSinceUtc, isNull);
+    },
+  );
 
-  test('finishing a timed match freezes its persisted clock atomically', () async {
-    final database = createTestDatabase();
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(timerEnabled: true),
-    );
-    await MatchCommandService(
-      database,
-      now: () => _anchor.add(const Duration(seconds: 5)),
-    ).finish(
-      FinishMatchCommand(
-        commandId: 'finish-clock',
-        matchId: 'match-clock',
-        endedAt: _anchor.add(const Duration(seconds: 5)),
-      ),
-    );
+  test(
+    'finishing a timed match freezes its persisted clock atomically',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      await MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 5)),
+      ).finish(
+        FinishMatchCommand(
+          commandId: 'finish-clock',
+          matchId: 'match-clock',
+          endedAt: _anchor.add(const Duration(seconds: 5)),
+        ),
+      );
 
-    final row = await database.select(database.matchClocks).getSingle();
-    expect(row.accumulatedSeconds, 5);
-    expect(row.runningSinceUtc, isNull);
-    expect(row.phase, ClockPhase.regulation.name);
-  });
+      final row = await database.select(database.matchClocks).getSingle();
+      expect(row.accumulatedSeconds, 5);
+      expect(row.runningSinceUtc, isNull);
+      expect(row.phase, ClockPhase.regulation.name);
+    },
+  );
 
-  test('reconstructed pause commands remain idempotent with the same command id', () async {
-    final database = createTestDatabase();
-    await MatchCommandService(database, now: () => _anchor).start(
-      _start(timerEnabled: true),
-    );
-    final firstCommand = PauseMatchCommand(
-      commandId: 'pause-retry',
-      matchId: 'match-clock',
-      occurredAt: _anchor,
-    );
-    await MatchCommandService(database, now: () => _anchor).pause(firstCommand);
-    final duplicate = await MatchCommandService(
-      database,
-      now: () => _anchor,
-    ).pause(
-      PauseMatchCommand(
+  test(
+    'reconstructed pause commands remain idempotent with the same command id',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final firstCommand = PauseMatchCommand(
         commandId: 'pause-retry',
         matchId: 'match-clock',
         occurredAt: _anchor,
-      ),
-    );
+      );
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).pause(firstCommand);
+      final duplicate = await MatchCommandService(database, now: () => _anchor)
+          .pause(
+            PauseMatchCommand(
+              commandId: 'pause-retry',
+              matchId: 'match-clock',
+              occurredAt: _anchor,
+            ),
+          );
 
-    expect(duplicate.clock?.displaySeconds, 0);
-    expect(
-      (await database.select(database.matchEvents).get())
-          .where((row) => row.customLabel == 'pause'),
-      hasLength(1),
-    );
-  });
+      expect(duplicate.clock?.displaySeconds, 0);
+      expect(
+        (await database.select(database.matchEvents).get()).where(
+          (row) => row.customLabel == 'pause',
+        ),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'win-by-two pending decision rejects finish, while an exact 12-10 lead can finish',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'target-finish-gate',
+            name: 'Target',
+            scoreButtons: [1, 2, 3],
+            targetScore: 11,
+            winByTwo: true,
+          ),
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'finish-gate-blue',
+          matchId: 'match-clock',
+          eventId: 'finish-gate-blue-event',
+          side: TeamSide.blue,
+          points: 10,
+          occurredAt: _anchor,
+        ),
+      );
+      final pending = await service.record(
+        _score(
+          commandId: 'finish-gate-red',
+          eventId: 'finish-gate-red-event',
+          points: 11,
+        ),
+      );
+      expect(pending.decision?.reason, MatchDecisionReason.winByTwoRequired);
+      expect(pending.decision?.canFinish, isFalse);
+
+      final failure = await _captureFailure(
+        () => service.finish(
+          FinishMatchCommand(
+            commandId: 'finish-gate-too-early',
+            matchId: 'match-clock',
+            endedAt: _anchor,
+          ),
+        ),
+      );
+      expect(failure, isA<EndConditionFailure>());
+      expect((failure as EndConditionFailure).decision.canFinish, isFalse);
+      expect(
+        (await database.select(database.matches).getSingle()).lifecycle,
+        MatchLifecycle.active.name,
+      );
+
+      await service.continueMatch(
+        ContinueMatchCommand(
+          commandId: 'finish-gate-continue',
+          matchId: 'match-clock',
+          occurredAt: _anchor,
+        ),
+      );
+      final exact = await service.record(
+        _score(
+          commandId: 'finish-gate-exact',
+          eventId: 'finish-gate-exact-event',
+        ),
+      );
+      expect(exact.redScore, 12);
+      expect(exact.blueScore, 10);
+      expect(exact.decision?.reason, MatchDecisionReason.targetReached);
+      expect(exact.decision?.canFinish, isTrue);
+      final finished = await service.finish(
+        FinishMatchCommand(
+          commandId: 'finish-gate-finish',
+          matchId: 'match-clock',
+          endedAt: _anchor,
+        ),
+      );
+      expect(finished.match.lifecycle, MatchLifecycle.finished);
+    },
+  );
+
+  test(
+    'pending decision remains a mutation barrier after service reconstruction',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'target-rebuild-gate',
+            name: 'Target',
+            scoreButtons: [1, 2, 3],
+            targetScore: 11,
+            winByTwo: true,
+          ),
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'rebuild-blue',
+          matchId: 'match-clock',
+          eventId: 'rebuild-blue-event',
+          side: TeamSide.blue,
+          points: 10,
+          occurredAt: _anchor,
+        ),
+      );
+      await service.record(
+        _score(
+          commandId: 'rebuild-red',
+          eventId: 'rebuild-red-event',
+          points: 11,
+        ),
+      );
+
+      final rebuilt = MatchCommandService(database, now: () => _anchor);
+      final failure = await _captureFailure(
+        () => rebuilt.record(
+          _score(
+            commandId: 'rebuild-blocked',
+            eventId: 'rebuild-blocked-event',
+          ),
+        ),
+      );
+      expect(failure, isA<EndConditionFailure>());
+      expect(
+        (failure as EndConditionFailure).decision.reason,
+        MatchDecisionReason.winByTwoRequired,
+      );
+    },
+  );
+
+  test(
+    'pending decisions block correct and undo but allow committed field-goal location confirmation',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'target-mutation-gate',
+            name: 'Target',
+            scoreButtons: [1, 2, 3],
+            targetScore: 11,
+            winByTwo: true,
+          ),
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'mutation-blue',
+          matchId: 'match-clock',
+          eventId: 'mutation-blue-event',
+          side: TeamSide.blue,
+          points: 10,
+          occurredAt: _anchor,
+        ),
+      );
+      await service.record(
+        _score(
+          commandId: 'mutation-red',
+          eventId: 'mutation-red-event',
+          points: 11,
+        ),
+      );
+
+      final correctFailure = await _captureFailure(
+        () => service.correct(
+          CorrectMatchEventCommand(
+            commandId: 'mutation-correct',
+            matchId: 'match-clock',
+            eventId: 'mutation-red-event',
+            points: 10,
+          ),
+        ),
+      );
+      expect(correctFailure, isA<EndConditionFailure>());
+      final undoFailure = await _captureFailure(
+        () => service.undo(
+          UndoMatchEventCommand(
+            commandId: 'mutation-undo',
+            matchId: 'match-clock',
+            eventId: 'mutation-red-event',
+          ),
+        ),
+      );
+      expect(undoFailure, isA<EndConditionFailure>());
+
+      final locationDatabase = createTestDatabase();
+      final locationService = MatchCommandService(
+        locationDatabase,
+        now: () => _anchor,
+      );
+      await locationService.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'target-location-gate',
+            name: 'Target',
+            scoreButtons: [1],
+            targetScore: 1,
+          ),
+        ),
+      );
+      await locationService.record(
+        RecordMatchEventCommand(
+          commandId: 'location-score',
+          matchId: 'match-clock',
+          eventId: 'location-score-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      final located = await locationService.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'location-confirm',
+          matchId: 'match-clock',
+          eventId: 'location-score-event',
+          point: CourtPoint(x: 0.1, y: 0.2),
+        ),
+      );
+      expect(located.decision?.reason, MatchDecisionReason.targetReached);
+      expect(
+        await locationDatabase.select(locationDatabase.shotLocations).get(),
+        hasLength(1),
+      );
+    },
+  );
+
+  test(
+    'score-changing corrections and undo after target continuation re-evaluate the decision',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'target-correction-recheck',
+            name: 'Target',
+            scoreButtons: [1, 2, 3],
+            targetScore: 11,
+            winByTwo: true,
+          ),
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'recheck-blue',
+          matchId: 'match-clock',
+          eventId: 'recheck-blue-event',
+          side: TeamSide.blue,
+          points: 10,
+          occurredAt: _anchor,
+        ),
+      );
+      await service.record(
+        _score(
+          commandId: 'recheck-red',
+          eventId: 'recheck-red-event',
+          points: 11,
+        ),
+      );
+      await service.continueMatch(
+        ContinueMatchCommand(
+          commandId: 'recheck-continue',
+          matchId: 'match-clock',
+          occurredAt: _anchor,
+        ),
+      );
+
+      final lowered = await service.correct(
+        CorrectMatchEventCommand(
+          commandId: 'recheck-lower',
+          matchId: 'match-clock',
+          eventId: 'recheck-red-event',
+          points: 1,
+        ),
+      );
+      expect(lowered.decision, isNull);
+
+      final retargeted = await service.correct(
+        CorrectMatchEventCommand(
+          commandId: 'recheck-retarget',
+          matchId: 'match-clock',
+          eventId: 'recheck-red-event',
+          points: 11,
+        ),
+      );
+      expect(retargeted.decision?.reason, MatchDecisionReason.winByTwoRequired);
+
+      await service.continueMatch(
+        ContinueMatchCommand(
+          commandId: 'recheck-continue-again',
+          matchId: 'match-clock',
+          occurredAt: _anchor,
+        ),
+      );
+      final undone = await service.undo(
+        UndoMatchEventCommand(
+          commandId: 'recheck-undo',
+          matchId: 'match-clock',
+          eventId: 'recheck-red-event',
+        ),
+      );
+      expect(undone.decision, isNull);
+    },
+  );
 }
 
 Future<MatchCommandFailure> _captureFailure(
