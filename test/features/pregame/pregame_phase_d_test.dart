@@ -46,6 +46,80 @@ void main() {
     expect(setup?.redName, redProfile.nickname);
   });
 
+  testWidgets('editing a selected profile immediately switches to temporary', (
+    tester,
+  ) async {
+    MatchSetup? setup;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PregamePage(
+          players: [redProfile, blueProfile],
+          onStartMatch: (value) => setup = value,
+        ),
+      ),
+    );
+
+    await _selectProfile(tester, 'pregame-red-profile', redProfile.nickname);
+    expect(
+      tester
+          .widget<DropdownButton<String>>(
+            find.byKey(const Key('pregame-red-profile')),
+          )
+          .value,
+      redProfile.id,
+    );
+
+    await tester.enterText(find.byKey(const Key('pregame-red-name')), '临时红方');
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<DropdownButton<String>>(
+            find.byKey(const Key('pregame-red-profile')),
+          )
+          .value,
+      '__temporary_profile__',
+    );
+    await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
+    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
+    await _scrollTo(tester, find.text('开始比赛'));
+    await tester.tap(find.text('开始比赛'));
+
+    expect(setup?.redName, '临时红方');
+    expect(setup?.redPlayerProfileId, isNull);
+  });
+
+  testWidgets(
+    'rejected duplicate profile selection restores the actual dropdown',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: PregamePage(players: [redProfile, blueProfile])),
+      );
+
+      await _selectProfile(tester, 'pregame-red-profile', redProfile.nickname);
+      await _selectProfile(tester, 'pregame-blue-profile', redProfile.nickname);
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<DropdownButton<String>>(
+              find.byKey(const Key('pregame-red-profile')),
+            )
+            .value,
+        redProfile.id,
+      );
+      expect(
+        tester
+            .widget<DropdownButton<String>>(
+              find.byKey(const Key('pregame-blue-profile')),
+            )
+            .value,
+        '__temporary_profile__',
+      );
+      expect(find.text(pregameTemporaryParticipantText), findsWidgets);
+    },
+  );
+
   testWidgets('temporary names may be identical while profile ids stay empty', (
     tester,
   ) async {

@@ -264,6 +264,37 @@ void main() {
     },
   );
 
+  test('link rejects abandoned matches', () async {
+    await withTestDatabase((database) async {
+      await _insertPlayer(database, 'player-abandoned', 'Abandoned profile');
+      final service = MatchCommandService(database);
+      final start = await _start(service, 'task7-link-abandoned');
+      await service.abandon(
+        AbandonMatchCommand(
+          commandId: 'task7-abandon-link',
+          matchId: start.match.id,
+          endedAt: DateTime.utc(2026, 8, 23, 11),
+        ),
+      );
+      final participant = await _participant(
+        database,
+        matchId: start.match.id,
+        side: 'red',
+      );
+
+      await expectLater(
+        service.linkParticipant(
+          LinkMatchParticipantCommand(
+            matchId: start.match.id,
+            participantId: participant.id,
+            playerProfileId: 'player-abandoned',
+          ),
+        ),
+        throwsA(isA<CommandValidationFailure>()),
+      );
+    });
+  });
+
   test(
     'link rejects a profile already used by the other participant',
     () async {

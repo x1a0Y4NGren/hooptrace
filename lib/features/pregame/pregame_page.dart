@@ -137,8 +137,10 @@ class _PregamePageState extends State<PregamePage> {
                   players: widget.players,
                   onProfileChanged: (value) => _selectProfile(true, value),
                   onNameChanged: (value) {
-                    _controller.setRedName(value);
-                    _clearValidation();
+                    setState(() {
+                      _controller.setRedName(value);
+                      _clearValidation();
+                    });
                   },
                 ),
                 const SizedBox(height: 12),
@@ -151,8 +153,10 @@ class _PregamePageState extends State<PregamePage> {
                   players: widget.players,
                   onProfileChanged: (value) => _selectProfile(false, value),
                   onNameChanged: (value) {
-                    _controller.setBlueName(value);
-                    _clearValidation();
+                    setState(() {
+                      _controller.setBlueName(value);
+                      _clearValidation();
+                    });
                   },
                 ),
                 if (widget.playersNotice != null) ...[
@@ -508,18 +512,24 @@ class _ParticipantSetup extends StatelessWidget {
       children: [
         Text(sideLabel, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
-        DropdownButtonFormField<String>(
-          key: profileKey,
-          initialValue: selectedProfileId ?? _temporaryProfileId,
+        InputDecorator(
           decoration: const InputDecoration(
             labelText: '参赛方式',
             border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           ),
-          items: profileItems,
-          onChanged: (value) {
-            if (value == null) return;
-            onProfileChanged(value == _temporaryProfileId ? null : value);
-          },
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              key: profileKey,
+              value: selectedProfileId ?? _temporaryProfileId,
+              isExpanded: true,
+              items: profileItems,
+              onChanged: (value) {
+                if (value == null) return;
+                onProfileChanged(value == _temporaryProfileId ? null : value);
+              },
+            ),
+          ),
         ),
         const SizedBox(height: 8),
         TextField(

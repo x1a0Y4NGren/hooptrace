@@ -1108,8 +1108,8 @@ class MatchCommandService {
           );
         }
         final lifecycle = MatchLifecycle.values.byName(match.lifecycle);
-        if (lifecycle == MatchLifecycle.active ||
-            lifecycle == MatchLifecycle.draft) {
+        if (lifecycle != MatchLifecycle.finished &&
+            lifecycle != MatchLifecycle.archived) {
           throw CommandValidationFailure(
             command: command,
             message: 'Only completed matches can link participants.',
@@ -2206,8 +2206,9 @@ class MatchCommandService {
         );
       }
       if (command.regulationSeconds == null ||
-          command.regulationSeconds! < 1 ||
-          command.regulationSeconds! > 180 * 60) {
+          command.regulationSeconds! < 60 ||
+          command.regulationSeconds! > 180 * 60 ||
+          command.regulationSeconds! % 60 != 0) {
         throw CommandValidationFailure(
           command: command,
           message: 'Countdown duration must be between 1 and 180 minutes.',

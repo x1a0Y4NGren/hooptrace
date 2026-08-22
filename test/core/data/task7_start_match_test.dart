@@ -163,6 +163,48 @@ void main() {
       await _expectNoStartRows(database);
     });
   });
+
+  test(
+    'countdown durations require whole minutes within strict boundaries',
+    () async {
+      for (final seconds in [1, 59, 90, 10801]) {
+        await withTestDatabase((database) async {
+          final command = _command(
+            commandId: 'task7-start-invalid-seconds-$seconds',
+            matchId: 'task7-match-invalid-seconds-$seconds',
+            clockMode: ClockMode.countdown,
+            timerEnabled: true,
+            regulationSeconds: seconds,
+          );
+
+          await expectLater(
+            MatchCommandService(database).start(command),
+            throwsA(isA<CommandValidationFailure>()),
+          );
+          await _expectNoStartRows(database);
+        });
+      }
+
+      for (final seconds in [60, 10800]) {
+        await withTestDatabase((database) async {
+          final command = _command(
+            commandId: 'task7-start-valid-seconds-$seconds',
+            matchId: 'task7-match-valid-seconds-$seconds',
+            clockMode: ClockMode.countdown,
+            timerEnabled: true,
+            regulationSeconds: seconds,
+          );
+
+          await MatchCommandService(database).start(command);
+          expect(
+            (await database.select(database.matchClocks).getSingle())
+                .regulationSeconds,
+            seconds,
+          );
+        });
+      }
+    },
+  );
 }
 
 StartMatchCommand _command({
