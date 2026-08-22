@@ -175,6 +175,39 @@ git diff --check
   controller. The existing location dialog's legacy mark action is not used to
   write a new command location; command locations are deliberately
   `fieldGoal`-only until the later location/UI work.
+- The command-backed scoring controller now keeps a provisional pending marker
+  only after the score command commits, persists confirmation through the
+  location command, awaits undo soft-delete, and exposes retryable failures to
+  the page. Retry actions reuse the immutable command held by
+  `MatchCommandFailure`, so a transient failure cannot create a second event.
 - Riverpod/UI composition remains Task 6 scope. The production bridge is
   command-backed now, while the explicit legacy coordinator constructor is
   retained only for compatibility and cannot be selected by `HoopTraceApp`.
+  Process-level active-session recovery, provider-owned controller lifetime,
+  and the resume/new-match gate are explicitly deferred to Task 6.
+
+## UI closeout verification
+
+The controller/widget closeout added real command-backed coverage for committed
+made field goals, unlocated-score skip, persisted location confirmation,
+soft-delete undo, and a retryable confirmation failure. The retry test verifies
+that the same receipt/command ID is committed after retry and that the pending
+state is retained until the retry commits. A controller busy guard prevents
+parallel score/foul/confirm/undo/retry commands from publishing conflicting
+projections.
+
+```text
+flutter test --no-pub test/features/scoring/scoring_controller_test.dart \
+  test/features/scoring/scoring_page_test.dart --reporter compact
+# 24 tests passed
+
+dart format --output=none --set-exit-if-changed \
+  lib/features/scoring/scoring_controller.dart \
+  lib/features/scoring/scoring_page.dart \
+  test/features/scoring/scoring_controller_test.dart \
+  test/features/scoring/scoring_page_test.dart
+# Formatted 4 files (0 changed)
+
+git diff --check
+# clean
+```
