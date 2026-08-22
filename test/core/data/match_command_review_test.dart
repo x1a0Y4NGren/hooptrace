@@ -369,6 +369,7 @@ StartMatchCommand _startCommand(String key) {
       name: 'Free',
       scoreButtons: [1, 2, 3],
     ),
+    createdAt: DateTime.utc(2026, 8, 22, 8),
     startedAt: DateTime.utc(2026, 8, 22, 9),
   );
 }

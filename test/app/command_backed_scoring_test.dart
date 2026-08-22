@@ -20,7 +20,11 @@ void main() {
     await _pumpUntilFound(tester, find.byType(PregamePage));
     await tester.tap(find.text(pregameStartMatchText));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
-    await tester.tap(find.byKey(const Key('red-score-2')));
+    final scoreButton = tester.widget<FilledButton>(
+      find.byKey(const Key('red-score-2')),
+    );
+    scoreButton.onPressed!();
+    await tester.pump();
     await _pumpUntilFound(tester, find.text('标记投篮位置？'));
     await tester.tap(find.text('不标记'));
 
