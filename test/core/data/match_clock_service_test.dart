@@ -506,6 +506,238 @@ void main() {
     },
   );
 
+  test(
+    'pause and resume transaction failures leave clock and semantic events unchanged',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final pauseFailureService = MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 5)),
+        failureInjector: (point) {
+          if (point == MatchCommandFailurePoint.afterEventWritten) {
+            throw StateError('pause failure');
+          }
+        },
+      );
+      final pauseFailure = await _captureFailure(
+        () => pauseFailureService.pause(
+          PauseMatchCommand(
+            commandId: 'rollback-pause',
+            matchId: 'match-clock',
+            occurredAt: _anchor.add(const Duration(seconds: 5)),
+          ),
+        ),
+      );
+      expect(pauseFailure, isA<CommandTransactionFailure>());
+      var row = await database.select(database.matchClocks).getSingle();
+      expect(row.accumulatedSeconds, 0);
+      expect(row.runningSinceUtc?.toUtc(), _anchor);
+      expect(await database.select(database.matchEvents).get(), isEmpty);
+
+      await MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 5)),
+      ).pause(
+        PauseMatchCommand(
+          commandId: 'rollback-pause-success',
+          matchId: 'match-clock',
+          occurredAt: _anchor.add(const Duration(seconds: 5)),
+        ),
+      );
+      final resumeFailureService = MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 8)),
+        failureInjector: (point) {
+          if (point == MatchCommandFailurePoint.afterAuditWritten) {
+            throw StateError('resume failure');
+          }
+        },
+      );
+      final resumeFailure = await _captureFailure(
+        () => resumeFailureService.resume(
+          ResumeMatchCommand(
+            commandId: 'rollback-resume',
+            matchId: 'match-clock',
+            occurredAt: _anchor.add(const Duration(seconds: 8)),
+          ),
+        ),
+      );
+      expect(resumeFailure, isA<CommandTransactionFailure>());
+      row = await database.select(database.matchClocks).getSingle();
+      expect(row.accumulatedSeconds, 5);
+      expect(row.runningSinceUtc, isNull);
+      expect(
+        (await database.select(database.matchEvents).get())
+            .where((event) => event.customLabel == 'resume'),
+        isEmpty,
+      );
+
+      final resumed = await MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 8)),
+      ).resume(
+        ResumeMatchCommand(
+          commandId: 'rollback-resume-success',
+          matchId: 'match-clock',
+          occurredAt: _anchor.add(const Duration(seconds: 8)),
+        ),
+      );
+      expect(
+        resumed.clock?.runningSinceUtc,
+        _anchor.add(const Duration(seconds: 8)),
+      );
+    },
+  );
+
+  test(
+    'abandon freezes the clock and later projections cannot advance it',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      await MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 7)),
+      ).abandon(
+        AbandonMatchCommand(
+          commandId: 'abandon-clock',
+          matchId: 'match-clock',
+          endedAt: _anchor.add(const Duration(seconds: 7)),
+        ),
+      );
+      final row = await database.select(database.matchClocks).getSingle();
+      expect(row.accumulatedSeconds, 7);
+      expect(row.runningSinceUtc, isNull);
+      expect(
+        (await database.select(database.matches).getSingle()).lifecycle,
+        MatchLifecycle.abandoned.name,
+      );
+      final later = await MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 100)),
+      ).readClock('match-clock');
+      expect(later?.displaySeconds, 7);
+      expect(later?.isRunning, isFalse);
+    },
+  );
+
+  test(
+    'clock projection at its anchor is exact and does not persist a tick',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final projection = await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).readClock('match-clock');
+      expect(projection?.displaySeconds, 0);
+      expect(projection?.elapsedSeconds, 0);
+      final row = await database.select(database.matchClocks).getSingle();
+      expect(row.accumulatedSeconds, 0);
+      expect(row.runningSinceUtc?.toUtc(), _anchor);
+    },
+  );
+
+  test(
+    'countdown with no anchor normalizes an accumulated regulation boundary',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(
+        _start(
+          clockMode: ClockMode.countdown,
+          regulationSeconds: 10,
+        ),
+      );
+      await database.customUpdate(
+        'UPDATE match_clocks SET accumulated_seconds = ? WHERE match_id = ?',
+        variables: [
+          Variable.withInt(10),
+          Variable.withString('match-clock'),
+        ],
+        updates: {database.matchClocks},
+      );
+      final projection = await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).readClock('match-clock');
+      expect(projection?.phase, ClockPhase.regulationExpired);
+      expect(projection?.displaySeconds, 0);
+      final row = await database.select(database.matchClocks).getSingle();
+      expect(row.phase, ClockPhase.regulationExpired.name);
+      expect(row.accumulatedSeconds, 10);
+    },
+  );
+
+  test('concurrent read and pause preserve elapsed seconds', () async {
+    final database = createTestDatabase();
+    await MatchCommandService(
+      database,
+      now: () => _anchor,
+    ).start(_start(timerEnabled: true));
+    final at = _anchor.add(const Duration(seconds: 6));
+    await Future.wait([
+      MatchCommandService(database, now: () => at).readClock('match-clock'),
+      MatchCommandService(database, now: () => at).pause(
+        PauseMatchCommand(
+          commandId: 'concurrent-pause',
+          matchId: 'match-clock',
+          occurredAt: at,
+        ),
+      ),
+    ]);
+    final row = await database.select(database.matchClocks).getSingle();
+    expect(row.accumulatedSeconds, 6);
+    expect(row.runningSinceUtc, isNull);
+    expect(
+      (await database.select(database.matchEvents).get())
+          .where((event) => event.customLabel == 'pause'),
+      hasLength(1),
+    );
+  });
+
+  test(
+    'concurrent read and record preserve the score and running projection',
+    () async {
+      final database = createTestDatabase();
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final at = _anchor.add(const Duration(seconds: 6));
+      await Future.wait([
+        MatchCommandService(database, now: () => at).readClock('match-clock'),
+        MatchCommandService(database, now: () => at).record(
+          _score(
+            commandId: 'concurrent-score',
+            eventId: 'concurrent-score-event',
+          ),
+        ),
+      ]);
+      final projection = await MatchCommandService(
+        database,
+        now: () => at,
+      ).readClock('match-clock');
+      expect(projection?.displaySeconds, 6);
+      expect(
+        (await database.select(database.matchEvents).get())
+            .where((event) => event.id == 'concurrent-score-event'),
+        hasLength(1),
+      );
+    },
+  );
+
   test('manual pause and resume reject illegal repeated sequences', () async {
     final database = createTestDatabase();
     await MatchCommandService(
