@@ -24,6 +24,17 @@ void main() {
 
     await tester.tap(find.text('开始计分'));
     await _pumpUntilFound(tester, find.byType(PregamePage));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('pregame-recording-simple')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
+    await tester.scrollUntilVisible(
+      find.text(pregameStartMatchText),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text(pregameStartMatchText));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     final scoreButton = tester.widget<FilledButton>(
