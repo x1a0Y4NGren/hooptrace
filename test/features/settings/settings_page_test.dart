@@ -16,7 +16,6 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(800, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = createTestDatabase();
-    addTearDown(database.close);
     final gateway = _Gateway();
     final storage = _Storage()..availableDirectories.add('/approved');
     final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');

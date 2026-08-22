@@ -47,7 +47,6 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
-    await database.close();
   });
 
   testWidgets('player editor creates and updates persisted fields',
@@ -100,7 +99,6 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
-    await database.close();
   });
 }
 

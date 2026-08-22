@@ -17,8 +17,24 @@ void main() {
     late _MemoryBackupStorage backupStorage;
     late AutomaticBackupService automaticBackup;
     late ExportCoordinator coordinator;
+    late String replacementBackup;
 
     setUp(() async {
+      replacementBackup = await withTestDatabase((source) async {
+        await source.into(source.players).insert(
+              PlayerRow(
+                id: 'replacement',
+                nickname: '新球员',
+                createdAt: DateTime.utc(2026, 8, 20),
+                preferredSide: null,
+                note: null,
+              ),
+            );
+        return JsonBackupCodec(
+          source,
+          appVersion: '0.1.0+1',
+        ).export();
+      });
       database = createTestDatabase();
       gateway = _MemoryExportGateway();
       backupStorage = _MemoryBackupStorage();
@@ -97,31 +113,10 @@ void main() {
       backupStorage.availableDirectories.add('/approved');
       await automaticBackup.configureDirectory('/approved');
       await automaticBackup.enable();
-      await database.delete(database.shotLocations).go();
-      await database.delete(database.possessionSegments).go();
-      await database.delete(database.auditLogs).go();
-      await database.delete(database.matchEvents).go();
-      await database.delete(database.matches).go();
-      await database.delete(database.ruleTemplates).go();
-      await database.delete(database.appSettings).go();
-      await database.delete(database.players).go();
-      await database.into(database.players).insert(
-            PlayerRow(
-              id: 'replacement',
-              nickname: '新球员',
-              createdAt: DateTime.utc(2026, 8, 20),
-              preferredSide: null,
-              note: null,
-            ),
-          );
-      final backup = await JsonBackupCodec(
-        database,
-        appVersion: '0.1.0+1',
-      ).export();
       gateway.pickedBackup = ExportArtifact.text(
         fileName: 'incoming.json',
         mimeType: 'application/json',
-        contents: backup,
+        contents: replacementBackup,
       );
 
       expect(await coordinator.restorePickedBackup(), isTrue);
