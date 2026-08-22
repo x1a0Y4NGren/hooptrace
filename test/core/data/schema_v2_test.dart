@@ -177,7 +177,7 @@ void main() {
           .insert(
             MatchesCompanion.insert(
               id: 'match-1',
-              status: Value(MatchLifecycle.active.name),
+              lifecycle: const Value('active'),
               ruleTemplateJson: '{}',
               createdAt: DateTime.utc(2026),
             ),

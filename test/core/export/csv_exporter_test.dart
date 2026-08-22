@@ -6,20 +6,36 @@ import 'package:hooptrace/core/export/csv_exporter.dart';
 void main() {
   group('CsvExporter', () {
     test('exports match list with stable headers and escaped text', () {
-      final encoded = CsvExporter.matchList([
-        Matche(
-          id: 'match-1',
-          redName: 'Red, Prime',
-          blueName: 'Blue "Wave"',
-          status: 'finished',
-          ruleTemplateJson: '{}',
-          createdAt: DateTime.utc(2026, 7, 18, 8),
-          startedAt: DateTime.utc(2026, 7, 18, 8, 1),
-          endedAt: DateTime.utc(2026, 7, 18, 8, 9),
-          timerEnabled: false,
-          note: 'line one\nline two',
-        ),
-      ]);
+      final encoded = CsvExporter.matchList(
+        [
+          Matche(
+            id: 'match-1',
+            lifecycle: 'finished',
+            recordingMode: 'simple',
+            trackingCoverage: 'scoresOnly',
+            ruleTemplateJson: '{}',
+            createdAt: DateTime.utc(2026, 7, 18, 8),
+            startedAt: DateTime.utc(2026, 7, 18, 8, 1),
+            endedAt: DateTime.utc(2026, 7, 18, 8, 9),
+            timerEnabled: false,
+            note: 'line one\nline two',
+          ),
+        ],
+        participants: const [
+          MatchParticipant(
+            id: 'participant-red',
+            matchId: 'match-1',
+            side: 'red',
+            nameSnapshot: 'Red, Prime',
+          ),
+          MatchParticipant(
+            id: 'participant-blue',
+            matchId: 'match-1',
+            side: 'blue',
+            nameSnapshot: 'Blue "Wave"',
+          ),
+        ],
+      );
 
       final rows = _decodeCsv(encoded);
       expect(rows.first, CsvExporter.matchHeaders);
@@ -48,8 +64,10 @@ void main() {
           side: 'red',
           points: 3,
           occurredAt: DateTime.utc(2026, 7, 18, 8, 2, 3),
+          outcome: null,
+          matchClockPositionSeconds: null,
           note: 'deep, corner',
-          customEventType: null,
+          customLabel: null,
           isDeleted: false,
         ),
       ]);

@@ -45,9 +45,11 @@ void main() {
         type: MatchEventType.score.name,
         side: null,
         points: 0,
+        outcome: null,
+        matchClockPositionSeconds: null,
         occurredAt: DateTime.utc(2026),
         note: null,
-        customEventType: null,
+        customLabel: null,
         isDeleted: false,
       );
 

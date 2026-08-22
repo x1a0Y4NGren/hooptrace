@@ -14,13 +14,12 @@ class MatchEvent {
     required this.points,
     required this.occurredAt,
     this.note,
-    ShotOutcome? outcome,
+    this.outcome,
     this.matchClockPositionSeconds,
     String? customLabel,
     String? customType,
     this.isDeleted = false,
-  }) : outcome = outcome,
-       customLabel = _normalizeLabel(customLabel ?? customType) {
+  }) : customLabel = _normalizeLabel(customLabel ?? customType) {
     if (type == EventKind.score || type == EventKind.fieldGoal) {
       if (side == null) {
         throw ArgumentError('Score events require a side.');

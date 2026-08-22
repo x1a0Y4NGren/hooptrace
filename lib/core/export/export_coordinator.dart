@@ -79,13 +79,21 @@ class ExportCoordinator {
     final matches = await database.select(database.matches).get();
     final events = await database.select(database.matchEvents).get();
     final players = await database.select(database.players).get();
-    final statistics = _buildPlayerStatistics(matches, events, players);
+    final participants = await database
+        .select(database.matchParticipants)
+        .get();
+    final statistics = _buildPlayerStatistics(
+      matches,
+      events,
+      players,
+      participants,
+    );
     final suffix = _fileTimestamp(timestamp);
     await gateway.share([
       ExportArtifact.text(
         fileName: 'hooptrace-matches-$suffix.csv',
         mimeType: 'text/csv',
-        contents: CsvExporter.matchList(matches),
+        contents: CsvExporter.matchList(matches, participants: participants),
       ),
       ExportArtifact.text(
         fileName: 'hooptrace-events-$suffix.csv',
@@ -118,6 +126,7 @@ class ExportCoordinator {
     List<Matche> matches,
     List<MatchEventRow> events,
     List<PlayerRow> players,
+    List<dynamic> matchParticipants,
   ) {
     final participants = <_Participant>[
       for (final player in players)
@@ -125,8 +134,9 @@ class ExportCoordinator {
     ];
     final registeredNames = players.map((player) => player.nickname).toSet();
     final unregisteredNames = <String>{
-      for (final match in matches) match.redName,
-      for (final match in matches) match.blueName,
+      for (final participant in matchParticipants)
+        if (participant.playerProfileId == null)
+          participant.nameSnapshot as String,
     }..removeAll(registeredNames);
     final sortedUnregistered = unregisteredNames.toList()..sort();
     participants.addAll(
@@ -147,8 +157,12 @@ class ExportCoordinator {
           var attemptedShots = 0;
           for (final match in matches) {
             final sides = <String>{
-              if (match.redName == participant.name) 'red',
-              if (match.blueName == participant.name) 'blue',
+              for (final matchParticipant in matchParticipants)
+                if (matchParticipant.matchId == match.id &&
+                    (matchParticipant.playerProfileId == participant.id ||
+                        (participant.id.isEmpty &&
+                            matchParticipant.nameSnapshot == participant.name)))
+                  matchParticipant.side as String,
             };
             if (sides.isEmpty) continue;
             matchesPlayed++;

@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/app_database.dart';
-import 'package:hooptrace/core/domain/entities/match.dart';
+import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/export/backup_manifest.dart';
@@ -64,6 +64,9 @@ class JsonBackupCodec {
   Future<String> export() async {
     final tables = <String, List<Map<String, dynamic>>>{
       'matches': await _rows(database.matches),
+      'matchParticipants': await _rows(database.matchParticipants),
+      'matchClocks': await _rows(database.matchClocks),
+      'activeSessions': await _rows(database.activeSessions),
       'matchEvents': await _rows(database.matchEvents),
       'shotLocations': await _rows(database.shotLocations),
       'players': await _rows(database.players),
@@ -135,6 +138,9 @@ class JsonBackupCodec {
 
     _validateTableGroups(manifest, data);
     late final List<Matche> matches;
+    late final List<MatchParticipant> participants;
+    late final List<MatchClock> clocks;
+    late final List<ActiveSession> activeSessions;
     late final List<MatchEventRow> events;
     late final List<ShotLocation> locations;
     late final List<PlayerRow> players;
@@ -144,6 +150,13 @@ class JsonBackupCodec {
     late final List<AppSetting> settings;
     try {
       matches = data['matches']!.map(Matche.fromJson).toList();
+      participants = data['matchParticipants']!
+          .map(MatchParticipant.fromJson)
+          .toList();
+      clocks = data['matchClocks']!.map(MatchClock.fromJson).toList();
+      activeSessions = data['activeSessions']!
+          .map(ActiveSession.fromJson)
+          .toList();
       events = data['matchEvents']!.map(MatchEventRow.fromJson).toList();
       locations = data['shotLocations']!.map(ShotLocation.fromJson).toList();
       players = data['players']!.map(PlayerRow.fromJson).toList();
@@ -158,6 +171,9 @@ class JsonBackupCodec {
     }
     _validateRows(
       matches: matches,
+      participants: participants,
+      clocks: clocks,
+      activeSessions: activeSessions,
       events: events,
       locations: locations,
       players: players,
@@ -170,9 +186,12 @@ class JsonBackupCodec {
     try {
       await database.transaction(() async {
         await database.delete(database.shotLocations).go();
+        await database.delete(database.activeSessions).go();
         await database.delete(database.possessionSegments).go();
         await database.delete(database.auditLogs).go();
         await database.delete(database.matchEvents).go();
+        await database.delete(database.matchParticipants).go();
+        await database.delete(database.matchClocks).go();
         await database.delete(database.matches).go();
         await database.delete(database.players).go();
         await database.delete(database.ruleTemplates).go();
@@ -182,10 +201,13 @@ class JsonBackupCodec {
         await _insertAll(database.ruleTemplates, templates);
         await _insertAll(database.appSettings, settings);
         await _insertAll(database.matches, matches);
+        await _insertAll(database.matchParticipants, participants);
+        await _insertAll(database.matchClocks, clocks);
         await _insertAll(database.matchEvents, events);
         await _insertAll(database.shotLocations, locations);
         await _insertAll(database.possessionSegments, possessions);
         await _insertAll(database.auditLogs, audits);
+        await _insertAll(database.activeSessions, activeSessions);
       });
     } on Object catch (error) {
       throw BackupRestoreException('Atomic restore failed: $error');
@@ -217,6 +239,9 @@ class JsonBackupCodec {
     }
     const expected = {
       'matches',
+      'matchParticipants',
+      'matchClocks',
+      'activeSessions',
       'matchEvents',
       'shotLocations',
       'players',
@@ -246,6 +271,9 @@ class JsonBackupCodec {
 
   void _validateRows({
     required List<Matche> matches,
+    required List<MatchParticipant> participants,
+    required List<MatchClock> clocks,
+    required List<ActiveSession> activeSessions,
     required List<MatchEventRow> events,
     required List<ShotLocation> locations,
     required List<PlayerRow> players,
@@ -255,6 +283,9 @@ class JsonBackupCodec {
     required List<AppSetting> settings,
   }) {
     final matchIds = _uniqueIds('matches', matches.map((row) => row.id));
+    _uniqueIds('matchParticipants', participants.map((row) => row.id));
+    _uniqueIds('matchClocks', clocks.map((row) => row.id));
+    _uniqueIds('activeSessions', activeSessions.map((row) => row.id));
     _uniqueIds('matchEvents', events.map((row) => row.id));
     _uniqueIds('shotLocations', locations.map((row) => row.id));
     _uniqueIds('players', players.map((row) => row.id));
@@ -262,6 +293,50 @@ class JsonBackupCodec {
     _uniqueIds('possessionSegments', possessions.map((row) => row.id));
     _uniqueIds('auditLogs', audits.map((row) => row.id));
     _uniqueIds('appSettings', settings.map((row) => row.key));
+
+    if (activeSessions.length > 1 ||
+        (activeSessions.isNotEmpty && activeSessions.single.id != 'active')) {
+      throw const BackupValidationException(
+        'Backup contains more than one active session.',
+      );
+    }
+
+    for (final participant in participants) {
+      if (!matchIds.contains(participant.matchId) ||
+          !{'red', 'blue'}.contains(participant.side) ||
+          participant.nameSnapshot.trim().isEmpty ||
+          (participant.playerProfileId != null &&
+              !players.any(
+                (player) => player.id == participant.playerProfileId,
+              ))) {
+        throw BackupValidationException(
+          'Participant ${participant.id} contains invalid references or values.',
+        );
+      }
+    }
+    final participantSides = <String>{};
+    for (final participant in participants) {
+      if (!participantSides.add('${participant.matchId}:${participant.side}')) {
+        throw BackupValidationException(
+          'Match ${participant.matchId} contains duplicate participant sides.',
+        );
+      }
+    }
+    for (final clock in clocks) {
+      if (!matchIds.contains(clock.matchId) ||
+          !{'countUp', 'countdown'}.contains(clock.mode) ||
+          !{
+            'regulation',
+            'regulationExpired',
+            'overtime',
+          }.contains(clock.phase) ||
+          clock.accumulatedSeconds < 0 ||
+          (clock.regulationSeconds != null && clock.regulationSeconds! < 0)) {
+        throw BackupValidationException(
+          'Clock ${clock.id} contains invalid references or values.',
+        );
+      }
+    }
 
     for (final match in matches) {
       _validateMatch(match);
@@ -281,7 +356,12 @@ class JsonBackupCodec {
       if (!_enumNames(MatchEventType.values).contains(event.type) ||
           (event.side != null &&
               !_enumNames(TeamSide.values).contains(event.side)) ||
-          event.points < 0) {
+          event.points < 0 ||
+          (event.outcome != null &&
+              !_enumNames(ShotOutcome.values).contains(event.outcome)) ||
+          (event.matchClockPositionSeconds != null &&
+              event.matchClockPositionSeconds! < 0) ||
+          (event.customLabel != null && event.customLabel!.trim().isEmpty)) {
         throw BackupValidationException(
           'Event ${event.id} contains invalid domain values.',
         );
@@ -293,6 +373,7 @@ class JsonBackupCodec {
       if (!matchIds.contains(location.matchId) ||
           event == null ||
           event.matchId != location.matchId ||
+          !{'fieldGoal', 'score', 'miss'}.contains(event.type) ||
           !location.x.isFinite ||
           !location.y.isFinite ||
           location.x < 0 ||
@@ -349,9 +430,15 @@ class JsonBackupCodec {
   }
 
   void _validateMatch(Matche match) {
-    if (match.redName.trim().isEmpty ||
-        match.blueName.trim().isEmpty ||
-        !_enumNames(MatchStatus.values).contains(match.status) ||
+    if (!_enumNames(
+          domain_match.MatchLifecycle.values,
+        ).contains(match.lifecycle) ||
+        !_enumNames(
+          domain_match.RecordingMode.values,
+        ).contains(match.recordingMode) ||
+        !_enumNames(
+          domain_match.TrackingCoverage.values,
+        ).contains(match.trackingCoverage) ||
         (match.startedAt != null &&
             match.startedAt!.isBefore(match.createdAt)) ||
         (match.endedAt != null &&

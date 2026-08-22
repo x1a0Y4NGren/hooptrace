@@ -50,9 +50,6 @@ class MatchRepository {
           .insertOnConflictUpdate(
             MatchesCompanion.insert(
               id: match.id,
-              redName: Value(match.redName),
-              blueName: Value(match.blueName),
-              status: Value(match.status.name),
               lifecycle: Value(match.lifecycle.name),
               recordingMode: Value(match.recordingMode.name),
               trackingCoverage: Value(match.trackingCoverage.name),
@@ -185,7 +182,7 @@ class MatchRepository {
           _database.matches,
         )..where((match) => match.id.equals(matchId))).write(
           MatchesCompanion(
-            status: Value(domain_match.MatchStatus.finished.name),
+            lifecycle: Value(domain_match.MatchLifecycle.finished.name),
             endedAt: Value(endedAt),
           ),
         );
@@ -333,7 +330,9 @@ class MatchRepository {
     'points': row.points,
     'occurredAt': row.occurredAt.toUtc().toIso8601String(),
     'note': row.note,
-    'customEventType': row.customEventType,
+    'customLabel': row.customLabel,
+    'outcome': row.outcome,
+    'matchClockPositionSeconds': row.matchClockPositionSeconds,
     'isDeleted': row.isDeleted,
   };
 
@@ -388,9 +387,9 @@ class MatchRepository {
   Future<List<MatchHistoryEntry>> listHistory() async {
     final query = _database.select(_database.matches)
       ..where(
-        (match) => match.status.isIn([
-          domain_match.MatchStatus.finished.name,
-          domain_match.MatchStatus.archived.name,
+        (match) => match.lifecycle.isIn([
+          domain_match.MatchLifecycle.finished.name,
+          domain_match.MatchLifecycle.archived.name,
         ]),
       )
       ..orderBy([
@@ -442,7 +441,7 @@ class MatchRepository {
       points: row.points,
       occurredAt: row.occurredAt.toUtc(),
       note: row.note,
-      customType: row.customEventType,
+      customLabel: row.customLabel,
       outcome: row.outcome == null
           ? null
           : ShotOutcome.values.byName(row.outcome!),
@@ -473,10 +472,8 @@ class MatchRepository {
       createdAt: row.createdAt.toUtc(),
       startedAt: row.startedAt?.toUtc(),
       endedAt: row.endedAt?.toUtc(),
-      status: domain_match.MatchStatus.values.byName(row.status),
-      redName: row.redName,
-      blueName: row.blueName,
       participants: participants.length == 2 ? participants : const [],
+      lifecycle: domain_match.MatchLifecycle.values.byName(row.lifecycle),
       ruleTemplateSnapshot: _ruleTemplateFromJson(row.ruleTemplateJson),
       recordingMode: domain_match.RecordingMode.values.byName(
         row.recordingMode,
@@ -501,7 +498,6 @@ class MatchRepository {
       occurredAt: event.occurredAt,
       note: Value(event.note),
       customLabel: Value(event.customLabel),
-      customEventType: Value(event.customType),
       isDeleted: Value(event.isDeleted),
     );
   }

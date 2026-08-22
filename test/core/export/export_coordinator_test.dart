@@ -188,9 +188,9 @@ Future<void> _seed(AppDatabase database) async {
       .insert(
         Matche(
           id: 'match-1',
-          redName: '赤焰',
-          blueName: '海浪',
-          status: 'finished',
+          lifecycle: 'finished',
+          recordingMode: 'simple',
+          trackingCoverage: 'scoresOnly',
           ruleTemplateJson: '{}',
           createdAt: startedAt,
           startedAt: startedAt,
@@ -209,7 +209,9 @@ Future<void> _seed(AppDatabase database) async {
         points: 2,
         occurredAt: startedAt.add(const Duration(seconds: 10)),
         note: null,
-        customEventType: null,
+        outcome: 'made',
+        matchClockPositionSeconds: null,
+        customLabel: null,
         isDeleted: false,
       ),
       MatchEventRow(
@@ -220,7 +222,9 @@ Future<void> _seed(AppDatabase database) async {
         points: 0,
         occurredAt: startedAt.add(const Duration(seconds: 15)),
         note: null,
-        customEventType: null,
+        outcome: 'missed',
+        matchClockPositionSeconds: null,
+        customLabel: null,
         isDeleted: false,
       ),
     ]);
@@ -234,5 +238,20 @@ Future<void> _seed(AppDatabase database) async {
         note: null,
       ),
     );
+    batch.insertAll(database.matchParticipants, [
+      const MatchParticipant(
+        id: 'participant-red',
+        matchId: 'match-1',
+        side: 'red',
+        nameSnapshot: '赤焰',
+        playerProfileId: 'player-red',
+      ),
+      const MatchParticipant(
+        id: 'participant-blue',
+        matchId: 'match-1',
+        side: 'blue',
+        nameSnapshot: '海浪',
+      ),
+    ]);
   });
 }

@@ -19,11 +19,6 @@ class LegacySchemaDetectedException implements Exception {
 
 class Matches extends Table {
   TextColumn get id => text()();
-
-  /// Deprecated compatibility columns. Participant rows are canonical for 1.0.
-  TextColumn get redName => text().withDefault(const Constant(''))();
-  TextColumn get blueName => text().withDefault(const Constant(''))();
-  TextColumn get status => text().withDefault(const Constant('draft'))();
   TextColumn get lifecycle => text().withDefault(const Constant('draft'))();
   TextColumn get recordingMode =>
       text().withDefault(const Constant('simple'))();
@@ -53,7 +48,8 @@ class MatchParticipants extends Table {
       text().references(Matches, #id, onDelete: KeyAction.cascade)();
   TextColumn get side => text()();
   TextColumn get nameSnapshot => text()();
-  TextColumn get playerProfileId => text().nullable()();
+  TextColumn get playerProfileId =>
+      text().nullable().references(Players, #id, onDelete: KeyAction.setNull)();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -116,8 +112,6 @@ class MatchEvents extends Table {
   TextColumn get note => text().nullable()();
   TextColumn get customLabel => text().nullable()();
 
-  /// Deprecated codec field retained so v0.1 fixtures remain readable.
-  TextColumn get customEventType => text().nullable()();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
 
   @override
@@ -125,10 +119,10 @@ class MatchEvents extends Table {
 
   @override
   List<String> get customConstraints => [
-    "CHECK (type != 'score' OR (side IS NOT NULL AND points > 0))",
-    "CHECK (outcome IS NULL OR outcome IN ('made', 'missed', 'notApplicable'))",
-    "CHECK (match_clock_position_seconds IS NULL OR match_clock_position_seconds >= 0)",
-    "CHECK (points >= 0)",
+    'CHECK (type != \'score\' OR (side IS NOT NULL AND points > 0))',
+    'CHECK (outcome IS NULL OR outcome IN (\'made\', \'missed\', \'notApplicable\'))',
+    'CHECK (match_clock_position_seconds IS NULL OR match_clock_position_seconds >= 0)',
+    'CHECK (points >= 0)',
   ];
 }
 
@@ -351,6 +345,17 @@ class AppDatabase extends _$AppDatabase {
         SELECT CASE WHEN
           (SELECT match_id FROM match_events WHERE id = NEW.event_id) != NEW.match_id
           THEN RAISE(ABORT, 'shot location match does not match event') END;
+      END
+    ''');
+    await customStatement('''
+      CREATE TRIGGER IF NOT EXISTS match_events_shot_type_update
+      BEFORE UPDATE OF type, match_id ON match_events
+      WHEN EXISTS (SELECT 1 FROM shot_locations WHERE event_id = OLD.id)
+      BEGIN
+        SELECT CASE WHEN NEW.type NOT IN ('fieldGoal', 'score', 'miss')
+          THEN RAISE(ABORT, 'located event must remain a field-goal event') END;
+        SELECT CASE WHEN NEW.match_id != OLD.match_id
+          THEN RAISE(ABORT, 'located event cannot change match') END;
       END
     ''');
   }

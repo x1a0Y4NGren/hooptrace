@@ -64,16 +64,26 @@ class CsvExporter {
     'shooting_percentage',
   ];
 
-  static String matchList(Iterable<Matche> matches) {
+  static String matchList(
+    Iterable<Matche> matches, {
+    Iterable<dynamic> participants = const [],
+  }) {
     final sorted = matches.toList()..sort((a, b) => a.id.compareTo(b.id));
+    final names = <String, Map<String, String>>{};
+    for (final participant in participants) {
+      names.putIfAbsent(
+        participant.matchId as String,
+        () => {},
+      )[participant.side as String] = participant.nameSnapshot as String;
+    }
     return _encode([
       matchHeaders,
       ...sorted.map(
         (match) => [
           match.id,
-          match.redName,
-          match.blueName,
-          match.status,
+          names[match.id]?['red'] ?? '',
+          names[match.id]?['blue'] ?? '',
+          match.lifecycle,
           _timestamp(match.createdAt),
           _timestampOrEmpty(match.startedAt),
           _timestampOrEmpty(match.endedAt),
@@ -97,7 +107,7 @@ class CsvExporter {
           event.points,
           _timestamp(event.occurredAt),
           event.note ?? '',
-          event.customEventType ?? '',
+          event.customLabel ?? '',
           event.isDeleted,
         ],
       ),

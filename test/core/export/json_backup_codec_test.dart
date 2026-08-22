@@ -9,7 +9,7 @@ import '../../test_helpers/test_database.dart';
 
 void main() {
   group('JsonBackupCodec', () {
-    test('round-trips all eight persisted table groups', () async {
+    test('round-trips all eleven persisted table groups', () async {
       final exported = await withTestDatabase((source) async {
         await _seedCompleteBackup(source);
         return JsonBackupCodec(
@@ -30,6 +30,9 @@ void main() {
       expect(manifest['exportedAt'], exportedAt.toIso8601String());
       expect(manifest['recordCounts'], {
         'matches': 1,
+        'matchParticipants': 2,
+        'matchClocks': 0,
+        'activeSessions': 0,
         'matchEvents': 1,
         'shotLocations': 1,
         'players': 1,
@@ -141,9 +144,9 @@ void main() {
           .insert(
             Matche(
               id: 'keep-me',
-              redName: 'Local Red',
-              blueName: 'Local Blue',
-              status: 'active',
+              lifecycle: 'active',
+              recordingMode: 'simple',
+              trackingCoverage: 'scoresOnly',
               ruleTemplateJson: '{}',
               createdAt: DateTime.utc(2026, 7, 17),
               startedAt: null,
@@ -223,9 +226,9 @@ void main() {
           .insert(
             Matche(
               id: 'keep-me',
-              redName: 'Local Red',
-              blueName: 'Local Blue',
-              status: 'active',
+              lifecycle: 'active',
+              recordingMode: 'simple',
+              trackingCoverage: 'scoresOnly',
               ruleTemplateJson: '{}',
               createdAt: DateTime.utc(2026, 7, 17),
               startedAt: null,
@@ -270,9 +273,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
       .insert(
         Matche(
           id: 'match-1',
-          redName: 'Red',
-          blueName: 'Blue',
-          status: 'finished',
+          lifecycle: 'finished',
+          recordingMode: 'simple',
+          trackingCoverage: 'scoresOnly',
           ruleTemplateJson: jsonEncode({
             'id': 'rule-1',
             'name': 'Race to 11',
@@ -302,7 +305,9 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           points: 2,
           occurredAt: createdAt.add(const Duration(seconds: 15)),
           note: 'corner',
-          customEventType: null,
+          outcome: 'made',
+          matchClockPositionSeconds: null,
+          customLabel: null,
           isDeleted: false,
         ),
       );
@@ -329,6 +334,23 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           note: null,
         ),
       );
+  await database.batch((batch) {
+    batch.insertAll(database.matchParticipants, [
+      const MatchParticipant(
+        id: 'participant-red',
+        matchId: 'match-1',
+        side: 'red',
+        nameSnapshot: 'Red',
+        playerProfileId: 'player-1',
+      ),
+      const MatchParticipant(
+        id: 'participant-blue',
+        matchId: 'match-1',
+        side: 'blue',
+        nameSnapshot: 'Blue',
+      ),
+    ]);
+  });
   await database
       .into(database.ruleTemplates)
       .insert(
@@ -355,6 +377,7 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
           startedAtEventId: 'event-1',
           endedAtEventId: 'event-1',
           reason: 'score',
+          source: 'manual',
         ),
       );
   await database

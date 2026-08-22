@@ -40,15 +40,13 @@ class Match {
     this.endedAt,
     this.timerEnabled = false,
     this.note,
-  }) : lifecycle = lifecycle ?? status ?? MatchLifecycle.draft,
+  }) : lifecycle = _resolveLifecycle(lifecycle, status),
        participants = _normalizeParticipants(
          matchId: id,
          participants: participants,
          redName: redName,
          blueName: blueName,
-       ),
-       redName = redName ?? _nameFor(participants, TeamSide.red),
-       blueName = blueName ?? _nameFor(participants, TeamSide.blue) {
+       ) {
     if (this.participants.length != 2 ||
         this.participants
                 .map((participant) => participant.side)
@@ -67,6 +65,14 @@ class Match {
     )) {
       throw ArgumentError('Match participant names cannot be empty.');
     }
+    if ((redName != null &&
+            redName != _nameFor(this.participants, TeamSide.red)) ||
+        (blueName != null &&
+            blueName != _nameFor(this.participants, TeamSide.blue))) {
+      throw ArgumentError(
+        'Legacy participant names must match canonical participant snapshots.',
+      );
+    }
   }
 
   final String id;
@@ -74,8 +80,6 @@ class Match {
   final DateTime? startedAt;
   final DateTime? endedAt;
   final MatchLifecycle lifecycle;
-  final String redName;
-  final String blueName;
   final List<MatchParticipant> participants;
   final RuleTemplate ruleTemplateSnapshot;
   final RecordingMode recordingMode;
@@ -85,6 +89,20 @@ class Match {
 
   /// Compatibility getter for the old property name.
   MatchLifecycle get status => lifecycle;
+
+  /// Compatibility getters derived from canonical participant rows.
+  String get redName => _nameFor(participants, TeamSide.red);
+  String get blueName => _nameFor(participants, TeamSide.blue);
+
+  static MatchLifecycle _resolveLifecycle(
+    MatchLifecycle? lifecycle,
+    MatchStatus? status,
+  ) {
+    if (lifecycle != null && status != null && lifecycle != status) {
+      throw ArgumentError('Lifecycle and legacy status cannot disagree.');
+    }
+    return lifecycle ?? status ?? MatchLifecycle.draft;
+  }
 
   static List<MatchParticipant> _normalizeParticipants({
     required String matchId,

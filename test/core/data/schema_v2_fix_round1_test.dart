@@ -57,7 +57,11 @@ void main() {
           .insert(
             MatchesCompanion.insert(
               id: 'match-1',
-              ruleTemplateJson: '{}',
+              ruleTemplateJson:
+                  '{"id":"free","name":"Free","scoreButtons":[1,2,3],'
+                  '"targetScore":null,"timeLimitSeconds":null,"winByTwo":false,'
+                  '"foulLimit":null,"possessionHintEnabled":false,'
+                  '"customEventTypes":[]}',
               createdAt: DateTime.utc(2026),
             ),
           );
@@ -116,7 +120,11 @@ void main() {
           database.matches,
           MatchesCompanion.insert(
             id: 'match-1',
-            ruleTemplateJson: '{}',
+            ruleTemplateJson:
+                '{"id":"free","name":"Free","scoreButtons":[1,2,3],'
+                '"targetScore":null,"timeLimitSeconds":null,"winByTwo":false,'
+                '"foulLimit":null,"possessionHintEnabled":false,'
+                '"customEventTypes":[]}',
             createdAt: DateTime.utc(2026),
           ),
         );
@@ -237,7 +245,7 @@ void main() {
       raw.execute('PRAGMA user_version = 1');
       raw.execute("CREATE TABLE sentinel(value TEXT NOT NULL)");
       raw.execute("INSERT INTO sentinel(value) VALUES ('untouched')");
-      raw.dispose();
+      raw.close();
 
       expect(
         openNativeAppDatabaseAt(file),
@@ -249,7 +257,7 @@ void main() {
         verify.select('SELECT value FROM sentinel').single.values.first,
         'untouched',
       );
-      verify.dispose();
+      verify.close();
     },
   );
 
@@ -263,7 +271,11 @@ void main() {
             MatchesCompanion.insert(
               id: 'match-1',
               lifecycle: const Value('active'),
-              ruleTemplateJson: '{}',
+              ruleTemplateJson:
+                  '{"id":"free","name":"Free","scoreButtons":[1,2,3],'
+                  '"targetScore":null,"timeLimitSeconds":null,"winByTwo":false,'
+                  '"foulLimit":null,"possessionHintEnabled":false,'
+                  '"customEventTypes":[]}',
               createdAt: DateTime.utc(2026),
             ),
           );
@@ -294,6 +306,7 @@ void main() {
         source,
         appVersion: '1.0.0',
       ).export();
+      await source.close();
       final document = jsonDecode(exported) as Map<String, dynamic>;
       final data = document['data'] as Map<String, dynamic>;
       expect(
@@ -324,6 +337,17 @@ void main() {
               File('drift_schemas/drift_schema_v2.json').readAsStringSync(),
             )
             as Map<String, dynamic>;
-    expect(schema['version'], 2);
+    expect(schema['_meta'], isA<Map<String, dynamic>>());
+    final entities = schema['entities'] as List<dynamic>;
+    final tables = entities
+        .whereType<Map<String, dynamic>>()
+        .where((entity) => entity['type'] == 'table')
+        .map((entity) => (entity['data'] as Map<String, dynamic>)['name'])
+        .toSet();
+    expect(
+      tables,
+      containsAll(['matches', 'match_participants', 'active_sessions']),
+    );
+    expect(createTestDatabase().schemaVersion, 2);
   });
 }
