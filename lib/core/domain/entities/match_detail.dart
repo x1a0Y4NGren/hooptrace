@@ -1,7 +1,57 @@
 import 'package:hooptrace/core/domain/entities/match.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart';
+import 'package:hooptrace/core/domain/clock/clock_engine.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+
+enum MatchDecisionKind { finishOrContinue }
+
+enum MatchDecisionReason {
+  targetReached,
+  winByTwoRequired,
+  regulationExpired,
+}
+
+/// A persisted end-condition acknowledgement required before more input.
+class MatchDecision {
+  const MatchDecision({
+    required this.kind,
+    required this.reason,
+    required this.redScore,
+    required this.blueScore,
+    this.canFinish = true,
+    this.canContinue = true,
+    this.message = '',
+  });
+
+  final MatchDecisionKind kind;
+  final MatchDecisionReason reason;
+  final int redScore;
+  final int blueScore;
+  final bool canFinish;
+  final bool canContinue;
+  final String message;
+
+  bool get blocksInput => true;
+}
+
+enum MatchWarningKind { foulLimit }
+
+class MatchRuleWarning {
+  const MatchRuleWarning({
+    required this.kind,
+    required this.side,
+    required this.count,
+    required this.limit,
+    this.message = '',
+  });
+
+  final MatchWarningKind kind;
+  final TeamSide side;
+  final int count;
+  final int limit;
+  final String message;
+}
 
 class MatchDetail {
   const MatchDetail({
@@ -14,6 +64,9 @@ class MatchDetail {
     required this.blueFouls,
     required this.shotAttemptCount,
     required this.locatedShotCount,
+    this.clock,
+    this.decision,
+    this.warnings = const <MatchRuleWarning>[],
   });
 
   final Match match;
@@ -25,6 +78,36 @@ class MatchDetail {
   final int blueFouls;
   final int shotAttemptCount;
   final int locatedShotCount;
+  final ClockProjection? clock;
+  final MatchDecision? decision;
+  final List<MatchRuleWarning> warnings;
+
+  MatchDecision? get ruleDecision => decision;
+
+  MatchDecision? get endDecision => decision;
+
+  MatchRuleWarning? get warning => warnings.isEmpty ? null : warnings.first;
+
+  MatchDetail copyWith({
+    ClockProjection? clock,
+    MatchDecision? decision,
+    List<MatchRuleWarning>? warnings,
+  }) {
+    return MatchDetail(
+      match: match,
+      events: events,
+      shotLocations: shotLocations,
+      redScore: redScore,
+      blueScore: blueScore,
+      redFouls: redFouls,
+      blueFouls: blueFouls,
+      shotAttemptCount: shotAttemptCount,
+      locatedShotCount: locatedShotCount,
+      clock: clock ?? this.clock,
+      decision: decision ?? this.decision,
+      warnings: warnings ?? this.warnings,
+    );
+  }
 
   TeamSide? get winner {
     if (redScore == blueScore) {

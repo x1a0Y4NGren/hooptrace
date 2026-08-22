@@ -10,10 +10,17 @@ import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
+import 'package:hooptrace/core/domain/clock/clock_engine.dart';
+import 'package:hooptrace/core/domain/entities/clock_state.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart' as domain;
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:uuid/uuid.dart';
+
+export 'package:hooptrace/core/domain/clock/clock_engine.dart'
+    show ClockEngine, ClockProjection, ClockRecoveryReason, MatchClockEngine;
+export 'package:hooptrace/core/domain/entities/match_detail.dart'
+    show MatchDecisionKind, MatchDecisionReason, MatchDecision, MatchRuleWarning;
 
 /// A test-only hook which is intentionally absent from the default service.
 /// Hooks run after the business rows have been written but before the Drift
@@ -350,7 +357,8 @@ class PauseMatchCommand extends MatchCommand {
     required this.matchId,
     required DateTime occurredAt,
     String? eventId,
-  }) : eventId = eventId ?? _newUuid(),
+  }) : eventId =
+         eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
        occurredAt = occurredAt.toUtc();
 
   @override
@@ -376,7 +384,8 @@ class ResumeMatchCommand extends MatchCommand {
     required this.matchId,
     required DateTime occurredAt,
     String? eventId,
-  }) : eventId = eventId ?? _newUuid(),
+  }) : eventId =
+         eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
        occurredAt = occurredAt.toUtc();
 
   @override
@@ -386,6 +395,36 @@ class ResumeMatchCommand extends MatchCommand {
 
   @override
   String get commandType => 'resume';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'eventId': eventId,
+    'occurredAt': occurredAt.toUtc().toIso8601String(),
+  };
+}
+
+/// Acknowledges a blocking target/clock decision and resumes target play or
+/// starts overtime. The persisted decision marker makes this command safe to
+/// retry and prevents the same score projection from prompting repeatedly.
+class ContinueMatchCommand extends MatchCommand {
+  ContinueMatchCommand({
+    super.commandId,
+    required this.matchId,
+    required DateTime occurredAt,
+    String? eventId,
+  }) : eventId =
+         eventId ?? (commandId == null ? _newUuid() : '$commandId:event'),
+       occurredAt = occurredAt.toUtc();
+
+  @override
+  final String matchId;
+  final String eventId;
+  final DateTime occurredAt;
+
+  @override
+  String get commandType => 'continue';
 
   @override
   Map<String, Object?> get payload => <String, Object?>{
@@ -451,6 +490,11 @@ typedef UndoCommand = UndoMatchEventCommand;
 typedef UndoEventCommand = UndoMatchEventCommand;
 typedef PauseCommand = PauseMatchCommand;
 typedef ResumeCommand = ResumeMatchCommand;
+typedef ContinueCommand = ContinueMatchCommand;
+typedef ContinuePlayCommand = ContinueMatchCommand;
+typedef ContinueOvertimeCommand = ContinueMatchCommand;
+typedef AcknowledgeDecisionCommand = ContinueMatchCommand;
+typedef MatchClockService = MatchCommandService;
 typedef FinishCommand = FinishMatchCommand;
 typedef AbandonCommand = AbandonMatchCommand;
 typedef MatchProjection = MatchDetail;
@@ -520,6 +564,26 @@ class CommandValidationFailure extends MatchCommandFailure {
   }) : super(canRetry: false);
 }
 
+class EndConditionFailure extends CommandValidationFailure {
+  EndConditionFailure({
+    required super.command,
+    required this.decision,
+    super.projectionMatchId,
+  }) : super(message: decision.message);
+
+  final MatchDecision decision;
+}
+
+class ClockRecoveryFailure extends CommandValidationFailure {
+  ClockRecoveryFailure({
+    required super.command,
+    required this.recoveryMessage,
+    super.projectionMatchId,
+  }) : super(message: recoveryMessage);
+
+  final String recoveryMessage;
+}
+
 class CommandTransactionFailure extends MatchCommandFailure {
   CommandTransactionFailure({
     required super.command,
@@ -547,7 +611,30 @@ class MatchCommandService {
   final MatchCommandFailureInjector? _failureInjector;
   final FutureOr<void> Function()? _failureHook;
   final DateTime Function() _now;
-  late final MatchRepository _repository = MatchRepository(_database);
+
+  /// Reconstructs a clock from persisted seconds plus its UTC anchor. A
+  /// backward wall-clock move and a countdown expiry are normalized in one
+  /// transaction so the same recovery state is not reported repeatedly.
+  Future<ClockProjection?> readClock(String matchId, {DateTime? at}) async {
+    return _database.transaction(() async {
+      final row = await _clockRow(matchId);
+      if (row == null) return null;
+      final projection = ClockEngine().project(
+        state: _clockState(row),
+        now: (at ?? _now()).toUtc(),
+      );
+      if (projection.requiresPersistence) {
+        await _persistClockProjection(projection);
+      }
+      return projection;
+    });
+  }
+
+  Future<ClockProjection?> getClock(String matchId, {DateTime? at}) =>
+      readClock(matchId, at: at);
+
+  Future<ClockProjection?> clock(String matchId, {DateTime? at}) =>
+      readClock(matchId, at: at);
 
   Future<MatchDetail> start(StartMatchCommand command) {
     return _execute(command, () {
@@ -662,12 +749,25 @@ class MatchCommandService {
     });
   }
 
-  Future<MatchDetail> record(RecordMatchEventCommand command) {
+  Future<MatchDetail> record(RecordMatchEventCommand command) async {
+    // Normalize clock boundaries before opening the event transaction. A
+    // countdown expiry or wall-clock recovery must remain persisted even
+    // though the attempted score is rejected.
+    if (await _receipt(command.commandId) == null) {
+      final precondition = await _preflightRecord(command);
+      if (precondition != null) {
+        precondition.lastCommittedProjection = await _projection(
+          command.matchId,
+        );
+        throw precondition;
+      }
+    }
     return _execute(command, () {
       return _database.transaction(() async {
         final duplicate = await _returnForDuplicate(command);
         if (duplicate != null) return duplicate;
         await _requireActiveMatch(command);
+        await _guardInputClock(command);
         _validateRecord(command);
         final existing = await _eventRow(command.eventId);
         if (existing != null) {
@@ -710,6 +810,7 @@ class MatchCommandService {
           before: const <String, Object?>{},
           after: after,
         );
+        await _applyPostEventRules(command);
         await _inject(MatchCommandFailurePoint.afterEventWritten);
         final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
@@ -888,12 +989,34 @@ class MatchCommandService {
     });
   }
 
-  Future<MatchDetail> pause(PauseMatchCommand command) {
+  Future<MatchDetail> pause(PauseMatchCommand command) async {
+    final failure = await _preflightSemantic(command, label: 'pause');
+    if (failure != null) {
+      failure.lastCommittedProjection = await _projection(command.matchId);
+      throw failure;
+    }
     return _recordSemantic(command, label: 'pause');
   }
 
-  Future<MatchDetail> resume(ResumeMatchCommand command) {
+  Future<MatchDetail> resume(ResumeMatchCommand command) async {
+    final failure = await _preflightSemantic(command, label: 'resume');
+    if (failure != null) {
+      failure.lastCommittedProjection = await _projection(command.matchId);
+      throw failure;
+    }
     return _recordSemantic(command, label: 'resume');
+  }
+
+  Future<MatchDetail> continueMatch(ContinueMatchCommand command) {
+    return _continueDecision(command);
+  }
+
+  Future<MatchDetail> continuePlay(ContinueMatchCommand command) {
+    return continueMatch(command);
+  }
+
+  Future<MatchDetail> acknowledgeDecision(ContinueMatchCommand command) {
+    return continueMatch(command);
   }
 
   Future<MatchDetail> finish(FinishMatchCommand command) {
@@ -924,6 +1047,9 @@ class MatchCommandService {
   Future<MatchDetail> resumeMatch(ResumeMatchCommand command) =>
       resume(command);
 
+  Future<MatchDetail> continueMatchPlay(ContinueMatchCommand command) =>
+      continueMatch(command);
+
   Future<MatchDetail> finishMatch(FinishMatchCommand command) =>
       finish(command);
 
@@ -939,21 +1065,35 @@ class MatchCommandService {
         final duplicate = await _returnForDuplicate(command);
         if (duplicate != null) return duplicate;
         await _requireActiveMatch(command);
-        final semanticRows =
-            await (_database.select(_database.matchEvents)
-                  ..where(
-                    (event) =>
-                        event.matchId.equals(command.matchId) &
-                        event.type.equals(EventKind.pause.name) &
-                        event.isDeleted.equals(false),
-                  )
-                  ..orderBy([
-                    (_) =>
-                        OrderingTerm.desc(const CustomExpression<int>('rowid')),
-                  ]))
-                .get();
-        final latestSemantic = semanticRows.isEmpty ? null : semanticRows.first;
-        final isPaused = latestSemantic?.customLabel == 'pause';
+        final row = await _clockRow(command.matchId);
+        if (row == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing match clock for ${command.matchId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final now = _now().toUtc();
+        final matchRow = await _matchRow(command.matchId);
+        final timerEnabled = matchRow?.timerEnabled ?? false;
+        final clockProjection = ClockEngine().project(
+          state: _clockState(row),
+          now: now,
+        );
+        if (clockProjection.requiresPersistence) {
+          await _persistClockProjection(clockProjection);
+        }
+        final latestSemantic = await _latestSemanticLabel(command.matchId);
+        final isPaused = latestSemantic == 'pause';
+        final detail = await _projectionInTransaction(command.matchId);
+        final pendingDecision = detail?.decision;
+        if (pendingDecision != null) {
+          throw EndConditionFailure(
+            command: command,
+            decision: pendingDecision,
+            projectionMatchId: command.matchId,
+          );
+        }
         if ((label == 'pause' && isPaused) ||
             (label == 'resume' && !isPaused)) {
           throw CommandValidationFailure(
@@ -961,6 +1101,38 @@ class MatchCommandService {
             message: label == 'pause'
                 ? 'Match ${command.matchId} is already paused.'
                 : 'Match ${command.matchId} is not paused.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (timerEnabled &&
+            label == 'pause' &&
+            clockProjection.runningSinceUtc == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Match ${command.matchId} is not running.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (timerEnabled &&
+            label == 'resume' &&
+            clockProjection.runningSinceUtc != null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Match ${command.matchId} is already running.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (label == 'resume' &&
+            clockProjection.phase == ClockPhase.regulationExpired) {
+          final detail = await _projectionInTransaction(command.matchId);
+          final decision = detail?.decision ??
+              _decisionForScores(
+                reason: MatchDecisionReason.regulationExpired,
+                detail: detail,
+              );
+          throw EndConditionFailure(
+            command: command,
+            decision: decision,
             projectionMatchId: command.matchId,
           );
         }
@@ -974,6 +1146,15 @@ class MatchCommandService {
           ResumeMatchCommand(:final occurredAt) => occurredAt,
           _ => _now().toUtc(),
         };
+        final beforeClock = _clockJson(_clockState(row));
+        final nextClock = label == 'pause' || !timerEnabled
+            ? clockProjection.normalizedState.copyWith(
+                runningSinceUtc: null,
+              )
+            : clockProjection.normalizedState.copyWith(
+                runningSinceUtc: now,
+              );
+        await _updateClock(nextClock);
         await _database
             .into(_database.matchEvents)
             .insert(
@@ -986,6 +1167,103 @@ class MatchCommandService {
                 customLabel: Value(label),
               ),
             );
+        await _writeAudit(
+          id: _newUuid(),
+          matchId: command.matchId,
+          targetId: row.id,
+          action: 'edit',
+          before: beforeClock,
+          after: _clockJson(nextClock),
+          reason: 'clock-$label',
+        );
+        await _inject(MatchCommandFailurePoint.afterEventWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
+  Future<MatchDetail> _continueDecision(ContinueMatchCommand command) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+        await _requireActiveMatch(command);
+        final row = await _clockRow(command.matchId);
+        if (row == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing match clock for ${command.matchId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+
+        final now = _now().toUtc();
+        final matchRow = await _matchRow(command.matchId);
+        final timerEnabled = matchRow?.timerEnabled ?? false;
+        final clockProjection = ClockEngine().project(
+          state: _clockState(row),
+          now: now,
+        );
+        if (clockProjection.requiresPersistence) {
+          await _persistClockProjection(clockProjection);
+        }
+        final detail = await _projectionInTransaction(command.matchId);
+        final decision = detail?.decision ??
+            _decisionFromLabel(
+              await _latestDecisionLabel(command.matchId),
+              redScore: detail?.redScore ?? 0,
+              blueScore: detail?.blueScore ?? 0,
+            );
+        if (decision == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'There is no pending match decision to continue.',
+            projectionMatchId: command.matchId,
+          );
+        }
+
+        final beforeClock = _clockJson(clockProjection.normalizedState);
+        final ClockState nextClock;
+        final String semanticLabel;
+        if (decision.reason == MatchDecisionReason.regulationExpired ||
+            clockProjection.phase == ClockPhase.regulationExpired) {
+          nextClock = clockProjection.normalizedState.copyWith(
+            phase: ClockPhase.overtime,
+            accumulatedSeconds: 0,
+            runningSinceUtc: timerEnabled ? now : null,
+          );
+          semanticLabel = 'continueOvertime';
+        } else {
+          nextClock = clockProjection.normalizedState.copyWith(
+            runningSinceUtc: timerEnabled ? now : null,
+          );
+          semanticLabel = 'continueTarget';
+        }
+        await _updateClock(nextClock);
+        await _database
+            .into(_database.matchEvents)
+            .insert(
+              MatchEventsCompanion.insert(
+                id: command.eventId,
+                matchId: command.matchId,
+                type: EventKind.pause.name,
+                points: const Value(0),
+                occurredAt: command.occurredAt,
+                customLabel: Value(semanticLabel),
+              ),
+            );
+        await _writeAudit(
+          id: _newUuid(),
+          matchId: command.matchId,
+          targetId: row.id,
+          action: 'edit',
+          before: beforeClock,
+          after: _clockJson(nextClock),
+          reason: semanticLabel,
+        );
         await _inject(MatchCommandFailurePoint.afterEventWritten);
         final result = await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
@@ -1029,6 +1307,27 @@ class MatchCommandService {
           AbandonMatchCommand(:final endedAt) => endedAt,
           _ => _now().toUtc(),
         };
+        final clockRow = await _clockRow(command.matchId);
+        if (clockRow != null) {
+          final beforeClock = _clockState(clockRow);
+          final clockProjection = ClockEngine().project(
+            state: beforeClock,
+            now: _now().toUtc(),
+          );
+          final nextClock = clockProjection.normalizedState.copyWith(
+            runningSinceUtc: null,
+          );
+          await _updateClock(nextClock);
+          await _writeAudit(
+            id: _newUuid(),
+            matchId: command.matchId,
+            targetId: clockRow.id,
+            action: 'edit',
+            before: _clockJson(beforeClock),
+            after: _clockJson(nextClock),
+            reason: 'clock-$lifecycle',
+          );
+        }
         await (_database.update(
           _database.matches,
         )..where((match) => match.id.equals(command.matchId))).write(
@@ -1232,7 +1531,7 @@ class MatchCommandService {
   }
 
   Future<MatchDetail?> _projection(String matchId) {
-    return _repository.getMatchDetail(matchId);
+    return _projectionInTransaction(matchId);
   }
 
   Future<MatchDetail?> _projectionInTransaction(String matchId) async {
@@ -1249,13 +1548,342 @@ class MatchCommandService {
     final participants = await (_database.select(
       _database.matchParticipants,
     )..where((participant) => participant.matchId.equals(matchId))).get();
-    return MatchRepository.buildDetail(
+    final detail = MatchRepository.buildDetail(
       match,
       events,
       locations,
       participantRows: participants,
     );
+    final clockRow = await _clockRow(matchId);
+    final clock = clockRow == null
+        ? null
+        : ClockEngine().project(
+            state: _clockState(clockRow),
+            now: _now().toUtc(),
+          );
+    final decision = _decisionFromLabel(
+          await _latestDecisionLabel(matchId),
+          redScore: detail.redScore,
+          blueScore: detail.blueScore,
+        ) ??
+        (clock?.phase == ClockPhase.regulationExpired
+            ? _decisionForScores(
+                reason: MatchDecisionReason.regulationExpired,
+                detail: detail,
+              )
+            : null);
+    return detail.copyWith(
+      clock: clock,
+      decision: decision,
+      warnings: _warningsFor(detail),
+    );
   }
+
+  Future<MatchClock?> _clockRow(String matchId) {
+    final query = _database.select(_database.matchClocks)
+      ..where((clock) => clock.matchId.equals(matchId));
+    return query.getSingleOrNull();
+  }
+
+  ClockState _clockState(MatchClock row) {
+    return ClockState(
+      id: row.id,
+      matchId: row.matchId,
+      mode: ClockMode.values.byName(row.mode),
+      phase: ClockPhase.values.byName(row.phase),
+      accumulatedSeconds: row.accumulatedSeconds,
+      runningSinceUtc: row.runningSinceUtc?.toUtc(),
+      regulationSeconds: row.regulationSeconds,
+    );
+  }
+
+  Future<void> _updateClock(ClockState state) {
+    return (_database.update(_database.matchClocks)
+          ..where((clock) => clock.id.equals(state.id)))
+        .write(
+          MatchClocksCompanion(
+            phase: Value(state.phase.name),
+            accumulatedSeconds: Value(state.accumulatedSeconds),
+            runningSinceUtc: Value(state.runningSinceUtc),
+          ),
+        );
+  }
+
+  Future<void> _persistClockProjection(ClockProjection projection) {
+    return _updateClock(projection.normalizedState);
+  }
+
+  Future<String?> _latestSemanticLabel(String matchId) async {
+    final rows =
+        await (_database.select(_database.matchEvents)
+              ..where(
+                (event) =>
+                    event.matchId.equals(matchId) &
+                    event.type.equals(EventKind.pause.name) &
+                    event.isDeleted.equals(false),
+              )
+              ..orderBy([
+                (_) =>
+                    OrderingTerm.desc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    return rows.isEmpty ? null : rows.first.customLabel;
+  }
+
+  Future<String?> _latestDecisionLabel(String matchId) async {
+    final latest = await _latestSemanticLabel(matchId);
+    return latest != null && latest.startsWith('decision:') ? latest : null;
+  }
+
+  Future<void> _guardInputClock(MatchCommand command) async {
+    final row = await _clockRow(command.matchId);
+    if (row == null) return;
+    final clock = ClockEngine().project(
+      state: _clockState(row),
+      now: _now().toUtc(),
+    );
+    if (clock.requiresPersistence) {
+      await _persistClockProjection(clock);
+    }
+    final detail = await _projectionInTransaction(command.matchId);
+    final decision = detail?.decision;
+    if (decision != null) {
+      throw EndConditionFailure(
+        command: command,
+        decision: decision,
+        projectionMatchId: command.matchId,
+      );
+    }
+  }
+
+  Future<MatchCommandFailure?> _preflightRecord(
+    RecordMatchEventCommand command,
+  ) async {
+    final row = await _clockRow(command.matchId);
+    if (row == null) return null;
+    final projection = ClockEngine().project(
+      state: _clockState(row),
+      now: _now().toUtc(),
+    );
+    if (projection.requiresPersistence) {
+      await _database.transaction(() => _persistClockProjection(projection));
+    }
+    if (projection.recoveryReason != null) {
+      return ClockRecoveryFailure(
+        command: command,
+        recoveryMessage: projection.recoveryMessage ??
+            'The clock was paused because the device clock moved backward.',
+        projectionMatchId: command.matchId,
+      );
+    }
+    final detail = await _projection(command.matchId);
+    final decision = detail?.decision;
+    if (decision != null) {
+      return EndConditionFailure(
+        command: command,
+        decision: decision,
+        projectionMatchId: command.matchId,
+      );
+    }
+    return null;
+  }
+
+  Future<MatchCommandFailure?> _preflightSemantic(
+    MatchCommand command, {
+    required String label,
+  }) async {
+    if (await _receipt(command.commandId) != null) return null;
+    final row = await _clockRow(command.matchId);
+    if (row == null) return null;
+    final projection = ClockEngine().project(
+      state: _clockState(row),
+      now: _now().toUtc(),
+    );
+    if (projection.requiresPersistence) {
+      await _database.transaction(() => _persistClockProjection(projection));
+    }
+    if (projection.recoveryReason != null) {
+      return ClockRecoveryFailure(
+        command: command,
+        recoveryMessage: projection.recoveryMessage ??
+            'The clock was paused because the device clock moved backward.',
+        projectionMatchId: command.matchId,
+      );
+    }
+    final detail = await _projection(command.matchId);
+    final decision = detail?.decision;
+    if (decision != null) {
+      return EndConditionFailure(
+        command: command,
+        decision: decision,
+        projectionMatchId: command.matchId,
+      );
+    }
+    if (label == 'resume' && projection.recoveryReason != null) {
+      return ClockRecoveryFailure(
+        command: command,
+        recoveryMessage: projection.recoveryMessage ??
+            'The clock was paused because the device clock moved backward.',
+        projectionMatchId: command.matchId,
+      );
+    }
+    return null;
+  }
+
+  Future<void> _applyPostEventRules(RecordMatchEventCommand command) async {
+    final detail = await _projectionInTransaction(command.matchId);
+    if (detail == null) return;
+    final row = await _clockRow(command.matchId);
+    if (row == null) return;
+    final beforeClock = _clockState(row);
+    final now = _now().toUtc();
+    final clock = ClockEngine().project(state: _clockState(row), now: now);
+    if (clock.requiresPersistence) {
+      await _persistClockProjection(clock);
+    }
+
+    MatchDecisionReason? reason;
+    if (clock.phase == ClockPhase.regulationExpired) {
+      reason = MatchDecisionReason.regulationExpired;
+    } else if (_isMadeScore(command)) {
+      final template = detail.match.ruleTemplateSnapshot;
+      final target = template.targetScore;
+      if (target != null) {
+        final leading = detail.redScore >= detail.blueScore
+            ? detail.redScore
+            : detail.blueScore;
+        final trailing = detail.redScore < detail.blueScore
+            ? detail.redScore
+            : detail.blueScore;
+        if (leading >= target) {
+          reason = template.winByTwo && leading - trailing < 2
+              ? MatchDecisionReason.winByTwoRequired
+              : MatchDecisionReason.targetReached;
+        }
+      }
+    }
+    if (reason == null) return;
+
+    final existingDecision = await _latestDecisionLabel(command.matchId);
+    if (existingDecision != null) return;
+    final nextClock = clock.normalizedState.copyWith(runningSinceUtc: null);
+    await _updateClock(nextClock);
+    await _writeAudit(
+      id: _newUuid(),
+      matchId: command.matchId,
+      targetId: row.id,
+      action: 'edit',
+      before: _clockJson(beforeClock),
+      after: _clockJson(nextClock),
+      reason: 'decision-clock',
+    );
+    await _database
+        .into(_database.matchEvents)
+        .insert(
+          MatchEventsCompanion.insert(
+            id: '${command.commandId}:decision',
+            matchId: command.matchId,
+            type: EventKind.pause.name,
+            points: const Value(0),
+            occurredAt: now,
+            customLabel: Value('decision:${reason.name}'),
+          ),
+        );
+  }
+
+  static bool _isMadeScore(RecordMatchEventCommand command) {
+    if (command.type == EventKind.score) return command.points > 0;
+    return (command.type == EventKind.fieldGoal ||
+            command.type == EventKind.freeThrow) &&
+        command.outcome == ShotOutcome.made &&
+        command.points > 0;
+  }
+
+  MatchDecision? _decisionFromLabel(
+    String? label, {
+    required int redScore,
+    required int blueScore,
+  }) {
+    if (label == null || !label.startsWith('decision:')) return null;
+    final reasonName = label.substring('decision:'.length);
+    MatchDecisionReason? reason;
+    for (final value in MatchDecisionReason.values) {
+      if (value.name == reasonName) {
+        reason = value;
+        break;
+      }
+    }
+    return reason == null
+        ? null
+        : _decisionForScores(
+            reason: reason,
+            redScore: redScore,
+            blueScore: blueScore,
+          );
+  }
+
+  MatchDecision _decisionForScores({
+    required MatchDecisionReason reason,
+    MatchDetail? detail,
+    int? redScore,
+    int? blueScore,
+  }) {
+    final resolvedRed = redScore ?? detail?.redScore ?? 0;
+    final resolvedBlue = blueScore ?? detail?.blueScore ?? 0;
+    final message = switch (reason) {
+      MatchDecisionReason.targetReached => 'Target score reached. Finish or continue?',
+      MatchDecisionReason.winByTwoRequired =>
+        'Target reached, but a two-point lead is required. Continue?',
+      MatchDecisionReason.regulationExpired =>
+        'Regulation time expired. Finish or continue in overtime?',
+    };
+    return MatchDecision(
+      kind: MatchDecisionKind.finishOrContinue,
+      reason: reason,
+      redScore: resolvedRed,
+      blueScore: resolvedBlue,
+      message: message,
+    );
+  }
+
+  List<MatchRuleWarning> _warningsFor(MatchDetail detail) {
+    final limit = detail.match.ruleTemplateSnapshot.foulLimit;
+    if (limit == null || limit <= 0) return const <MatchRuleWarning>[];
+    final warnings = <MatchRuleWarning>[];
+    if (detail.redFouls >= limit) {
+      warnings.add(
+        MatchRuleWarning(
+          kind: MatchWarningKind.foulLimit,
+          side: TeamSide.red,
+          count: detail.redFouls,
+          limit: limit,
+          message: 'Red foul limit reached.',
+        ),
+      );
+    }
+    if (detail.blueFouls >= limit) {
+      warnings.add(
+        MatchRuleWarning(
+          kind: MatchWarningKind.foulLimit,
+          side: TeamSide.blue,
+          count: detail.blueFouls,
+          limit: limit,
+          message: 'Blue foul limit reached.',
+        ),
+      );
+    }
+    return List.unmodifiable(warnings);
+  }
+
+  static Map<String, Object?> _clockJson(ClockState state) => <String, Object?>{
+    'id': state.id,
+    'matchId': state.matchId,
+    'mode': state.mode.name,
+    'phase': state.phase.name,
+    'accumulatedSeconds': state.accumulatedSeconds,
+    'runningSinceUtc': state.runningSinceUtc?.toUtc().toIso8601String(),
+    'regulationSeconds': state.regulationSeconds,
+  };
 
   Future<void> _inject(MatchCommandFailurePoint point) async {
     await _failureInjector?.call(point);
@@ -1470,6 +2098,37 @@ Map<String, Object?> _projectionJson(MatchDetail detail) {
     'blueFouls': detail.blueFouls,
     'shotAttemptCount': detail.shotAttemptCount,
     'locatedShotCount': detail.locatedShotCount,
+    if (detail.clock != null)
+      'clock': <String, Object?>{
+        ...MatchCommandService._clockJson(detail.clock!.normalizedState),
+        'elapsedSeconds': detail.clock!.elapsedSeconds,
+        'displaySeconds': detail.clock!.displaySeconds,
+        'remainingSeconds': detail.clock!.remainingSeconds,
+        'recoveryReason': detail.clock!.recoveryReason?.name,
+        'recoveryMessage': detail.clock!.recoveryMessage,
+        'requiresPersistence': detail.clock!.requiresPersistence,
+        'nowUtc': detail.clock!.nowUtc.toUtc().toIso8601String(),
+      },
+    if (detail.decision != null)
+      'decision': <String, Object?>{
+        'kind': detail.decision!.kind.name,
+        'reason': detail.decision!.reason.name,
+        'redScore': detail.decision!.redScore,
+        'blueScore': detail.decision!.blueScore,
+        'canFinish': detail.decision!.canFinish,
+        'canContinue': detail.decision!.canContinue,
+        'message': detail.decision!.message,
+      },
+    'warnings': [
+      for (final warning in detail.warnings)
+        <String, Object?>{
+          'kind': warning.kind.name,
+          'side': warning.side.name,
+          'count': warning.count,
+          'limit': warning.limit,
+          'message': warning.message,
+        },
+    ],
   };
 }
 
@@ -1551,6 +2210,63 @@ MatchDetail _projectionFromJson(Map<String, Object?> json) {
       })
       .toList(growable: false);
 
+  ClockProjection? clock;
+  final clockJson = json['clock'];
+  if (clockJson is Map) {
+    final value = clockJson.cast<String, Object?>();
+    final normalizedState = ClockState(
+      id: value['id'] as String,
+      matchId: value['matchId'] as String,
+      mode: ClockMode.values.byName(value['mode'] as String),
+      phase: ClockPhase.values.byName(value['phase'] as String),
+      accumulatedSeconds: (value['accumulatedSeconds'] as num).toInt(),
+      runningSinceUtc: _dateFromJson(value['runningSinceUtc']),
+      regulationSeconds: (value['regulationSeconds'] as num?)?.toInt(),
+    );
+    final recoveryName = value['recoveryReason'] as String?;
+    clock = ClockProjection(
+      state: normalizedState,
+      normalizedState: normalizedState,
+      nowUtc: DateTime.parse(value['nowUtc'] as String).toUtc(),
+      elapsedSeconds: (value['elapsedSeconds'] as num).toInt(),
+      displaySeconds: (value['displaySeconds'] as num).toInt(),
+      phase: ClockPhase.values.byName(value['phase'] as String),
+      remainingSeconds: (value['remainingSeconds'] as num?)?.toInt(),
+      recoveryReason: recoveryName == null
+          ? null
+          : ClockRecoveryReason.values.byName(recoveryName),
+      recoveryMessage: value['recoveryMessage'] as String?,
+      requiresPersistence: value['requiresPersistence'] as bool? ?? false,
+    );
+  }
+  MatchDecision? decision;
+  final decisionJson = json['decision'];
+  if (decisionJson is Map) {
+    final value = decisionJson.cast<String, Object?>();
+    decision = MatchDecision(
+      kind: MatchDecisionKind.values.byName(value['kind'] as String),
+      reason: MatchDecisionReason.values.byName(value['reason'] as String),
+      redScore: (value['redScore'] as num).toInt(),
+      blueScore: (value['blueScore'] as num).toInt(),
+      canFinish: value['canFinish'] as bool? ?? true,
+      canContinue: value['canContinue'] as bool? ?? true,
+      message: value['message'] as String? ?? '',
+    );
+  }
+  final warningJson = (json['warnings'] as List<Object?>?) ?? const [];
+  final warnings = warningJson
+      .map((raw) {
+        final value = (raw as Map).cast<String, Object?>();
+        return MatchRuleWarning(
+          kind: MatchWarningKind.values.byName(value['kind'] as String),
+          side: TeamSide.values.byName(value['side'] as String),
+          count: (value['count'] as num).toInt(),
+          limit: (value['limit'] as num).toInt(),
+          message: value['message'] as String? ?? '',
+        );
+      })
+      .toList(growable: false);
+
   return MatchDetail(
     match: match,
     events: List.unmodifiable(events),
@@ -1561,6 +2277,9 @@ MatchDetail _projectionFromJson(Map<String, Object?> json) {
     blueFouls: (json['blueFouls'] as num).toInt(),
     shotAttemptCount: (json['shotAttemptCount'] as num).toInt(),
     locatedShotCount: (json['locatedShotCount'] as num).toInt(),
+    clock: clock,
+    decision: decision,
+    warnings: List.unmodifiable(warnings),
   );
 }
 

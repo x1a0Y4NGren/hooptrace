@@ -38,11 +38,41 @@ class ClockState {
 
   bool get isRunning => runningSinceUtc != null;
 
+  ClockState copyWith({
+    String? id,
+    String? matchId,
+    ClockMode? mode,
+    ClockPhase? phase,
+    int? accumulatedSeconds,
+    Object? runningSinceUtc = _clockStateUnset,
+    Object? regulationSeconds = _clockStateUnset,
+  }) {
+    return ClockState(
+      id: id ?? this.id,
+      matchId: matchId ?? this.matchId,
+      mode: mode ?? this.mode,
+      phase: phase ?? this.phase,
+      accumulatedSeconds: accumulatedSeconds ?? this.accumulatedSeconds,
+      runningSinceUtc: identical(runningSinceUtc, _clockStateUnset)
+          ? this.runningSinceUtc
+          : runningSinceUtc as DateTime?,
+      regulationSeconds: identical(regulationSeconds, _clockStateUnset)
+          ? this.regulationSeconds
+          : regulationSeconds as int?,
+    );
+  }
+
   int? get remainingSeconds {
-    if (mode != ClockMode.countdown || regulationSeconds == null) return null;
+    if (mode != ClockMode.countdown ||
+        phase != ClockPhase.regulation ||
+        regulationSeconds == null) {
+      return null;
+    }
     return (regulationSeconds! - accumulatedSeconds).clamp(
       0,
       regulationSeconds!,
     );
   }
 }
+
+const _clockStateUnset = Object();
