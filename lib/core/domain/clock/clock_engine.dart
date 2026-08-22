@@ -50,10 +50,7 @@ class ClockProjection {
 class ClockEngine {
   const ClockEngine();
 
-  ClockProjection project({
-    required ClockState state,
-    required DateTime now,
-  }) {
+  ClockProjection project({required ClockState state, required DateTime now}) {
     final nowUtc = now.toUtc();
     final anchor = state.runningSinceUtc?.toUtc();
     final movedBackward = anchor != null && nowUtc.isBefore(anchor);
@@ -87,8 +84,8 @@ class ClockEngine {
       }
     }
 
-    final displaySeconds = state.mode == ClockMode.countdown &&
-            phase == ClockPhase.regulation
+    final displaySeconds =
+        state.mode == ClockMode.countdown && phase == ClockPhase.regulation
         ? (state.regulationSeconds == null
               ? elapsed
               : (state.regulationSeconds! - elapsed).clamp(
@@ -98,7 +95,8 @@ class ClockEngine {
         : phase == ClockPhase.regulationExpired
         ? 0
         : elapsed;
-    final remainingSeconds = state.mode == ClockMode.countdown &&
+    final remainingSeconds =
+        state.mode == ClockMode.countdown &&
             phase == ClockPhase.regulation &&
             state.regulationSeconds != null
         ? (state.regulationSeconds! - elapsed).clamp(

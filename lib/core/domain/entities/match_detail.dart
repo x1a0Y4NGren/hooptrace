@@ -6,11 +6,7 @@ import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 enum MatchDecisionKind { finishOrContinue }
 
-enum MatchDecisionReason {
-  targetReached,
-  winByTwoRequired,
-  regulationExpired,
-}
+enum MatchDecisionReason { targetReached, winByTwoRequired, regulationExpired }
 
 /// A persisted end-condition acknowledgement required before more input.
 class MatchDecision {
