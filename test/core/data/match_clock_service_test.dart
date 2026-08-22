@@ -1152,13 +1152,15 @@ void main() {
         ),
       );
       expect(undoFailure, isA<EndConditionFailure>());
+    },
+  );
 
-      final locationDatabase = createTestDatabase();
-      final locationService = MatchCommandService(
-        locationDatabase,
-        now: () => _anchor,
-      );
-      await locationService.start(
+  test(
+    'pending decision still allows committed field-goal location confirmation',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
         _start(
           ruleTemplate: const RuleTemplate(
             id: 'target-location-gate',
@@ -1168,7 +1170,7 @@ void main() {
           ),
         ),
       );
-      await locationService.record(
+      await service.record(
         RecordMatchEventCommand(
           commandId: 'location-score',
           matchId: 'match-clock',
@@ -1180,7 +1182,7 @@ void main() {
           occurredAt: _anchor,
         ),
       );
-      final located = await locationService.confirmShotLocation(
+      final located = await service.confirmShotLocation(
         ConfirmShotLocationCommand(
           commandId: 'location-confirm',
           matchId: 'match-clock',
@@ -1189,10 +1191,7 @@ void main() {
         ),
       );
       expect(located.decision?.reason, MatchDecisionReason.targetReached);
-      expect(
-        await locationDatabase.select(locationDatabase.shotLocations).get(),
-        hasLength(1),
-      );
+      expect(await database.select(database.shotLocations).get(), hasLength(1));
     },
   );
 
