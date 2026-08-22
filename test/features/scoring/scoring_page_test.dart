@@ -247,7 +247,9 @@ void main() {
         service,
       );
 
-      await tester.pumpWidget(MaterialApp(home: ScoringPage(controller: controller)));
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
       await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
       await tester.pump();
       expect(find.text(undoText), findsOneWidget);
@@ -263,6 +265,72 @@ void main() {
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
+    });
+  });
+
+  testWidgets('retryable confirm failure offers retry and commits location', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1920, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await withTestDatabase((database) async {
+      var beforeCommitCalls = 0;
+      final service = MatchCommandService(
+        database,
+        failureInjector: (point) {
+          if (point == MatchCommandFailurePoint.beforeCommit &&
+              beforeCommitCalls++ == 2) {
+            throw StateError('confirm failed once');
+          }
+        },
+      );
+      final start = await service.start(
+        StartMatchCommand(
+          commandId: 'page-retry-start-command',
+          matchId: 'page-retry-match',
+          redName: 'Red',
+          blueName: 'Blue',
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: 'Free',
+            scoreButtons: [1, 2, 3],
+          ),
+          createdAt: DateTime.utc(2026, 8, 23, 9),
+          startedAt: DateTime.utc(2026, 8, 23, 9),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('confirm-location')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+
+      expect(find.text('重试'), findsOneWidget);
+      expect(controller.state.pendingLocation, isNotNull);
+      final retryAction = tester.widget<SnackBarAction>(
+        find.byType(SnackBarAction),
+      );
+      retryAction.onPressed();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+
+      expect(controller.state.pendingLocation, isNull);
+      expect(await database.select(database.shotLocations).get(), hasLength(1));
     });
   });
 }

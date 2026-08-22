@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
@@ -153,10 +154,7 @@ void main() {
         );
 
         expect(
-          await controller.recordScoreCommitted(
-            side: TeamSide.red,
-            points: 2,
-          ),
+          await controller.recordScoreCommitted(side: TeamSide.red, points: 2),
           isTrue,
         );
 
@@ -181,14 +179,9 @@ void main() {
           start,
           service,
         );
-        await controller.recordScoreCommitted(
-          side: TeamSide.red,
-          points: 2,
-        );
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
 
-        await controller.confirmPendingLocation(
-          CourtPoint(x: 0.25, y: 0.75),
-        );
+        await controller.confirmPendingLocation(CourtPoint(x: 0.25, y: 0.75));
 
         expect(controller.state.pendingLocation, isNull);
         expect(controller.state.shotLocations, hasLength(1));
@@ -201,42 +194,75 @@ void main() {
     },
   );
 
+  test('command-backed skip leaves a committed unlocated fieldGoal', () async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final start = await _startCommandBackedMatch(service);
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await controller.recordScoreCommitted(side: TeamSide.blue, points: 3);
+
+      controller.skipPendingLocation();
+
+      expect(controller.state.pendingLocation, isNull);
+      expect(controller.state.score.blueScore, 3);
+      expect(controller.state.shotLocations, isEmpty);
+      expect(await database.select(database.shotLocations).get(), isEmpty);
+      expect(await database.select(database.matchEvents).get(), hasLength(1));
+    });
+  });
+
   test(
-    'command-backed skip leaves a committed unlocated fieldGoal',
+    'failed command-backed confirmation keeps pending state and retries the same command',
     () async {
       await withTestDatabase((database) async {
-        final service = MatchCommandService(database);
+        var beforeCommitCalls = 0;
+        final service = MatchCommandService(
+          database,
+          failureInjector: (point) {
+            if (point == MatchCommandFailurePoint.beforeCommit &&
+                beforeCommitCalls++ == 2) {
+              throw StateError('confirm failed once');
+            }
+          },
+        );
         final start = await _startCommandBackedMatch(service);
         final controller = ScoringController.fromCommittedProjection(
           start,
           service,
         );
-        await controller.recordScoreCommitted(
-          side: TeamSide.blue,
-          points: 3,
-        );
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+        final pendingEventId = controller.state.pendingLocation!.eventId;
 
-        controller.skipPendingLocation();
+        MatchCommandFailure? failure;
+        try {
+          await controller.confirmPendingLocation(CourtPoint(x: 0.25, y: 0.75));
+        } on MatchCommandFailure catch (error) {
+          failure = error;
+        }
+
+        expect(failure, isA<CommandTransactionFailure>());
+        expect(failure!.command.commandId, isNotEmpty);
+        expect(controller.state.pendingLocation!.eventId, pendingEventId);
+        expect(await database.select(database.shotLocations).get(), isEmpty);
+
+        await controller.retryCommand(failure);
 
         expect(controller.state.pendingLocation, isNull);
-        expect(controller.state.score.blueScore, 3);
-        expect(controller.state.shotLocations, isEmpty);
-        expect(
-          await database.select(database.shotLocations).get(),
-          isEmpty,
-        );
-        expect(
-          await database.select(database.matchEvents).get(),
-          hasLength(1),
-        );
+        expect(controller.state.shotLocations, hasLength(1));
+        final receipts = await (database.select(
+          database.auditLogs,
+        )..where((row) => row.id.equals(failure!.command.commandId))).get();
+        expect(receipts, hasLength(1));
+        expect(receipts.single.action, AuditAction.command.name);
       });
     },
   );
 }
 
-Future<MatchDetail> _startCommandBackedMatch(
-  MatchCommandService service,
-) {
+Future<MatchDetail> _startCommandBackedMatch(MatchCommandService service) {
   return service.start(
     StartMatchCommand(
       commandId: 'ui-command-${DateTime.now().microsecondsSinceEpoch}',

@@ -222,6 +222,9 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _scoreAndAskLocation(TeamSide side, int points) async {
     final accepted = await _recordScore(side, points);
     if (!accepted) {
+      if (_controller.isCommandBacked) {
+        return;
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -265,11 +268,7 @@ class _ScoringPageState extends State<ScoringPage> {
       }
       return _controller.addScore(side: side, points: points);
     } on MatchCommandFailure catch (failure) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failure.message)));
-      }
+      _showCommandFailure(failure);
       return false;
     }
   }
@@ -286,11 +285,7 @@ class _ScoringPageState extends State<ScoringPage> {
     try {
       await _controller.recordFoulCommitted(side);
     } on MatchCommandFailure catch (failure) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failure.message)));
-      }
+      _showCommandFailure(failure);
     }
   }
 
@@ -298,11 +293,7 @@ class _ScoringPageState extends State<ScoringPage> {
     try {
       await _controller.confirmPendingLocation();
     } on MatchCommandFailure catch (failure) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failure.message)));
-      }
+      _showCommandFailure(failure);
     }
   }
 
@@ -310,11 +301,32 @@ class _ScoringPageState extends State<ScoringPage> {
     try {
       await _controller.undoLastEventCommitted();
     } on MatchCommandFailure catch (failure) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(failure.message)));
-      }
+      _showCommandFailure(failure);
+    }
+  }
+
+  void _showCommandFailure(MatchCommandFailure failure) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(failure.message),
+        action: failure.canRetry
+            ? SnackBarAction(
+                label: '重试',
+                onPressed: () => unawaited(_retryCommand(failure)),
+              )
+            : null,
+      ),
+    );
+  }
+
+  Future<void> _retryCommand(MatchCommandFailure failure) async {
+    try {
+      await _controller.retryCommand(failure);
+    } on MatchCommandFailure catch (nextFailure) {
+      _showCommandFailure(nextFailure);
     }
   }
 

@@ -142,6 +142,7 @@ class ScoringController extends ChangeNotifier {
   final ScoringReducer _reducer = ScoringReducer();
   final RuleEngine _ruleEngine = RuleEngine();
   MatchScoringState _state;
+  bool _commandBusy = false;
 
   MatchScoringState get state => _state;
 
@@ -155,9 +156,10 @@ class ScoringController extends ChangeNotifier {
     if (service == null) {
       return addScore(side: side, points: points);
     }
-    if (_state.pendingLocation != null) {
+    if (_commandBusy || _state.pendingLocation != null) {
       return false;
     }
+    _commandBusy = true;
     final command = RecordMatchEventCommand(
       matchId: _state.matchId,
       type: EventKind.fieldGoal,
@@ -166,18 +168,17 @@ class ScoringController extends ChangeNotifier {
       outcome: ShotOutcome.made,
       occurredAt: DateTime.now().toUtc(),
     );
-    final projection = await service.record(command);
-    _replaceFromProjection(
-      projection,
-      pendingLocation: PendingShotLocation(
-        eventId: command.eventId,
-        side: side,
-        points: points,
-        point: CourtPoint(x: 0.5, y: 0.58),
-      ),
-    );
-    notifyListeners();
-    return true;
+    try {
+      final projection = await service.record(command);
+      _replaceFromProjection(
+        projection,
+        pendingLocation: _pendingForRecord(command),
+      );
+      notifyListeners();
+      return true;
+    } finally {
+      _commandBusy = false;
+    }
   }
 
   Future<void> recordFoulCommitted(TeamSide side) async {
@@ -186,17 +187,23 @@ class ScoringController extends ChangeNotifier {
       addFoul(side);
       return;
     }
-    final projection = await service.record(
-      RecordMatchEventCommand(
-        matchId: _state.matchId,
-        type: EventKind.foul,
-        side: side,
-        points: 0,
-        occurredAt: DateTime.now().toUtc(),
-      ),
-    );
-    _replaceFromProjection(projection);
-    notifyListeners();
+    if (_commandBusy) return;
+    _commandBusy = true;
+    try {
+      final projection = await service.record(
+        RecordMatchEventCommand(
+          matchId: _state.matchId,
+          type: EventKind.foul,
+          side: side,
+          points: 0,
+          occurredAt: DateTime.now().toUtc(),
+        ),
+      );
+      _replaceFromProjection(projection);
+      notifyListeners();
+    } finally {
+      _commandBusy = false;
+    }
   }
 
   Future<void> undoLastEventCommitted() async {
@@ -205,16 +212,21 @@ class ScoringController extends ChangeNotifier {
       undoLastEvent();
       return;
     }
-    if (_state.events.isEmpty) return;
-    final projection = await service.undo(
-      UndoMatchEventCommand(
-        matchId: _state.matchId,
-        eventId: _state.events.last.id,
-        reason: 'Scoring UI undo',
-      ),
-    );
-    _replaceFromProjection(projection);
-    notifyListeners();
+    if (_commandBusy || _state.events.isEmpty) return;
+    _commandBusy = true;
+    try {
+      final projection = await service.undo(
+        UndoMatchEventCommand(
+          matchId: _state.matchId,
+          eventId: _state.events.last.id,
+          reason: 'Scoring UI undo',
+        ),
+      );
+      _replaceFromProjection(projection);
+      notifyListeners();
+    } finally {
+      _commandBusy = false;
+    }
   }
 
   bool addScore({required TeamSide side, required int points}) {
@@ -273,15 +285,21 @@ class ScoringController extends ChangeNotifier {
     final confirmedPoint = point ?? pending.point;
     final service = _commandService;
     if (service != null) {
-      final projection = await service.confirmShotLocation(
-        ConfirmShotLocationCommand(
-          matchId: _state.matchId,
-          eventId: pending.eventId,
-          point: confirmedPoint,
-        ),
-      );
-      _replaceFromProjection(projection);
-      notifyListeners();
+      if (_commandBusy) return;
+      _commandBusy = true;
+      try {
+        final projection = await service.confirmShotLocation(
+          ConfirmShotLocationCommand(
+            matchId: _state.matchId,
+            eventId: pending.eventId,
+            point: confirmedPoint,
+          ),
+        );
+        _replaceFromProjection(projection);
+        notifyListeners();
+      } finally {
+        _commandBusy = false;
+      }
       return;
     }
     final marker = ScoringShotLocation(
@@ -297,6 +315,27 @@ class ScoringController extends ChangeNotifier {
       clearPendingLocation: true,
     );
     notifyListeners();
+  }
+
+  /// Applies the committed projection returned by a retryable command
+  /// failure. The original command object is retained by the failure, so a
+  /// retry cannot accidentally allocate a second event or receipt.
+  Future<void> retryCommand(MatchCommandFailure failure) async {
+    if (_commandBusy) return;
+    _commandBusy = true;
+    try {
+      final projection = await failure.retry();
+      final command = failure.command;
+      _replaceFromProjection(
+        projection,
+        pendingLocation: command is RecordMatchEventCommand
+            ? _pendingForRecord(command)
+            : null,
+      );
+      notifyListeners();
+    } finally {
+      _commandBusy = false;
+    }
   }
 
   void skipPendingLocation() {
@@ -418,6 +457,22 @@ class ScoringController extends ChangeNotifier {
     if (pendingLocation != null) {
       _state = _state.copyWith(pendingLocation: pendingLocation);
     }
+  }
+
+  static PendingShotLocation? _pendingForRecord(
+    RecordMatchEventCommand command,
+  ) {
+    if (command.type != EventKind.fieldGoal ||
+        command.outcome != ShotOutcome.made ||
+        command.side == null) {
+      return null;
+    }
+    return PendingShotLocation(
+      eventId: command.eventId,
+      side: command.side!,
+      points: command.points,
+      point: CourtPoint(x: 0.5, y: 0.58),
+    );
   }
 
   static ({int red, int blue}) _countFouls(List<MatchEvent> events) {
