@@ -234,6 +234,39 @@ class RecordMatchEventCommand extends MatchCommand {
   };
 }
 
+class ConfirmShotLocationCommand extends MatchCommand {
+  ConfirmShotLocationCommand({
+    super.commandId,
+    required this.matchId,
+    required this.eventId,
+    required this.point,
+    String? shotLocationId,
+    String? auditId,
+  }) : shotLocationId = shotLocationId ?? _newUuid(),
+       auditId = auditId ?? _newUuid();
+
+  @override
+  final String matchId;
+  final String eventId;
+  final CourtPoint point;
+  final String shotLocationId;
+  final String auditId;
+
+  @override
+  String get commandType => 'confirmShotLocation';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'eventId': eventId,
+    'shotLocationId': shotLocationId,
+    'x': point.x,
+    'y': point.y,
+    'auditId': auditId,
+  };
+}
+
 class CorrectMatchEventCommand extends MatchCommand {
   CorrectMatchEventCommand({
     super.commandId,
@@ -410,6 +443,8 @@ class AbandonMatchCommand extends MatchCommand {
 typedef StartCommand = StartMatchCommand;
 typedef RecordCommand = RecordMatchEventCommand;
 typedef RecordEventCommand = RecordMatchEventCommand;
+typedef ConfirmLocationCommand = ConfirmShotLocationCommand;
+typedef ConfirmShotCommand = ConfirmShotLocationCommand;
 typedef CorrectCommand = CorrectMatchEventCommand;
 typedef CorrectEventCommand = CorrectMatchEventCommand;
 typedef UndoCommand = UndoMatchEventCommand;
@@ -684,6 +719,74 @@ class MatchCommandService {
     });
   }
 
+  Future<MatchDetail> confirmShotLocation(
+    ConfirmShotLocationCommand command,
+  ) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+        await _requireActiveMatch(command);
+        final event = await _eventRow(command.eventId);
+        if (event == null || event.matchId != command.matchId) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing event ${command.eventId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (event.isDeleted ||
+            event.type != EventKind.fieldGoal.name ||
+            event.outcome != ShotOutcome.made.name) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Only a committed made field goal can receive a location.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final existing = await _shotLocationForEvent(command.eventId);
+        if (existing != null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Event ${command.eventId} already has a shot location.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        await _database
+            .into(_database.shotLocations)
+            .insert(
+              ShotLocationsCompanion.insert(
+                id: command.shotLocationId,
+                matchId: command.matchId,
+                eventId: command.eventId,
+                x: command.point.x,
+                y: command.point.y,
+                isConfirmed: const Value(true),
+              ),
+            );
+        await _writeAudit(
+          id: command.auditId,
+          matchId: command.matchId,
+          targetId: command.eventId,
+          action: 'locate',
+          before: const <String, Object?>{},
+          after: <String, Object?>{
+            'eventId': command.eventId,
+            'shotLocationId': command.shotLocationId,
+            'x': command.point.x,
+            'y': command.point.y,
+            'isConfirmed': true,
+          },
+        );
+        await _inject(MatchCommandFailurePoint.afterEventWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
   Future<MatchDetail> correct(CorrectMatchEventCommand command) {
     return _execute(command, () {
       return _database.transaction(() async {
@@ -809,6 +912,9 @@ class MatchCommandService {
 
   Future<MatchDetail> recordEvent(RecordMatchEventCommand command) =>
       record(command);
+
+  Future<MatchDetail> confirmLocation(ConfirmShotLocationCommand command) =>
+      confirmShotLocation(command);
 
   Future<MatchDetail> correctEvent(CorrectMatchEventCommand command) =>
       correct(command);
@@ -1112,6 +1218,12 @@ class MatchCommandService {
   Future<MatchEventRow?> _eventRow(String id) {
     final query = _database.select(_database.matchEvents)
       ..where((row) => row.id.equals(id));
+    return query.getSingleOrNull();
+  }
+
+  Future<ShotLocation?> _shotLocationForEvent(String eventId) {
+    final query = _database.select(_database.shotLocations)
+      ..where((row) => row.eventId.equals(eventId));
     return query.getSingleOrNull();
   }
 

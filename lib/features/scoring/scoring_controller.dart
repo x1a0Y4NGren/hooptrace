@@ -265,12 +265,25 @@ class ScoringController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void confirmPendingLocation([CourtPoint? point]) {
+  Future<void> confirmPendingLocation([CourtPoint? point]) async {
     final pending = _state.pendingLocation;
     if (pending == null) {
       return;
     }
     final confirmedPoint = point ?? pending.point;
+    final service = _commandService;
+    if (service != null) {
+      final projection = await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          matchId: _state.matchId,
+          eventId: pending.eventId,
+          point: confirmedPoint,
+        ),
+      );
+      _replaceFromProjection(projection);
+      notifyListeners();
+      return;
+    }
     final marker = ScoringShotLocation(
       id: '${_state.matchId}-shot-${_state.shotLocations.length + 1}',
       eventId: pending.eventId,

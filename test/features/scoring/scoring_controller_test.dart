@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
+import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/rules/rule_engine.dart';
@@ -168,5 +169,87 @@ void main() {
         expect(controller.state.pendingLocation!.eventId, event.id);
       });
     },
+  );
+
+  test(
+    'command-backed confirmation persists fieldGoal location after commit',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await _startCommandBackedMatch(service);
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await controller.recordScoreCommitted(
+          side: TeamSide.red,
+          points: 2,
+        );
+
+        await controller.confirmPendingLocation(
+          CourtPoint(x: 0.25, y: 0.75),
+        );
+
+        expect(controller.state.pendingLocation, isNull);
+        expect(controller.state.shotLocations, hasLength(1));
+        expect(controller.state.shotLocations.single.point.x, 0.25);
+        expect(
+          await database.select(database.shotLocations).get(),
+          hasLength(1),
+        );
+      });
+    },
+  );
+
+  test(
+    'command-backed skip leaves a committed unlocated fieldGoal',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await _startCommandBackedMatch(service);
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await controller.recordScoreCommitted(
+          side: TeamSide.blue,
+          points: 3,
+        );
+
+        controller.skipPendingLocation();
+
+        expect(controller.state.pendingLocation, isNull);
+        expect(controller.state.score.blueScore, 3);
+        expect(controller.state.shotLocations, isEmpty);
+        expect(
+          await database.select(database.shotLocations).get(),
+          isEmpty,
+        );
+        expect(
+          await database.select(database.matchEvents).get(),
+          hasLength(1),
+        );
+      });
+    },
+  );
+}
+
+Future<MatchDetail> _startCommandBackedMatch(
+  MatchCommandService service,
+) {
+  return service.start(
+    StartMatchCommand(
+      commandId: 'ui-command-${DateTime.now().microsecondsSinceEpoch}',
+      matchId: 'ui-command-match-${DateTime.now().microsecondsSinceEpoch}',
+      redName: 'Red',
+      blueName: 'Blue',
+      ruleTemplate: const RuleTemplate(
+        id: 'free',
+        name: 'Free',
+        scoreButtons: [1, 2, 3],
+      ),
+      createdAt: DateTime.utc(2026, 8, 23, 9),
+      startedAt: DateTime.utc(2026, 8, 23, 9),
+    ),
   );
 }
