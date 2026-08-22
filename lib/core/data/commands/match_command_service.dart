@@ -2225,7 +2225,14 @@ Map<String, Object?> _projectionJson(MatchDetail detail) {
     'locatedShotCount': detail.locatedShotCount,
     if (detail.clock != null)
       'clock': <String, Object?>{
+        // Keep the historical top-level state fields for readers that still
+        // understand the first receipt shape, while preserving both sides of
+        // a running projection for retries and backup restores.
         ...MatchCommandService._clockJson(detail.clock!.normalizedState),
+        'state': MatchCommandService._clockJson(detail.clock!.state),
+        'normalizedState': MatchCommandService._clockJson(
+          detail.clock!.normalizedState,
+        ),
         'elapsedSeconds': detail.clock!.elapsedSeconds,
         'displaySeconds': detail.clock!.displaySeconds,
         'remainingSeconds': detail.clock!.remainingSeconds,
@@ -2339,24 +2346,36 @@ MatchDetail _projectionFromJson(Map<String, Object?> json) {
   final clockJson = json['clock'];
   if (clockJson is Map) {
     final value = clockJson.cast<String, Object?>();
-    final normalizedState = ClockState(
-      id: value['id'] as String,
-      matchId: value['matchId'] as String,
-      mode: ClockMode.values.byName(value['mode'] as String),
-      phase: ClockPhase.values.byName(value['phase'] as String),
-      accumulatedSeconds: (value['accumulatedSeconds'] as num).toInt(),
-      runningSinceUtc: _dateFromJson(value['runningSinceUtc']),
-      regulationSeconds: (value['regulationSeconds'] as num?)?.toInt(),
-    );
+    final legacyState = _clockStateFromJson(value);
+    final stateJson = value['state'];
+    final normalizedJson = value['normalizedState'];
+    final state = stateJson is Map
+        ? _clockStateFromJson(stateJson.cast<String, Object?>())
+        : legacyState;
+    final normalizedState = normalizedJson is Map
+        ? _clockStateFromJson(normalizedJson.cast<String, Object?>())
+        : legacyState;
+    final nowUtc = value['nowUtc'] is String
+        ? DateTime.parse(value['nowUtc'] as String).toUtc()
+        : (normalizedState.runningSinceUtc ??
+              DateTime.fromMillisecondsSinceEpoch(0, isUtc: true));
+    final derived = ClockEngine().project(state: state, now: nowUtc);
     final recoveryName = value['recoveryReason'] as String?;
+    final phase = value['phase'] is String
+        ? ClockPhase.values.byName(value['phase'] as String)
+        : derived.phase;
     clock = ClockProjection(
-      state: normalizedState,
+      state: state,
       normalizedState: normalizedState,
-      nowUtc: DateTime.parse(value['nowUtc'] as String).toUtc(),
-      elapsedSeconds: (value['elapsedSeconds'] as num).toInt(),
-      displaySeconds: (value['displaySeconds'] as num).toInt(),
-      phase: ClockPhase.values.byName(value['phase'] as String),
-      remainingSeconds: (value['remainingSeconds'] as num?)?.toInt(),
+      nowUtc: nowUtc,
+      elapsedSeconds:
+          (value['elapsedSeconds'] as num?)?.toInt() ?? derived.elapsedSeconds,
+      displaySeconds:
+          (value['displaySeconds'] as num?)?.toInt() ?? derived.displaySeconds,
+      phase: phase,
+      remainingSeconds: value.containsKey('remainingSeconds')
+          ? (value['remainingSeconds'] as num?)?.toInt()
+          : derived.remainingSeconds,
       recoveryReason: recoveryName == null
           ? null
           : ClockRecoveryReason.values.byName(recoveryName),
@@ -2410,6 +2429,18 @@ MatchDetail _projectionFromJson(Map<String, Object?> json) {
 
 DateTime? _dateFromJson(Object? value) {
   return value == null ? null : DateTime.parse(value as String).toUtc();
+}
+
+ClockState _clockStateFromJson(Map<String, Object?> value) {
+  return ClockState(
+    id: value['id'] as String,
+    matchId: value['matchId'] as String,
+    mode: ClockMode.values.byName(value['mode'] as String),
+    phase: ClockPhase.values.byName(value['phase'] as String),
+    accumulatedSeconds: (value['accumulatedSeconds'] as num).toInt(),
+    runningSinceUtc: _dateFromJson(value['runningSinceUtc']),
+    regulationSeconds: (value['regulationSeconds'] as num?)?.toInt(),
+  );
 }
 
 RuleTemplate _ruleTemplateFromMap(Map<String, Object?> json) {
