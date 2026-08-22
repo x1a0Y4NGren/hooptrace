@@ -193,7 +193,7 @@ class ScoringController extends ChangeNotifier {
       notifyListeners();
       return true;
     } finally {
-      _commandBusy = false;
+      if (!_disposed) _commandBusy = false;
     }
   }
 
@@ -222,7 +222,7 @@ class ScoringController extends ChangeNotifier {
       notifyListeners();
       return true;
     } finally {
-      _commandBusy = false;
+      if (!_disposed) _commandBusy = false;
     }
   }
 
@@ -247,7 +247,7 @@ class ScoringController extends ChangeNotifier {
       _replaceFromProjection(projection);
       notifyListeners();
     } finally {
-      _commandBusy = false;
+      if (!_disposed) _commandBusy = false;
     }
   }
 
@@ -324,7 +324,7 @@ class ScoringController extends ChangeNotifier {
         _replaceFromProjection(projection);
         notifyListeners();
       } finally {
-        _commandBusy = false;
+        if (!_disposed) _commandBusy = false;
       }
       return;
     }
@@ -361,7 +361,7 @@ class ScoringController extends ChangeNotifier {
       );
       notifyListeners();
     } finally {
-      _commandBusy = false;
+      if (!_disposed) _commandBusy = false;
     }
   }
 
