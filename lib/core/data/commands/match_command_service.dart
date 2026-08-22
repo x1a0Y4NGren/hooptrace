@@ -188,11 +188,13 @@ class RecordMatchEventCommand extends MatchCommand {
     this.matchClockPositionSeconds,
     this.shotLocation,
     String? shotLocationId,
+    String? auditId,
   }) : eventId = eventId ?? _newUuid(),
        occurredAt = occurredAt.toUtc(),
        shotLocationId = shotLocation == null
            ? null
-           : (shotLocationId ?? shotLocation.id ?? _newUuid());
+           : (shotLocationId ?? shotLocation.id ?? _newUuid()),
+       auditId = auditId ?? _newUuid();
 
   @override
   final String matchId;
@@ -207,6 +209,7 @@ class RecordMatchEventCommand extends MatchCommand {
   final int? matchClockPositionSeconds;
   final MatchShotLocationInput? shotLocation;
   final String? shotLocationId;
+  final String auditId;
 
   @override
   String get commandType => 'record';
@@ -225,6 +228,7 @@ class RecordMatchEventCommand extends MatchCommand {
     'customLabel': customLabel,
     'matchClockPositionSeconds': matchClockPositionSeconds,
     'shotLocation': shotLocation?.toJson(resolvedId: shotLocationId),
+    'auditId': auditId,
   };
 }
 
@@ -637,6 +641,21 @@ class MatchCommandService {
                 ),
               );
         }
+        final after = <String, Object?>{
+          ..._eventJsonFromEvent(event),
+          if (command.shotLocation != null)
+            'shotLocation': command.shotLocation!.toJson(
+              resolvedId: command.shotLocationId,
+            ),
+        };
+        await _writeAudit(
+          id: command.auditId,
+          matchId: command.matchId,
+          targetId: command.eventId,
+          action: 'create',
+          before: const <String, Object?>{},
+          after: after,
+        );
         await _inject(MatchCommandFailurePoint.afterEventWritten);
         await _writeReceipt(command);
         await _inject(MatchCommandFailurePoint.afterAuditWritten);

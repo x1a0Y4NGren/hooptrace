@@ -70,7 +70,7 @@ void main() {
       expect(second.redScore, 2);
       expect(await database.select(database.matchEvents).get(), hasLength(1));
       expect(await database.select(database.shotLocations).get(), hasLength(1));
-      expect(await database.select(database.auditLogs).get(), hasLength(2));
+      expect(await database.select(database.auditLogs).get(), hasLength(3));
     },
   );
 
