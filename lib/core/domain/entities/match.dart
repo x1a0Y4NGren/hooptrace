@@ -50,14 +50,21 @@ class Match {
        redName = redName ?? _nameFor(participants, TeamSide.red),
        blueName = blueName ?? _nameFor(participants, TeamSide.blue) {
     if (this.participants.length != 2 ||
-        this.participants.map((participant) => participant.side).toSet().length !=
+        this.participants
+                .map((participant) => participant.side)
+                .toSet()
+                .length !=
             2) {
-      throw ArgumentError('A match requires exactly one red and one blue participant.');
+      throw ArgumentError(
+        'A match requires exactly one red and one blue participant.',
+      );
     }
     if (this.participants.any((participant) => participant.matchId != id)) {
       throw ArgumentError('Match participants must reference their match.');
     }
-    if (this.participants.any((participant) => participant.nameSnapshot.trim().isEmpty)) {
+    if (this.participants.any(
+      (participant) => participant.nameSnapshot.trim().isEmpty,
+    )) {
       throw ArgumentError('Match participant names cannot be empty.');
     }
   }

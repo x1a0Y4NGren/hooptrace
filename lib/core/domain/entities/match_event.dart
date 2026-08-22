@@ -25,12 +25,15 @@ class MatchEvent {
       if (side == null) {
         throw ArgumentError('Score events require a side.');
       }
-      if ((this.outcome ?? ShotOutcome.made) == ShotOutcome.made && points <= 0) {
+      if ((this.outcome ?? ShotOutcome.made) == ShotOutcome.made &&
+          points <= 0) {
         throw ArgumentError('Score points must be positive.');
       }
     }
     if (type == EventKind.freeThrow && (side == null || points <= 0)) {
-      throw ArgumentError('Free-throw events require a side and positive points.');
+      throw ArgumentError(
+        'Free-throw events require a side and positive points.',
+      );
     }
     if (matchClockPositionSeconds != null && matchClockPositionSeconds! < 0) {
       throw ArgumentError('Match-clock positions cannot be negative.');

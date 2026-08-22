@@ -44,4 +44,3 @@ enum RestoreMode { replace, merge }
 enum ThemePreference { system, light, dark }
 
 enum TrackingCoverage { none, scoresOnly, shotAttempts, locations, full }
-
