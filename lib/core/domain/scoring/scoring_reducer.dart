@@ -8,7 +8,15 @@ class ScoringReducer {
     var blue = 0;
 
     for (final event in events) {
-      if (event.isDeleted || event.type != MatchEventType.score) {
+      if (event.isDeleted ||
+          (event.type != MatchEventType.score &&
+              event.type != MatchEventType.fieldGoal &&
+              event.type != MatchEventType.freeThrow)) {
+        continue;
+      }
+      if ((event.type == MatchEventType.fieldGoal ||
+              event.type == MatchEventType.freeThrow) &&
+          event.outcome != ShotOutcome.made) {
         continue;
       }
       switch (event.side) {

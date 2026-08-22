@@ -117,6 +117,58 @@ void main() {
   );
 
   test(
+    'record projection counts made field goals and free throws but not misses',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database);
+      await service.start(
+        _startCommand(commandId: 'start-shots', matchId: 'match-shots'),
+      );
+
+      final fieldGoal = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'field-goal',
+          matchId: 'match-shots',
+          eventId: 'field-goal-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: DateTime.utc(2026, 8, 22, 10),
+        ),
+      );
+      final missedFreeThrow = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'missed-free-throw',
+          matchId: 'match-shots',
+          eventId: 'missed-free-throw-event',
+          type: EventKind.freeThrow,
+          side: TeamSide.blue,
+          points: 0,
+          outcome: ShotOutcome.missed,
+          occurredAt: DateTime.utc(2026, 8, 22, 10, 1),
+        ),
+      );
+      final freeThrow = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'free-throw',
+          matchId: 'match-shots',
+          eventId: 'free-throw-event',
+          type: EventKind.freeThrow,
+          side: TeamSide.blue,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: DateTime.utc(2026, 8, 22, 10, 2),
+        ),
+      );
+
+      expect(fieldGoal.redScore, 2);
+      expect(missedFreeThrow.blueScore, 0);
+      expect(freeThrow.blueScore, 1);
+    },
+  );
+
+  test(
     'correct preserves event identity and writes human-readable before/after audit atomically',
     () async {
       final database = createTestDatabase();
