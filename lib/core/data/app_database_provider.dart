@@ -11,13 +11,23 @@ AppDatabase createAppDatabase(QueryExecutor executor) {
 }
 
 AppDatabase openAppDatabase() {
+  return _openAppDatabaseAt(() async {
+    final documents = await getApplicationDocumentsDirectory();
+    return File(path.join(documents.path, 'hooptrace.sqlite'));
+  });
+}
+
+/// Creates the same lazy, raw-probed database used by production, but for an
+/// explicit file. Keeping the file resolver injectable makes it possible to
+/// exercise the real v1 bootstrap path without replacing the compatibility
+/// probe or touching the user's application directory.
+AppDatabase openAppDatabaseAt(File file) {
+  return _openAppDatabaseAt(() async => file);
+}
+
+AppDatabase _openAppDatabaseAt(Future<File> Function() resolveFile) {
   return AppDatabase(
-    LazyDatabase(() async {
-      final documents = await getApplicationDocumentsDirectory();
-      return _nativeExecutor(
-        File(path.join(documents.path, 'hooptrace.sqlite')),
-      );
-    }),
+    LazyDatabase(() async => _nativeExecutor(await resolveFile())),
   );
 }
 
