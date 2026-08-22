@@ -99,8 +99,8 @@ void main() {
     expect(canRestoreBackupFor(const AsyncLoading<MatchDetail?>()), isFalse);
     // Riverpod exposes previous-state construction as an internal test seam
     // in 3.3.2; this is the exact transient shape a refreshing provider emits.
-    // ignore: invalid_use_of_internal_member
     final loadingWithPreviousNull = AsyncLoading<MatchDetail?>()
+        // ignore: invalid_use_of_internal_member
         .copyWithPrevious(const AsyncData<MatchDetail?>(null));
     expect(canRestoreBackupFor(loadingWithPreviousNull), isFalse);
     // ignore: invalid_use_of_internal_member
