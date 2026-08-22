@@ -246,6 +246,36 @@ void main() {
     },
   );
 
+  test('correction rejects a non-made score outcome', () async {
+    final database = createTestDatabase();
+    final service = MatchCommandService(database);
+    final start = _startCommand('correct-outcome');
+    await service.start(start);
+    await service.record(
+      RecordMatchEventCommand(
+        commandId: 'correct-outcome-record',
+        matchId: start.matchId,
+        eventId: 'correct-outcome-event',
+        side: TeamSide.red,
+        points: 2,
+        occurredAt: DateTime.utc(2026, 8, 22, 10),
+      ),
+    );
+
+    await expectLater(
+      service.correct(
+        CorrectMatchEventCommand(
+          commandId: 'correct-outcome-correction',
+          matchId: start.matchId,
+          eventId: 'correct-outcome-event',
+          type: EventKind.score,
+          outcome: ShotOutcome.missed,
+        ),
+      ),
+      throwsA(isA<CommandValidationFailure>()),
+    );
+  });
+
   test(
     'start command snapshots and freezes nested rule lists for stable fingerprinting',
     () {

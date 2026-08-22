@@ -714,6 +714,15 @@ class MatchCommandService {
             projectionMatchId: command.matchId,
           );
         }
+        if (replacement.type == EventKind.score &&
+            replacement.outcome != null &&
+            replacement.outcome != ShotOutcome.made) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Score events must have a made outcome.',
+            projectionMatchId: command.matchId,
+          );
+        }
         final beforeJson = _eventJson(before);
         final afterJson = _eventJsonFromEvent(replacement);
         await (_database.update(_database.matchEvents)
@@ -834,7 +843,10 @@ class MatchCommandService {
                         event.type.equals(EventKind.pause.name) &
                         event.isDeleted.equals(false),
                   )
-                  ..orderBy([(event) => OrderingTerm.desc(event.occurredAt)]))
+                  ..orderBy([
+                    (_) =>
+                        OrderingTerm.desc(const CustomExpression<int>('rowid')),
+                  ]))
                 .get();
         final latestSemantic = semanticRows.isEmpty ? null : semanticRows.first;
         final isPaused = latestSemantic?.customLabel == 'pause';
