@@ -2029,10 +2029,25 @@ class MatchCommandService {
         message: 'A player profile cannot occupy both sides.',
       );
     }
-    if (command.regulationSeconds != null && command.regulationSeconds! < 0) {
+    if (command.clockMode == ClockMode.countdown) {
+      if (!command.timerEnabled) {
+        throw CommandValidationFailure(
+          command: command,
+          message: 'Countdown clocks must be enabled.',
+        );
+      }
+      if (command.regulationSeconds == null ||
+          command.regulationSeconds! < 1 ||
+          command.regulationSeconds! > 180 * 60) {
+        throw CommandValidationFailure(
+          command: command,
+          message: 'Countdown duration must be between 1 and 180 minutes.',
+        );
+      }
+    } else if (command.regulationSeconds != null) {
       throw CommandValidationFailure(
         command: command,
-        message: 'Regulation duration cannot be negative.',
+        message: 'Count-up clocks cannot have a regulation duration.',
       );
     }
   }

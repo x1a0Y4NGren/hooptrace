@@ -748,10 +748,13 @@ void main() {
     'countdown with no anchor normalizes an accumulated regulation boundary',
     () async {
       final database = createTestDatabase();
-      await MatchCommandService(
-        database,
-        now: () => _anchor,
-      ).start(_start(clockMode: ClockMode.countdown, regulationSeconds: 10));
+      await MatchCommandService(database, now: () => _anchor).start(
+        _start(
+          timerEnabled: true,
+          clockMode: ClockMode.countdown,
+          regulationSeconds: 10,
+        ),
+      );
       await database.customUpdate(
         'UPDATE match_clocks SET accumulated_seconds = ? WHERE match_id = ?',
         variables: [Variable.withInt(10), Variable.withString('match-clock')],
