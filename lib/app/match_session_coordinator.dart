@@ -189,6 +189,10 @@ class MatchSessionCoordinator extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Legacy-only snapshot bridge for callers that intentionally construct the
+  /// coordinator without a command service. The production app never enters
+  /// this path; command-backed sessions do not attach a snapshot listener.
+  @Deprecated('Use MatchCommandService commands for live scoring.')
   void _scheduleSnapshot(_ActiveSession session) {
     final state = session.controller.state;
     final locations = [
