@@ -368,6 +368,36 @@ void main() {
     expect(row.runningSinceUtc, isNull);
     expect(row.phase, ClockPhase.regulation.name);
   });
+
+  test('reconstructed pause commands remain idempotent with the same command id', () async {
+    final database = createTestDatabase();
+    await MatchCommandService(database, now: () => _anchor).start(
+      _start(timerEnabled: true),
+    );
+    final firstCommand = PauseMatchCommand(
+      commandId: 'pause-retry',
+      matchId: 'match-clock',
+      occurredAt: _anchor,
+    );
+    await MatchCommandService(database, now: () => _anchor).pause(firstCommand);
+    final duplicate = await MatchCommandService(
+      database,
+      now: () => _anchor,
+    ).pause(
+      PauseMatchCommand(
+        commandId: 'pause-retry',
+        matchId: 'match-clock',
+        occurredAt: _anchor,
+      ),
+    );
+
+    expect(duplicate.clock?.displaySeconds, 0);
+    expect(
+      (await database.select(database.matchEvents).get())
+          .where((row) => row.customLabel == 'pause'),
+      hasLength(1),
+    );
+  });
 }
 
 Future<MatchCommandFailure> _captureFailure(
