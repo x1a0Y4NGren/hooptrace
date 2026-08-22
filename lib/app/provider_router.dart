@@ -211,10 +211,17 @@ class _ScoringRoute extends ConsumerWidget {
           message: '已读取比赛，但计分状态还在恢复，请稍候。',
         );
       }
+      final canResumeClock =
+          projection.match.timerEnabled &&
+          projection.clock != null &&
+          !projection.clock!.isRunning;
       return ScoringPage(
         controller: controller,
         onOpenReplay: () => context.push('/matches/$matchId/replay'),
         onRequestLeave: () => _leaveScoring(context, ref, matchId),
+        onResumeClock: canResumeClock
+            ? () => _resumeScoring(context, ref, matchId)
+            : null,
       );
     }
     return const _RouteLoading();
@@ -490,6 +497,29 @@ Future<void> _abandon(
           AbandonMatchCommand(
             matchId: matchId,
             endedAt: DateTime.now().toUtc(),
+          ),
+        );
+  } on MatchCommandFailure catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    }
+  }
+}
+
+Future<void> _resumeScoring(
+  BuildContext context,
+  WidgetRef ref,
+  String matchId,
+) async {
+  try {
+    await ref
+        .read(matchCommandServiceProvider)
+        .resume(
+          ResumeMatchCommand(
+            matchId: matchId,
+            occurredAt: DateTime.now().toUtc(),
           ),
         );
   } on MatchCommandFailure catch (error) {

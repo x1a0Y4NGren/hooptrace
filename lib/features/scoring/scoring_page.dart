@@ -15,6 +15,7 @@ const scoringDoNotMarkText = '不标记';
 const scoringMarkText = '标记';
 const scoringResolvePendingText = '请先确认、跳过或撤销当前落点';
 const scoringReplayText = '复盘';
+const scoringResumeClockKey = Key('scoring-resume-clock');
 
 class ScoringPage extends StatefulWidget {
   const ScoringPage({
@@ -23,6 +24,7 @@ class ScoringPage extends StatefulWidget {
     this.controller,
     this.onOpenReplay,
     this.onRequestLeave,
+    this.onResumeClock,
     super.key,
   }) : assert(matchId != null || setup != null || controller != null);
 
@@ -31,6 +33,7 @@ class ScoringPage extends StatefulWidget {
   final ScoringController? controller;
   final VoidCallback? onOpenReplay;
   final Future<void> Function()? onRequestLeave;
+  final VoidCallback? onResumeClock;
 
   @override
   State<ScoringPage> createState() => _ScoringPageState();
@@ -119,6 +122,13 @@ class _ScoringPageState extends State<ScoringPage> {
                     icon: const Icon(Icons.query_stats, size: 20),
                     label: const Text(scoringReplayText),
                   ),
+                  const SizedBox(width: 8),
+                  if (widget.onResumeClock != null)
+                    TextButton(
+                      key: scoringResumeClockKey,
+                      onPressed: widget.onResumeClock,
+                      child: const Text('恢复计时'),
+                    ),
                   const SizedBox(width: 8),
                   const Text('00:00'),
                   const SizedBox(width: 8),
