@@ -177,6 +177,63 @@ void main() {
   });
 
   test(
+    'nested clock receipt shape does not require duplicated top-level state fields',
+    () async {
+      final database = createTestDatabase();
+      final projectedAt = _anchor.add(const Duration(seconds: 5));
+      await MatchCommandService(
+        database,
+        now: () => _anchor,
+      ).start(_start(timerEnabled: true));
+      final command = RecordMatchEventCommand(
+        commandId: 'nested-clock-receipt',
+        matchId: 'match-clock',
+        eventId: 'nested-clock-event',
+        side: TeamSide.red,
+        points: 1,
+        occurredAt: projectedAt,
+      );
+      await MatchCommandService(
+        database,
+        now: () => projectedAt,
+      ).record(command);
+      final receipt = await (database.select(
+        database.auditLogs,
+      )..where((row) => row.id.equals(command.commandId))).getSingle();
+      final after = jsonDecode(receipt.afterJson) as Map<String, Object?>;
+      final projection = after['projection'] as Map<String, Object?>;
+      final clock = projection['clock'] as Map<String, Object?>;
+      for (final key in [
+        'id',
+        'matchId',
+        'mode',
+        'phase',
+        'accumulatedSeconds',
+        'runningSinceUtc',
+        'regulationSeconds',
+      ]) {
+        clock.remove(key);
+      }
+      await database.customUpdate(
+        'UPDATE audit_logs SET after_json = ? WHERE id = ?',
+        variables: [
+          Variable.withString(jsonEncode(after)),
+          Variable.withString(command.commandId),
+        ],
+        updates: {database.auditLogs},
+      );
+
+      final duplicate = await MatchCommandService(
+        database,
+        now: () => _anchor.add(const Duration(seconds: 30)),
+      ).record(command);
+      expect(duplicate.clock?.state.accumulatedSeconds, 0);
+      expect(duplicate.clock?.normalizedState.accumulatedSeconds, 5);
+      expect(duplicate.clock?.displaySeconds, 5);
+    },
+  );
+
+  test(
     'pause and resume atomically persist anchors and semantic audit rows',
     () async {
       final database = createTestDatabase();
