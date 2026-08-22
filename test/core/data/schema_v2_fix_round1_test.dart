@@ -243,8 +243,8 @@ void main() {
       );
       final raw = sqlite3.open(file.path);
       raw.execute('PRAGMA user_version = 1');
-      raw.execute("CREATE TABLE sentinel(value TEXT NOT NULL)");
-      raw.execute("INSERT INTO sentinel(value) VALUES ('untouched')");
+      raw.execute('CREATE TABLE sentinel(value TEXT NOT NULL)');
+      raw.execute('INSERT INTO sentinel(value) VALUES (\'untouched\')');
       raw.close();
 
       expect(

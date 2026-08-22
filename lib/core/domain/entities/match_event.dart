@@ -24,8 +24,7 @@ class MatchEvent {
       if (side == null) {
         throw ArgumentError('Score events require a side.');
       }
-      if ((this.outcome ?? ShotOutcome.made) == ShotOutcome.made &&
-          points <= 0) {
+      if ((outcome ?? ShotOutcome.made) == ShotOutcome.made && points <= 0) {
         throw ArgumentError('Score points must be positive.');
       }
     }
