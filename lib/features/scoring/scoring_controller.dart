@@ -403,7 +403,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> undoLastEventCommitted() async {
-    if (_disposed) return false;
+    if (_disposed || _state.detailedShotDraft != null) return false;
     final service = _commandService;
     if (service == null) {
       undoLastEvent();
@@ -653,7 +653,9 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> pauseCommitted() {
-    if (_disposed || _state.pendingLocation?.isExplicit == true) {
+    if (_disposed ||
+        _state.pendingLocation?.isExplicit == true ||
+        _state.detailedShotDraft != null) {
       return Future<bool>.value(false);
     }
     final service = _commandService;
@@ -668,7 +670,9 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> resumeCommitted() {
-    if (_disposed || _state.pendingLocation?.isExplicit == true) {
+    if (_disposed ||
+        _state.pendingLocation?.isExplicit == true ||
+        _state.detailedShotDraft != null) {
       return Future<bool>.value(false);
     }
     final service = _commandService;

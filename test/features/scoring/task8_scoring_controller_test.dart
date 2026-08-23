@@ -517,6 +517,59 @@ void main() {
   );
 
   test(
+    'detailed draft rejects undo pause and resume without touching projection',
+    () async {
+      await withTestDatabase((database) async {
+        var commandCalls = 0;
+        final service = MatchCommandService(
+          database,
+          failureInjector: (point) {
+            if (point == MatchCommandFailurePoint.beforeCommit) {
+              commandCalls++;
+            }
+          },
+        );
+        final started = await service.start(
+          _startCommand(
+            matchId: 'task8-draft-exclusive',
+            recordingMode: RecordingMode.detailed,
+            trackingCoverage: TrackingCoverage.locations,
+          ),
+        );
+        commandCalls = 0;
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+        );
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.blue, points: 1),
+          isTrue,
+        );
+        commandCalls = 0;
+        expect(
+          controller.beginDetailedShot(
+            CourtPoint(x: 0.3, y: 0.7),
+            side: TeamSide.red,
+          ),
+          isTrue,
+        );
+
+        expect(await controller.undoLastEventCommitted(), isFalse);
+        expect(await controller.pauseCommitted(), isFalse);
+        expect(await controller.resumeCommitted(), isFalse);
+        expect(commandCalls, 0);
+        expect(controller.state.events, hasLength(1));
+        expect(controller.state.score.blueScore, 1);
+        expect(controller.detailedShotDraft, isNotNull);
+        expect(controller.detailedShotDraft!.point.x, 0.3);
+        expect(controller.detailedShotDraft!.point.y, 0.7);
+        expect(controller.detailedShotDraft!.side, TeamSide.red);
+        expect(await database.select(database.matchEvents).get(), hasLength(1));
+      });
+    },
+  );
+
+  test(
     'generic command adapter enforces match identity and miss coverage',
     () async {
       await withTestDatabase((database) async {
