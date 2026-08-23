@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
@@ -18,12 +20,14 @@ class PendingShotLocation {
     required this.side,
     required this.points,
     required this.point,
+    this.isExplicit = false,
   });
 
   final String eventId;
   final TeamSide side;
   final int points;
   final CourtPoint point;
+  final bool isExplicit;
 
   PendingShotLocation copyWith({CourtPoint? point}) {
     return PendingShotLocation(
@@ -31,6 +35,7 @@ class PendingShotLocation {
       side: side,
       points: points,
       point: point ?? this.point,
+      isExplicit: isExplicit,
     );
   }
 }
@@ -53,6 +58,39 @@ class ScoringShotLocation {
   final bool isLocked;
 }
 
+/// A court-first detailed-mode shot that has not been committed yet.
+///
+/// This object is deliberately local-only. It is promoted to a persisted
+/// [RecordMatchEventCommand] only when [ScoringController.commitDetailedShot]
+/// is called.
+class DetailedShotDraft {
+  const DetailedShotDraft({
+    required this.point,
+    this.side,
+    this.outcome = ShotOutcome.made,
+    this.points = 1,
+  });
+
+  final CourtPoint point;
+  final TeamSide? side;
+  final ShotOutcome outcome;
+  final int points;
+
+  DetailedShotDraft copyWith({
+    CourtPoint? point,
+    TeamSide? side,
+    ShotOutcome? outcome,
+    int? points,
+  }) {
+    return DetailedShotDraft(
+      point: point ?? this.point,
+      side: side ?? this.side,
+      outcome: outcome ?? this.outcome,
+      points: points ?? this.points,
+    );
+  }
+}
+
 class MatchScoringState {
   const MatchScoringState({
     required this.matchId,
@@ -62,7 +100,12 @@ class MatchScoringState {
     required this.score,
     required this.shotLocations,
     required this.ruleTemplate,
+    this.recordingMode = RecordingMode.simple,
+    this.trackingCoverage = TrackingCoverage.scoresOnly,
+    this.clock,
+    this.currentPossession,
     this.pendingLocation,
+    this.detailedShotDraft,
     this.redFouls = 0,
     this.blueFouls = 0,
     this.ruleHints = const [],
@@ -75,7 +118,12 @@ class MatchScoringState {
   final ScoreState score;
   final List<ScoringShotLocation> shotLocations;
   final RuleTemplate ruleTemplate;
+  final RecordingMode recordingMode;
+  final TrackingCoverage trackingCoverage;
+  final ClockProjection? clock;
+  final TeamSide? currentPossession;
   final PendingShotLocation? pendingLocation;
+  final DetailedShotDraft? detailedShotDraft;
   final int redFouls;
   final int blueFouls;
   final List<RuleHint> ruleHints;
@@ -85,7 +133,13 @@ class MatchScoringState {
     ScoreState? score,
     List<ScoringShotLocation>? shotLocations,
     RuleTemplate? ruleTemplate,
+    RecordingMode? recordingMode,
+    TrackingCoverage? trackingCoverage,
+    ClockProjection? clock,
+    TeamSide? currentPossession,
     PendingShotLocation? pendingLocation,
+    DetailedShotDraft? detailedShotDraft,
+    bool clearDetailedShotDraft = false,
     bool clearPendingLocation = false,
     int? redFouls,
     int? blueFouls,
@@ -99,9 +153,16 @@ class MatchScoringState {
       score: score ?? this.score,
       shotLocations: shotLocations ?? this.shotLocations,
       ruleTemplate: ruleTemplate ?? this.ruleTemplate,
+      recordingMode: recordingMode ?? this.recordingMode,
+      trackingCoverage: trackingCoverage ?? this.trackingCoverage,
+      clock: clock ?? this.clock,
+      currentPossession: currentPossession ?? this.currentPossession,
       pendingLocation: clearPendingLocation
           ? null
           : pendingLocation ?? this.pendingLocation,
+      detailedShotDraft: clearDetailedShotDraft
+          ? null
+          : detailedShotDraft ?? this.detailedShotDraft,
       redFouls: redFouls ?? this.redFouls,
       blueFouls: blueFouls ?? this.blueFouls,
       ruleHints: ruleHints ?? this.ruleHints,
@@ -125,6 +186,9 @@ class ScoringController extends ChangeNotifier {
                score: const ScoreState.zero(),
                shotLocations: const [],
                ruleTemplate: _ruleTemplateFromSetup(setup),
+               recordingMode: setup?.recordingMode ?? RecordingMode.simple,
+               trackingCoverage:
+                   setup?.trackingCoverage ?? TrackingCoverage.scoresOnly,
              )
            : _stateFromProjection(committedProjection);
 
@@ -142,10 +206,23 @@ class ScoringController extends ChangeNotifier {
   final ScoringReducer _reducer = ScoringReducer();
   final RuleEngine _ruleEngine = RuleEngine();
   MatchScoringState _state;
-  bool _commandBusy = false;
+  final Queue<_QueuedScoringCommand> _commandQueue =
+      Queue<_QueuedScoringCommand>();
+  bool _drainingQueue = false;
+  bool _exclusiveBusy = false;
   bool _disposed = false;
 
   MatchScoringState get state => _state;
+
+  RecordingMode get recordingMode => _state.recordingMode;
+
+  TrackingCoverage get trackingCoverage => _state.trackingCoverage;
+
+  ClockProjection? get clock => _state.clock;
+
+  TeamSide? get currentPossession => _state.currentPossession;
+
+  DetailedShotDraft? get detailedShotDraft => _state.detailedShotDraft;
 
   bool get isCommandBacked => _commandService != null;
 
@@ -162,93 +239,181 @@ class ScoringController extends ChangeNotifier {
     super.notifyListeners();
   }
 
+  /// Records a fully specified event through the transactional command
+  /// boundary. The command object is created before it enters the queue, so
+  /// every rapid tap owns a stable command/event ID and can be retried as-is.
+  Future<bool> recordEventCommitted(RecordMatchEventCommand command) {
+    if (_disposed) return Future<bool>.value(false);
+    if (command.type == EventKind.fieldGoal &&
+        command.outcome == ShotOutcome.missed &&
+        !_allowsShotAttempts) {
+      return Future<bool>.value(false);
+    }
+    if (command.shotLocation != null && !_allowsLocations) {
+      return Future<bool>.value(false);
+    }
+    final service = _commandService;
+    if (service == null) {
+      return Future<bool>.value(_recordLocalCommand(command));
+    }
+    return _enqueueCommand(command, () => service.record(command));
+  }
+
   Future<bool> recordScoreCommitted({
     required TeamSide side,
     required int points,
   }) async {
     if (_disposed) return false;
+    if (points <= 0) return false;
     final service = _commandService;
     if (service == null) {
       return addScore(side: side, points: points);
     }
-    if (_commandBusy || _state.pendingLocation != null) {
-      return false;
-    }
-    _commandBusy = true;
-    final command = RecordMatchEventCommand(
-      matchId: _state.matchId,
-      type: EventKind.fieldGoal,
-      side: side,
-      points: points,
-      outcome: ShotOutcome.made,
-      occurredAt: DateTime.now().toUtc(),
+    return recordEventCommitted(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.fieldGoal,
+        side: side,
+        points: points,
+        outcome: ShotOutcome.made,
+        occurredAt: DateTime.now().toUtc(),
+      ),
     );
-    try {
-      final projection = await service.record(command);
-      if (_disposed) return false;
-      _replaceFromProjection(
-        projection,
-        pendingLocation: _pendingForRecord(command),
-      );
-      notifyListeners();
-      return true;
-    } finally {
-      if (!_disposed) _commandBusy = false;
+  }
+
+  Future<bool> recordFieldGoalCommitted({
+    required TeamSide side,
+    required ShotOutcome outcome,
+    int points = 0,
+    CourtPoint? location,
+  }) {
+    if (outcome == ShotOutcome.made && points <= 0) return Future.value(false);
+    if (outcome == ShotOutcome.missed && points != 0) {
+      return Future.value(false);
     }
+    if (outcome == ShotOutcome.notApplicable) return Future.value(false);
+    if (outcome == ShotOutcome.missed && !_allowsShotAttempts) {
+      return Future.value(false);
+    }
+    if (location != null && !_allowsLocations) return Future.value(false);
+    return recordEventCommitted(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.fieldGoal,
+        side: side,
+        points: points,
+        outcome: outcome,
+        occurredAt: DateTime.now().toUtc(),
+        shotLocation: location == null
+            ? null
+            : MatchShotLocationInput(x: location.x, y: location.y),
+      ),
+    );
+  }
+
+  Future<bool> recordMissCommitted({required TeamSide side}) {
+    return recordFieldGoalCommitted(side: side, outcome: ShotOutcome.missed);
+  }
+
+  Future<bool> recordFreeThrowCommitted({
+    required TeamSide side,
+    required bool made,
+    int points = 1,
+  }) {
+    if (!made && !_allowsShotAttempts) return Future<bool>.value(false);
+    final resolvedPoints = made ? points : 0;
+    if (made && resolvedPoints <= 0) return Future<bool>.value(false);
+    return recordEventCommitted(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.freeThrow,
+        side: side,
+        points: resolvedPoints,
+        outcome: made ? ShotOutcome.made : ShotOutcome.missed,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<bool> recordPossessionCommitted(TeamSide side, {String? reason}) {
+    return recordEventCommitted(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.possession,
+        side: side,
+        points: 0,
+        note: reason,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<bool> recordNoteCommitted(String note) {
+    if (note.trim().isEmpty) return Future<bool>.value(false);
+    return recordEventCommitted(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.note,
+        side: null,
+        points: 0,
+        note: note,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  Future<bool> recordCustomCommitted({
+    required String label,
+    TeamSide? side,
+    int points = 0,
+  }) {
+    if (label.trim().isEmpty || points < 0) return Future<bool>.value(false);
+    return recordEventCommitted(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.custom,
+        side: side,
+        points: points,
+        customLabel: label,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
   }
 
   Future<bool> recordFoulCommitted(TeamSide side) async {
     if (_disposed) return false;
     final service = _commandService;
     if (service == null) {
-      if (_state.pendingLocation != null) return false;
       addFoul(side);
       return true;
     }
-    if (_commandBusy || _state.pendingLocation != null) return false;
-    _commandBusy = true;
-    try {
-      final projection = await service.record(
-        RecordMatchEventCommand(
-          matchId: _state.matchId,
-          type: EventKind.foul,
-          side: side,
-          points: 0,
-          occurredAt: DateTime.now().toUtc(),
-        ),
-      );
-      if (_disposed) return false;
-      _replaceFromProjection(projection);
-      notifyListeners();
-      return true;
-    } finally {
-      if (!_disposed) _commandBusy = false;
-    }
+    return recordEventCommitted(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.foul,
+        side: side,
+        points: 0,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
   }
 
-  Future<void> undoLastEventCommitted() async {
-    if (_disposed) return;
+  Future<bool> undoLastEventCommitted() async {
+    if (_disposed) return false;
     final service = _commandService;
     if (service == null) {
       undoLastEvent();
-      return;
+      return true;
     }
-    if (_commandBusy || _state.events.isEmpty) return;
-    _commandBusy = true;
-    try {
-      final projection = await service.undo(
-        UndoMatchEventCommand(
-          matchId: _state.matchId,
-          eventId: _state.events.last.id,
-          reason: 'Scoring UI undo',
-        ),
-      );
-      if (_disposed) return;
-      _replaceFromProjection(projection);
-      notifyListeners();
-    } finally {
-      if (!_disposed) _commandBusy = false;
-    }
+    if (_state.events.isEmpty) return false;
+    final event = _lastUndoableEvent;
+    if (event == null) return false;
+    final command = UndoMatchEventCommand(
+      matchId: _state.matchId,
+      eventId: event.id,
+      reason: 'Scoring UI undo',
+    );
+    return _runExclusive(command, () => service.undo(command));
   }
 
   bool addScore({required TeamSide side, required int points}) {
@@ -310,22 +475,13 @@ class ScoringController extends ChangeNotifier {
     final confirmedPoint = point ?? pending.point;
     final service = _commandService;
     if (service != null) {
-      if (_commandBusy) return;
-      _commandBusy = true;
-      try {
-        final projection = await service.confirmShotLocation(
-          ConfirmShotLocationCommand(
-            matchId: _state.matchId,
-            eventId: pending.eventId,
-            point: confirmedPoint,
-          ),
-        );
-        if (_disposed) return;
-        _replaceFromProjection(projection);
-        notifyListeners();
-      } finally {
-        if (!_disposed) _commandBusy = false;
-      }
+      if (_exclusiveBusy || _drainingQueue || _commandQueue.isNotEmpty) return;
+      final command = ConfirmShotLocationCommand(
+        matchId: _state.matchId,
+        eventId: pending.eventId,
+        point: confirmedPoint,
+      );
+      await _runExclusive(command, () => service.confirmShotLocation(command));
       return;
     }
     final marker = ScoringShotLocation(
@@ -347,26 +503,183 @@ class ScoringController extends ChangeNotifier {
   /// failure. The original command object is retained by the failure, so a
   /// retry cannot accidentally allocate a second event or receipt.
   Future<void> retryCommand(MatchCommandFailure failure) async {
-    if (_disposed || _commandBusy) return;
-    _commandBusy = true;
-    try {
-      final projection = await failure.retry();
-      if (_disposed) return;
-      final command = failure.command;
-      _replaceFromProjection(
-        projection,
-        pendingLocation: command is RecordMatchEventCommand
-            ? _pendingForRecord(command)
-            : null,
-      );
-      notifyListeners();
-    } finally {
-      if (!_disposed) _commandBusy = false;
+    if (_disposed ||
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty) {
+      return;
     }
+    await _runExclusive(failure.command, failure.retry);
   }
 
+  /// Starts an explicit, non-blocking location capture for the latest
+  /// unlocated field-goal attempt. Scoring history remains untouched until a
+  /// location confirmation command succeeds.
+  bool beginLocateLastUnlocatedShot() {
+    if (_disposed ||
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty ||
+        !_allowsLocations) {
+      return false;
+    }
+    final candidate = _latestUnlocatedShot;
+    if (candidate == null || candidate.side == null) return false;
+    _state = _state.copyWith(
+      pendingLocation: PendingShotLocation(
+        eventId: candidate.id,
+        side: candidate.side!,
+        points: candidate.points,
+        point: CourtPoint(x: 0.5, y: 0.58),
+        isExplicit: true,
+      ),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  bool cancelLocateLastUnlocatedShot() => skipPendingLocation();
+
+  /// Starts a detailed-mode local draft. The current possession is used as
+  /// the initial shooter when available, but remains explicitly correctable.
+  bool beginDetailedShot(CourtPoint point, {TeamSide? side}) {
+    if (_disposed ||
+        recordingMode != RecordingMode.detailed ||
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty ||
+        _state.detailedShotDraft != null) {
+      return false;
+    }
+    _state = _state.copyWith(
+      detailedShotDraft: DetailedShotDraft(
+        point: point,
+        side: side ?? currentPossession,
+      ),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  void updateDetailedShot({
+    CourtPoint? point,
+    TeamSide? side,
+    ShotOutcome? outcome,
+    int? points,
+  }) {
+    if (_disposed || _exclusiveBusy) return;
+    final draft = _state.detailedShotDraft;
+    if (draft == null) return;
+    final nextOutcome = outcome ?? draft.outcome;
+    final nextPoints = nextOutcome == ShotOutcome.missed
+        ? 0
+        : points ?? draft.points;
+    _state = _state.copyWith(
+      detailedShotDraft: DetailedShotDraft(
+        point: point ?? draft.point,
+        side: side ?? draft.side,
+        outcome: nextOutcome,
+        points: nextPoints,
+      ),
+    );
+    notifyListeners();
+  }
+
+  Future<bool> commitDetailedShot() async {
+    if (_disposed) return false;
+    final draft = _state.detailedShotDraft;
+    if (draft == null || draft.side == null) return false;
+    if (draft.outcome == ShotOutcome.notApplicable) return false;
+    if (draft.outcome == ShotOutcome.missed && !_allowsShotAttempts) {
+      return false;
+    }
+    if (_commandService == null) {
+      final accepted = _recordLocalCommand(
+        RecordMatchEventCommand(
+          matchId: _state.matchId,
+          type: EventKind.fieldGoal,
+          side: draft.side,
+          points: draft.outcome == ShotOutcome.missed ? 0 : draft.points,
+          outcome: draft.outcome,
+          occurredAt: DateTime.now().toUtc(),
+          shotLocation: MatchShotLocationInput(
+            x: draft.point.x,
+            y: draft.point.y,
+          ),
+        ),
+      );
+      if (accepted) {
+        _state = _state.copyWith(clearDetailedShotDraft: true);
+        notifyListeners();
+      }
+      return accepted;
+    }
+    if (_exclusiveBusy || _drainingQueue || _commandQueue.isNotEmpty) {
+      return false;
+    }
+    final command = RecordMatchEventCommand(
+      matchId: _state.matchId,
+      type: EventKind.fieldGoal,
+      side: draft.side,
+      points: draft.outcome == ShotOutcome.missed ? 0 : draft.points,
+      outcome: draft.outcome,
+      occurredAt: DateTime.now().toUtc(),
+      shotLocation: MatchShotLocationInput(x: draft.point.x, y: draft.point.y),
+    );
+    final accepted = await _runExclusive(
+      command,
+      () => _commandService.record(command),
+    );
+    if (accepted && !_disposed) {
+      _state = _state.copyWith(clearDetailedShotDraft: true);
+      notifyListeners();
+    }
+    return accepted;
+  }
+
+  bool cancelDetailedShot() {
+    if (_disposed || _exclusiveBusy || _state.detailedShotDraft == null) {
+      return false;
+    }
+    _state = _state.copyWith(clearDetailedShotDraft: true);
+    notifyListeners();
+    return true;
+  }
+
+  Future<bool> pauseCommitted() {
+    final service = _commandService;
+    if (service == null) {
+      return Future<bool>.value(_recordLocalSemantic('pause'));
+    }
+    final command = PauseMatchCommand(
+      matchId: _state.matchId,
+      occurredAt: DateTime.now().toUtc(),
+    );
+    return _runExclusive(command, () => service.pause(command));
+  }
+
+  Future<bool> resumeCommitted() {
+    final service = _commandService;
+    if (service == null) {
+      return Future<bool>.value(_recordLocalSemantic('resume'));
+    }
+    final command = ResumeMatchCommand(
+      matchId: _state.matchId,
+      occurredAt: DateTime.now().toUtc(),
+    );
+    return _runExclusive(command, () => service.resume(command));
+  }
+
+  Future<bool> pauseClockCommitted() => pauseCommitted();
+
+  Future<bool> resumeClockCommitted() => resumeCommitted();
+
   bool skipPendingLocation() {
-    if (_disposed || _state.pendingLocation == null || _commandBusy) {
+    if (_disposed ||
+        _state.pendingLocation == null ||
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty) {
       return false;
     }
     _state = _state.copyWith(clearPendingLocation: true);
@@ -473,6 +786,10 @@ class ScoringController extends ChangeNotifier {
       ),
       shotLocations: List.unmodifiable(locations),
       ruleTemplate: projection.match.ruleTemplateSnapshot,
+      recordingMode: projection.match.recordingMode,
+      trackingCoverage: projection.match.trackingCoverage,
+      clock: projection.clock,
+      currentPossession: _latestPossession(events),
       redFouls: projection.redFouls,
       blueFouls: projection.blueFouls,
     );
@@ -499,20 +816,170 @@ class ScoringController extends ChangeNotifier {
     notifyListeners();
   }
 
-  static PendingShotLocation? _pendingForRecord(
-    RecordMatchEventCommand command,
+  Future<bool> _enqueueCommand(
+    MatchCommand command,
+    Future<MatchDetail> Function() operation,
   ) {
-    if (command.type != EventKind.fieldGoal ||
-        command.outcome != ShotOutcome.made ||
-        command.side == null) {
-      return null;
-    }
-    return PendingShotLocation(
-      eventId: command.eventId,
-      side: command.side!,
-      points: command.points,
-      point: CourtPoint(x: 0.5, y: 0.58),
+    if (_disposed) return Future<bool>.value(false);
+    final completer = Completer<bool>();
+    _commandQueue.add(
+      _QueuedScoringCommand(
+        command: command,
+        operation: operation,
+        completer: completer,
+      ),
     );
+    unawaited(_drainCommandQueue());
+    return completer.future;
+  }
+
+  Future<void> _drainCommandQueue() async {
+    if (_drainingQueue) return;
+    _drainingQueue = true;
+    try {
+      while (_commandQueue.isNotEmpty) {
+        final queued = _commandQueue.removeFirst();
+        if (_disposed) {
+          if (!queued.completer.isCompleted) queued.completer.complete(false);
+          continue;
+        }
+        try {
+          final projection = await queued.operation();
+          if (_disposed) {
+            queued.completer.complete(false);
+            continue;
+          }
+          _replaceFromProjection(projection);
+          notifyListeners();
+          queued.completer.complete(true);
+        } on Object catch (error, stackTrace) {
+          if (!queued.completer.isCompleted) {
+            queued.completer.completeError(error, stackTrace);
+          }
+        }
+      }
+    } finally {
+      _drainingQueue = false;
+    }
+  }
+
+  Future<bool> _runExclusive(
+    MatchCommand command,
+    Future<MatchDetail> Function() operation,
+  ) async {
+    if (_disposed ||
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty) {
+      return false;
+    }
+    _exclusiveBusy = true;
+    try {
+      final projection = await operation();
+      if (_disposed) return false;
+      _replaceFromProjection(projection);
+      notifyListeners();
+      return true;
+    } finally {
+      _exclusiveBusy = false;
+    }
+  }
+
+  bool _recordLocalCommand(RecordMatchEventCommand command) {
+    if (_disposed) return false;
+    final event = MatchEvent(
+      id: command.eventId,
+      matchId: command.matchId,
+      type: command.type,
+      side: command.side,
+      points: command.points,
+      occurredAt: command.occurredAt,
+      outcome:
+          command.outcome ??
+          (command.type == EventKind.score ? ShotOutcome.made : null),
+      note: command.note,
+      customLabel: command.customLabel,
+      matchClockPositionSeconds: command.matchClockPositionSeconds,
+    );
+    final events = [..._state.events, event];
+    final locations = [..._state.shotLocations];
+    if (command.shotLocation != null && command.type == EventKind.fieldGoal) {
+      locations.add(
+        ScoringShotLocation(
+          id: command.shotLocationId!,
+          eventId: event.id,
+          side: command.side!,
+          points: event.points,
+          point: CourtPoint(
+            x: command.shotLocation!.x,
+            y: command.shotLocation!.y,
+          ),
+          isLocked: true,
+        ),
+      );
+    }
+    _state = _state.copyWith(
+      events: List.unmodifiable(events),
+      score: _reducer.reduce(events),
+      shotLocations: List.unmodifiable(locations),
+      currentPossession: _latestPossession(events),
+      redFouls: _countFouls(events).red,
+      blueFouls: _countFouls(events).blue,
+    );
+    notifyListeners();
+    return true;
+  }
+
+  bool _recordLocalSemantic(String label) {
+    return _recordLocalCommand(
+      RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.pause,
+        side: null,
+        points: 0,
+        customLabel: label,
+        occurredAt: DateTime.now().toUtc(),
+      ),
+    );
+  }
+
+  bool get _allowsShotAttempts =>
+      trackingCoverage.index >= TrackingCoverage.shotAttempts.index;
+
+  bool get _allowsLocations =>
+      trackingCoverage.index >= TrackingCoverage.locations.index ||
+      recordingMode == RecordingMode.detailed;
+
+  MatchEvent? get _latestUnlocatedShot {
+    final locatedIds = _state.shotLocations.map((item) => item.eventId).toSet();
+    for (final event in _state.events.reversed) {
+      if (event.isDeleted ||
+          event.type != EventKind.fieldGoal ||
+          event.side == null ||
+          locatedIds.contains(event.id)) {
+        continue;
+      }
+      return event;
+    }
+    return null;
+  }
+
+  MatchEvent? get _lastUndoableEvent {
+    for (final event in _state.events.reversed) {
+      if (!event.isDeleted) return event;
+    }
+    return null;
+  }
+
+  static TeamSide? _latestPossession(List<MatchEvent> events) {
+    for (final event in events.reversed) {
+      if (!event.isDeleted &&
+          event.type == EventKind.possession &&
+          event.side != null) {
+        return event.side;
+      }
+    }
+    return null;
   }
 
   static ({int red, int blue}) _countFouls(List<MatchEvent> events) {
@@ -530,4 +997,16 @@ class ScoringController extends ChangeNotifier {
     }
     return (red: red, blue: blue);
   }
+}
+
+class _QueuedScoringCommand {
+  _QueuedScoringCommand({
+    required this.command,
+    required this.operation,
+    required this.completer,
+  });
+
+  final MatchCommand command;
+  final Future<MatchDetail> Function() operation;
+  final Completer<bool> completer;
 }

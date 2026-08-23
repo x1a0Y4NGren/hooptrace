@@ -883,10 +883,12 @@ class MatchCommandService {
         }
         if (event.isDeleted ||
             event.type != EventKind.fieldGoal.name ||
-            event.outcome != ShotOutcome.made.name) {
+            (event.outcome != ShotOutcome.made.name &&
+                event.outcome != ShotOutcome.missed.name)) {
           throw CommandValidationFailure(
             command: command,
-            message: 'Only a committed made field goal can receive a location.',
+            message:
+                'Only a committed field-goal attempt can receive a location.',
             projectionMatchId: command.matchId,
           );
         }
