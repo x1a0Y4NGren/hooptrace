@@ -22,4 +22,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get projectDetails => 'Project';
+
+  @override
+  String get ruleTargetReached =>
+      'Target score reached. Confirm finish or continue.';
+
+  @override
+  String get ruleWinByTwoRequired =>
+      'Target reached, but a two-point lead is required. Continue?';
+
+  @override
+  String get ruleMatchPoint => 'Match point';
+
+  @override
+  String get rulePossessionSuggested => 'Possession suggested';
+
+  @override
+  String ruleFoulLimit(Object limit, Object side) {
+    return '$side foul limit reached ($limit).';
+  }
+
+  @override
+  String get finishOrContinueOvertime =>
+      'Regulation time expired. Confirm finish or continue in overtime?';
 }

@@ -127,6 +127,42 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'项目详情'**
   String get projectDetails;
+
+  /// No description provided for @ruleTargetReached.
+  ///
+  /// In zh, this message translates to:
+  /// **'已达到目标分数，请确认结束或继续'**
+  String get ruleTargetReached;
+
+  /// No description provided for @ruleWinByTwoRequired.
+  ///
+  /// In zh, this message translates to:
+  /// **'已达到目标分数，但还需领先两分，请继续'**
+  String get ruleWinByTwoRequired;
+
+  /// No description provided for @ruleMatchPoint.
+  ///
+  /// In zh, this message translates to:
+  /// **'赛点'**
+  String get ruleMatchPoint;
+
+  /// No description provided for @rulePossessionSuggested.
+  ///
+  /// In zh, this message translates to:
+  /// **'球权建议'**
+  String get rulePossessionSuggested;
+
+  /// No description provided for @ruleFoulLimit.
+  ///
+  /// In zh, this message translates to:
+  /// **'{side}犯规已达到{limit}次'**
+  String ruleFoulLimit(Object limit, Object side);
+
+  /// No description provided for @finishOrContinueOvertime.
+  ///
+  /// In zh, this message translates to:
+  /// **'常规时间结束，请确认结束或进入加时'**
+  String get finishOrContinueOvertime;
 }
 
 class _AppLocalizationsDelegate

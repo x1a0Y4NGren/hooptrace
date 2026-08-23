@@ -245,7 +245,13 @@ class _ScoringPageState extends State<ScoringPage> {
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              state.ruleHints.map((hint) => hint.message).join(' · '),
+              state.ruleHints
+                  .map(
+                    (hint) => hint.localizedMessage(
+                      Localizations.localeOf(context).languageCode,
+                    ),
+                  )
+                  .join(' · '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

@@ -4,5 +4,11 @@
   "startScoring": "Start",
   "replayHistory": "Replay History",
   "settings": "Settings",
-  "projectDetails": "Project"
+  "projectDetails": "Project",
+  "ruleTargetReached": "Target score reached. Confirm finish or continue.",
+  "ruleWinByTwoRequired": "Target reached, but a two-point lead is required. Continue?",
+  "ruleMatchPoint": "Match point",
+  "rulePossessionSuggested": "Possession suggested",
+  "ruleFoulLimit": "{side} foul limit reached ({limit}).",
+  "finishOrContinueOvertime": "Regulation time expired. Confirm finish or continue in overtime?"
 }

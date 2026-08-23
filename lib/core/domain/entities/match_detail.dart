@@ -1,6 +1,7 @@
 import 'package:hooptrace/core/domain/entities/match.dart';
 import 'package:hooptrace/core/domain/entities/active_session.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
+import 'package:hooptrace/core/domain/entities/possession_segment.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart';
 import 'package:hooptrace/core/domain/clock/clock_engine.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -19,6 +20,7 @@ class MatchDecision {
     this.canFinish = true,
     this.canContinue = true,
     this.message = '',
+    this.messageKey,
   });
 
   final MatchDecisionKind kind;
@@ -28,6 +30,26 @@ class MatchDecision {
   final bool canFinish;
   final bool canContinue;
   final String message;
+  final String? messageKey;
+
+  String localizedMessage(String locale) {
+    final zh = locale.toLowerCase().startsWith('zh');
+    return switch (messageKey) {
+      'targetReached' =>
+        zh
+            ? '已达到目标分数，请确认结束或继续'
+            : 'Target score reached. Confirm finish or continue.',
+      'winByTwoRequired' =>
+        zh
+            ? '已达到目标分数，但还需领先两分，请继续'
+            : 'Target reached, but a two-point lead is required. Continue?',
+      'regulationExpired' =>
+        zh
+            ? '常规时间结束，请确认结束或进入加时'
+            : 'Regulation time expired. Confirm finish or continue in overtime?',
+      _ => message,
+    };
+  }
 
   bool get blocksInput => true;
 }
@@ -48,6 +70,19 @@ class MatchRuleWarning {
   final int count;
   final int limit;
   final String message;
+
+  String localizedMessage(String locale) {
+    final zh = locale.toLowerCase().startsWith('zh');
+    if (kind == MatchWarningKind.foulLimit) {
+      final sideLabel = zh
+          ? (side == TeamSide.red ? '红方' : '蓝方')
+          : (side == TeamSide.red ? 'Red' : 'Blue');
+      return zh
+          ? '$sideLabel犯规已达到$limit次'
+          : '$sideLabel foul limit reached ($limit).';
+    }
+    return message;
+  }
 }
 
 class MatchDetail {
@@ -61,6 +96,7 @@ class MatchDetail {
     required this.blueFouls,
     required this.shotAttemptCount,
     required this.locatedShotCount,
+    this.possessionSegments = const <PossessionSegment>[],
     this.clock,
     this.decision,
     this.warnings = const <MatchRuleWarning>[],
@@ -76,6 +112,7 @@ class MatchDetail {
   final int blueFouls;
   final int shotAttemptCount;
   final int locatedShotCount;
+  final List<PossessionSegment> possessionSegments;
   final ClockProjection? clock;
   final MatchDecision? decision;
   final List<MatchRuleWarning> warnings;
@@ -100,10 +137,17 @@ class MatchDetail {
 
   MatchRuleWarning? get warning => warnings.isEmpty ? null : warnings.first;
 
+  /// The most recently recorded possession, including a segment that was
+  /// closed by match completion. A missing segment means possession is
+  /// intentionally unknown (manual policy before the first selection).
+  TeamSide? get currentPossession =>
+      possessionSegments.isEmpty ? null : possessionSegments.last.side;
+
   MatchDetail copyWith({
     ClockProjection? clock,
     MatchDecision? decision,
     List<MatchRuleWarning>? warnings,
+    List<PossessionSegment>? possessionSegments,
   }) {
     return MatchDetail(
       match: match,
@@ -115,6 +159,7 @@ class MatchDetail {
       blueFouls: blueFouls,
       shotAttemptCount: shotAttemptCount,
       locatedShotCount: locatedShotCount,
+      possessionSegments: possessionSegments ?? this.possessionSegments,
       clock: clock ?? this.clock,
       decision: decision ?? this.decision,
       warnings: warnings ?? this.warnings,

@@ -10,6 +10,8 @@ import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/entities/shot_location.dart' as domain;
+import 'package:hooptrace/core/domain/entities/possession_segment.dart'
+    as domain_possession;
 import 'package:hooptrace/core/domain/entities/active_session.dart'
     as domain_session;
 import 'package:hooptrace/core/domain/entities/clock_state.dart';
@@ -383,9 +385,15 @@ class MatchRepository {
         ..where((location) => location.matchId.equals(matchId));
       final participantQuery = _database.select(_database.matchParticipants)
         ..where((participant) => participant.matchId.equals(matchId));
+      final possessionQuery = _database.select(_database.possessionSegments)
+        ..where((segment) => segment.matchId.equals(matchId))
+        ..orderBy([
+          (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+        ]);
       final eventRows = await eventQuery.get();
       final locationRows = await locationQuery.get();
       final participantRows = await participantQuery.get();
+      final possessionRows = await possessionQuery.get();
       final activeRow = await (_database.select(
         _database.activeSessions,
       )..where((session) => session.matchId.equals(matchId))).getSingleOrNull();
@@ -398,6 +406,7 @@ class MatchRepository {
         eventRows,
         locationRows,
         participantRows: participantRows,
+        possessionRows: possessionRows,
         activeSession: activeRow == null
             ? null
             : domain_session.ActiveSession(
@@ -626,12 +635,26 @@ class MatchRepository {
     List<MatchEventRow> eventRows,
     List<ShotLocation> locationRows, {
     List<dynamic> participantRows = const [],
+    List<PossessionSegment> possessionRows = const [],
     domain_session.ActiveSession? activeSession,
     ClockProjection? clock,
   }) {
     final events = eventRows.map(mapEventRow).toList(growable: false);
     final locations = locationRows
         .map(_mapShotLocationRow)
+        .toList(growable: false);
+    final possessionSegments = possessionRows
+        .map(
+          (row) => domain_possession.PossessionSegment(
+            id: row.id,
+            matchId: row.matchId,
+            side: TeamSide.values.byName(row.side),
+            startedAtEventId: row.startedAtEventId,
+            endedAtEventId: row.endedAtEventId,
+            reason: row.reason,
+            source: PossessionSource.values.byName(row.source),
+          ),
+        )
         .toList(growable: false);
     final activeEvents = events.where((event) => !event.isDeleted).toList();
     final score = ScoringReducer().reduce(activeEvents);
@@ -656,6 +679,7 @@ class MatchRepository {
       match: mapMatchRow(matchRow, participantRows: participantRows),
       events: List.unmodifiable(events),
       shotLocations: List.unmodifiable(locations),
+      possessionSegments: List.unmodifiable(possessionSegments),
       redScore: score.redScore,
       blueScore: score.blueScore,
       redFouls: _countFouls(activeEvents, TeamSide.red),

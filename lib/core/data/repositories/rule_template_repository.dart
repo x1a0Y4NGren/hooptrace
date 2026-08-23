@@ -56,6 +56,7 @@ class RuleTemplateRepository {
               jsonEncode({
                 'eventTypes': template.customEventTypes,
                 'possessionHintEnabled': template.possessionHintEnabled,
+                'possessionPolicy': template.possessionPolicy.name,
               }),
             ),
             isBuiltIn: Value(isBuiltIn),
@@ -104,6 +105,10 @@ class RuleTemplateRepository {
     final possessionHintEnabled = metadata is Map
         ? metadata['possessionHintEnabled'] as bool? ?? false
         : false;
+    final possessionPolicy =
+        metadata is Map && metadata['possessionPolicy'] is String
+        ? PossessionPolicy.values.byName(metadata['possessionPolicy'] as String)
+        : PossessionPolicy.manual;
     return RuleTemplate(
       id: row.id,
       name: row.name,
@@ -116,6 +121,7 @@ class RuleTemplateRepository {
       winByTwo: row.winByTwo,
       foulLimit: row.foulLimit,
       possessionHintEnabled: possessionHintEnabled,
+      possessionPolicy: possessionPolicy,
       customEventTypes: customEventTypes,
     );
   }
