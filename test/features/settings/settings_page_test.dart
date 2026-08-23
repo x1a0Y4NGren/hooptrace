@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
@@ -25,6 +26,9 @@ void main() {
       codec,
       storage: storage,
     );
+    final feedback = ScoringFeedbackService(
+      ScoringFeedbackPreferencesRepository(database),
+    );
     final controller = SettingsController(
       exports: ExportCoordinator(
         database,
@@ -33,6 +37,7 @@ void main() {
         automaticBackup: automaticBackup,
       ),
       automaticBackup: automaticBackup,
+      feedback: feedback,
     );
     addTearDown(controller.dispose);
 
@@ -40,6 +45,29 @@ void main() {
       MaterialApp(home: SettingsPage(controller: controller)),
     );
     await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.byKey(const Key('scoring-feedback-haptic-switch')),
+          )
+          .value,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<SwitchListTile>(
+            find.byKey(const Key('scoring-feedback-sound-switch')),
+          )
+          .value,
+      isFalse,
+    );
+    await tester.tap(find.byKey(const Key('scoring-feedback-haptic-switch')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scoring-feedback-sound-switch')));
+    await tester.pumpAndSettle();
+    expect((await feedback.load()).haptic, isFalse);
+    expect((await feedback.load()).sound, isTrue);
 
     for (final title in ['导出完整备份', '从备份恢复', '导出 CSV', '自动备份', '备份位置', '立即备份']) {
       await tester.scrollUntilVisible(find.text(title), 200);

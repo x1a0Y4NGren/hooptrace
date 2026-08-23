@@ -5,6 +5,7 @@ import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 
 import '../../test_helpers/test_database.dart';
@@ -14,6 +15,7 @@ void main() {
   late _Gateway gateway;
   late _Storage storage;
   late AutomaticBackupService automaticBackup;
+  late ScoringFeedbackService feedback;
   late SettingsController controller;
 
   setUp(() {
@@ -22,6 +24,9 @@ void main() {
     storage = _Storage();
     final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
     automaticBackup = AutomaticBackupService(database, codec, storage: storage);
+    feedback = ScoringFeedbackService(
+      ScoringFeedbackPreferencesRepository(database),
+    );
     controller = SettingsController(
       exports: ExportCoordinator(
         database,
@@ -30,6 +35,7 @@ void main() {
         automaticBackup: automaticBackup,
       ),
       automaticBackup: automaticBackup,
+      feedback: feedback,
     );
   });
 
@@ -43,7 +49,26 @@ void main() {
     expect(controller.initialized, isTrue);
     expect(controller.backupState.enabled, isFalse);
     expect(controller.backupState.directory, isNull);
+    expect(controller.feedbackState.haptic, isTrue);
+    expect(controller.feedbackState.sound, isFalse);
   });
+
+  test(
+    'feedback switches persist and update the shared service cache',
+    () async {
+      await controller.load();
+
+      expect(await controller.setHapticFeedbackEnabled(false), isTrue);
+      expect(await controller.setSoundFeedbackEnabled(true), isTrue);
+      expect(controller.feedbackState.haptic, isFalse);
+      expect(controller.feedbackState.sound, isTrue);
+      expect(await feedback.load(), controller.feedbackState);
+      expect(
+        await ScoringFeedbackPreferencesRepository(database).load(),
+        controller.feedbackState,
+      );
+    },
+  );
 
   test(
     'enabling prompts for and stores a directory before first backup',

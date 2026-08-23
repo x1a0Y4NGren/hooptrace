@@ -17,6 +17,7 @@ import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
 import 'package:hooptrace/core/export/device_export_gateway.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 
@@ -124,6 +125,17 @@ final automaticBackupServiceProvider = Provider<AutomaticBackupService>((ref) {
     ref.watch(backupCodecProvider),
     storage: ref.watch(backupStorageProvider),
   );
+});
+
+final scoringFeedbackPreferencesProvider =
+    Provider<ScoringFeedbackPreferencesRepository>((ref) {
+      return ScoringFeedbackPreferencesRepository(
+        ref.watch(appDatabaseProvider),
+      );
+    });
+
+final scoringFeedbackServiceProvider = Provider<ScoringFeedbackService>((ref) {
+  return ScoringFeedbackService(ref.watch(scoringFeedbackPreferencesProvider));
 });
 
 /// Startup tasks are function providers instead of hard-coded calls so a
@@ -245,6 +257,7 @@ final settingsControllerProvider = Provider.autoDispose<SettingsController>((
     exports: ref.watch(exportCoordinatorProvider),
     automaticBackup: ref.watch(automaticBackupServiceProvider),
     canRestoreBackup: canRestore,
+    feedback: ref.watch(scoringFeedbackServiceProvider),
   );
   ref.onDispose(controller.dispose);
   return controller;

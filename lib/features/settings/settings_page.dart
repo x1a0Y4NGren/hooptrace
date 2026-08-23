@@ -93,6 +93,37 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
+                  _SettingsSection(
+                    title: '计分反馈',
+                    children: [
+                      SwitchListTile(
+                        key: const Key('scoring-feedback-haptic-switch'),
+                        minTileHeight: 64,
+                        secondary: const Icon(Icons.vibration),
+                        title: const Text('触觉反馈'),
+                        subtitle: Text(
+                          controller.feedbackState.haptic ? '已开启' : '已关闭',
+                        ),
+                        value: controller.feedbackState.haptic,
+                        onChanged: controller.busy
+                            ? null
+                            : _setHapticFeedbackEnabled,
+                      ),
+                      SwitchListTile(
+                        key: const Key('scoring-feedback-sound-switch'),
+                        minTileHeight: 64,
+                        secondary: const Icon(Icons.volume_up_outlined),
+                        title: const Text('操作音效'),
+                        subtitle: Text(
+                          controller.feedbackState.sound ? '已开启' : '已关闭',
+                        ),
+                        value: controller.feedbackState.sound,
+                        onChanged: controller.busy
+                            ? null
+                            : _setSoundFeedbackEnabled,
+                      ),
+                    ],
+                  ),
                   const _SettingsSection(
                     title: '外观',
                     children: [
@@ -281,6 +312,24 @@ class _SettingsPageState extends State<SettingsPage> {
       } else {
         _showMessage(enabled ? '自动备份已开启' : '自动备份已关闭');
       }
+    } on Object catch (error) {
+      _showMessage(_friendlyError(error));
+    }
+  }
+
+  Future<void> _setHapticFeedbackEnabled(bool enabled) async {
+    try {
+      await widget.controller.setHapticFeedbackEnabled(enabled);
+      if (mounted) _showMessage(enabled ? '触觉反馈已开启' : '触觉反馈已关闭');
+    } on Object catch (error) {
+      _showMessage(_friendlyError(error));
+    }
+  }
+
+  Future<void> _setSoundFeedbackEnabled(bool enabled) async {
+    try {
+      await widget.controller.setSoundFeedbackEnabled(enabled);
+      if (mounted) _showMessage(enabled ? '操作音效已开启' : '操作音效已关闭');
     } on Object catch (error) {
       _showMessage(_friendlyError(error));
     }

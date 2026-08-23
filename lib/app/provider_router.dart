@@ -293,6 +293,7 @@ class _ScoringRoute extends ConsumerWidget {
           projection.match.timerEnabled &&
           projection.clock != null &&
           !projection.clock!.isRunning;
+      final feedback = ref.watch(scoringFeedbackServiceProvider);
       return ScoringPage(
         controller: controller,
         onOpenReplay: () => context.push('/matches/$matchId/replay'),
@@ -300,6 +301,7 @@ class _ScoringRoute extends ConsumerWidget {
         onResumeClock: canResumeClock
             ? () => _resumeScoring(context, ref, matchId)
             : null,
+        onActionCommitted: feedback.emitCommitted,
       );
     }
     return const _RouteLoading();

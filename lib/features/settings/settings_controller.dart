@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
 class BackupRestoreBlockedException implements Exception {
   const BackupRestoreBlockedException();
@@ -15,25 +16,31 @@ class SettingsController extends ChangeNotifier {
     required this.exports,
     required this.automaticBackup,
     this.canRestoreBackup = true,
+    this.feedback,
   });
 
   final ExportCoordinator exports;
   final AutomaticBackupService automaticBackup;
   final bool canRestoreBackup;
+  final ScoringFeedbackService? feedback;
 
   AutomaticBackupState _backupState = const AutomaticBackupState(
     enabled: false,
   );
+  ScoringFeedbackPreferences _feedbackState =
+      const ScoringFeedbackPreferences.defaults();
   bool _initialized = false;
   bool _busy = false;
 
   AutomaticBackupState get backupState => _backupState;
+  ScoringFeedbackPreferences get feedbackState => _feedbackState;
   bool get initialized => _initialized;
   bool get busy => _busy;
 
   Future<void> load() async {
     await _perform(() async {
       _backupState = await automaticBackup.loadState();
+      if (feedback != null) _feedbackState = await feedback!.load();
       _initialized = true;
     });
   }
@@ -50,6 +57,7 @@ class SettingsController extends ChangeNotifier {
       final restored = await exports.restorePickedBackup();
       if (restored) {
         _backupState = await automaticBackup.loadState();
+        if (feedback != null) _feedbackState = await feedback!.reload();
       }
       return restored;
     });
@@ -84,6 +92,26 @@ class SettingsController extends ChangeNotifier {
         await automaticBackup.disable();
       }
       _backupState = await automaticBackup.loadState();
+      return true;
+    });
+  }
+
+  Future<bool> setHapticFeedbackEnabled(bool enabled) {
+    return _perform(() async {
+      final service = feedback;
+      _feedbackState = service == null
+          ? _feedbackState.copyWith(haptic: enabled)
+          : await service.setHapticEnabled(enabled);
+      return true;
+    });
+  }
+
+  Future<bool> setSoundFeedbackEnabled(bool enabled) {
+    return _perform(() async {
+      final service = feedback;
+      _feedbackState = service == null
+          ? _feedbackState.copyWith(sound: enabled)
+          : await service.setSoundEnabled(enabled);
       return true;
     });
   }

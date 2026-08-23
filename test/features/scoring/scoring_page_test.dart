@@ -7,6 +7,7 @@ import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
@@ -75,6 +76,49 @@ void main() {
       expect(find.byKey(const Key('command-resume')), findsNothing);
       await tester.pump(const Duration(seconds: 2));
       expect(find.text('无计时'), findsOneWidget);
+    });
+  });
+
+  testWidgets('committed scoring feedback runs after the event is persisted', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final commandService = MatchCommandService(database);
+      final projection = await commandService.start(
+        _startPageCommand('feedback-order'),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        projection,
+        commandService,
+      );
+      final observedEventCounts = <int>[];
+      final platform = _RecordingFeedbackPlatform(
+        onHaptic: () async {
+          observedEventCounts.add(
+            (await database.select(database.matchEvents).get()).length,
+          );
+        },
+      );
+      final feedback = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+        platform: platform,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            onActionCommitted: feedback.emitCommitted,
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('red-score-2')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+
+      expect(observedEventCounts, [1]);
     });
   });
 
@@ -1065,6 +1109,18 @@ void main() {
     await tester.tap(find.byKey(const Key('leave-stay')));
     expect(leaveCalls, 0);
   });
+}
+
+class _RecordingFeedbackPlatform implements ScoringFeedbackPlatform {
+  _RecordingFeedbackPlatform({required this.onHaptic});
+
+  final Future<void> Function() onHaptic;
+
+  @override
+  Future<void> lightImpact() => onHaptic();
+
+  @override
+  Future<void> click() async {}
 }
 
 StartMatchCommand _startPageCommand(
