@@ -31,15 +31,20 @@ class PendingLocationBar extends StatelessWidget {
           children: [
             FilledButton.icon(
               key: const Key('confirm-location'),
+              style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: onConfirm,
               icon: const Icon(Icons.check),
               label: const Text(confirmLocationText),
             ),
             OutlinedButton(
+              key: const Key('cancel-location'),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: onSkip,
               child: const Text(skipLocationText),
             ),
             TextButton.icon(
+              key: const Key('pending-location-undo'),
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: onUndo,
               icon: const Icon(Icons.undo),
               label: const Text(undoText),

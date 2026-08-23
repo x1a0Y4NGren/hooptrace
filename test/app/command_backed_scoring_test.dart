@@ -42,8 +42,6 @@ void main() {
     );
     scoreButton.onPressed!();
     await tester.pump();
-    await _pumpUntilFound(tester, find.text('标记投篮位置？'));
-    await tester.tap(find.text('不标记'));
 
     for (var attempt = 0; attempt < 100; attempt++) {
       await tester.runAsync(

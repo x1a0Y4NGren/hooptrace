@@ -13,6 +13,9 @@ class ScoreSidePanel extends StatelessWidget {
     required this.onScore,
     required this.onFoul,
     this.scoreButtons = const [1, 2, 3],
+    this.onMiss,
+    this.scoreEnabled = true,
+    this.missEnabled = false,
     super.key,
   });
 
@@ -23,6 +26,9 @@ class ScoreSidePanel extends StatelessWidget {
   final ValueChanged<int> onScore;
   final VoidCallback onFoul;
   final List<int> scoreButtons;
+  final VoidCallback? onMiss;
+  final bool scoreEnabled;
+  final bool missEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -34,10 +40,10 @@ class ScoreSidePanel extends StatelessWidget {
       color: color.withValues(alpha: 0.08),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxHeight < 720;
-          final buttonHeight = compact ? 30.0 : 40.0;
-          final scoreHeight = compact ? 52.0 : 88.0;
-          final gap = compact ? 4.0 : 6.0;
+          final compact = constraints.maxHeight < 560;
+          const buttonHeight = 48.0;
+          final scoreHeight = compact ? 64.0 : 88.0;
+          final gap = compact ? 4.0 : 8.0;
 
           return Padding(
             padding: EdgeInsets.symmetric(
@@ -100,9 +106,24 @@ class ScoreSidePanel extends StatelessWidget {
                               key: Key('${side.name}-score-$points'),
                               style: FilledButton.styleFrom(
                                 backgroundColor: color,
+                                minimumSize: const Size(48, buttonHeight),
                               ),
-                              onPressed: () => onScore(points),
+                              onPressed: scoreEnabled
+                                  ? () => onScore(points)
+                                  : null,
                               child: Text('+$points'),
+                            ),
+                          ),
+                          SizedBox(height: gap),
+                        ],
+                        if (missEnabled && onMiss != null) ...[
+                          SizedBox(
+                            height: buttonHeight,
+                            child: OutlinedButton.icon(
+                              key: Key('${side.name}-miss'),
+                              onPressed: onMiss,
+                              icon: const Icon(Icons.close, size: 18),
+                              label: const Text('未中'),
                             ),
                           ),
                           SizedBox(height: gap),
@@ -110,6 +131,7 @@ class ScoreSidePanel extends StatelessWidget {
                         SizedBox(
                           height: buttonHeight,
                           child: OutlinedButton.icon(
+                            key: Key('${side.name}-foul'),
                             onPressed: onFoul,
                             icon: const Icon(Icons.flag_outlined, size: 18),
                             label: const Text(foulText),

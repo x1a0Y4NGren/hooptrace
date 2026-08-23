@@ -66,8 +66,6 @@ void main() {
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     await tester.tap(find.byKey(const Key('red-score-2')));
     await tester.pump();
-    await tester.tap(find.text(scoringDoNotMarkText));
-    await tester.pump();
     await tester.tap(find.text(scoringReplayText));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
 

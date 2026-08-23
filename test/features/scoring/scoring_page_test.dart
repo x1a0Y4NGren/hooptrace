@@ -111,22 +111,43 @@ void main() {
   testWidgets('choosing not to mark a shot records score immediately', (
     tester,
   ) async {
-    final controller = ScoringController(matchId: 'match-1');
+    await withTestDatabase((database) async {
+      final anchor = DateTime.utc(2026, 8, 23, 9);
+      final service = MatchCommandService(database, now: () => anchor);
+      final start = await service.start(
+        StartMatchCommand(
+          commandId: 'page-one-tap-start',
+          matchId: 'page-one-tap-match',
+          redName: 'Red',
+          blueName: 'Blue',
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: 'Free',
+            scoreButtons: [1, 2, 3],
+          ),
+          recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.locations,
+          createdAt: DateTime.utc(2026, 8, 23, 9),
+          startedAt: DateTime.utc(2026, 8, 23, 9),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(home: ScoringPage(controller: controller)),
-    );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
 
-    await tester.tap(find.byKey(const Key('red-score-2')));
-    await tester.pump();
-    expect(find.text('标记投篮位置？'), findsOneWidget);
-    expect(find.text('可在球场上点选或拖动圆点后确认。'), findsOneWidget);
-    await tester.tap(find.text('不标记'));
-    await tester.pump();
+      await tester.tap(find.byKey(const Key('red-score-2')));
+      await tester.pump();
 
-    expect(controller.state.score.redScore, 2);
-    expect(controller.state.pendingLocation, isNull);
-    expect(controller.state.shotLocations, isEmpty);
+      expect(find.text(scoringMarkShotDialogTitle), findsNothing);
+      expect(controller.state.score.redScore, 2);
+      expect(controller.state.pendingLocation, isNull);
+      expect(await database.select(database.matchEvents).get(), hasLength(1));
+    });
   });
 
   testWidgets('confirming a pending marker records a locked location', (
@@ -140,11 +161,9 @@ void main() {
 
     await tester.tap(find.byKey(const Key('blue-score-3')));
     await tester.pump();
-    await tester.tap(find.text('标记'));
-    await tester.pump();
     expect(find.text('确认落点'), findsOneWidget);
     expect(find.text('跳过落点'), findsOneWidget);
-    expect(find.text('撤销'), findsOneWidget);
+    expect(find.byKey(const Key('pending-location-undo')), findsOneWidget);
     await tester.tap(find.byKey(const Key('confirm-location')));
     await tester.pump();
 
@@ -165,14 +184,343 @@ void main() {
 
     await tester.tap(find.byKey(const Key('red-score-2')));
     await tester.pump();
-    await tester.tap(find.text(scoringMarkText));
-    await tester.pump();
     await tester.tap(find.byKey(const Key('blue-score-3')));
     await tester.pump();
 
     expect(find.text(scoringResolvePendingText), findsOneWidget);
     expect(controller.state.score.redScore, 2);
     expect(controller.state.score.blueScore, 0);
+  });
+
+  testWidgets(
+    'rapid command-backed scores commit in tap order without a modal',
+    (tester) async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await service.start(_startPageCommand('page-rapid'));
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await tester.pumpWidget(
+          MaterialApp(home: ScoringPage(controller: controller)),
+        );
+
+        await tester.tap(find.byKey(const Key('blue-score-1')));
+        await tester.tap(find.byKey(const Key('red-score-2')));
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+
+        final events = await database.select(database.matchEvents).get();
+        expect(find.text(scoringMarkShotDialogTitle), findsNothing);
+        expect(events.map((event) => event.points), [1, 2]);
+        expect(controller.state.score.blueScore, 1);
+        expect(controller.state.score.redScore, 2);
+      });
+    },
+  );
+
+  testWidgets('explicit locate action confirms or cancels the latest shot', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final start = await service.start(_startPageCommand('page-locate'));
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+
+      await tester.tap(find.byKey(const Key('red-score-2')));
+      await tester.pump();
+      expect(find.byKey(const Key('command-locate')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('command-locate')));
+      await tester.pump();
+      expect(find.text(confirmLocationText), findsOneWidget);
+      expect(find.byKey(const Key('scoring-court')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('confirm-location')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      expect(controller.state.pendingLocation, isNull);
+      expect(await database.select(database.shotLocations).get(), hasLength(1));
+
+      await controller.recordScoreCommitted(side: TeamSide.blue, points: 1);
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('command-locate')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('cancel-location')));
+      await tester.pump();
+      expect(controller.state.pendingLocation, isNull);
+      expect(await database.select(database.shotLocations).get(), hasLength(1));
+    });
+  });
+
+  testWidgets('detailed mode is court-first and commits corrected draft once', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final start = await service.start(
+        _startPageCommand(
+          'page-detailed',
+          recordingMode: RecordingMode.detailed,
+        ),
+      );
+      final withPossession = await service.record(
+        RecordMatchEventCommand(
+          matchId: start.match.id,
+          type: EventKind.possession,
+          side: TeamSide.blue,
+          points: 0,
+          occurredAt: DateTime.utc(2026, 8, 23, 9, 1),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        withPossession,
+        service,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('blue-score-2')))
+            .onPressed,
+        isNull,
+      );
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('scoring-court'))),
+      );
+      await tester.pump();
+      expect(controller.detailedShotDraft, isNotNull);
+      expect(find.byKey(const Key('detailed-draft-dock')), findsOneWidget);
+      expect(find.byKey(const Key('draft-shooter-blue')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('draft-shooter-red')));
+      await tester.tap(find.byKey(const Key('draft-points-2')));
+      await tester.tap(find.byKey(const Key('draft-commit')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+
+      final events = await database.select(database.matchEvents).get();
+      final locations = await database.select(database.shotLocations).get();
+      expect(controller.detailedShotDraft, isNull);
+      expect(events, hasLength(2));
+      expect(events.last.side, TeamSide.red.name);
+      expect(events.last.points, 2);
+      expect(events.last.outcome, ShotOutcome.made.name);
+      expect(locations, hasLength(1));
+      expect(locations.single.eventId, events.last.id);
+    });
+  });
+
+  testWidgets(
+    'detailed draft cancel leaves the committed projection untouched',
+    (tester) async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await service.start(
+          _startPageCommand(
+            'page-detailed-cancel',
+            recordingMode: RecordingMode.detailed,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await tester.pumpWidget(
+          MaterialApp(home: ScoringPage(controller: controller)),
+        );
+        await tester.tapAt(
+          tester.getCenter(find.byKey(const Key('scoring-court'))),
+        );
+        await tester.pump();
+        await tester.tap(find.byKey(const Key('draft-cancel')));
+        await tester.pump();
+
+        expect(controller.detailedShotDraft, isNull);
+        expect(controller.state.events, isEmpty);
+        expect(await database.select(database.matchEvents).get(), isEmpty);
+        expect(await database.select(database.shotLocations).get(), isEmpty);
+      });
+    },
+  );
+
+  testWidgets('command dock records possession, free throw, and pause', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final anchor = DateTime.utc(2026, 8, 23, 9);
+      final service = MatchCommandService(database, now: () => anchor);
+      final start = await service.start(
+        _startPageCommand(
+          'page-command-dock',
+          timerEnabled: true,
+          clockMode: ClockMode.countUp,
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('command-possession-blue')),
+        300,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('scoring-command-dock')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('command-possession-blue')));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('command-free-throw-blue-made')));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('command-pause')));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 80)),
+      );
+      await tester.pump();
+
+      final events = await database.select(database.matchEvents).get();
+      expect(
+        events.map((event) => event.type),
+        containsAll(<String>[
+          EventKind.possession.name,
+          EventKind.freeThrow.name,
+          EventKind.pause.name,
+        ]),
+      );
+      expect(controller.currentPossession, TeamSide.blue);
+      expect(find.text('计时已暂停'), findsNWidgets(2));
+    });
+  });
+
+  testWidgets('compact command workspace keeps primary targets at 48dp', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(731, 411));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'compact-actions')),
+    );
+
+    for (final key in <String>[
+      'blue-score-1',
+      'blue-score-2',
+      'blue-score-3',
+      'blue-foul',
+      'red-score-1',
+      'red-score-2',
+      'red-score-3',
+      'red-foul',
+      'command-undo',
+      'command-pause',
+    ]) {
+      expect(
+        tester.getSize(find.byKey(Key(key))).height,
+        greaterThanOrEqualTo(48),
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('clock display projects elapsed time without database ticks', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final anchor = DateTime.utc(2026, 8, 23, 9);
+      final service = MatchCommandService(database, now: () => anchor);
+      final start = await service.start(
+        _startPageCommand(
+          'page-clock',
+          timerEnabled: true,
+          clockMode: ClockMode.countUp,
+          createdAt: anchor,
+          startedAt: anchor,
+        ),
+      );
+      var now = anchor.add(const Duration(seconds: 2));
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(controller: controller, clockNowUtc: () => now),
+        ),
+      );
+      expect(find.text('00:02'), findsOneWidget);
+      now = anchor.add(const Duration(seconds: 5));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('00:05'), findsOneWidget);
+    });
+  });
+
+  testWidgets('clock display announces overtime from committed projection', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final anchor = DateTime.utc(2026, 8, 23, 9);
+      final service = MatchCommandService(database, now: () => anchor);
+      await service.start(
+        _startPageCommand(
+          'page-overtime',
+          timerEnabled: true,
+          clockMode: ClockMode.countdown,
+          regulationSeconds: 60,
+          createdAt: anchor,
+          startedAt: anchor,
+        ),
+      );
+      await MatchCommandService(
+        database,
+        now: () => anchor.add(const Duration(seconds: 60)),
+      ).readClock('page-overtime');
+      final continued =
+          await MatchCommandService(
+            database,
+            now: () => anchor.add(const Duration(seconds: 12)),
+          ).continueMatch(
+            ContinueMatchCommand(
+              commandId: 'page-overtime-continue',
+              matchId: 'page-overtime',
+              occurredAt: anchor.add(const Duration(seconds: 12)),
+            ),
+          );
+      final controller = ScoringController.fromCommittedProjection(
+        continued,
+        service,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+
+      expect(find.text('OT 00:00'), findsOneWidget);
+      expect(find.text('加时赛'), findsNWidgets(2));
+    });
   });
 
   testWidgets('scoring page swaps injected controllers when rebuilt', (
@@ -210,8 +558,6 @@ void main() {
     expect(openCount, 1);
 
     await tester.tap(find.byKey(const Key('red-score-1')));
-    await tester.pump();
-    await tester.tap(find.text(scoringMarkText));
     await tester.pump();
     await tester.tap(find.text(scoringReplayText));
     await tester.pump();
@@ -255,9 +601,9 @@ void main() {
       await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
       expect(controller.beginLocateLastUnlocatedShot(), isTrue);
       await tester.pump();
-      expect(find.text(undoText), findsOneWidget);
+      expect(find.byKey(const Key('pending-location-undo')), findsOneWidget);
 
-      await tester.tap(find.text(undoText));
+      await tester.tap(find.byKey(const Key('pending-location-undo')));
       await tester.pump();
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 20)),
@@ -347,7 +693,10 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
       await withTestDatabase((database) async {
-        final service = MatchCommandService(database);
+        final service = MatchCommandService(
+          database,
+          now: () => DateTime.utc(2026, 8, 23, 9),
+        );
         final start = await service.start(
           StartMatchCommand(
             commandId: 'page-foul-start-command',
@@ -381,5 +730,38 @@ void main() {
         expect(await database.select(database.matchEvents).get(), hasLength(2));
       });
     },
+  );
+}
+
+StartMatchCommand _startPageCommand(
+  String id, {
+  RecordingMode recordingMode = RecordingMode.simple,
+  TrackingCoverage trackingCoverage = TrackingCoverage.locations,
+  bool timerEnabled = false,
+  ClockMode clockMode = ClockMode.countUp,
+  int? regulationSeconds,
+  DateTime? createdAt,
+  DateTime? startedAt,
+}) {
+  final anchor = createdAt ?? DateTime.utc(2026, 8, 23, 9);
+  return StartMatchCommand(
+    commandId: '$id-command',
+    matchId: id,
+    redName: 'Red',
+    blueName: 'Blue',
+    ruleTemplate: const RuleTemplate(
+      id: 'free',
+      name: 'Free',
+      scoreButtons: [1, 2, 3],
+    ),
+    recordingMode: recordingMode,
+    trackingCoverage: trackingCoverage,
+    clockMode: clockMode,
+    regulationSeconds: clockMode == ClockMode.countdown
+        ? regulationSeconds ?? 600
+        : null,
+    timerEnabled: timerEnabled,
+    createdAt: anchor,
+    startedAt: startedAt ?? anchor,
   );
 }

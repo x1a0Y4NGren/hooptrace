@@ -13,7 +13,9 @@ class CourtView extends StatelessWidget {
   const CourtView({
     required this.shotLocations,
     this.pendingLocation,
+    this.detailedShotDraft,
     this.onPendingLocationChanged,
+    this.onCourtPointTap,
     this.onShotLocationTap,
     this.mode = CourtViewMode.editable,
     super.key,
@@ -21,7 +23,9 @@ class CourtView extends StatelessWidget {
 
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
+  final DetailedShotDraft? detailedShotDraft;
   final ValueChanged<CourtPoint>? onPendingLocationChanged;
+  final ValueChanged<CourtPoint>? onCourtPointTap;
   final ValueChanged<String>? onShotLocationTap;
   final CourtViewMode mode;
 
@@ -32,10 +36,15 @@ class CourtView extends StatelessWidget {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
 
         void handlePosition(Offset local) {
-          if (mode == CourtViewMode.readOnly || pendingLocation == null) {
+          if (mode == CourtViewMode.readOnly) {
             return;
           }
-          onPendingLocationChanged?.call(pointFromLocal(local, size));
+          final point = pointFromLocal(local, size);
+          if (pendingLocation != null) {
+            onPendingLocationChanged?.call(point);
+          } else if (detailedShotDraft != null) {
+            onCourtPointTap?.call(point);
+          }
         }
 
         void handleTap(Offset local) {
@@ -57,19 +66,29 @@ class CourtView extends StatelessWidget {
               closestDistance = distance;
             }
           }
-          if (closest != null) onShotLocationTap?.call(closest.id);
+          if (closest != null) {
+            onShotLocationTap?.call(closest.id);
+          } else {
+            onCourtPointTap?.call(pointFromLocal(local, size));
+          }
         }
 
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: (details) => handleTap(details.localPosition),
-          onPanUpdate: (details) => handlePosition(details.localPosition),
-          child: CustomPaint(
-            painter: CourtPainter(
-              shotLocations: shotLocations,
-              pendingLocation: pendingLocation,
+        return Semantics(
+          container: true,
+          label: mode == CourtViewMode.readOnly ? '复盘球场' : '篮球场落点编辑区',
+          hint: mode == CourtViewMode.readOnly ? '查看已记录的投篮' : '点击球场记录或调整投篮落点',
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) => handleTap(details.localPosition),
+            onPanUpdate: (details) => handlePosition(details.localPosition),
+            child: CustomPaint(
+              painter: CourtPainter(
+                shotLocations: shotLocations,
+                pendingLocation: pendingLocation,
+                detailedShotDraft: detailedShotDraft,
+              ),
+              child: const SizedBox.expand(),
             ),
-            child: const SizedBox.expand(),
           ),
         );
       },

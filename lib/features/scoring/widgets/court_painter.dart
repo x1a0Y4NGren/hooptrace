@@ -75,10 +75,15 @@ class HalfCourtGeometry {
 }
 
 class CourtPainter extends CustomPainter {
-  const CourtPainter({this.shotLocations = const [], this.pendingLocation});
+  const CourtPainter({
+    this.shotLocations = const [],
+    this.pendingLocation,
+    this.detailedShotDraft,
+  });
 
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
+  final DetailedShotDraft? detailedShotDraft;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -282,6 +287,18 @@ class CourtPainter extends CustomPainter {
         isPending: true,
       );
     }
+
+    final draft = detailedShotDraft;
+    if (draft != null) {
+      _paintMarker(
+        canvas,
+        size,
+        draft.point,
+        _sideColor(draft.side ?? TeamSide.blue),
+        radius: 10,
+        isPending: true,
+      );
+    }
   }
 
   void _paintMarker(
@@ -311,6 +328,7 @@ class CourtPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CourtPainter oldDelegate) {
     return oldDelegate.shotLocations != shotLocations ||
-        oldDelegate.pendingLocation != pendingLocation;
+        oldDelegate.pendingLocation != pendingLocation ||
+        oldDelegate.detailedShotDraft != detailedShotDraft;
   }
 }
