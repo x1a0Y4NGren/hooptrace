@@ -163,8 +163,7 @@ void main() {
         )..where((row) => row.matchId.equals(start.matchId))).getSingle();
         expect(event.type, EventKind.fieldGoal.name);
         expect(event.outcome, ShotOutcome.made.name);
-        expect(controller.state.pendingLocation, isNotNull);
-        expect(controller.state.pendingLocation!.eventId, event.id);
+        expect(controller.state.pendingLocation, isNull);
       });
     },
   );
@@ -180,6 +179,7 @@ void main() {
           service,
         );
         await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
 
         await controller.confirmPendingLocation(CourtPoint(x: 0.25, y: 0.75));
 
@@ -203,6 +203,7 @@ void main() {
         service,
       );
       await controller.recordScoreCommitted(side: TeamSide.blue, points: 3);
+      expect(controller.beginLocateLastUnlocatedShot(), isTrue);
 
       controller.skipPendingLocation();
 
@@ -234,6 +235,7 @@ void main() {
           service,
         );
         await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
         final pendingEventId = controller.state.pendingLocation!.eventId;
 
         MatchCommandFailure? failure;
@@ -284,6 +286,7 @@ void main() {
           service,
         );
         await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
 
         final confirmation = controller.confirmPendingLocation();
         await entered.future;
@@ -299,7 +302,7 @@ void main() {
   );
 
   test(
-    'pending location rejects foul and undo then soft-deletes the shot',
+    'explicit location rejects foul until cancelled, then undo soft-deletes the shot',
     () async {
       await withTestDatabase((database) async {
         final service = MatchCommandService(database);
@@ -309,10 +312,12 @@ void main() {
           service,
         );
         await controller.recordScoreCommitted(side: TeamSide.blue, points: 3);
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
 
         expect(await controller.recordFoulCommitted(TeamSide.red), isFalse);
         expect(await database.select(database.matchEvents).get(), hasLength(1));
 
+        expect(controller.cancelLocateLastUnlocatedShot(), isTrue);
         await controller.undoLastEventCommitted();
         final event = await database.select(database.matchEvents).getSingle();
         expect(event.isDeleted, isTrue);
@@ -445,6 +450,7 @@ void main() {
           side: TeamSide.blue,
           points: 3,
         );
+        expect(confirmController.beginLocateLastUnlocatedShot(), isTrue);
         final confirmCommand = confirmController.confirmPendingLocation();
         await confirmEntered.future;
         confirmController.dispose();
@@ -479,6 +485,7 @@ Future<MatchDetail> _startCommandBackedMatch(MatchCommandService service) {
         scoreButtons: [1, 2, 3],
       ),
       recordingMode: RecordingMode.simple,
+      trackingCoverage: TrackingCoverage.locations,
       createdAt: DateTime.utc(2026, 8, 23, 9),
       startedAt: DateTime.utc(2026, 8, 23, 9),
     ),

@@ -440,6 +440,164 @@ void main() {
       });
     },
   );
+
+  test(
+    'explicit location makes confirm exclusive and rejects ordinary actions',
+    () async {
+      await withTestDatabase((database) async {
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        var armed = false;
+        final service = MatchCommandService(
+          database,
+          failureInjector: (point) async {
+            if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+              entered.complete();
+              await release.future;
+            }
+          },
+        );
+        final started = await service.start(
+          _startCommand(
+            matchId: 'task8-exclusive',
+            trackingCoverage: TrackingCoverage.locations,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+        );
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+        armed = true;
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
+
+        final confirmation = controller.confirmPendingLocation();
+        await entered.future;
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.blue, points: 1),
+          isFalse,
+        );
+        expect(await controller.recordFoulCommitted(TeamSide.blue), isFalse);
+        expect(await controller.undoLastEventCommitted(), isFalse);
+        expect(await controller.pauseCommitted(), isFalse);
+        release.complete();
+        await confirmation;
+        expect(controller.state.pendingLocation, isNull);
+        expect(await database.select(database.matchEvents).get(), hasLength(1));
+      });
+    },
+  );
+
+  test(
+    'external projection refresh preserves an unfinished detailed draft',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final started = await service.start(
+          _startCommand(
+            matchId: 'task8-draft-refresh',
+            recordingMode: RecordingMode.detailed,
+            trackingCoverage: TrackingCoverage.locations,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+        );
+        expect(
+          controller.beginDetailedShot(CourtPoint(x: 0.4, y: 0.6)),
+          isTrue,
+        );
+        controller.replaceCommittedProjection(started);
+        expect(controller.detailedShotDraft, isNotNull);
+        expect(controller.detailedShotDraft!.point.x, 0.4);
+        expect(controller.detailedShotDraft!.point.y, 0.6);
+      });
+    },
+  );
+
+  test(
+    'generic command adapter enforces match identity and miss coverage',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final started = await service.start(
+          _startCommand(
+            matchId: 'task8-generic-guards',
+            trackingCoverage: TrackingCoverage.scoresOnly,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+        );
+        expect(
+          await controller.recordEventCommitted(
+            RecordMatchEventCommand(
+              matchId: 'other-match',
+              type: EventKind.fieldGoal,
+              side: TeamSide.red,
+              points: 0,
+              outcome: ShotOutcome.missed,
+              occurredAt: DateTime.utc(2026, 8, 23, 9),
+            ),
+          ),
+          isFalse,
+        );
+        expect(
+          await controller.recordFreeThrowCommitted(
+            side: TeamSide.red,
+            made: false,
+          ),
+          isFalse,
+        );
+        expect(await database.select(database.matchEvents).get(), isEmpty);
+      });
+    },
+  );
+
+  test(
+    'a failed queued command completes its future and the next command commits after it',
+    () async {
+      await withTestDatabase((database) async {
+        var armed = false;
+        var failed = false;
+        final service = MatchCommandService(
+          database,
+          failureInjector: (point) {
+            if (armed &&
+                !failed &&
+                point == MatchCommandFailurePoint.beforeCommit) {
+              failed = true;
+              throw StateError('first queued command failed');
+            }
+          },
+        );
+        final started = await service.start(
+          _startCommand(matchId: 'task8-queue-failure'),
+        );
+        armed = true;
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+        );
+        final first = controller.recordScoreCommitted(
+          side: TeamSide.red,
+          points: 1,
+        );
+        final second = controller.recordScoreCommitted(
+          side: TeamSide.blue,
+          points: 2,
+        );
+        await expectLater(first, throwsA(isA<MatchCommandFailure>()));
+        expect(await second, isTrue);
+        final events = await database.select(database.matchEvents).get();
+        expect(events, hasLength(1));
+        expect(events.single.side, TeamSide.blue.name);
+        expect(events.single.points, 2);
+      });
+    },
+  );
 }
 
 StartMatchCommand _startCommand({

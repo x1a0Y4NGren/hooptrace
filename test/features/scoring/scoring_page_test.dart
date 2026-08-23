@@ -239,6 +239,7 @@ void main() {
           scoreButtons: [1, 2, 3],
         ),
         recordingMode: RecordingMode.simple,
+        trackingCoverage: TrackingCoverage.locations,
         createdAt: DateTime.utc(2026, 8, 23, 9),
         startedAt: DateTime.utc(2026, 8, 23, 9),
       );
@@ -252,6 +253,7 @@ void main() {
         MaterialApp(home: ScoringPage(controller: controller)),
       );
       await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      expect(controller.beginLocateLastUnlocatedShot(), isTrue);
       await tester.pump();
       expect(find.text(undoText), findsOneWidget);
 
@@ -298,6 +300,7 @@ void main() {
             scoreButtons: [1, 2, 3],
           ),
           recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.locations,
           createdAt: DateTime.utc(2026, 8, 23, 9),
           startedAt: DateTime.utc(2026, 8, 23, 9),
         ),
@@ -311,6 +314,7 @@ void main() {
         MaterialApp(home: ScoringPage(controller: controller)),
       );
       await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      expect(controller.beginLocateLastUnlocatedShot(), isTrue);
       await tester.pump();
       await tester.tap(find.byKey(const Key('confirm-location')));
       await tester.pump();
@@ -336,43 +340,46 @@ void main() {
     });
   });
 
-  testWidgets('production foul button rejects a pending shot', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1920, 1080));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'production foul button remains available after an unlocated score',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1920, 1080));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await withTestDatabase((database) async {
-      final service = MatchCommandService(database);
-      final start = await service.start(
-        StartMatchCommand(
-          commandId: 'page-foul-start-command',
-          matchId: 'page-foul-match',
-          redName: 'Red',
-          blueName: 'Blue',
-          ruleTemplate: const RuleTemplate(
-            id: 'free',
-            name: 'Free',
-            scoreButtons: [1, 2, 3],
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await service.start(
+          StartMatchCommand(
+            commandId: 'page-foul-start-command',
+            matchId: 'page-foul-match',
+            redName: 'Red',
+            blueName: 'Blue',
+            ruleTemplate: const RuleTemplate(
+              id: 'free',
+              name: 'Free',
+              scoreButtons: [1, 2, 3],
+            ),
+            recordingMode: RecordingMode.simple,
+            createdAt: DateTime.utc(2026, 8, 23, 9),
+            startedAt: DateTime.utc(2026, 8, 23, 9),
           ),
-          recordingMode: RecordingMode.simple,
-          createdAt: DateTime.utc(2026, 8, 23, 9),
-          startedAt: DateTime.utc(2026, 8, 23, 9),
-        ),
-      );
-      final controller = ScoringController.fromCommittedProjection(
-        start,
-        service,
-      );
-      await tester.pumpWidget(
-        MaterialApp(home: ScoringPage(controller: controller)),
-      );
-      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
-      await tester.pump();
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await tester.pumpWidget(
+          MaterialApp(home: ScoringPage(controller: controller)),
+        );
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+        await tester.pump();
 
-      await tester.tap(find.text(foulText).first);
-      await tester.pump();
+        await tester.tap(find.text(foulText).first);
+        await tester.pump();
 
-      expect(find.text(scoringResolvePendingText), findsOneWidget);
-      expect(await database.select(database.matchEvents).get(), hasLength(1));
-    });
-  });
+        expect(find.text(scoringResolvePendingText), findsNothing);
+        expect(await database.select(database.matchEvents).get(), hasLength(2));
+      });
+    },
+  );
 }

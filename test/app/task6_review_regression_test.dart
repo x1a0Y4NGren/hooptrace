@@ -34,6 +34,7 @@ void main() {
             scoreButtons: [1, 2, 3],
           ),
           recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.locations,
           createdAt: now,
           startedAt: now,
         ),
@@ -104,6 +105,7 @@ void main() {
             scoreButtons: [1, 2, 3],
           ),
           recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.locations,
           createdAt: now,
           startedAt: now,
         ),
@@ -127,6 +129,7 @@ void main() {
       final first = container.read(scoringControllerProvider(matchId));
       expect(first, isNotNull);
       await first!.recordScoreCommitted(side: TeamSide.red, points: 2);
+      expect(first.beginLocateLastUnlocatedShot(), isTrue);
       expect(first.state.pendingLocation, isNotNull);
 
       await _eventually(

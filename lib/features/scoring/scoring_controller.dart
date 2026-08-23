@@ -243,10 +243,14 @@ class ScoringController extends ChangeNotifier {
   /// boundary. The command object is created before it enters the queue, so
   /// every rapid tap owns a stable command/event ID and can be retried as-is.
   Future<bool> recordEventCommitted(RecordMatchEventCommand command) {
-    if (_disposed) return Future<bool>.value(false);
-    if (command.type == EventKind.fieldGoal &&
-        command.outcome == ShotOutcome.missed &&
-        !_allowsShotAttempts) {
+    if (_disposed ||
+        command.matchId != _state.matchId ||
+        _exclusiveBusy ||
+        _state.detailedShotDraft != null ||
+        _state.pendingLocation?.isExplicit == true) {
+      return Future<bool>.value(false);
+    }
+    if (_isMissCommand(command) && !_allowsShotAttempts) {
       return Future<bool>.value(false);
     }
     if (command.shotLocation != null && !_allowsLocations) {
@@ -405,7 +409,9 @@ class ScoringController extends ChangeNotifier {
       undoLastEvent();
       return true;
     }
-    if (_state.events.isEmpty) return false;
+    if (_state.events.isEmpty) {
+      return false;
+    }
     final event = _lastUndoableEvent;
     if (event == null) return false;
     final command = UndoMatchEventCommand(
@@ -647,6 +653,9 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> pauseCommitted() {
+    if (_disposed || _state.pendingLocation?.isExplicit == true) {
+      return Future<bool>.value(false);
+    }
     final service = _commandService;
     if (service == null) {
       return Future<bool>.value(_recordLocalSemantic('pause'));
@@ -659,6 +668,9 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> resumeCommitted() {
+    if (_disposed || _state.pendingLocation?.isExplicit == true) {
+      return Future<bool>.value(false);
+    }
     final service = _commandService;
     if (service == null) {
       return Future<bool>.value(_recordLocalSemantic('resume'));
@@ -800,9 +812,21 @@ class ScoringController extends ChangeNotifier {
     PendingShotLocation? pendingLocation,
   }) {
     if (_disposed) return;
+    final previousDraft = _state.detailedShotDraft;
+    final previousPending = _state.pendingLocation;
     _state = _stateFromProjection(projection);
-    if (pendingLocation != null) {
-      _state = _state.copyWith(pendingLocation: pendingLocation);
+    final pending = pendingLocation ?? previousPending;
+    if (pending != null &&
+        projection.events.any(
+          (event) => event.id == pending.eventId && !event.isDeleted,
+        ) &&
+        !projection.shotLocations.any(
+          (location) => location.eventId == pending.eventId,
+        )) {
+      _state = _state.copyWith(pendingLocation: pending);
+    }
+    if (previousDraft != null) {
+      _state = _state.copyWith(detailedShotDraft: previousDraft);
     }
   }
 
@@ -811,8 +835,7 @@ class ScoringController extends ChangeNotifier {
   /// command or retain any database rows in memory.
   void replaceCommittedProjection(MatchDetail projection) {
     if (_disposed) return;
-    final pending = _state.pendingLocation;
-    _replaceFromProjection(projection, pendingLocation: pending);
+    _replaceFromProjection(projection);
     notifyListeners();
   }
 
@@ -820,7 +843,7 @@ class ScoringController extends ChangeNotifier {
     MatchCommand command,
     Future<MatchDetail> Function() operation,
   ) {
-    if (_disposed) return Future<bool>.value(false);
+    if (_disposed || _exclusiveBusy) return Future<bool>.value(false);
     final completer = Completer<bool>();
     _commandQueue.add(
       _QueuedScoringCommand(
@@ -949,6 +972,13 @@ class ScoringController extends ChangeNotifier {
   bool get _allowsLocations =>
       trackingCoverage.index >= TrackingCoverage.locations.index ||
       recordingMode == RecordingMode.detailed;
+
+  static bool _isMissCommand(RecordMatchEventCommand command) {
+    if (command.type == EventKind.miss) return true;
+    return (command.type == EventKind.fieldGoal ||
+            command.type == EventKind.freeThrow) &&
+        command.outcome == ShotOutcome.missed;
+  }
 
   MatchEvent? get _latestUnlocatedShot {
     final locatedIds = _state.shotLocations.map((item) => item.eventId).toSet();
