@@ -441,6 +441,31 @@ void main() {
     });
   });
 
+  test(
+    'detailed controller never holds pending location and draft together',
+    () {
+      final controller = ScoringController(
+        setup: const MatchSetup(
+          matchId: 'task8-mutual-location-state',
+          redName: '红方',
+          blueName: '蓝方',
+          ruleTemplateId: 'free',
+          targetScore: null,
+          timerEnabled: false,
+          timeLimitMinutes: 10,
+          winByTwo: false,
+          recordingMode: RecordingMode.detailed,
+          trackingCoverage: TrackingCoverage.locations,
+        ),
+      );
+
+      expect(controller.addScore(side: TeamSide.blue, points: 2), isTrue);
+      expect(controller.state.pendingLocation, isNotNull);
+      expect(controller.beginDetailedShot(CourtPoint(x: 0.4, y: 0.6)), isFalse);
+      expect(controller.detailedShotDraft, isNull);
+    },
+  );
+
   test('pause and resume use semantic command events', () async {
     await withTestDatabase((database) async {
       final service = MatchCommandService(database);

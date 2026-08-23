@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
@@ -590,6 +592,69 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'compact scoring keeps primary controls above the command dock with insets',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(731, 411));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const insets = EdgeInsets.only(top: 24, bottom: 24);
+      final controller = ScoringController(
+        setup: const MatchSetup(
+          matchId: 'compact-insets',
+          redName: '红方',
+          blueName: '蓝方',
+          ruleTemplateId: 'free',
+          targetScore: null,
+          timerEnabled: false,
+          timeLimitMinutes: 10,
+          winByTwo: false,
+          recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.locations,
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(731, 411),
+              viewPadding: insets,
+            ),
+            child: ScoringPage(controller: controller),
+          ),
+        ),
+      );
+
+      final dock = tester.getRect(
+        find.byKey(const Key('scoring-command-dock')),
+      );
+      final safeTop = insets.top;
+      final safeBottom = 411 - insets.bottom;
+      for (final key in <String>[
+        'blue-score-1',
+        'blue-score-2',
+        'blue-score-3',
+        'blue-foul',
+        'red-score-1',
+        'red-score-2',
+        'red-score-3',
+        'red-foul',
+      ]) {
+        final rect = tester.getRect(find.byKey(Key(key)));
+        expect(rect.top, greaterThanOrEqualTo(safeTop));
+        expect(rect.bottom, lessThanOrEqualTo(safeBottom));
+        expect(rect.height, greaterThanOrEqualTo(48));
+        expect(rect.overlaps(dock), isFalse, reason: key);
+      }
+      expect(
+        tester.getSize(find.byKey(const Key('scoring-court'))).height,
+        greaterThanOrEqualTo(100),
+      );
+      expect(find.byKey(const Key('blue-miss')), findsOneWidget);
+      expect(find.byKey(const Key('red-miss')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('clock display projects elapsed time without database ticks', (
     tester,
   ) async {
@@ -905,6 +970,59 @@ void main() {
     expect(leaveCalls, 0);
     await tester.tap(find.byKey(const Key('leave-stay')));
     expect(leaveCalls, 0);
+  });
+
+  testWidgets('leave stays in scoring when pending cancellation is busy', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      var armed = false;
+      final anchor = DateTime.utc(2026, 8, 23, 9);
+      final service = MatchCommandService(
+        database,
+        now: () => anchor,
+        failureInjector: (point) async {
+          if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+            if (!entered.isCompleted) entered.complete();
+            await release.future;
+          }
+        },
+      );
+      final start = await service.start(
+        _startPageCommand('leave-busy-pending'),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await controller.recordScoreCommitted(side: TeamSide.blue, points: 2);
+      armed = true;
+      expect(controller.beginLocateLastUnlocatedShot(), isTrue);
+      final confirmation = controller.confirmPendingLocation();
+      await entered.future;
+
+      var leaveCalls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            onRequestLeave: () async => leaveCalls++,
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('scoring-leave')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('leave-cancel-pending')));
+      await tester.pump();
+
+      expect(leaveCalls, 0);
+      expect(find.text('当前有待定位投篮'), findsOneWidget);
+
+      release.complete();
+      await confirmation;
+    });
   });
 
   testWidgets('leave is guarded while a detailed draft is uncommitted', (

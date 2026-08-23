@@ -64,13 +64,16 @@ class _ScoringPageState extends State<ScoringPage> {
   @override
   void didUpdateWidget(covariant ScoringPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller ||
+    final controllerChanged =
+        oldWidget.controller != widget.controller ||
         oldWidget.matchId != widget.matchId ||
-        oldWidget.setup != widget.setup) {
+        oldWidget.setup != widget.setup;
+    if (controllerChanged) {
       _detachController();
       _attachController();
     }
-    if (oldWidget.clockNowUtc != widget.clockNowUtc ||
+    if (controllerChanged ||
+        oldWidget.clockNowUtc != widget.clockNowUtc ||
         oldWidget.clockTick != widget.clockTick) {
       _startClockTicker();
     }
@@ -511,8 +514,9 @@ class _ScoringPageState extends State<ScoringPage> {
               TextButton(
                 key: const Key('leave-cancel-pending'),
                 onPressed: () {
-                  _controller.cancelLocateLastUnlocatedShot();
-                  Navigator.of(context).pop('leave');
+                  if (_controller.cancelLocateLastUnlocatedShot()) {
+                    Navigator.of(context).pop('leave');
+                  }
                 },
                 child: const Text('取消定位并离开'),
               )
@@ -520,8 +524,9 @@ class _ScoringPageState extends State<ScoringPage> {
               TextButton(
                 key: const Key('leave-cancel-draft'),
                 onPressed: () {
-                  _controller.cancelDetailedShot();
-                  Navigator.of(context).pop('leave');
+                  if (_controller.cancelDetailedShot()) {
+                    Navigator.of(context).pop('leave');
+                  }
                 },
                 child: const Text('取消草稿并离开'),
               ),

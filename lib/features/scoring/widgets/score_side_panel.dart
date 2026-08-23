@@ -42,11 +42,14 @@ class ScoreSidePanel extends StatelessWidget {
         builder: (context, constraints) {
           final compact = constraints.maxHeight < 560;
           const buttonHeight = 48.0;
-          final scoreHeight = compact ? 64.0 : 88.0;
+          final scoreHeight = compact ? 40.0 : 88.0;
           final gap = compact ? 4.0 : 8.0;
 
           if (compact) {
-            final actionWidth = (constraints.maxWidth - 4) / 2;
+            final actionWidth = ((constraints.maxWidth - 8 - 4) / 2).clamp(
+              48.0,
+              double.infinity,
+            );
             final actions = <Widget>[
               for (final points in scoreButtons)
                 SizedBox(
@@ -63,6 +66,19 @@ class ScoreSidePanel extends StatelessWidget {
                     child: Text('+$points'),
                   ),
                 ),
+              SizedBox(
+                width: actionWidth,
+                height: buttonHeight,
+                child: OutlinedButton(
+                  key: Key('${side.name}-foul'),
+                  onPressed: onFoul,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(48, buttonHeight),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Text(foulText),
+                ),
+              ),
               if (missEnabled && onMiss != null)
                 SizedBox(
                   width: actionWidth,
@@ -77,19 +93,6 @@ class ScoreSidePanel extends StatelessWidget {
                     child: const Text('未中'),
                   ),
                 ),
-              SizedBox(
-                width: actionWidth,
-                height: buttonHeight,
-                child: OutlinedButton(
-                  key: Key('${side.name}-foul'),
-                  onPressed: onFoul,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(48, buttonHeight),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Text(foulText),
-                ),
-              ),
             ];
 
             return Padding(
@@ -128,9 +131,15 @@ class ScoreSidePanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Expanded(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Wrap(spacing: 4, runSpacing: 4, children: actions),
+                    child: SingleChildScrollView(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: actions,
+                        ),
+                      ),
                     ),
                   ),
                 ],
