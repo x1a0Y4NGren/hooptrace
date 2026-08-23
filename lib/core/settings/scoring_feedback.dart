@@ -54,31 +54,42 @@ class ScoringFeedbackPreferencesRepository {
   ScoringFeedbackPreferencesRepository(
     this.database, {
     DateTime Function()? now,
-  }) : now = now ?? DateTime.now;
+    Future<ScoringFeedbackPreferences> Function()? read,
+  }) : now = now ?? DateTime.now,
+       _readOverride = read;
 
   final AppDatabase database;
   final DateTime Function() now;
+  final Future<ScoringFeedbackPreferences> Function()? _readOverride;
 
   ScoringFeedbackPreferences? _cached;
   Future<ScoringFeedbackPreferences>? _loading;
+  int _generation = 0;
+  int? _loadingGeneration;
   Future<void> _writes = Future<void>.value();
 
   Future<ScoringFeedbackPreferences> load() {
     final cached = _cached;
     if (cached != null) return Future<ScoringFeedbackPreferences>.value(cached);
     final loading = _loading;
-    if (loading != null) return loading;
+    if (loading != null && _loadingGeneration == _generation) return loading;
+    final requestGeneration = _generation;
 
     late final Future<ScoringFeedbackPreferences> future;
     future = _read()
         .then((value) {
-          _cached = value;
+          if (requestGeneration == _generation) _cached = value;
           return value;
         })
         .whenComplete(() {
-          if (identical(_loading, future)) _loading = null;
+          if (identical(_loading, future) &&
+              _loadingGeneration == requestGeneration) {
+            _loading = null;
+            _loadingGeneration = null;
+          }
         });
     _loading = future;
+    _loadingGeneration = requestGeneration;
     return future;
   }
 
@@ -109,10 +120,13 @@ class ScoringFeedbackPreferencesRepository {
   /// Drops only the in-memory value. The next [load] reads the AppSettings
   /// row again (for example after a backup restore).
   void invalidate() {
+    _generation++;
     _cached = null;
   }
 
   Future<ScoringFeedbackPreferences> _read() async {
+    final override = _readOverride;
+    if (override != null) return override();
     final row =
         await (database.select(database.appSettings)..where(
               (setting) => setting.key.equals(scoringFeedbackPreferencesKey),

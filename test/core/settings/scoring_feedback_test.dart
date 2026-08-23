@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -112,6 +113,43 @@ void main() {
 
     expect(values, everyElement(const ScoringFeedbackPreferences.defaults()));
   });
+
+  test(
+    'invalidate starts a fresh read and stale completion cannot overwrite it',
+    () async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final oldRead = Completer<ScoringFeedbackPreferences>();
+      final freshRead = Completer<ScoringFeedbackPreferences>();
+      var reads = 0;
+      final repository = ScoringFeedbackPreferencesRepository(
+        database,
+        read: () {
+          reads++;
+          return reads == 1 ? oldRead.future : freshRead.future;
+        },
+      );
+
+      final oldLoad = repository.load();
+      repository.invalidate();
+      final freshLoad = repository.load();
+      freshRead.complete(
+        const ScoringFeedbackPreferences(haptic: false, sound: true),
+      );
+      expect(
+        await freshLoad,
+        const ScoringFeedbackPreferences(haptic: false, sound: true),
+      );
+      oldRead.complete(const ScoringFeedbackPreferences.defaults());
+      await oldLoad;
+
+      expect(
+        await repository.load(),
+        const ScoringFeedbackPreferences(haptic: false, sound: true),
+      );
+      expect(reads, 2);
+    },
+  );
 
   test('feedback platform failures are isolated per channel', () async {
     final database = createTestDatabase();

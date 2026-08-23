@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
@@ -13,13 +17,26 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(3000, 1080));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = createTestDatabase();
+    final feedbackPlatform = _CountingFeedbackPlatform(database);
+    final feedback = ScoringFeedbackService(
+      ScoringFeedbackPreferencesRepository(database),
+      platform: feedbackPlatform,
+    );
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 500));
       await database.close();
       await tester.pump(const Duration(seconds: 1));
     });
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          scoringFeedbackServiceProvider.overrideWithValue(feedback),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
     await _pumpUntilFound(tester, find.text('开始计分'));
 
     await tester.tap(find.text('开始计分'));
@@ -62,7 +79,26 @@ void main() {
     expect(commandReceipts.length, greaterThanOrEqualTo(2));
     expect(events, hasLength(1));
     expect(events.single.points, 2);
+    expect(feedbackPlatform.hapticCalls, 1);
+    expect(feedbackPlatform.eventCounts, [1]);
   });
+}
+
+class _CountingFeedbackPlatform implements ScoringFeedbackPlatform {
+  _CountingFeedbackPlatform(this.database);
+
+  final AppDatabase database;
+  int hapticCalls = 0;
+  final eventCounts = <int>[];
+
+  @override
+  Future<void> lightImpact() async {
+    hapticCalls++;
+    eventCounts.add((await database.select(database.matchEvents).get()).length);
+  }
+
+  @override
+  Future<void> click() async {}
 }
 
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {

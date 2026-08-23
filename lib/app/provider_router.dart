@@ -590,6 +590,7 @@ Future<void> _resumeScoring(
             occurredAt: DateTime.now().toUtc(),
           ),
         );
+    await ref.read(scoringFeedbackServiceProvider).emitCommitted();
   } on MatchCommandFailure catch (error) {
     if (context.mounted) {
       ScaffoldMessenger.of(

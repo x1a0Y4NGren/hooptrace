@@ -7,6 +7,7 @@ import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 void main() {
@@ -72,6 +73,91 @@ void main() {
     expect(find.byType(ScoringPage), findsOneWidget);
     expect(find.byKey(const Key('scoring-resume-clock')), findsOneWidget);
     expect(find.byType(SnackBar), findsAtLeastNWidgets(1));
+  });
+
+  testWidgets(
+    'production resume emits feedback only after a successful command',
+    (tester) async {
+      final database = AppDatabase.inMemory();
+      _closeAfterWidgetTest(tester, database);
+      const matchId = 'task6-resume-feedback';
+      await _startMatch(database, matchId, timerEnabled: true);
+      final service = MatchCommandService(database);
+      await service.pause(
+        PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+      );
+      final platform = _ResumeFeedbackPlatform(database);
+      final feedback = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+        platform: platform,
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(database),
+            scoringFeedbackServiceProvider.overrideWithValue(feedback),
+          ],
+          child: const HoopTraceApp(),
+        ),
+      );
+      await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+      await tester.tap(find.byKey(const Key('home-resume')));
+      await _pumpUntilFound(tester, find.byType(ScoringPage));
+      await tester.tap(find.byKey(const Key('scoring-resume-clock')));
+      await _pumpUntilGone(
+        tester,
+        find.byKey(const Key('scoring-resume-clock')),
+      );
+
+      expect(platform.hapticCalls, 1);
+      expect(platform.eventCounts, [greaterThanOrEqualTo(2)]);
+    },
+  );
+
+  testWidgets('production resume failure does not emit feedback', (
+    tester,
+  ) async {
+    final database = AppDatabase.inMemory();
+    _closeAfterWidgetTest(tester, database);
+    const matchId = 'task6-resume-feedback-failure';
+    await _startMatch(database, matchId, timerEnabled: true);
+    final normalService = MatchCommandService(database);
+    await normalService.pause(
+      PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+    );
+    final failingService = MatchCommandService(
+      database,
+      failureInjector: (point) {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          throw StateError('injected resume failure');
+        }
+      },
+    );
+    final platform = _ResumeFeedbackPlatform(database);
+    final feedback = ScoringFeedbackService(
+      ScoringFeedbackPreferencesRepository(database),
+      platform: platform,
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          matchCommandServiceProvider.overrideWithValue(failingService),
+          scoringFeedbackServiceProvider.overrideWithValue(feedback),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await tester.tap(find.byKey(const Key('scoring-resume-clock')));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byKey(const Key('scoring-resume-clock')), findsOneWidget);
+    expect(platform.hapticCalls, 0);
   });
 
   testWidgets('running and timer-disabled scoring do not show resume control', (
@@ -142,6 +228,23 @@ void _closeAfterWidgetTest(WidgetTester tester, AppDatabase database) {
     await tester.pumpWidget(const SizedBox.shrink());
     await database.close();
   });
+}
+
+class _ResumeFeedbackPlatform implements ScoringFeedbackPlatform {
+  _ResumeFeedbackPlatform(this.database);
+
+  final AppDatabase database;
+  int hapticCalls = 0;
+  final eventCounts = <int>[];
+
+  @override
+  Future<void> lightImpact() async {
+    hapticCalls++;
+    eventCounts.add((await database.select(database.matchEvents).get()).length);
+  }
+
+  @override
+  Future<void> click() async {}
 }
 
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
