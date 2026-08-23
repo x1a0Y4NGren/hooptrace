@@ -466,6 +466,34 @@ void main() {
     },
   );
 
+  test('locating rejects while a detailed draft is being edited', () async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final started = await service.start(
+        _startCommand(
+          matchId: 'task8-reverse-location-state',
+          recordingMode: RecordingMode.detailed,
+          trackingCoverage: TrackingCoverage.locations,
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+      expect(
+        await controller.recordFieldGoalCommitted(
+          side: TeamSide.blue,
+          outcome: ShotOutcome.made,
+          points: 2,
+        ),
+        isTrue,
+      );
+      expect(controller.beginDetailedShot(CourtPoint(x: 0.4, y: 0.6)), isTrue);
+      expect(controller.beginLocateLastUnlocatedShot(), isFalse);
+      expect(controller.detailedShotDraft, isNotNull);
+    });
+  });
+
   test('pause and resume use semantic command events', () async {
     await withTestDatabase((database) async {
       final service = MatchCommandService(database);

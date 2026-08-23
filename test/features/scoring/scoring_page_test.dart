@@ -617,6 +617,7 @@ void main() {
           home: MediaQuery(
             data: const MediaQueryData(
               size: Size(731, 411),
+              padding: insets,
               viewPadding: insets,
             ),
             child: ScoringPage(controller: controller),
@@ -629,6 +630,7 @@ void main() {
       );
       final safeTop = insets.top;
       final safeBottom = 411 - insets.bottom;
+      expect(dock.bottom, lessThanOrEqualTo(safeBottom));
       for (final key in <String>[
         'blue-score-1',
         'blue-score-2',

@@ -42,6 +42,8 @@ void main() {
     );
     scoreButton.onPressed!();
     await tester.pump();
+    expect(find.text(scoringMarkShotDialogTitle), findsNothing);
+    expect(find.text('标记投篮位置？'), findsNothing);
 
     for (var attempt = 0; attempt < 100; attempt++) {
       await tester.runAsync(

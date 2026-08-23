@@ -533,6 +533,7 @@ class ScoringController extends ChangeNotifier {
         _exclusiveBusy ||
         _drainingQueue ||
         _commandQueue.isNotEmpty ||
+        _state.detailedShotDraft != null ||
         !_allowsLocations) {
       return false;
     }
