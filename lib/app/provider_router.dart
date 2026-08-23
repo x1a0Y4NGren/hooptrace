@@ -602,6 +602,15 @@ Future<void> _leaveScoring(
   WidgetRef ref,
   String matchId,
 ) async {
+  final projection = ref
+      .read(leaveScoringProjectionProvider(matchId))
+      .valueOrNull;
+  if (projection != null &&
+      projection.match.lifecycle.name == 'active' &&
+      !projection.match.timerEnabled) {
+    if (context.mounted) context.go('/');
+    return;
+  }
   final action = await showDialog<String>(
     context: context,
     builder: (dialogContext) => AlertDialog(

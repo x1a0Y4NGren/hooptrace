@@ -102,6 +102,7 @@ class MatchScoringState {
     required this.ruleTemplate,
     this.recordingMode = RecordingMode.simple,
     this.trackingCoverage = TrackingCoverage.scoresOnly,
+    this.timerEnabled = false,
     this.clock,
     this.currentPossession,
     this.pendingLocation,
@@ -120,6 +121,7 @@ class MatchScoringState {
   final RuleTemplate ruleTemplate;
   final RecordingMode recordingMode;
   final TrackingCoverage trackingCoverage;
+  final bool timerEnabled;
   final ClockProjection? clock;
   final TeamSide? currentPossession;
   final PendingShotLocation? pendingLocation;
@@ -135,6 +137,7 @@ class MatchScoringState {
     RuleTemplate? ruleTemplate,
     RecordingMode? recordingMode,
     TrackingCoverage? trackingCoverage,
+    bool? timerEnabled,
     ClockProjection? clock,
     TeamSide? currentPossession,
     PendingShotLocation? pendingLocation,
@@ -155,6 +158,7 @@ class MatchScoringState {
       ruleTemplate: ruleTemplate ?? this.ruleTemplate,
       recordingMode: recordingMode ?? this.recordingMode,
       trackingCoverage: trackingCoverage ?? this.trackingCoverage,
+      timerEnabled: timerEnabled ?? this.timerEnabled,
       clock: clock ?? this.clock,
       currentPossession: currentPossession ?? this.currentPossession,
       pendingLocation: clearPendingLocation
@@ -189,6 +193,7 @@ class ScoringController extends ChangeNotifier {
                recordingMode: setup?.recordingMode ?? RecordingMode.simple,
                trackingCoverage:
                    setup?.trackingCoverage ?? TrackingCoverage.scoresOnly,
+               timerEnabled: setup?.timerEnabled ?? false,
              )
            : _stateFromProjection(committedProjection);
 
@@ -222,6 +227,8 @@ class ScoringController extends ChangeNotifier {
 
   TeamSide? get currentPossession => _state.currentPossession;
 
+  bool get timerEnabled => _state.timerEnabled;
+
   DetailedShotDraft? get detailedShotDraft => _state.detailedShotDraft;
 
   bool get isCommandBacked => _commandService != null;
@@ -247,7 +254,7 @@ class ScoringController extends ChangeNotifier {
         command.matchId != _state.matchId ||
         _exclusiveBusy ||
         _state.detailedShotDraft != null ||
-        _state.pendingLocation?.isExplicit == true) {
+        _state.pendingLocation != null) {
       return Future<bool>.value(false);
     }
     if (_isMissCommand(command) && !_allowsShotAttempts) {
@@ -267,7 +274,7 @@ class ScoringController extends ChangeNotifier {
     required TeamSide side,
     required int points,
   }) async {
-    if (_disposed) return false;
+    if (_disposed || _ordinaryActionBlocked) return false;
     if (points <= 0) return false;
     final service = _commandService;
     if (service == null) {
@@ -385,7 +392,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> recordFoulCommitted(TeamSide side) async {
-    if (_disposed) return false;
+    if (_disposed || _ordinaryActionBlocked) return false;
     final service = _commandService;
     if (service == null) {
       addFoul(side);
@@ -428,7 +435,7 @@ class ScoringController extends ChangeNotifier {
       unawaited(recordScoreCommitted(side: side, points: points));
       return true;
     }
-    if (_state.pendingLocation != null) {
+    if (_ordinaryActionBlocked) {
       return false;
     }
 
@@ -463,7 +470,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   void updatePendingLocation(CourtPoint point) {
-    if (_disposed) return;
+    if (_disposed || _exclusiveBusy) return;
     final pending = _state.pendingLocation;
     if (pending == null) {
       return;
@@ -508,14 +515,14 @@ class ScoringController extends ChangeNotifier {
   /// Applies the committed projection returned by a retryable command
   /// failure. The original command object is retained by the failure, so a
   /// retry cannot accidentally allocate a second event or receipt.
-  Future<void> retryCommand(MatchCommandFailure failure) async {
+  Future<bool> retryCommand(MatchCommandFailure failure) async {
     if (_disposed ||
         _exclusiveBusy ||
         _drainingQueue ||
         _commandQueue.isNotEmpty) {
-      return;
+      return false;
     }
-    await _runExclusive(failure.command, failure.retry);
+    return _runExclusive(failure.command, failure.retry);
   }
 
   /// Starts an explicit, non-blocking location capture for the latest
@@ -654,7 +661,7 @@ class ScoringController extends ChangeNotifier {
 
   Future<bool> pauseCommitted() {
     if (_disposed ||
-        _state.pendingLocation?.isExplicit == true ||
+        _state.pendingLocation != null ||
         _state.detailedShotDraft != null) {
       return Future<bool>.value(false);
     }
@@ -671,7 +678,7 @@ class ScoringController extends ChangeNotifier {
 
   Future<bool> resumeCommitted() {
     if (_disposed ||
-        _state.pendingLocation?.isExplicit == true ||
+        _state.pendingLocation != null ||
         _state.detailedShotDraft != null) {
       return Future<bool>.value(false);
     }
@@ -726,7 +733,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   void addFoul(TeamSide side) {
-    if (_disposed) return;
+    if (_disposed || _ordinaryActionBlocked) return;
     if (isCommandBacked) {
       unawaited(recordFoulCommitted(side));
       return;
@@ -804,6 +811,7 @@ class ScoringController extends ChangeNotifier {
       ruleTemplate: projection.match.ruleTemplateSnapshot,
       recordingMode: projection.match.recordingMode,
       trackingCoverage: projection.match.trackingCoverage,
+      timerEnabled: projection.match.timerEnabled,
       clock: projection.clock,
       currentPossession: _latestPossession(events),
       redFouls: projection.redFouls,
@@ -976,6 +984,9 @@ class ScoringController extends ChangeNotifier {
   bool get _allowsLocations =>
       trackingCoverage.index >= TrackingCoverage.locations.index ||
       recordingMode == RecordingMode.detailed;
+
+  bool get _ordinaryActionBlocked =>
+      _state.pendingLocation != null || _state.detailedShotDraft != null;
 
   static bool _isMissCommand(RecordMatchEventCommand command) {
     if (command.type == EventKind.miss) return true;

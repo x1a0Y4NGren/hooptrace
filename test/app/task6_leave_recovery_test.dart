@@ -72,7 +72,7 @@ void main() {
     expect((await service.readClock(matchId))?.isRunning, isFalse);
   });
 
-  testWidgets('pause-and-leave with timer disabled leaves directly', (
+  testWidgets('timer-disabled leave bypasses clock decision dialog', (
     tester,
   ) async {
     final database = AppDatabase.inMemory();
@@ -84,8 +84,8 @@ void main() {
     await _enterScoring(tester, database);
     await tester.tap(find.byKey(const Key('scoring-leave')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('leave-pause-and-leave')));
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    expect(find.byKey(const Key('leave-pause-and-leave')), findsNothing);
     expect((await service.readClock(matchId))?.isRunning, isFalse);
   });
 

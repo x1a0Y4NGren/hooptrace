@@ -45,6 +45,99 @@ class ScoreSidePanel extends StatelessWidget {
           final scoreHeight = compact ? 64.0 : 88.0;
           final gap = compact ? 4.0 : 8.0;
 
+          if (compact) {
+            final actionWidth = (constraints.maxWidth - 4) / 2;
+            final actions = <Widget>[
+              for (final points in scoreButtons)
+                SizedBox(
+                  width: actionWidth,
+                  height: buttonHeight,
+                  child: FilledButton(
+                    key: Key('${side.name}-score-$points'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: color,
+                      minimumSize: const Size(48, buttonHeight),
+                      padding: EdgeInsets.zero,
+                    ),
+                    onPressed: scoreEnabled ? () => onScore(points) : null,
+                    child: Text('+$points'),
+                  ),
+                ),
+              if (missEnabled && onMiss != null)
+                SizedBox(
+                  width: actionWidth,
+                  height: buttonHeight,
+                  child: OutlinedButton(
+                    key: Key('${side.name}-miss'),
+                    onPressed: onMiss,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, buttonHeight),
+                      padding: EdgeInsets.zero,
+                    ),
+                    child: const Text('未中'),
+                  ),
+                ),
+              SizedBox(
+                width: actionWidth,
+                height: buttonHeight,
+                child: OutlinedButton(
+                  key: Key('${side.name}-foul'),
+                  onPressed: onFoul,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(48, buttonHeight),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Text(foulText),
+                ),
+              ),
+            ];
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(
+                    height: scoreHeight,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        '$score',
+                        style: Theme.of(context).textTheme.displayMedium
+                            ?.copyWith(
+                              color: HoopTraceColors.ink,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '$foulText $fouls',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.labelSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Wrap(spacing: 4, runSpacing: 4, children: actions),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
           return Padding(
             padding: EdgeInsets.symmetric(
               horizontal: 8,

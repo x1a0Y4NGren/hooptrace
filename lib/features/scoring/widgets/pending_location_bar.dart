@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 const confirmLocationText = '确认落点';
-const skipLocationText = '跳过落点';
+const skipLocationText = '取消定位';
 const undoText = '撤销';
 
 class PendingLocationBar extends StatelessWidget {

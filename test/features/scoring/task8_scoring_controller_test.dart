@@ -7,6 +7,7 @@ import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
+import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
 import '../../test_helpers/test_database.dart';
 
@@ -42,8 +43,105 @@ void main() {
         expect(controller.recordingMode, RecordingMode.detailed);
         expect(controller.trackingCoverage, TrackingCoverage.locations);
         expect(controller.clock, isNotNull);
+        expect(controller.state.timerEnabled, isFalse);
         expect(controller.currentPossession, TeamSide.blue);
       });
+    },
+  );
+
+  test(
+    'projection preserves timerEnabled independently from clock presence',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final started = await service.start(
+          _startCommand(matchId: 'task8-timer-flag', timerEnabled: true),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+        );
+
+        expect(controller.state.timerEnabled, isTrue);
+        expect(controller.clock, isNotNull);
+      });
+    },
+  );
+
+  test(
+    'local legacy actions share pending and detailed draft guards',
+    () async {
+      final pendingController = ScoringController(
+        matchId: 'task8-local-pending',
+      );
+      expect(
+        pendingController.addScore(side: TeamSide.blue, points: 2),
+        isTrue,
+      );
+      expect(
+        await pendingController.recordScoreCommitted(
+          side: TeamSide.red,
+          points: 1,
+        ),
+        isFalse,
+      );
+      expect(
+        await pendingController.recordFoulCommitted(TeamSide.red),
+        isFalse,
+      );
+      expect(
+        await pendingController.recordFreeThrowCommitted(
+          side: TeamSide.red,
+          made: true,
+        ),
+        isFalse,
+      );
+      expect(
+        await pendingController.recordPossessionCommitted(TeamSide.red),
+        isFalse,
+      );
+      expect(await pendingController.recordNoteCommitted('note'), isFalse);
+      expect(
+        await pendingController.recordCustomCommitted(label: 'custom'),
+        isFalse,
+      );
+
+      final draftController = ScoringController(
+        setup: const MatchSetup(
+          matchId: 'task8-local-draft',
+          redName: '红方',
+          blueName: '蓝方',
+          ruleTemplateId: 'free',
+          targetScore: null,
+          timerEnabled: false,
+          timeLimitMinutes: 10,
+          winByTwo: false,
+          recordingMode: RecordingMode.detailed,
+          trackingCoverage: TrackingCoverage.locations,
+        ),
+      );
+      expect(
+        draftController.beginDetailedShot(CourtPoint(x: 0.4, y: 0.6)),
+        isTrue,
+      );
+      expect(draftController.addScore(side: TeamSide.blue, points: 2), isFalse);
+      expect(await draftController.recordFoulCommitted(TeamSide.blue), isFalse);
+      expect(
+        await draftController.recordFreeThrowCommitted(
+          side: TeamSide.blue,
+          made: true,
+        ),
+        isFalse,
+      );
+      expect(
+        await draftController.recordPossessionCommitted(TeamSide.blue),
+        isFalse,
+      );
+      expect(await draftController.recordNoteCommitted('note'), isFalse);
+      expect(
+        await draftController.recordCustomCommitted(label: 'custom'),
+        isFalse,
+      );
     },
   );
 
@@ -441,6 +539,42 @@ void main() {
     },
   );
 
+  test('retry is a false no-op after controller disposal', () async {
+    await withTestDatabase((database) async {
+      var failureInjectorCalls = 0;
+      var armed = false;
+      final service = MatchCommandService(
+        database,
+        failureInjector: (point) {
+          if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+            failureInjectorCalls++;
+            throw StateError('retry failure');
+          }
+        },
+      );
+      final started = await service.start(
+        _startCommand(matchId: 'task8-retry-disposed'),
+      );
+      armed = true;
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+      MatchCommandFailure? failure;
+      try {
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      } on MatchCommandFailure catch (error) {
+        failure = error;
+      }
+      expect(failure, isNotNull);
+      final callsBeforeDispose = failureInjectorCalls;
+      controller.dispose();
+
+      expect(await controller.retryCommand(failure!), isFalse);
+      expect(failureInjectorCalls, callsBeforeDispose);
+    });
+  });
+
   test(
     'explicit location makes confirm exclusive and rejects ordinary actions',
     () async {
@@ -478,6 +612,9 @@ void main() {
           isFalse,
         );
         expect(await controller.recordFoulCommitted(TeamSide.blue), isFalse);
+        final beforePoint = controller.state.pendingLocation!.point;
+        controller.updatePendingLocation(CourtPoint(x: 0.1, y: 0.9));
+        expect(controller.state.pendingLocation!.point, beforePoint);
         expect(await controller.undoLastEventCommitted(), isFalse);
         expect(await controller.pauseCommitted(), isFalse);
         release.complete();
