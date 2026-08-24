@@ -652,12 +652,6 @@ class ScoringController extends ChangeNotifier {
         points: points,
         openedAtUtc: event.occurredAt.toUtc(),
       ),
-      pendingLocation: PendingShotLocation(
-        eventId: eventId,
-        side: side,
-        points: points,
-        point: CourtPoint(x: 0.5, y: 0.58),
-      ),
       ruleHints: hints,
     );
     notifyListeners();
@@ -678,6 +672,10 @@ class ScoringController extends ChangeNotifier {
     if (_disposed) return;
     final pending = _state.pendingLocation;
     if (pending == null) {
+      final window = _state.locationSupplementWindow;
+      if (window != null) {
+        await attachSupplementLocation(point ?? CourtPoint(x: 0.5, y: 0.58));
+      }
       return;
     }
     final confirmedPoint = point ?? pending.point;
@@ -1017,13 +1015,20 @@ class ScoringController extends ChangeNotifier {
 
   bool skipPendingLocation() {
     if (_disposed ||
-        _state.pendingLocation == null ||
         _exclusiveBusy ||
         _drainingQueue ||
         _commandQueue.isNotEmpty) {
       return false;
     }
+    if (_state.pendingLocation == null &&
+        _state.locationSupplementWindow == null) {
+      return false;
+    }
+    final hadPendingLocation = _state.pendingLocation != null;
     _state = _state.copyWith(clearPendingLocation: true);
+    if (!hadPendingLocation) {
+      _state = _state.copyWith(clearLocationSupplementWindow: true);
+    }
     notifyListeners();
     return true;
   }

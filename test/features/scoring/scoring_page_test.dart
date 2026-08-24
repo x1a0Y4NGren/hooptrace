@@ -1118,24 +1118,25 @@ void main() {
     expect(controller.state.shotLocations.single.isLocked, isTrue);
   });
 
-  testWidgets('tapping score while pending shows a resolve prompt', (
-    tester,
-  ) async {
-    final controller = ScoringController(matchId: 'match-1');
+  testWidgets(
+    'tapping score while a supplement window is open continues scoring',
+    (tester) async {
+      final controller = ScoringController(matchId: 'match-1');
 
-    await tester.pumpWidget(
-      MaterialApp(home: ScoringPage(controller: controller)),
-    );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
 
-    await tester.tap(find.byKey(const Key('red-score-2')));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('blue-score-3')));
-    await tester.pump();
+      await tester.tap(find.byKey(const Key('red-score-2')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('blue-score-3')));
+      await tester.pump();
 
-    expect(find.byKey(const Key('scoring-action-rejected')), findsOneWidget);
-    expect(controller.state.score.redScore, 2);
-    expect(controller.state.score.blueScore, 0);
-  });
+      expect(find.byKey(const Key('scoring-action-rejected')), findsNothing);
+      expect(controller.state.score.redScore, 2);
+      expect(controller.state.score.blueScore, 3);
+    },
+  );
 
   testWidgets(
     'rapid command-backed scores commit in tap order without a modal',
@@ -1795,30 +1796,27 @@ void main() {
     });
   });
 
-  testWidgets('leave is guarded while a local pending location exists', (
-    tester,
-  ) async {
-    final controller = ScoringController(matchId: 'leave-pending-local');
-    controller.addScore(side: TeamSide.blue, points: 2);
-    var leaveCalls = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: ScoringPage(
-          controller: controller,
-          onRequestLeave: () async => leaveCalls++,
+  testWidgets(
+    'leave remains available while a local supplement window exists',
+    (tester) async {
+      final controller = ScoringController(matchId: 'leave-pending-local');
+      controller.addScore(side: TeamSide.blue, points: 2);
+      var leaveCalls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            onRequestLeave: () async => leaveCalls++,
+          ),
         ),
-      ),
-    );
+      );
 
-    await tester.tap(find.byKey(const Key('scoring-leave')));
-    await tester.pump();
-    expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.byKey(const Key('leave-stay')), findsOneWidget);
-    expect(find.byKey(const Key('leave-cancel-pending')), findsOneWidget);
-    expect(leaveCalls, 0);
-    await tester.tap(find.byKey(const Key('leave-stay')));
-    expect(leaveCalls, 0);
-  });
+      await tester.tap(find.byKey(const Key('scoring-leave')));
+      await tester.pump();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(leaveCalls, 1);
+    },
+  );
 
   testWidgets('leave stays in scoring when pending cancellation is busy', (
     tester,

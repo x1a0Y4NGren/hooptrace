@@ -820,7 +820,9 @@ class _ScoringPageState extends State<ScoringPage> {
                           label: labels.replay,
                           enabled:
                               widget.onOpenReplay != null &&
-                              _ordinaryActionsEnabled,
+                              _ordinaryActionsEnabled &&
+                              _controller.state.locationSupplementWindow ==
+                                  null,
                           onTap: () => runMore(() async => _openReplay()),
                         ),
                         _moreAction(

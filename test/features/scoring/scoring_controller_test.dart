@@ -14,28 +14,41 @@ import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
-  test('adding a score creates a pending location and updates totals', () {
-    final controller = ScoringController(matchId: 'match-1');
+  test('local score opens a supplement window without blocking actions', () {
+    final now = DateTime.utc(2026, 8, 25, 12);
+    final controller = ScoringController(matchId: 'match-1', nowUtc: () => now);
 
     controller.addScore(side: TeamSide.red, points: 2);
 
     expect(controller.state.score.redScore, 2);
     expect(controller.state.blueFouls, 0);
-    expect(controller.state.pendingLocation?.side, TeamSide.red);
-    expect(controller.state.pendingLocation?.points, 2);
+    expect(controller.state.pendingLocation, isNull);
+    expect(
+      controller.state.locationSupplementWindow?.eventId,
+      'match-1-event-1',
+    );
+    expect(controller.state.locationSupplementWindow?.openedAtUtc, now);
   });
 
-  test('adding another score is rejected while a location is pending', () {
-    final controller = ScoringController(matchId: 'match-1');
+  test('local score-first accepts foul and next score replaces the window', () {
+    final now = DateTime.utc(2026, 8, 25, 12);
+    final controller = ScoringController(matchId: 'match-1', nowUtc: () => now);
 
     final firstAccepted = controller.addScore(side: TeamSide.red, points: 2);
+    controller.addFoul(TeamSide.blue);
     final secondAccepted = controller.addScore(side: TeamSide.blue, points: 3);
 
     expect(firstAccepted, isTrue);
-    expect(secondAccepted, isFalse);
+    expect(secondAccepted, isTrue);
     expect(controller.state.score.redScore, 2);
-    expect(controller.state.score.blueScore, 0);
-    expect(controller.state.pendingLocation?.side, TeamSide.red);
+    expect(controller.state.score.blueScore, 3);
+    expect(controller.state.blueFouls, 1);
+    expect(controller.state.pendingLocation, isNull);
+    expect(
+      controller.state.locationSupplementWindow?.eventId,
+      'match-1-event-3',
+    );
+    expect(controller.state.locationSupplementWindow?.side, TeamSide.blue);
   });
 
   test('skipping a location keeps the score without recording a marker', () {
@@ -48,6 +61,67 @@ void main() {
     expect(controller.state.pendingLocation, isNull);
     expect(controller.state.shotLocations, isEmpty);
   });
+
+  test(
+    'local score-first attach then undo restores the window before the score',
+    () async {
+      final now = DateTime.utc(2026, 8, 25, 12);
+      final controller = ScoringController(
+        matchId: 'match-1',
+        nowUtc: () => now,
+      );
+
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      final point = CourtPoint(x: 0.25, y: 0.75);
+      expect(await controller.attachSupplementLocation(point), isTrue);
+      expect(controller.state.locationSupplementWindow, isNull);
+      expect(controller.state.shotLocations, hasLength(1));
+
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.state.score.redScore, 2);
+      expect(controller.state.shotLocations, isEmpty);
+      expect(
+        controller.state.locationSupplementWindow?.eventId,
+        'match-1-event-1',
+      );
+      expect(controller.state.pendingLocation, isNull);
+
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.state.score.redScore, 0);
+      expect(controller.state.events.single.isDeleted, isTrue);
+    },
+  );
+
+  test(
+    'local court-first draft blocks ordinary actions and undoes atomically',
+    () async {
+      final controller = ScoringController(
+        matchId: 'match-1',
+        nowUtc: () => DateTime.utc(2026, 8, 25, 12),
+      );
+      final point = CourtPoint(x: 0.4, y: 0.6);
+
+      expect(
+        controller.beginOrMoveCourtFirstShot(point, side: TeamSide.red),
+        isTrue,
+      );
+      expect(controller.state.courtFirstShotDraft, isNotNull);
+      expect(await controller.recordFoulCommitted(TeamSide.blue), isFalse);
+      expect(
+        await controller.recordScoreCommitted(side: TeamSide.blue, points: 1),
+        isFalse,
+      );
+
+      expect(await controller.commitCourtFirstShot(), isTrue);
+      expect(controller.state.courtFirstShotDraft, isNull);
+      expect(controller.state.score.redScore, 1);
+      expect(controller.state.shotLocations, hasLength(1));
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.state.score.redScore, 0);
+      expect(controller.state.shotLocations, isEmpty);
+      expect(controller.state.events.single.isDeleted, isTrue);
+    },
+  );
 
   test('confirming a pending location locks and records the court point', () {
     final controller = ScoringController(matchId: 'match-1');

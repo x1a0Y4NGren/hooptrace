@@ -314,7 +314,7 @@ void main() {
   );
 
   test(
-    'local legacy actions share pending and detailed draft guards',
+    'local score-first actions stay open while detailed drafts still guard',
     () async {
       final pendingController = ScoringController(
         matchId: 'task8-local-pending',
@@ -328,27 +328,24 @@ void main() {
           side: TeamSide.red,
           points: 1,
         ),
-        isFalse,
+        isTrue,
       );
-      expect(
-        await pendingController.recordFoulCommitted(TeamSide.red),
-        isFalse,
-      );
+      expect(await pendingController.recordFoulCommitted(TeamSide.red), isTrue);
       expect(
         await pendingController.recordFreeThrowCommitted(
           side: TeamSide.red,
           made: true,
         ),
-        isFalse,
+        isTrue,
       );
       expect(
         await pendingController.recordPossessionCommitted(TeamSide.red),
-        isFalse,
+        isTrue,
       );
-      expect(await pendingController.recordNoteCommitted('note'), isFalse);
+      expect(await pendingController.recordNoteCommitted('note'), isTrue);
       expect(
         await pendingController.recordCustomCommitted(label: 'custom'),
-        isFalse,
+        isTrue,
       );
 
       final draftController = ScoringController(
@@ -705,9 +702,9 @@ void main() {
       );
 
       expect(controller.addScore(side: TeamSide.blue, points: 2), isTrue);
-      expect(controller.state.pendingLocation, isNotNull);
-      expect(controller.beginDetailedShot(CourtPoint(x: 0.4, y: 0.6)), isFalse);
-      expect(controller.detailedShotDraft, isNull);
+      expect(controller.state.pendingLocation, isNull);
+      expect(controller.beginDetailedShot(CourtPoint(x: 0.4, y: 0.6)), isTrue);
+      expect(controller.detailedShotDraft, isNotNull);
     },
   );
 
@@ -1118,7 +1115,7 @@ void main() {
       matchId: 'task8-local-score-first-undo',
     );
     expect(controller.addScore(side: TeamSide.red, points: 2), isTrue);
-    await controller.confirmPendingLocation(CourtPoint(x: 0.4, y: 0.6));
+    await controller.attachSupplementLocation(CourtPoint(x: 0.4, y: 0.6));
     expect(controller.state.shotLocations, hasLength(1));
     expect(await controller.undoLastScoringActionCommitted(), isTrue);
     expect(
