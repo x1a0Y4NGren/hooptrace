@@ -13,6 +13,24 @@ import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 void main() {
+  testWidgets('court prompt is announced while a score location is available', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CourtView(
+            shotLocations: const [],
+            locationPrompt: '补充红方 +2 落点 · 8 秒',
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('补充红方 +2 落点 · 8 秒'), findsOneWidget);
+    expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
+  });
+
   test('half court geometry preserves FIBA half-court aspect ratio', () {
     final court = HalfCourtGeometry.courtRectForSize(const Size(700, 360));
 

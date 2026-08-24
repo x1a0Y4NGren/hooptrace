@@ -20,6 +20,173 @@ import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  testWidgets('unified scoring keeps secondary actions behind More', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'unified-layout')),
+    );
+
+    expect(find.byKey(const Key('scoring-undo')), findsOneWidget);
+    expect(find.byKey(const Key('scoring-more')), findsOneWidget);
+    expect(find.byKey(const Key('scoring-command-dock')), findsNothing);
+    expect(find.byKey(const Key('command-locate')), findsNothing);
+    expect(find.byKey(const Key('red-miss')), findsNothing);
+    expect(find.byKey(const Key('blue-miss')), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const Key('scoring-undo'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('scoring-more'))).height,
+      greaterThanOrEqualTo(48),
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-more')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-more-sheet')), findsOneWidget);
+    expect(find.text('投篮'), findsOneWidget);
+    expect(find.text('罚球'), findsOneWidget);
+    expect(find.text('比赛状态'), findsOneWidget);
+    expect(find.text('记录'), findsOneWidget);
+    expect(find.text('比赛'), findsOneWidget);
+  });
+
+  testWidgets('court-first draft starts as a gray point with side prompt', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'unified-court-first');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pump();
+
+    expect(controller.courtFirstShotDraft, isNotNull);
+    expect(find.text('请选择蓝方或红方得分'), findsOneWidget);
+    expect(find.byKey(const Key('scoring-command-dock')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('blue-score-2')));
+    await tester.pumpAndSettle();
+    expect(controller.courtFirstShotDraft, isNull);
+    expect(controller.state.score.blueScore, 2);
+    expect(controller.state.shotLocations, hasLength(1));
+  });
+
+  testWidgets('score-first exposes a ten-second location supplement on court', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'unified-score-first');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    await tester.tap(find.byKey(const Key('red-score-3')));
+    await tester.pump();
+
+    expect(controller.locationSupplementWindow, isNotNull);
+    expect(find.byKey(const Key('red-score-3-location')), findsOneWidget);
+    expect(find.textContaining('补充红方 +3 落点'), findsOneWidget);
+
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pumpAndSettle();
+    expect(controller.locationSupplementWindow, isNull);
+    expect(controller.state.shotLocations, hasLength(1));
+  });
+
+  testWidgets('More text entries survive repeated open and cancel', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'unified-dialog-life');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    for (var i = 0; i < 2; i++) {
+      await tester.tap(find.byKey(const Key('scoring-more')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('more-note')));
+      await tester.tap(find.byKey(const Key('more-note')));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.tap(find.byKey(const Key('text-entry-cancel')));
+      await tester.pumpAndSettle();
+      expect(find.byType(TextField), findsNothing);
+      await tester.drag(
+        find.descendant(
+          of: find.byKey(const Key('scoring-more-sheet')),
+          matching: find.byType(SingleChildScrollView),
+        ),
+        const Offset(0, 500),
+      );
+      await tester.tap(find.byKey(const Key('more-close')));
+      await tester.pumpAndSettle();
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'unified scoring remains operable across landscape and portrait sizes',
+    (tester) async {
+      for (final size in const [
+        Size(731, 411),
+        Size(1095, 616),
+        Size(1920, 1080),
+        Size(411, 731),
+      ]) {
+        await tester.binding.setSurfaceSize(size);
+        await tester.pumpWidget(
+          MaterialApp(home: ScoringPage(matchId: 'unified-responsive')),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.getRect(find.byKey(const Key('scoring-scoreboard'))).right,
+          lessThanOrEqualTo(size.width),
+        );
+        for (final key in const [
+          'blue-score-1',
+          'blue-score-2',
+          'blue-score-3',
+          'red-score-1',
+          'red-score-2',
+          'red-score-3',
+          'blue-foul',
+          'red-foul',
+        ]) {
+          expect(
+            tester.getSize(find.byKey(Key(key))).height,
+            greaterThanOrEqualTo(48),
+          );
+        }
+      }
+      await tester.binding.setSurfaceSize(null);
+    },
+  );
+
+  testWidgets('reduced motion uses a static location outline', (tester) async {
+    final controller = ScoringController(matchId: 'unified-reduced-motion')
+      ..addScore(side: TeamSide.blue, points: 2);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: ScoringPage(controller: controller),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const Key('blue-score-2-location')), findsOneWidget);
+    expect(find.byType(AnimatedContainer), findsNothing);
+    expect(find.textContaining('2 秒'), findsNothing);
+  });
+
   testWidgets('scoring page shows court-first landscape controls', (
     tester,
   ) async {

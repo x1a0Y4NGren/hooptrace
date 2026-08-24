@@ -16,6 +16,11 @@ class ScoreSidePanel extends StatelessWidget {
     this.onMiss,
     this.scoreEnabled = true,
     this.missEnabled = false,
+    this.foulEnabled = true,
+    this.locationPoints,
+    this.locationRemainingSeconds,
+    this.locationPulse = false,
+    this.reduceMotion = false,
     super.key,
   });
 
@@ -29,6 +34,11 @@ class ScoreSidePanel extends StatelessWidget {
   final VoidCallback? onMiss;
   final bool scoreEnabled;
   final bool missEnabled;
+  final bool foulEnabled;
+  final int? locationPoints;
+  final int? locationRemainingSeconds;
+  final bool locationPulse;
+  final bool reduceMotion;
 
   @override
   Widget build(BuildContext context) {
@@ -55,26 +65,28 @@ class ScoreSidePanel extends StatelessWidget {
                 : availableWidth;
             final actions = <Widget>[
               for (final points in scoreButtons)
-                SizedBox(
+                _ScoreAction(
+                  side: side,
+                  points: points,
                   width: actionWidth,
                   height: buttonHeight,
-                  child: FilledButton(
-                    key: Key('${side.name}-score-$points'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: color,
-                      minimumSize: const Size(48, buttonHeight),
-                      padding: EdgeInsets.zero,
-                    ),
-                    onPressed: scoreEnabled ? () => onScore(points) : null,
-                    child: _CompactActionLabel('+$points'),
-                  ),
+                  color: color,
+                  compact: true,
+                  enabled: scoreEnabled,
+                  locationActive: locationPoints == points,
+                  locationRemainingSeconds: locationPoints == points
+                      ? locationRemainingSeconds
+                      : null,
+                  locationPulse: locationPulse && locationPoints == points,
+                  reduceMotion: reduceMotion,
+                  onPressed: () => onScore(points),
                 ),
               SizedBox(
                 width: actionWidth,
                 height: buttonHeight,
                 child: OutlinedButton(
                   key: Key('${side.name}-foul'),
-                  onPressed: onFoul,
+                  onPressed: foulEnabled ? onFoul : null,
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(48, buttonHeight),
                     padding: EdgeInsets.zero,
@@ -207,19 +219,22 @@ class ScoreSidePanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         for (final points in scoreButtons) ...[
-                          SizedBox(
+                          _ScoreAction(
+                            side: side,
+                            points: points,
+                            width: double.infinity,
                             height: buttonHeight,
-                            child: FilledButton(
-                              key: Key('${side.name}-score-$points'),
-                              style: FilledButton.styleFrom(
-                                backgroundColor: color,
-                                minimumSize: const Size(48, buttonHeight),
-                              ),
-                              onPressed: scoreEnabled
-                                  ? () => onScore(points)
-                                  : null,
-                              child: Text('+$points'),
-                            ),
+                            color: color,
+                            compact: false,
+                            enabled: scoreEnabled,
+                            locationActive: locationPoints == points,
+                            locationRemainingSeconds: locationPoints == points
+                                ? locationRemainingSeconds
+                                : null,
+                            locationPulse:
+                                locationPulse && locationPoints == points,
+                            reduceMotion: reduceMotion,
+                            onPressed: () => onScore(points),
                           ),
                           SizedBox(height: gap),
                         ],
@@ -239,7 +254,7 @@ class ScoreSidePanel extends StatelessWidget {
                           height: buttonHeight,
                           child: OutlinedButton.icon(
                             key: Key('${side.name}-foul'),
-                            onPressed: onFoul,
+                            onPressed: foulEnabled ? onFoul : null,
                             icon: const Icon(Icons.flag_outlined, size: 18),
                             label: Text(l10n.scoringFoul),
                           ),
@@ -253,6 +268,96 @@ class ScoreSidePanel extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _ScoreAction extends StatelessWidget {
+  const _ScoreAction({
+    required this.side,
+    required this.points,
+    required this.width,
+    required this.height,
+    required this.color,
+    required this.compact,
+    required this.enabled,
+    required this.locationActive,
+    required this.locationRemainingSeconds,
+    required this.locationPulse,
+    required this.reduceMotion,
+    required this.onPressed,
+  });
+
+  final TeamSide side;
+  final int points;
+  final double width;
+  final double height;
+  final Color color;
+  final bool compact;
+  final bool enabled;
+  final bool locationActive;
+  final int? locationRemainingSeconds;
+  final bool locationPulse;
+  final bool reduceMotion;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final team = side == TeamSide.blue
+        ? (l10n.localeName.startsWith('zh') ? '蓝方' : 'Blue')
+        : (l10n.localeName.startsWith('zh') ? '红方' : 'Red');
+    final remaining = locationRemainingSeconds;
+    final semantic = locationActive && remaining != null
+        ? '$team +$points ${l10n.localeName.startsWith('zh') ? '待补落点 $remaining 秒' : 'location pending $remaining seconds'}'
+        : '$team +$points';
+    final label = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('+$points'),
+        if (locationActive) ...[
+          const SizedBox(width: 4),
+          Icon(
+            Icons.location_on_outlined,
+            key: Key('${side.name}-score-$points-location'),
+            size: 17,
+          ),
+          if (remaining != null) Text('$remaining'),
+        ],
+      ],
+    );
+    final button = SizedBox(
+      width: width,
+      height: height,
+      child: Semantics(
+        label: semantic,
+        button: true,
+        enabled: enabled,
+        child: FilledButton(
+          key: Key('${side.name}-score-$points'),
+          style: FilledButton.styleFrom(
+            backgroundColor: color,
+            minimumSize: Size(48, height),
+            padding: compact ? EdgeInsets.zero : null,
+            side: locationActive && reduceMotion
+                ? BorderSide(color: color, width: 2)
+                : null,
+          ),
+          onPressed: enabled ? onPressed : null,
+          child: FittedBox(fit: BoxFit.scaleDown, child: label),
+        ),
+      ),
+    );
+    if (!locationPulse || reduceMotion) return button;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 2),
+      ),
+      child: button,
     );
   }
 }

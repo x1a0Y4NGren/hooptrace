@@ -16,6 +16,7 @@ class CourtView extends StatelessWidget {
     required this.shotLocations,
     this.pendingLocation,
     this.detailedShotDraft,
+    this.locationPrompt,
     this.onPendingLocationChanged,
     this.onCourtPointTap,
     this.onShotLocationTap,
@@ -26,6 +27,7 @@ class CourtView extends StatelessWidget {
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
   final DetailedShotDraft? detailedShotDraft;
+  final String? locationPrompt;
   final ValueChanged<CourtPoint>? onPendingLocationChanged;
   final ValueChanged<CourtPoint>? onCourtPointTap;
   final ValueChanged<String>? onShotLocationTap;
@@ -53,7 +55,14 @@ class CourtView extends StatelessWidget {
         void handleTap(Offset local) {
           if (mode == CourtViewMode.readOnly) return;
           if (pendingLocation != null) {
-            handlePosition(local);
+            // The unified score-first flow commits the supplement from the
+            // tap itself. A drag still adjusts the draft marker through the
+            // pan callback, while a discrete tap is an atomic attach.
+            if (locationPrompt != null) {
+              onCourtPointTap?.call(pointFromLocal(local, size));
+            } else {
+              handlePosition(local);
+            }
             return;
           }
           ScoringShotLocation? closest;
@@ -88,18 +97,59 @@ class CourtView extends StatelessWidget {
           hint: mode == CourtViewMode.readOnly
               ? l10n.courtReplayHint
               : l10n.courtEditHint,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTapDown: (details) => handleTap(details.localPosition),
-            onPanUpdate: (details) => handlePosition(details.localPosition),
-            child: CustomPaint(
-              painter: CourtPainter(
-                shotLocations: shotLocations,
-                pendingLocation: pendingLocation,
-                detailedShotDraft: detailedShotDraft,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTapDown: (details) => handleTap(details.localPosition),
+                onPanUpdate: (details) => handlePosition(details.localPosition),
+                child: CustomPaint(
+                  painter: CourtPainter(
+                    shotLocations: shotLocations,
+                    pendingLocation: pendingLocation,
+                    detailedShotDraft: detailedShotDraft,
+                  ),
+                  child: const SizedBox.expand(),
+                ),
               ),
-              child: const SizedBox.expand(),
-            ),
+              if (locationPrompt != null)
+                Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Semantics(
+                      liveRegion: true,
+                      label: locationPrompt,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: 0.94),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.location_on_outlined, size: 18),
+                              const SizedBox(width: 6),
+                              Flexible(child: Text(locationPrompt!)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           ),
         );
       },

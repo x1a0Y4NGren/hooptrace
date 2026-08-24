@@ -294,7 +294,7 @@ class CourtPainter extends CustomPainter {
         canvas,
         size,
         draft.point,
-        _sideColor(draft.side ?? TeamSide.blue),
+        _sideColor(draft.side),
         radius: 10,
         isPending: true,
       );
@@ -321,7 +321,8 @@ class CourtPainter extends CustomPainter {
     canvas.drawCircle(center, radius + 1, ringPaint);
   }
 
-  Color _sideColor(TeamSide side) {
+  Color _sideColor(TeamSide? side) {
+    if (side == null) return Colors.grey.shade600;
     return side == TeamSide.red ? HoopTraceColors.red : HoopTraceColors.blue;
   }
 
