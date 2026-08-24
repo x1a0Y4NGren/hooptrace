@@ -127,6 +127,64 @@ void main() {
     },
   );
 
+  test(
+    'projection rebuild drops pending location when a newer score owns the window',
+    () async {
+      await withTestDatabase((database) async {
+        final openedAt = DateTime.now().toUtc();
+        var now = openedAt;
+        final service = MatchCommandService(database, now: () => now);
+        final started = await service.start(
+          _startCommand(matchId: 'task8-stale-pending'),
+        );
+        final first = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-stale-first-score',
+            matchId: started.match.id,
+            eventId: 'task8-stale-first-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: openedAt,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          first,
+          service,
+        );
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
+        expect(
+          controller.state.pendingLocation?.eventId,
+          'task8-stale-first-event',
+        );
+
+        now = openedAt.add(const Duration(seconds: 1));
+        final second = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-stale-second-score',
+            matchId: started.match.id,
+            eventId: 'task8-stale-second-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.blue,
+            points: 1,
+            outcome: ShotOutcome.made,
+            occurredAt: now,
+          ),
+        );
+        controller.replaceCommittedProjection(second);
+
+        expect(controller.state.pendingLocation, isNull);
+        expect(
+          controller.locationSupplementWindow?.eventId,
+          'task8-stale-second-event',
+        );
+        await controller.confirmPendingLocation(CourtPoint(x: 0.2, y: 0.3));
+        expect(await database.select(database.shotLocations).get(), isEmpty);
+      });
+    },
+  );
+
   test('unified scoring actions ignore legacy capability metadata', () async {
     await withTestDatabase((database) async {
       final openedAt = DateTime.now().toUtc();

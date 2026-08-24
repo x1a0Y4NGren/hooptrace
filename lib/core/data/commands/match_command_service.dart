@@ -264,11 +264,11 @@ class ConfirmShotLocationCommand extends MatchCommand {
     required this.matchId,
     required this.eventId,
     required this.point,
-    DateTime? requestedAtUtc,
+    required DateTime requestedAtUtc,
     String? shotLocationId,
     String? auditId,
   }) : shotLocationId = shotLocationId ?? _newUuid(),
-       requestedAtUtc = requestedAtUtc?.toUtc(),
+       requestedAtUtc = requestedAtUtc.toUtc(),
        auditId = auditId ?? _newUuid();
 
   @override
@@ -277,10 +277,9 @@ class ConfirmShotLocationCommand extends MatchCommand {
   final CourtPoint point;
 
   /// Timestamp captured by the scoring surface when the user requested the
-  /// location confirmation. It is optional for pre-1.0 callers; new scoring
-  /// surfaces always supply it so the ten-second deadline is enforced by the
-  /// command boundary rather than by UI state.
-  final DateTime? requestedAtUtc;
+  /// location confirmation. The service enforces the ten-second deadline
+  /// against this required command-boundary timestamp.
+  final DateTime requestedAtUtc;
   final String shotLocationId;
   final String auditId;
 
@@ -295,7 +294,7 @@ class ConfirmShotLocationCommand extends MatchCommand {
     'shotLocationId': shotLocationId,
     'x': point.x,
     'y': point.y,
-    'requestedAtUtc': requestedAtUtc?.toUtc().toIso8601String(),
+    'requestedAtUtc': requestedAtUtc.toIso8601String(),
     'auditId': auditId,
   };
 }
@@ -1190,20 +1189,26 @@ class MatchCommandService {
             projectionMatchId: command.matchId,
           );
         }
-        final requestedAtUtc = command.requestedAtUtc;
-        if (requestedAtUtc != null) {
-          final openedAtUtc = event.occurredAt.toUtc();
-          final deadline = openedAtUtc.add(locationSupplementWindowDuration);
-          if (requestedAtUtc.isBefore(openedAtUtc) ||
-              !requestedAtUtc.isBefore(deadline) ||
-              !_now().toUtc().isBefore(deadline)) {
-            throw CommandValidationFailure(
-              command: command,
-              message:
-                  'Shot locations must be confirmed within ten seconds of the shot.',
-              projectionMatchId: command.matchId,
-            );
-          }
+        final latestScoringEvent = await _latestScoringEvent(command.matchId);
+        if (latestScoringEvent?.id != event.id) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'Only the newest unlocated scoring event can receive a location.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final openedAtUtc = event.occurredAt.toUtc();
+        final deadline = openedAtUtc.add(locationSupplementWindowDuration);
+        if (command.requestedAtUtc.isBefore(openedAtUtc) ||
+            !command.requestedAtUtc.isBefore(deadline) ||
+            !_now().toUtc().isBefore(deadline)) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'Shot locations must be confirmed within ten seconds of the shot.',
+            projectionMatchId: command.matchId,
+          );
         }
         final existing = await _shotLocationForEvent(command.eventId);
         if (existing != null) {
@@ -1293,7 +1298,10 @@ class MatchCommandService {
       return _database.transaction(() async {
         final duplicate = await _returnForDuplicate(command);
         if (duplicate != null) return duplicate;
-        await _requireReplayEditableMatch(command);
+        // Live scoring undo is a mutation of the active match state. A
+        // finished/archived projection is durable history and cannot be
+        // reopened through this command.
+        await _requireActiveMatch(command);
         final selected = await _latestScoringAction(command.matchId);
         if (selected == null) {
           throw CommandValidationFailure(
@@ -1349,6 +1357,10 @@ class MatchCommandService {
             reason: command.reason,
           );
           await _recalculatePossessionSuggestions(command.matchId);
+          await _restoreDecisionStateAfterScoringUndo(
+            command,
+            selectedEvent: event,
+          );
           final afterProjection = await _projectionInTransaction(
             command.matchId,
           );
@@ -2711,6 +2723,31 @@ class MatchCommandService {
     return query.getSingleOrNull();
   }
 
+  /// Returns the newest scoring event in projection order. Every scoring
+  /// event participates in ownership, including free throws: a newly
+  /// committed free throw therefore closes the previous field-goal window.
+  Future<MatchEventRow?> _latestScoringEvent(String matchId) async {
+    final rows =
+        await (_database.select(_database.matchEvents)
+              ..where(
+                (event) =>
+                    event.matchId.equals(matchId) &
+                    event.isDeleted.equals(false) &
+                    event.type.isIn([
+                      EventKind.score.name,
+                      EventKind.fieldGoal.name,
+                      EventKind.miss.name,
+                      EventKind.freeThrow.name,
+                    ]),
+              )
+              ..orderBy([
+                (event) => OrderingTerm.desc(event.occurredAt),
+                (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    return rows.isEmpty ? null : rows.first;
+  }
+
   Future<_UndoableScoringAction?> _latestScoringAction(String matchId) async {
     final events =
         await (_database.select(_database.matchEvents)..where(
@@ -2721,6 +2758,7 @@ class MatchCommandService {
                     EventKind.score.name,
                     EventKind.fieldGoal.name,
                     EventKind.miss.name,
+                    EventKind.freeThrow.name,
                   ]),
             ))
             .get();
@@ -2975,6 +3013,77 @@ class MatchCommandService {
   Future<String?> _latestDecisionLabel(String matchId) async {
     final latest = await _latestSemanticLabel(matchId);
     return latest != null && latest.startsWith('decision:') ? latest : null;
+  }
+
+  Future<MatchEventRow?> _latestDecisionEvent(String matchId) async {
+    final rows =
+        await (_database.select(_database.matchEvents)
+              ..where(
+                (event) =>
+                    event.matchId.equals(matchId) &
+                    event.type.equals(EventKind.pause.name) &
+                    event.isDeleted.equals(false),
+              )
+              ..orderBy([
+                (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    for (final row in rows) {
+      if (row.customLabel?.startsWith('decision:') == true) return row;
+    }
+    return null;
+  }
+
+  /// A target-score decision is a derived pause, not an independent user
+  /// action. Undoing the score must atomically remove that pause and restore
+  /// the clock state captured by its durable decision-clock audit row.
+  Future<void> _restoreDecisionStateAfterScoringUndo(
+    UndoLastScoringActionCommand command, {
+    required MatchEventRow selectedEvent,
+  }) async {
+    final decision = await _latestDecisionEvent(command.matchId);
+    if (decision == null ||
+        decision.occurredAt.toUtc().isBefore(
+          selectedEvent.occurredAt.toUtc(),
+        )) {
+      return;
+    }
+    await (_database.update(_database.matchEvents)
+          ..where((row) => row.id.equals(decision.id)))
+        .write(const MatchEventsCompanion(isDeleted: Value(true)));
+
+    final clockRow = await _clockRow(command.matchId);
+    if (clockRow == null) return;
+    final decisionClockAudit =
+        await (_database.select(_database.auditLogs)
+              ..where(
+                (audit) =>
+                    audit.matchId.equals(command.matchId) &
+                    audit.targetId.equals(clockRow.id) &
+                    audit.action.equals('edit') &
+                    audit.reason.equals('decision-clock'),
+              )
+              ..orderBy([
+                (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
+              ])
+              ..limit(1))
+            .getSingleOrNull();
+    if (decisionClockAudit == null) return;
+
+    final restored = _clockStateFromJson(
+      _decodeObject(decisionClockAudit.beforeJson),
+    );
+    final current = _clockState(clockRow);
+    await _updateClock(restored);
+    await _writeAudit(
+      id: '${command.auditId}:decision-clock',
+      matchId: command.matchId,
+      targetId: clockRow.id,
+      action: 'edit',
+      before: _clockJson(current),
+      after: _clockJson(restored),
+      reason: 'undo-decision-clock',
+    );
   }
 
   Future<void> _guardInputClock(MatchCommand command) async {

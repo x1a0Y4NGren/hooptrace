@@ -15,6 +15,49 @@ import '../../test_helpers/test_database.dart';
 final _anchor = DateTime.utc(2026, 8, 23, 10);
 
 void main() {
+  test('confirm location commands require a non-null request timestamp', () {
+    final command = ConfirmShotLocationCommand(
+      matchId: 'match-clock',
+      eventId: 'timestamp-contract-event',
+      point: CourtPoint(x: 0.4, y: 0.6),
+      requestedAtUtc: _anchor,
+    );
+    final DateTime requestedAtUtc = command.requestedAtUtc;
+    expect(requestedAtUtc, _anchor);
+    expect(command.payload['requestedAtUtc'], _anchor.toIso8601String());
+  });
+
+  test('scoring undo cannot reopen a finished match', () async {
+    final database = createTestDatabase();
+    final service = MatchCommandService(database, now: () => _anchor);
+    await service.start(_start());
+    await service.record(
+      _score(commandId: 'finished-score', eventId: 'finished-event'),
+    );
+    await service.finish(
+      FinishMatchCommand(
+        commandId: 'finish-for-undo',
+        matchId: 'match-clock',
+        endedAt: _anchor,
+        confirmFinalScore: true,
+        expectedRedScore: 1,
+        expectedBlueScore: 0,
+      ),
+    );
+    final failure = await _captureFailure(
+      () => service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'undo-finished-score',
+          matchId: 'match-clock',
+        ),
+      ),
+    );
+    expect(failure, isA<CommandValidationFailure>());
+    final projection = failure.lastCommittedProjection;
+    expect(projection?.match.lifecycle, MatchLifecycle.finished);
+    expect(projection?.redScore, 1);
+  });
+
   test(
     'reconstructed command services derive the same persisted running clock',
     () async {
@@ -1194,6 +1237,7 @@ void main() {
           matchId: 'match-clock',
           eventId: 'location-score-event',
           point: CourtPoint(x: 0.1, y: 0.2),
+          requestedAtUtc: _anchor.add(const Duration(seconds: 1)),
         ),
       );
       expect(located.decision?.reason, MatchDecisionReason.targetReached);
@@ -1252,6 +1296,268 @@ void main() {
           ),
         ),
         throwsA(isA<CommandValidationFailure>()),
+      );
+    },
+  );
+
+  test(
+    'location confirmation rejects an older field goal after a newer score',
+    () async {
+      final database = createTestDatabase();
+      final openedAt = _anchor;
+      final newerAt = openedAt.add(const Duration(seconds: 1));
+      final service = MatchCommandService(database, now: () => newerAt);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'ownership-old-score',
+          matchId: 'match-clock',
+          eventId: 'ownership-old-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: openedAt,
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'ownership-new-score',
+          matchId: 'match-clock',
+          eventId: 'ownership-new-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.blue,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: newerAt,
+        ),
+      );
+
+      await expectLater(
+        service.confirmShotLocation(
+          ConfirmShotLocationCommand(
+            commandId: 'ownership-old-location',
+            matchId: 'match-clock',
+            eventId: 'ownership-old-event',
+            point: CourtPoint(x: 0.2, y: 0.3),
+            requestedAtUtc: newerAt,
+          ),
+        ),
+        throwsA(isA<CommandValidationFailure>()),
+      );
+    },
+  );
+
+  test('a free throw closes the previous supplement window', () async {
+    final database = createTestDatabase();
+    final openedAt = _anchor;
+    final newerAt = openedAt.add(const Duration(seconds: 1));
+    final service = MatchCommandService(database, now: () => newerAt);
+    await service.start(_start());
+    await service.record(
+      RecordMatchEventCommand(
+        commandId: 'ownership-free-throw-old-score',
+        matchId: 'match-clock',
+        eventId: 'ownership-free-throw-old-event',
+        type: EventKind.fieldGoal,
+        side: TeamSide.red,
+        points: 2,
+        outcome: ShotOutcome.made,
+        occurredAt: openedAt,
+      ),
+    );
+    await service.record(
+      RecordMatchEventCommand(
+        commandId: 'ownership-free-throw',
+        matchId: 'match-clock',
+        eventId: 'ownership-free-throw-event',
+        type: EventKind.freeThrow,
+        side: TeamSide.blue,
+        points: 1,
+        outcome: ShotOutcome.made,
+        occurredAt: newerAt,
+      ),
+    );
+
+    await expectLater(
+      service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'ownership-free-throw-old-location',
+          matchId: 'match-clock',
+          eventId: 'ownership-free-throw-old-event',
+          point: CourtPoint(x: 0.2, y: 0.3),
+          requestedAtUtc: newerAt,
+        ),
+      ),
+      throwsA(isA<CommandValidationFailure>()),
+    );
+  });
+
+  test(
+    'undoing a target score restores decision and a running clock',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          timerEnabled: true,
+          ruleTemplate: const RuleTemplate(
+            id: 'undo-target',
+            name: 'Target',
+            scoreButtons: [1],
+            targetScore: 1,
+          ),
+        ),
+      );
+      final reached = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'undo-target-score',
+          matchId: 'match-clock',
+          eventId: 'undo-target-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      expect(reached.decision, isNotNull);
+      expect(reached.clock?.state.runningSinceUtc, isNull);
+
+      final undone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'undo-target-action',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(undone.redScore, 0);
+      expect(undone.decision, isNull);
+      expect(undone.clock?.state.runningSinceUtc, isNotNull);
+
+      final continued = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'undo-target-retry-score',
+          matchId: 'match-clock',
+          eventId: 'undo-target-retry-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.blue,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      expect(continued.blueScore, 1);
+    },
+  );
+
+  test('free throws participate in scoring undo chronology', () async {
+    final database = createTestDatabase();
+    final service = MatchCommandService(database, now: () => _anchor);
+    await service.start(_start());
+    await service.record(
+      RecordMatchEventCommand(
+        commandId: 'undo-free-throw-score',
+        matchId: 'match-clock',
+        eventId: 'undo-free-throw-score-event',
+        type: EventKind.fieldGoal,
+        side: TeamSide.red,
+        points: 2,
+        outcome: ShotOutcome.made,
+        occurredAt: _anchor,
+      ),
+    );
+    final withFreeThrow = await service.record(
+      RecordMatchEventCommand(
+        commandId: 'undo-free-throw',
+        matchId: 'match-clock',
+        eventId: 'undo-free-throw-event',
+        type: EventKind.freeThrow,
+        side: TeamSide.red,
+        points: 1,
+        outcome: ShotOutcome.made,
+        occurredAt: _anchor,
+      ),
+    );
+    expect(withFreeThrow.redScore, 3);
+
+    final undone = await service.undoLastScoringAction(
+      UndoLastScoringActionCommand(
+        commandId: 'undo-free-throw-action',
+        matchId: 'match-clock',
+      ),
+    );
+    expect(undone.redScore, 2);
+    expect(
+      undone.events
+          .singleWhere((event) => event.id == 'undo-free-throw-event')
+          .isDeleted,
+      isTrue,
+    );
+  });
+
+  test(
+    'mixed score and free-throw audit chronology undoes the free throw first',
+    () async {
+      final database = createTestDatabase();
+      final openedAt = _anchor;
+      final locationAt = openedAt.add(const Duration(seconds: 1));
+      final freeThrowAt = openedAt.add(const Duration(seconds: 2));
+      final service = MatchCommandService(database, now: () => openedAt);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'mixed-score',
+          matchId: 'match-clock',
+          eventId: 'mixed-score-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: openedAt,
+        ),
+      );
+      await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'mixed-location',
+          matchId: 'match-clock',
+          eventId: 'mixed-score-event',
+          point: CourtPoint(x: 0.4, y: 0.6),
+          requestedAtUtc: locationAt,
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'mixed-free-throw',
+          matchId: 'match-clock',
+          eventId: 'mixed-free-throw-event',
+          type: EventKind.freeThrow,
+          side: TeamSide.red,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: freeThrowAt,
+        ),
+      );
+
+      final freeThrowUndone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'mixed-free-throw-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(freeThrowUndone.redScore, 2);
+      expect(freeThrowUndone.locatedShotCount, 1);
+
+      final locationUndone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'mixed-location-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(locationUndone.redScore, 2);
+      expect(locationUndone.locatedShotCount, 0);
+      expect(
+        (await database.select(database.shotLocations).getSingle()).isConfirmed,
+        isFalse,
       );
     },
   );

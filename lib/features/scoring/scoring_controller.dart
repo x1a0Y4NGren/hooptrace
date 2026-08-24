@@ -511,7 +511,8 @@ class ScoringController extends ChangeNotifier {
           !event.isDeleted &&
           (event.type == EventKind.score ||
               event.type == EventKind.fieldGoal ||
-              event.type == EventKind.miss),
+              event.type == EventKind.miss ||
+              event.type == EventKind.freeThrow),
     );
     if (!hasScoringAction) return false;
     final service = _commandService;
@@ -534,7 +535,8 @@ class ScoringController extends ChangeNotifier {
       if (candidate.isDeleted ||
           (candidate.type != EventKind.score &&
               candidate.type != EventKind.fieldGoal &&
-              candidate.type != EventKind.miss)) {
+              candidate.type != EventKind.miss &&
+              candidate.type != EventKind.freeThrow)) {
         continue;
       }
       event = candidate;
@@ -657,6 +659,7 @@ class ScoringController extends ChangeNotifier {
         matchId: _state.matchId,
         eventId: pending.eventId,
         point: confirmedPoint,
+        requestedAtUtc: DateTime.now().toUtc(),
       );
       await _runExclusive(command, () => service.confirmShotLocation(command));
       return;
@@ -1085,30 +1088,29 @@ class ScoringController extends ChangeNotifier {
         .toSet();
     LocationSupplementWindow? supplement;
     final nowUtc = DateTime.now().toUtc();
+    MatchEvent? latestScoringEvent;
     for (final event in events.reversed) {
-      if (event.isDeleted ||
-          event.side == null ||
-          (event.type != EventKind.score &&
-              event.type != EventKind.fieldGoal &&
-              event.type != EventKind.miss)) {
-        continue;
-      }
-      // The newest scoring event owns the supplement opportunity. Once that
-      // event is located, an older unlocated event must not reappear as the
-      // active window.
-      if (locationEventIds.contains(event.id)) break;
-      if (!nowUtc.isBefore(
-        event.occurredAt.toUtc().add(locationSupplementWindowDuration),
-      )) {
+      if (!event.isDeleted && _isScoringEvent(event)) {
+        latestScoringEvent = event;
         break;
       }
+    }
+    final event = latestScoringEvent;
+    if (event != null &&
+        event.side != null &&
+        (event.type == EventKind.score ||
+            event.type == EventKind.fieldGoal ||
+            event.type == EventKind.miss) &&
+        !locationEventIds.contains(event.id) &&
+        nowUtc.isBefore(
+          event.occurredAt.toUtc().add(locationSupplementWindowDuration),
+        )) {
       supplement = LocationSupplementWindow(
         eventId: event.id,
         side: event.side!,
         points: event.points,
         openedAtUtc: event.occurredAt.toUtc(),
       );
-      break;
     }
     return MatchScoringState(
       matchId: projection.match.id,
@@ -1205,6 +1207,7 @@ class ScoringController extends ChangeNotifier {
     _state = _stateFromProjection(projection);
     final pending = pendingLocation ?? previousPending;
     if (pending != null &&
+        pending.eventId == _state.locationSupplementWindow?.eventId &&
         projection.events.any(
           (event) => event.id == pending.eventId && !event.isDeleted,
         ) &&
@@ -1376,17 +1379,18 @@ class ScoringController extends ChangeNotifier {
     final locatedIds = _state.shotLocations.map((item) => item.eventId).toSet();
     final nowUtc = DateTime.now().toUtc();
     for (final event in _state.events.reversed) {
-      if (event.isDeleted ||
-          (event.type != EventKind.fieldGoal &&
-              event.type != EventKind.score &&
-              event.type != EventKind.miss) ||
-          event.side == null) {
+      if (event.isDeleted || !_isScoringEvent(event)) {
         continue;
       }
-      if (locatedIds.contains(event.id)) return null;
-      if (!nowUtc.isBefore(
-        event.occurredAt.toUtc().add(locationSupplementWindowDuration),
-      )) {
+      // Any newer scoring action, including a free throw, owns or closes the
+      // supplement window for all older attempts.
+      if (event.side == null || locatedIds.contains(event.id)) return null;
+      if ((event.type != EventKind.fieldGoal &&
+              event.type != EventKind.score &&
+              event.type != EventKind.miss) ||
+          !nowUtc.isBefore(
+            event.occurredAt.toUtc().add(locationSupplementWindowDuration),
+          )) {
         return null;
       }
       return event;
@@ -1399,6 +1403,13 @@ class ScoringController extends ChangeNotifier {
       if (!event.isDeleted) return event;
     }
     return null;
+  }
+
+  static bool _isScoringEvent(MatchEvent event) {
+    return event.type == EventKind.score ||
+        event.type == EventKind.fieldGoal ||
+        event.type == EventKind.miss ||
+        event.type == EventKind.freeThrow;
   }
 
   static TeamSide? _latestPossession(List<MatchEvent> events) {
