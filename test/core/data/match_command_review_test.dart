@@ -129,6 +129,7 @@ void main() {
           commandId: 'finish-draft',
           matchId: draft.id,
           endedAt: DateTime.utc(2026, 8, 22, 11),
+          confirmFinalScore: true,
         ),
       ),
       throwsA(isA<CommandValidationFailure>()),
@@ -141,6 +142,7 @@ void main() {
         commandId: 'finish-active',
         matchId: active.matchId,
         endedAt: DateTime.utc(2026, 8, 22, 11),
+        confirmFinalScore: true,
       ),
     );
     await expectLater(
@@ -149,6 +151,7 @@ void main() {
           commandId: 'finish-finished-again',
           matchId: active.matchId,
           endedAt: DateTime.utc(2026, 8, 22, 12),
+          confirmFinalScore: true,
         ),
       ),
       throwsA(isA<CommandValidationFailure>()),

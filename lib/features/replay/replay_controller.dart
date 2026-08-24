@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
+import 'package:hooptrace/core/domain/entities/possession_segment.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
@@ -48,6 +49,30 @@ class ReplayEventData {
   }
 }
 
+class ReplayPossessionSegmentData {
+  const ReplayPossessionSegmentData({
+    required this.id,
+    required this.side,
+    required this.startedAtEventId,
+    required this.startedAt,
+    this.endedAtEventId,
+    this.endedAt,
+    this.reason,
+    this.source = PossessionSource.manual,
+  }) : assert(endedAt == null || endedAt >= startedAt);
+
+  final String id;
+  final TeamSide side;
+  final String startedAtEventId;
+  final Duration startedAt;
+  final String? endedAtEventId;
+  final Duration? endedAt;
+  final String? reason;
+  final PossessionSource source;
+
+  bool get isOpen => endedAtEventId == null;
+}
+
 class ReplayMatchData {
   ReplayMatchData({
     required this.matchId,
@@ -57,9 +82,11 @@ class ReplayMatchData {
     required this.blueScore,
     required this.duration,
     required List<ReplayEventData> events,
+    List<ReplayPossessionSegmentData> possessionSegments = const [],
     this.analytics,
     this.isFinished = true,
-  }) : events = List.unmodifiable(events);
+  }) : events = List.unmodifiable(events),
+       possessionSegments = List.unmodifiable(possessionSegments);
 
   final String matchId;
   final String redName;
@@ -69,6 +96,7 @@ class ReplayMatchData {
   final Duration duration;
   final bool isFinished;
   final List<ReplayEventData> events;
+  final List<ReplayPossessionSegmentData> possessionSegments;
   final MatchAnalytics? analytics;
 }
 

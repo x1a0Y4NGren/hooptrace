@@ -11,6 +11,7 @@ void main() {
       name: '球权轮换',
       scoreButtons: [1, 2, 3],
       possessionHintEnabled: true,
+      possessionPolicy: PossessionPolicy.switchAfterMade,
     );
 
     final hints = RuleEngine().evaluate(
@@ -24,6 +25,7 @@ void main() {
       hints.map((hint) => hint.type),
       contains(RuleHintType.possessionChange),
     );
+    expect(hints.single.suggestedSide, TeamSide.blue);
     expect(hints.every((hint) => !hint.isBlocking), isTrue);
   });
 }

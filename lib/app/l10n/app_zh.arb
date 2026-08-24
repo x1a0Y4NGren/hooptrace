@@ -10,5 +10,13 @@
   "ruleMatchPoint": "\u8d5b\u70b9",
   "rulePossessionSuggested": "\u7403\u6743\u5efa\u8bae",
   "ruleFoulLimit": "{side}\u72af\u89c4\u5df2\u8fbe\u5230{limit}\u6b21",
-  "finishOrContinueOvertime": "\u5e38\u89c4\u65f6\u95f4\u7ed3\u675f\uff0c\u8bf7\u786e\u8ba4\u7ed3\u675f\u6216\u8fdb\u5165\u52a0\u65f6"
+  "finishOrContinueOvertime": "\u5e38\u89c4\u65f6\u95f4\u7ed3\u675f\uff0c\u8bf7\u786e\u8ba4\u7ed3\u675f\u6216\u8fdb\u5165\u52a0\u65f6",
+  "matchDecisionTitle": "\u6bd4\u8d5b\u51b3\u7b56",
+  "continueMatch": "\u7ee7\u7eed\u6bd4\u8d5b",
+  "finishMatch": "\u7ed3\u675f\u6bd4\u8d5b",
+  "confirmFinalScoreTitle": "\u786e\u8ba4\u6700\u7ec8\u6bd4\u5206",
+  "confirmFinalScoreBody": "\u7ed3\u675f\u540e\u5c06\u9501\u5b9a\u5f53\u524d\u6bd4\u5206\u5e76\u5173\u95ed\u8fdb\u884c\u4e2d\u7684\u6bd4\u8d5b\u3002",
+  "finalScoreLine": "{redName} {redScore} : {blueScore} {blueName}",
+  "cancelAction": "\u53d6\u6d88",
+  "actionFailedRetry": "\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002"
 }

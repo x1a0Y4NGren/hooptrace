@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/rules/rule_engine.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
@@ -28,6 +31,8 @@ class ScoringPage extends StatefulWidget {
     this.onOpenReplay,
     this.onRequestLeave,
     this.onResumeClock,
+    this.onContinueDecision,
+    this.onFinishDecision,
     this.clockNowUtc,
     this.clockTick = const Duration(seconds: 1),
     this.onActionCommitted,
@@ -40,6 +45,8 @@ class ScoringPage extends StatefulWidget {
   final VoidCallback? onOpenReplay;
   final Future<void> Function()? onRequestLeave;
   final VoidCallback? onResumeClock;
+  final Future<void> Function()? onContinueDecision;
+  final Future<void> Function(int redScore, int blueScore)? onFinishDecision;
   final DateTime Function()? clockNowUtc;
   final Duration clockTick;
   final FutureOr<void> Function()? onActionCommitted;
@@ -52,6 +59,7 @@ class _ScoringPageState extends State<ScoringPage> {
   late ScoringController _controller;
   bool _ownsController = false;
   bool _leaveBusy = false;
+  bool _decisionBusy = false;
   Timer? _clockTicker;
 
   @override
@@ -143,8 +151,14 @@ class _ScoringPageState extends State<ScoringPage> {
                   onReplay: widget.onOpenReplay == null ? null : _openReplay,
                   onResumeClock: widget.onResumeClock,
                 ),
-                Expanded(child: _buildWorkspace(context, constraints, state)),
-                if (state.ruleHints.isNotEmpty) _buildRuleHints(context, state),
+                Expanded(
+                  child: IgnorePointer(
+                    ignoring: state.decision != null,
+                    child: _buildWorkspace(context, constraints, state),
+                  ),
+                ),
+                if (state.ruleHints.isNotEmpty || state.ruleWarnings.isNotEmpty)
+                  _buildRuleHints(context, state),
                 if (state.pendingLocation != null)
                   _buildPendingLocationDock()
                 else if (state.detailedShotDraft != null)
@@ -153,6 +167,8 @@ class _ScoringPageState extends State<ScoringPage> {
                     state,
                     constraints.maxWidth < 640,
                   )
+                else if (state.decision != null)
+                  _buildDecisionDock(context, state)
                 else
                   _buildCommandDock(
                     context,
@@ -234,7 +250,14 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Widget _buildRuleHints(BuildContext context, MatchScoringState state) {
+    final l10n = _localizations(context);
+    final messages = <String>[
+      for (final hint in state.ruleHints) _localizedHint(l10n, hint),
+      for (final warning in state.ruleWarnings)
+        l10n.ruleFoulLimit(warning.limit, _localizedSide(l10n, warning.side)),
+    ];
     return Container(
+      key: const Key('scoring-rule-hints'),
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       color: Theme.of(context).colorScheme.secondaryContainer,
@@ -245,18 +268,93 @@ class _ScoringPageState extends State<ScoringPage> {
           const SizedBox(width: 8),
           Flexible(
             child: Text(
-              state.ruleHints
-                  .map(
-                    (hint) => hint.localizedMessage(
-                      Localizations.localeOf(context).languageCode,
-                    ),
-                  )
-                  .join(' · '),
+              messages.join(' · '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDecisionDock(BuildContext context, MatchScoringState state) {
+    final decision = state.decision!;
+    final l10n = _localizations(context);
+    final summary = Row(
+      children: [
+        const Icon(Icons.sports_score),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _localizedDecision(l10n, decision),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                l10n.finalScoreLine(
+                  state.blueName,
+                  decision.blueScore,
+                  state.redName,
+                  decision.redScore,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    final actions = <Widget>[
+      if (decision.canContinue && widget.onContinueDecision != null)
+        OutlinedButton(
+          key: const Key('scoring-decision-continue'),
+          onPressed: _decisionBusy ? null : _continueDecision,
+          child: Text(l10n.continueMatch),
+        ),
+      if (decision.canFinish && widget.onFinishDecision != null) ...[
+        const SizedBox(width: 8),
+        FilledButton(
+          key: const Key('scoring-decision-finish'),
+          onPressed: _decisionBusy ? null : _confirmFinishDecision,
+          child: Text(l10n.finishMatch),
+        ),
+      ],
+    ];
+    return Container(
+      key: const Key('scoring-decision-dock'),
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth < 900) {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                summary,
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: actions,
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: summary),
+              const SizedBox(width: 12),
+              ...actions,
+            ],
+          );
+        },
       ),
     );
   }
@@ -794,6 +892,106 @@ class _ScoringPageState extends State<ScoringPage> {
   void _notifyCommitted() {
     final callback = widget.onActionCommitted;
     if (callback != null) unawaited(Future<void>.sync(callback));
+  }
+
+  Future<void> _continueDecision() {
+    return _runDecision(widget.onContinueDecision);
+  }
+
+  Future<void> _confirmFinishDecision() async {
+    final finish = widget.onFinishDecision;
+    if (_decisionBusy || finish == null) return;
+    final state = _controller.state;
+    final decision = state.decision;
+    if (decision == null || !decision.canFinish) return;
+    final confirmedRedScore = decision.redScore;
+    final confirmedBlueScore = decision.blueScore;
+    final l10n = _localizations(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.confirmFinalScoreTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.finalScoreLine(
+                state.blueName,
+                decision.blueScore,
+                state.redName,
+                decision.redScore,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(l10n.confirmFinalScoreBody),
+          ],
+        ),
+        actions: [
+          TextButton(
+            key: const Key('scoring-finish-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancelAction),
+          ),
+          FilledButton(
+            key: const Key('scoring-finish-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.finishMatch),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      await _runDecision(() => finish(confirmedRedScore, confirmedBlueScore));
+    }
+  }
+
+  Future<void> _runDecision(Future<void> Function()? action) async {
+    if (_decisionBusy || action == null) return;
+    final failureMessage = _localizations(context).actionFailedRetry;
+    setState(() => _decisionBusy = true);
+    try {
+      await action();
+      _notifyCommitted();
+    } on MatchCommandFailure catch (failure) {
+      _showCommandFailure(failure);
+    } on Object {
+      _showActionRejected(failureMessage);
+    } finally {
+      if (mounted) setState(() => _decisionBusy = false);
+    }
+  }
+
+  AppLocalizations _localizations(BuildContext context) {
+    return AppLocalizations.of(context) ?? AppLocalizationsZh();
+  }
+
+  String _localizedHint(AppLocalizations l10n, RuleHint hint) {
+    return switch (hint.messageKey) {
+      'targetReached' => l10n.ruleTargetReached,
+      'winByTwoRequired' => l10n.ruleWinByTwoRequired,
+      'matchPoint' => l10n.ruleMatchPoint,
+      'possessionChange' when hint.suggestedSide != null =>
+        '${_localizedSide(l10n, hint.suggestedSide!)}${l10n.rulePossessionSuggested}',
+      'possessionChange' => l10n.rulePossessionSuggested,
+      _ => hint.message,
+    };
+  }
+
+  String _localizedDecision(AppLocalizations l10n, MatchDecision decision) {
+    return switch (decision.reason) {
+      MatchDecisionReason.targetReached => l10n.ruleTargetReached,
+      MatchDecisionReason.winByTwoRequired => l10n.ruleWinByTwoRequired,
+      MatchDecisionReason.regulationExpired => l10n.finishOrContinueOvertime,
+    };
+  }
+
+  String _localizedSide(AppLocalizations l10n, TeamSide side) {
+    final isChinese = l10n.localeName.toLowerCase().startsWith('zh');
+    return switch (side) {
+      TeamSide.red => isChinese ? '红方' : 'Red ',
+      TeamSide.blue => isChinese ? '蓝方' : 'Blue ',
+    };
   }
 
   void _showActionRejected(String message) {

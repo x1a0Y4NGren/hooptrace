@@ -290,6 +290,7 @@ class _ScoringRoute extends ConsumerWidget {
         );
       }
       final canResumeClock =
+          projection.decision == null &&
           projection.match.timerEnabled &&
           projection.clock != null &&
           !projection.clock!.isRunning;
@@ -300,6 +301,18 @@ class _ScoringRoute extends ConsumerWidget {
         onRequestLeave: () => _leaveScoring(context, ref, matchId),
         onResumeClock: canResumeClock
             ? () => _resumeScoring(context, ref, matchId)
+            : null,
+        onContinueDecision: projection.decision?.canContinue == true
+            ? () => _continueScoringDecision(ref, matchId)
+            : null,
+        onFinishDecision: projection.decision?.canFinish == true
+            ? (redScore, blueScore) => _finishScoringDecision(
+                context,
+                ref,
+                matchId,
+                redScore,
+                blueScore,
+              )
             : null,
         onActionCommitted: feedback.emitCommitted,
       );
@@ -412,6 +425,16 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
     return _controller = controller;
   }
 
+  Future<void> _refreshController() async {
+    final refreshed = await ref
+        .read(matchRepositoryProvider)
+        .getMatchDetail(widget.matchId);
+    final controller = _controller;
+    if (refreshed != null && controller != null) {
+      controller.replaceData(replayDataFromDetail(refreshed));
+    }
+  }
+
   @override
   void dispose() {
     _controller?.dispose();
@@ -444,15 +467,23 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
               .read(exportCoordinatorProvider)
               .shareReplayImage(bytes, matchId: matchId),
           onFinishMatch: active
-              ? () async {
-                  await ref
-                      .read(matchCommandServiceProvider)
-                      .finish(
-                        FinishMatchCommand(
-                          matchId: widget.matchId,
-                          endedAt: DateTime.now().toUtc(),
-                        ),
-                      );
+              ? (redScore, blueScore) async {
+                  try {
+                    await ref
+                        .read(matchCommandServiceProvider)
+                        .finish(
+                          FinishMatchCommand(
+                            matchId: widget.matchId,
+                            endedAt: DateTime.now().toUtc(),
+                            confirmFinalScore: true,
+                            expectedRedScore: redScore,
+                            expectedBlueScore: blueScore,
+                          ),
+                        );
+                  } on Object {
+                    await _refreshController();
+                    rethrow;
+                  }
                   try {
                     await ref
                         .read(automaticBackupServiceProvider)
@@ -460,7 +491,7 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
                   } on Object {
                     // A moved backup folder does not undo a successful finish.
                   }
-                  if (context.mounted) context.go('/history');
+                  await _refreshController();
                 }
               : null,
         );
@@ -598,6 +629,43 @@ Future<void> _resumeScoring(
       ).showSnackBar(SnackBar(content: Text(error.message)));
     }
   }
+}
+
+Future<void> _continueScoringDecision(WidgetRef ref, String matchId) async {
+  await ref
+      .read(matchCommandServiceProvider)
+      .continueMatch(
+        ContinueMatchCommand(
+          matchId: matchId,
+          occurredAt: DateTime.now().toUtc(),
+        ),
+      );
+}
+
+Future<void> _finishScoringDecision(
+  BuildContext context,
+  WidgetRef ref,
+  String matchId,
+  int redScore,
+  int blueScore,
+) async {
+  await ref
+      .read(matchCommandServiceProvider)
+      .finish(
+        FinishMatchCommand(
+          matchId: matchId,
+          endedAt: DateTime.now().toUtc(),
+          confirmFinalScore: true,
+          expectedRedScore: redScore,
+          expectedBlueScore: blueScore,
+        ),
+      );
+  try {
+    await ref.read(automaticBackupServiceProvider).runIfEnabled();
+  } on Object {
+    // Backup failure must not undo a committed match finish.
+  }
+  if (context.mounted) context.go('/matches/$matchId/replay');
 }
 
 Future<void> _leaveScoring(

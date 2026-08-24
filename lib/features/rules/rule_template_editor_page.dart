@@ -26,6 +26,7 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
   late final TextEditingController _eventTypes;
   late bool _winByTwo;
   late bool _possessionHint;
+  late PossessionPolicy _possessionPolicy;
 
   @override
   void initState() {
@@ -51,6 +52,9 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
     );
     _winByTwo = template?.winByTwo ?? false;
     _possessionHint = template?.possessionHintEnabled ?? false;
+    _possessionPolicy = _possessionHint
+        ? template?.possessionPolicy ?? PossessionPolicy.manual
+        : PossessionPolicy.manual;
   }
 
   @override
@@ -127,7 +131,32 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
                 value: _possessionHint,
                 title: const Text('得分后提示球权'),
                 subtitle: const Text('仅提示，不阻断手动计分'),
-                onChanged: (value) => setState(() => _possessionHint = value),
+                onChanged: (value) => setState(() {
+                  _possessionHint = value;
+                  if (!value) _possessionPolicy = PossessionPolicy.manual;
+                }),
+              ),
+              DropdownButtonFormField<PossessionPolicy>(
+                key: const Key('rule-possession-policy'),
+                initialValue: _possessionPolicy,
+                decoration: const InputDecoration(
+                  labelText: '得分后球权策略',
+                  helperText: '仅在启用球权提示时可选择自动建议。',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (final policy in PossessionPolicy.values)
+                    DropdownMenuItem(
+                      value: policy,
+                      child: Text(_possessionPolicyLabel(policy)),
+                    ),
+                ],
+                onChanged: _possessionHint
+                    ? (value) {
+                        if (value == null) return;
+                        setState(() => _possessionPolicy = value);
+                      }
+                    : null,
               ),
               const SizedBox(height: 16),
               SizedBox(
@@ -202,6 +231,9 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
         winByTwo: _winByTwo,
         foulLimit: _optionalInt(_foulLimit.text),
         possessionHintEnabled: _possessionHint,
+        possessionPolicy: _possessionHint
+            ? _possessionPolicy
+            : PossessionPolicy.manual,
         customEventTypes: _parseTextList(_eventTypes.text),
       ),
     );
@@ -226,4 +258,12 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
       .where((item) => item.isNotEmpty)
       .toSet()
       .toList();
+
+  static String _possessionPolicyLabel(PossessionPolicy policy) {
+    return switch (policy) {
+      PossessionPolicy.manual => '手动纠正',
+      PossessionPolicy.switchAfterMade => '命中后交换',
+      PossessionPolicy.keepAfterMade => '命中后保持',
+    };
+  }
 }

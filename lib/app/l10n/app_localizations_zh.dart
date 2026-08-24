@@ -42,4 +42,35 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get finishOrContinueOvertime => '常规时间结束，请确认结束或进入加时';
+
+  @override
+  String get matchDecisionTitle => '比赛决策';
+
+  @override
+  String get continueMatch => '继续比赛';
+
+  @override
+  String get finishMatch => '结束比赛';
+
+  @override
+  String get confirmFinalScoreTitle => '确认最终比分';
+
+  @override
+  String get confirmFinalScoreBody => '结束后将锁定当前比分并关闭进行中的比赛。';
+
+  @override
+  String finalScoreLine(
+    Object blueName,
+    Object blueScore,
+    Object redName,
+    Object redScore,
+  ) {
+    return '$redName $redScore : $blueScore $blueName';
+  }
+
+  @override
+  String get cancelAction => '取消';
+
+  @override
+  String get actionFailedRetry => '操作失败，请重试。';
 }

@@ -120,6 +120,8 @@ class MatchSessionCoordinator extends ChangeNotifier {
         foulLimit: projection.match.ruleTemplateSnapshot.foulLimit,
         possessionHintEnabled:
             projection.match.ruleTemplateSnapshot.possessionHintEnabled,
+        possessionPolicy:
+            projection.match.ruleTemplateSnapshot.possessionPolicy,
         customEventTypes:
             projection.match.ruleTemplateSnapshot.customEventTypes,
       ),
@@ -149,11 +151,18 @@ class MatchSessionCoordinator extends ChangeNotifier {
     await session.writeQueue;
   }
 
-  Future<void> finishMatch(String matchId) async {
+  Future<void> finishMatch(
+    String matchId, {
+    bool confirmFinalScore = false,
+  }) async {
     if (isCommandBacked) {
       final service = _commandService!;
       await service.finish(
-        FinishMatchCommand(matchId: matchId, endedAt: DateTime.now().toUtc()),
+        FinishMatchCommand(
+          matchId: matchId,
+          endedAt: DateTime.now().toUtc(),
+          confirmFinalScore: confirmFinalScore,
+        ),
       );
       _finishedMatches.add(matchId);
       notifyListeners();

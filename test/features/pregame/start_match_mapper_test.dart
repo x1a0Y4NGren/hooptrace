@@ -1,8 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/pregame/start_match_mapper.dart';
+
+import '../../test_helpers/test_database.dart';
 
 void main() {
   test('maps all pre-game identity, mode, clock, and rule fields', () {
@@ -21,6 +24,7 @@ void main() {
       scoreButtons: [1, 2, 3],
       foulLimit: 5,
       possessionHintEnabled: true,
+      possessionPolicy: PossessionPolicy.switchAfterMade,
       customEventTypes: ['screen'],
       recordingMode: RecordingMode.detailed,
       trackingCoverage: TrackingCoverage.full,
@@ -53,6 +57,7 @@ void main() {
         winByTwo: true,
         foulLimit: 5,
         possessionHintEnabled: true,
+        possessionPolicy: PossessionPolicy.switchAfterMade,
         customEventTypes: ['screen'],
       ),
     );
@@ -180,4 +185,40 @@ void main() {
 
     expect(command.ruleTemplate.targetScore, 17);
   });
+
+  for (final policy in [
+    PossessionPolicy.switchAfterMade,
+    PossessionPolicy.keepAfterMade,
+  ]) {
+    test(
+      'preserves $policy from a persisted template through match start',
+      () async {
+        final database = createTestDatabase();
+        final repository = RuleTemplateRepository(database);
+        final template = RuleTemplate(
+          id: 'policy-${policy.name}',
+          name: '球权规则 ${policy.name}',
+          scoreButtons: const [1, 2, 3],
+          possessionHintEnabled: true,
+          possessionPolicy: policy,
+        );
+        await repository.save(template);
+
+        final loaded = await repository.getById(template.id);
+        final controller = PregameController(templates: [loaded!])
+          ..setRuleTemplateId(template.id)
+          ..setRecordingMode(RecordingMode.simple);
+        final setup = controller.createMatchSetup();
+
+        final command = buildStartMatchCommand(
+          setup,
+          now: DateTime.utc(2026, 8, 23, 10),
+        );
+
+        expect(setup.possessionPolicy, policy);
+        expect(command.ruleTemplate.possessionHintEnabled, isTrue);
+        expect(command.ruleTemplate.possessionPolicy, policy);
+      },
+    );
+  }
 }

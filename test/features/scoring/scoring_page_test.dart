@@ -79,6 +79,176 @@ void main() {
     });
   });
 
+  testWidgets(
+    'pending decision exposes explicit continue and confirmed finish actions',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(731, 411));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        await service.start(
+          _startPageCommand('decision-actions', targetScore: 2),
+        );
+        final projection = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'decision-actions-score',
+            matchId: 'decision-actions',
+            eventId: 'decision-actions-score-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: DateTime.utc(2026, 8, 23, 9, 1),
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          projection,
+          service,
+        );
+        var continueCalls = 0;
+        var finishCalls = 0;
+        var confirmedRedScore = -1;
+        var confirmedBlueScore = -1;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ScoringPage(
+              controller: controller,
+              onContinueDecision: () async => continueCalls++,
+              onFinishDecision: (redScore, blueScore) async {
+                finishCalls++;
+                confirmedRedScore = redScore;
+                confirmedBlueScore = blueScore;
+              },
+            ),
+          ),
+        );
+
+        expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
+        expect(find.textContaining('Red 2 : 0 Blue'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        for (final key in const <String>[
+          'scoring-decision-continue',
+          'scoring-decision-finish',
+        ]) {
+          final rect = tester.getRect(find.byKey(Key(key)));
+          expect(rect.top, greaterThanOrEqualTo(0));
+          expect(rect.bottom, lessThanOrEqualTo(411));
+          expect(rect.height, greaterThanOrEqualTo(48));
+        }
+
+        await tester.tap(find.byKey(const Key('scoring-decision-continue')));
+        await tester.pumpAndSettle();
+        expect(continueCalls, 1);
+        expect(finishCalls, 0);
+
+        await tester.tap(find.byKey(const Key('scoring-decision-finish')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('scoring-finish-confirm')), findsOneWidget);
+        expect(find.textContaining('Red 2 : 0 Blue'), findsWidgets);
+        await tester.tap(find.byKey(const Key('scoring-finish-cancel')));
+        await tester.pumpAndSettle();
+        expect(finishCalls, 0);
+
+        await tester.tap(find.byKey(const Key('scoring-decision-finish')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
+        await tester.pumpAndSettle();
+        expect(confirmedRedScore, 2);
+        expect(confirmedBlueScore, 0);
+        expect(finishCalls, 1);
+      });
+    },
+  );
+
+  testWidgets('command-backed scoring page renders the projection rule hints', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final start = await service.start(
+        StartMatchCommand(
+          commandId: 'page-command-hints-start',
+          matchId: 'page-command-hints',
+          redName: 'Red',
+          blueName: 'Blue',
+          ruleTemplate: const RuleTemplate(
+            id: 'page-command-hints-rule',
+            name: 'Page command hints',
+            scoreButtons: [1, 2, 3],
+            targetScore: 3,
+            possessionHintEnabled: true,
+            possessionPolicy: PossessionPolicy.switchAfterMade,
+          ),
+          recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.locations,
+          createdAt: DateTime.utc(2026, 8, 23, 9),
+          startedAt: DateTime.utc(2026, 8, 23, 9),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+
+      expect(find.byKey(const Key('scoring-rule-hints')), findsOneWidget);
+      expect(find.textContaining('蓝方球权建议'), findsOneWidget);
+      expect(find.textContaining('赛点'), findsOneWidget);
+      expect(find.textContaining('红方'), findsNothing);
+    });
+  });
+
+  testWidgets('failed decision finish stays available and reports failure', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      await service.start(
+        _startPageCommand('decision-failure', targetScore: 2),
+      );
+      final projection = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'decision-failure-score',
+          matchId: 'decision-failure',
+          eventId: 'decision-failure-score-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: DateTime.utc(2026, 8, 23, 9, 1),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        projection,
+        service,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            onFinishDecision: (_, _) =>
+                Future<void>.error(StateError('offline')),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('scoring-decision-finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('操作失败，请重试。'), findsOneWidget);
+      expect(find.byKey(const Key('scoring-decision-finish')), findsOneWidget);
+    });
+  });
+
   testWidgets('committed scoring feedback runs after the event is persisted', (
     tester,
   ) async {
@@ -769,11 +939,16 @@ void main() {
         service,
       );
       await tester.pumpWidget(
-        MaterialApp(home: ScoringPage(controller: controller)),
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            clockNowUtc: () => anchor.add(const Duration(seconds: 12)),
+          ),
+        ),
       );
 
       expect(find.text('OT 00:00'), findsOneWidget);
-      expect(find.text('加时赛'), findsNWidgets(2));
+      expect(find.text('加时赛'), findsOneWidget);
     });
   });
 
@@ -1132,6 +1307,7 @@ StartMatchCommand _startPageCommand(
   int? regulationSeconds,
   DateTime? createdAt,
   DateTime? startedAt,
+  int? targetScore,
 }) {
   final anchor = createdAt ?? DateTime.utc(2026, 8, 23, 9);
   return StartMatchCommand(
@@ -1139,10 +1315,11 @@ StartMatchCommand _startPageCommand(
     matchId: id,
     redName: 'Red',
     blueName: 'Blue',
-    ruleTemplate: const RuleTemplate(
+    ruleTemplate: RuleTemplate(
       id: 'free',
       name: 'Free',
-      scoreButtons: [1, 2, 3],
+      scoreButtons: const [1, 2, 3],
+      targetScore: targetScore,
     ),
     recordingMode: recordingMode,
     trackingCoverage: trackingCoverage,

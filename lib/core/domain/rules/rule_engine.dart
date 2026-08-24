@@ -14,6 +14,7 @@ class RuleHint {
     required this.type,
     required this.message,
     this.messageKey,
+    this.suggestedSide,
     this.isBlocking = false,
   });
 
@@ -23,11 +24,19 @@ class RuleHint {
   /// Stable localization key used by the UI; [message] is the current
   /// locale's fallback text for callers that do not have a BuildContext.
   final String? messageKey;
+
+  /// The side the configured possession policy actually suggests. A manual
+  /// policy produces no possession hint and therefore leaves this null.
+  final TeamSide? suggestedSide;
   final bool isBlocking;
 
   String localizedMessage(String locale) {
     final zh = locale.toLowerCase().startsWith('zh');
     return switch (messageKey) {
+      'possessionChange' when suggestedSide != null =>
+        zh
+            ? '${suggestedSide == TeamSide.red ? '红方' : '蓝方'}球权建议'
+            : '${suggestedSide == TeamSide.red ? 'Red' : 'Blue'} possession suggested',
       'possessionChange' => zh ? '球权建议' : 'Possession suggested',
       'targetReached' =>
         zh
@@ -57,14 +66,20 @@ class RuleEngine {
   }) {
     final selectedLocale = requestedLocale ?? locale;
     final hints = <RuleHint>[];
-    if (template.possessionHintEnabled) {
+    if (template.possessionHintEnabled &&
+        template.possessionPolicy != PossessionPolicy.manual) {
+      final suggestedSide =
+          template.possessionPolicy == PossessionPolicy.switchAfterMade
+          ? (scoringSide == TeamSide.red ? TeamSide.blue : TeamSide.red)
+          : scoringSide;
       hints.add(
         RuleHint(
           type: RuleHintType.possessionChange,
           message: selectedLocale.toLowerCase().startsWith('zh')
-              ? '${scoringSide == TeamSide.red ? '蓝方' : '红方'}球权'
-              : '${scoringSide == TeamSide.red ? 'Blue' : 'Red'} possession',
+              ? '${suggestedSide == TeamSide.red ? '红方' : '蓝方'}球权建议'
+              : '${suggestedSide == TeamSide.red ? 'Red' : 'Blue'} possession suggested',
           messageKey: 'possessionChange',
+          suggestedSide: suggestedSide,
         ),
       );
     }

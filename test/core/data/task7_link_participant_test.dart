@@ -22,6 +22,7 @@ void main() {
             commandId: 'task7-finish-finished',
             matchId: start.match.id,
             endedAt: DateTime.utc(2026, 8, 23, 11),
+            confirmFinalScore: true,
           ),
         );
         final participant = await _participant(
@@ -76,6 +77,7 @@ void main() {
           FinishMatchCommand(
             matchId: start.match.id,
             endedAt: DateTime.utc(2026, 8, 23, 11),
+            confirmFinalScore: true,
           ),
         );
         await (database.update(
@@ -128,7 +130,11 @@ void main() {
         final service = MatchCommandService(database);
         final start = await _start(service, 'task7-link-idempotent');
         await service.finish(
-          FinishMatchCommand(matchId: start.match.id, endedAt: DateTime.now()),
+          FinishMatchCommand(
+            matchId: start.match.id,
+            endedAt: DateTime.now(),
+            confirmFinalScore: true,
+          ),
         );
         final participant = await _participant(
           database,
@@ -177,7 +183,11 @@ void main() {
       final service = MatchCommandService(database);
       final start = await _start(service, 'task7-link-conflict');
       await service.finish(
-        FinishMatchCommand(matchId: start.match.id, endedAt: DateTime.now()),
+        FinishMatchCommand(
+          matchId: start.match.id,
+          endedAt: DateTime.now(),
+          confirmFinalScore: true,
+        ),
       );
       final participant = await _participant(
         database,
@@ -241,7 +251,11 @@ void main() {
         );
 
         await service.finish(
-          FinishMatchCommand(matchId: active.match.id, endedAt: DateTime.now()),
+          FinishMatchCommand(
+            matchId: active.match.id,
+            endedAt: DateTime.now(),
+            confirmFinalScore: true,
+          ),
         );
         await (database.update(
           database.matchParticipants,
@@ -307,7 +321,11 @@ void main() {
           bluePlayerProfileId: 'player-other',
         );
         await service.finish(
-          FinishMatchCommand(matchId: start.match.id, endedAt: DateTime.now()),
+          FinishMatchCommand(
+            matchId: start.match.id,
+            endedAt: DateTime.now(),
+            confirmFinalScore: true,
+          ),
         );
         final red = await _participant(
           database,
@@ -337,7 +355,11 @@ void main() {
         final setupService = MatchCommandService(database);
         final start = await _start(setupService, 'task7-link-retry');
         await setupService.finish(
-          FinishMatchCommand(matchId: start.match.id, endedAt: DateTime.now()),
+          FinishMatchCommand(
+            matchId: start.match.id,
+            endedAt: DateTime.now(),
+            confirmFinalScore: true,
+          ),
         );
         final participant = await _participant(
           database,
@@ -405,11 +427,19 @@ void main() {
         final service = MatchCommandService(database);
         final first = await _start(service, 'task7-link-first-match');
         await service.finish(
-          FinishMatchCommand(matchId: first.match.id, endedAt: DateTime.now()),
+          FinishMatchCommand(
+            matchId: first.match.id,
+            endedAt: DateTime.now(),
+            confirmFinalScore: true,
+          ),
         );
         final second = await _start(service, 'task7-link-second-match');
         await service.finish(
-          FinishMatchCommand(matchId: second.match.id, endedAt: DateTime.now()),
+          FinishMatchCommand(
+            matchId: second.match.id,
+            endedAt: DateTime.now(),
+            confirmFinalScore: true,
+          ),
         );
         final secondParticipant = await _participant(
           database,

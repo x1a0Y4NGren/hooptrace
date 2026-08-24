@@ -4,7 +4,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
+import 'package:hooptrace/core/domain/entities/possession_segment.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/export/replay_image_exporter.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
@@ -21,7 +24,7 @@ class ReplayPage extends StatefulWidget {
   });
 
   final ReplayController controller;
-  final FutureOr<void> Function()? onFinishMatch;
+  final FutureOr<void> Function(int redScore, int blueScore)? onFinishMatch;
   final Future<void> Function(Uint8List bytes, String matchId)? onShareSummary;
   final Future<Uint8List> Function(GlobalKey boundaryKey)? captureBoundary;
 
@@ -30,6 +33,8 @@ class ReplayPage extends StatefulWidget {
 }
 
 class _ReplayPageState extends State<ReplayPage> {
+  bool _finishBusy = false;
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +94,64 @@ class _ReplayPageState extends State<ReplayPage> {
     );
   }
 
+  Future<void> _confirmFinishMatch() async {
+    final finish = widget.onFinishMatch;
+    if (_finishBusy || finish == null) return;
+    final data = widget.controller.data;
+    final l10n = _localizations(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(l10n.confirmFinalScoreTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.finalScoreLine(
+                data.blueName,
+                data.blueScore,
+                data.redName,
+                data.redScore,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(l10n.confirmFinalScoreBody),
+          ],
+        ),
+        actions: [
+          TextButton(
+            key: const Key('replay-finish-cancel'),
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(l10n.cancelAction),
+          ),
+          FilledButton(
+            key: const Key('replay-finish-confirm'),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(l10n.finishMatch),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _finishBusy = true);
+    try {
+      await Future<void>.sync(() => finish(data.redScore, data.blueScore));
+    } on Object {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(l10n.actionFailedRetry)));
+      }
+    } finally {
+      if (mounted) setState(() => _finishBusy = false);
+    }
+  }
+
+  AppLocalizations _localizations(BuildContext context) {
+    return AppLocalizations.of(context) ?? AppLocalizationsZh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
@@ -127,14 +190,12 @@ class _ReplayPageState extends State<ReplayPage> {
             Padding(
               padding: const EdgeInsets.only(right: 12),
               child: SizedBox(
-                key: const Key('replay-finish-match'),
                 height: 48,
                 child: FilledButton.icon(
-                  onPressed: () {
-                    widget.onFinishMatch?.call();
-                  },
+                  key: const Key('replay-finish-match'),
+                  onPressed: _finishBusy ? null : _confirmFinishMatch,
                   icon: const Icon(Icons.stop_circle_outlined),
-                  label: const Text('结束比赛'),
+                  label: Text(_localizations(context).finishMatch),
                 ),
               ),
             ),
@@ -844,6 +905,8 @@ class _ReplayOverview extends StatelessWidget {
             _Metric(label: '落点完整度', value: '$completeness%'),
           ],
         ),
+        const SizedBox(height: 20),
+        _PossessionSegmentsCard(data: controller.data),
         if (controller.data.analytics case final analytics?) ...[
           const SizedBox(height: 24),
           ReplayAnalyticsSummary(
@@ -934,6 +997,128 @@ class _Metric extends StatelessWidget {
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PossessionSegmentsCard extends StatelessWidget {
+  const _PossessionSegmentsCard({required this.data});
+
+  final ReplayMatchData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('replay-possession-segments'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: HoopTraceColors.cream,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: _SectionTitle(
+                  title: '球权分段',
+                  icon: Icons.swap_horiz_outlined,
+                ),
+              ),
+              Text(
+                data.isFinished ? '终场边界' : '进行中边界',
+                style: Theme.of(context).textTheme.labelMedium,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (data.possessionSegments.isEmpty)
+            const Text('暂无已记录的球权分段')
+          else
+            ...data.possessionSegments.map(
+              (segment) => _PossessionSegmentRow(
+                data: segment,
+                redName: data.redName,
+                blueName: data.blueName,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PossessionSegmentRow extends StatelessWidget {
+  const _PossessionSegmentRow({
+    required this.data,
+    required this.redName,
+    required this.blueName,
+  });
+
+  final ReplayPossessionSegmentData data;
+  final String redName;
+  final String blueName;
+
+  @override
+  Widget build(BuildContext context) {
+    final sideColor = data.side == TeamSide.red
+        ? HoopTraceColors.red
+        : HoopTraceColors.blue;
+    final sideName = data.side == TeamSide.red ? redName : blueName;
+    final sourceLabel = data.source == PossessionSource.manual ? '人工' : '建议';
+    final reason = data.source == PossessionSource.suggested
+        ? '命中后按规则建议'
+        : (data.reason == null || data.reason!.isEmpty
+              ? '未填写原因'
+              : data.reason!);
+    final boundary = data.isOpen
+        ? '当前进行中'
+        : data.endedAt == null
+        ? '已结束'
+        : '结束 ${_formatDuration(data.endedAt!)}';
+
+    return Container(
+      key: Key('replay-possession-${data.id}'),
+      constraints: const BoxConstraints(minHeight: 64),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: HoopTraceColors.ink.withValues(alpha: 0.12),
+          ),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(width: 4, height: 42, color: sideColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$sideName · $sourceLabel',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  '${_formatDuration(data.startedAt)} 开始 · $boundary',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                Text(
+                  '原因：$reason',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
           ),
         ],
       ),

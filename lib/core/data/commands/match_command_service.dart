@@ -449,20 +449,28 @@ class FinishMatchCommand extends MatchCommand {
     bool? confirmFinalScore,
     bool? finalScoreConfirmed,
     bool? confirmedFinalScore,
+    this.expectedRedScore,
+    this.expectedBlueScore,
   }) : endedAt = endedAt.toUtc(),
        confirmFinalScore =
            confirmedFinalScore ??
            finalScoreConfirmed ??
            confirmFinalScore ??
-           true;
+           false;
 
   @override
   final String matchId;
   final DateTime endedAt;
 
-  /// Finishing is an explicit score confirmation. The default preserves the
-  /// pre-1.0 command API while callers may opt into validation explicitly.
+  /// Finishing is an explicit score confirmation. Callers must opt in after
+  /// presenting the final score to the user.
   final bool confirmFinalScore;
+
+  /// The score the user confirmed in the finish dialog. When both values are
+  /// supplied, finish behaves as a compare-and-set operation against the
+  /// score read inside the same Drift transaction.
+  final int? expectedRedScore;
+  final int? expectedBlueScore;
 
   @override
   String get commandType => 'finish';
@@ -473,6 +481,8 @@ class FinishMatchCommand extends MatchCommand {
     'matchId': matchId,
     'endedAt': endedAt.toUtc().toIso8601String(),
     'confirmFinalScore': confirmFinalScore,
+    'expectedRedScore': expectedRedScore,
+    'expectedBlueScore': expectedBlueScore,
   };
 }
 
@@ -664,6 +674,29 @@ class EndConditionFailure extends CommandValidationFailure {
   final MatchDecision decision;
 }
 
+/// The score changed after the user confirmed the finish dialog. The caller
+/// should refresh the live projection and ask for confirmation again; the
+/// active match is intentionally left untouched by this failure.
+class FinalScoreConflictFailure extends CommandValidationFailure {
+  FinalScoreConflictFailure({
+    required super.command,
+    required this.expectedRedScore,
+    required this.expectedBlueScore,
+    required this.actualRedScore,
+    required this.actualBlueScore,
+    super.projectionMatchId,
+  }) : super(
+         message:
+             'Final score changed: expected $expectedRedScore : '
+             '$expectedBlueScore, current $actualRedScore : $actualBlueScore.',
+       );
+
+  final int expectedRedScore;
+  final int expectedBlueScore;
+  final int actualRedScore;
+  final int actualBlueScore;
+}
+
 class ClockRecoveryFailure extends CommandValidationFailure {
   ClockRecoveryFailure({
     required super.command,
@@ -686,6 +719,25 @@ class CommandTransactionFailure extends MatchCommandFailure {
 
 typedef MatchCommandException = MatchCommandFailure;
 typedef CommandFailure = MatchCommandFailure;
+
+class _PossessionReplayState {
+  _PossessionReplayState({
+    required this.id,
+    required this.matchId,
+    required this.side,
+    required this.startedAtEventId,
+    required this.reason,
+    required this.source,
+  });
+
+  final String id;
+  final String matchId;
+  final TeamSide side;
+  final String startedAtEventId;
+  final String? reason;
+  final PossessionSource source;
+  String? endedAtEventId;
+}
 
 class MatchCommandService {
   MatchCommandService(
@@ -1044,6 +1096,7 @@ class MatchCommandService {
           after: afterJson,
           reason: command.reason,
         );
+        await _recalculatePossessionSuggestions(command.matchId);
         final afterProjection = await _projectionInTransaction(command.matchId);
         await _applyPostScoreRules(
           command.matchId,
@@ -1096,6 +1149,7 @@ class MatchCommandService {
           after: afterJson,
           reason: command.reason,
         );
+        await _recalculatePossessionSuggestions(command.matchId);
         final afterProjection = await _projectionInTransaction(command.matchId);
         await _applyPostScoreRules(
           command.matchId,
@@ -1157,6 +1211,29 @@ class MatchCommandService {
             projectionMatchId: command.matchId,
           );
         }
+        final latestEvent =
+            await (_database.select(_database.matchEvents)
+                  ..where(
+                    (event) =>
+                        event.matchId.equals(command.matchId) &
+                        event.isDeleted.equals(false),
+                  )
+                  ..orderBy([
+                    (event) => OrderingTerm.desc(event.occurredAt),
+                    (_) =>
+                        OrderingTerm.desc(const CustomExpression<int>('rowid')),
+                  ])
+                  ..limit(1))
+                .getSingleOrNull();
+        if (latestEvent != null &&
+            command.occurredAt.isBefore(latestEvent.occurredAt)) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'A possession boundary cannot precede the latest match event.',
+            projectionMatchId: command.matchId,
+          );
+        }
         if (await _eventRow(command.eventId) != null) {
           throw CommandValidationFailure(
             command: command,
@@ -1194,6 +1271,25 @@ class MatchCommandService {
                 note: Value(command.reason),
               ),
             );
+        if (open != null &&
+            open.side == command.side.name &&
+            open.source == PossessionSource.manual.name) {
+          final unchanged = _possessionJson(open);
+          await _writeAudit(
+            id: '${command.commandId}:audit',
+            matchId: command.matchId,
+            targetId: open.id,
+            action: 'possession',
+            before: before,
+            after: unchanged,
+            reason: command.reason,
+          );
+          await _inject(MatchCommandFailurePoint.afterEventWritten);
+          final result = await _writeReceipt(command);
+          await _inject(MatchCommandFailurePoint.afterAuditWritten);
+          await _inject(MatchCommandFailurePoint.beforeCommit);
+          return result;
+        }
         if (open != null) {
           await (_database.update(
             _database.possessionSegments,
@@ -1643,6 +1739,34 @@ class MatchCommandService {
             );
           }
           final detail = await _projectionInTransaction(command.matchId);
+          final expectedRedScore = command is FinishMatchCommand
+              ? command.expectedRedScore
+              : null;
+          final expectedBlueScore = command is FinishMatchCommand
+              ? command.expectedBlueScore
+              : null;
+          if ((expectedRedScore == null) != (expectedBlueScore == null)) {
+            throw CommandValidationFailure(
+              command: command,
+              message:
+                  'Expected red and blue scores must be supplied together.',
+              projectionMatchId: command.matchId,
+            );
+          }
+          if (detail != null &&
+              expectedRedScore != null &&
+              expectedBlueScore != null &&
+              (detail.redScore != expectedRedScore ||
+                  detail.blueScore != expectedBlueScore)) {
+            throw FinalScoreConflictFailure(
+              command: command,
+              expectedRedScore: expectedRedScore,
+              expectedBlueScore: expectedBlueScore,
+              actualRedScore: detail.redScore,
+              actualBlueScore: detail.blueScore,
+              projectionMatchId: command.matchId,
+            );
+          }
           final decision = detail?.decision;
           if (decision != null && !decision.canFinish) {
             throw EndConditionFailure(
@@ -1947,7 +2071,10 @@ class MatchCommandService {
     final events =
         await (_database.select(_database.matchEvents)
               ..where((event) => event.matchId.equals(matchId))
-              ..orderBy([(event) => OrderingTerm.asc(event.occurredAt)]))
+              ..orderBy([
+                (event) => OrderingTerm.asc(event.occurredAt),
+                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+              ]))
             .get();
     final locations = await (_database.select(
       _database.shotLocations,
@@ -1962,6 +2089,14 @@ class MatchCommandService {
                 (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
               ]))
             .get();
+    final eventOrder = <String, int>{
+      for (var index = 0; index < events.length; index++)
+        events[index].id: index,
+    };
+    possessionSegments.sort(
+      (left, right) => (eventOrder[left.startedAtEventId] ?? events.length)
+          .compareTo(eventOrder[right.startedAtEventId] ?? events.length),
+    );
     final detail = MatchRepository.buildDetail(
       match,
       events,
@@ -2225,10 +2360,197 @@ class MatchCommandService {
     );
   }
 
+  /// Rebuilds only derived possession suggestions after an event mutation.
+  ///
+  /// Manual segments are durable human decisions, so their rows and audit
+  /// records are retained. The replay sweep resets only their derived close
+  /// boundaries, then replays valid events to close them again where a later
+  /// manual or valid suggestion actually changed possession. Suggested rows
+  /// are reconciled by their originating event, which removes a row whose hit
+  /// was corrected/undone without disturbing later valid segments.
+  Future<void> _recalculatePossessionSuggestions(String matchId) async {
+    final match = await _matchRow(matchId);
+    if (match == null) return;
+    final template = _ruleTemplateFromMap(
+      _decodeObject(match.ruleTemplateJson),
+    );
+    final segmentRows =
+        await (_database.select(_database.possessionSegments)
+              ..where((segment) => segment.matchId.equals(matchId))
+              ..orderBy([
+                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    final manualRows = segmentRows
+        .where((row) => row.source == PossessionSource.manual.name)
+        .toList(growable: false);
+    final suggestedRows = segmentRows
+        .where((row) => row.source == PossessionSource.suggested.name)
+        .toList(growable: false);
+    final events =
+        await (_database.select(_database.matchEvents)
+              ..where((event) => event.matchId.equals(matchId))
+              ..orderBy([
+                (event) => OrderingTerm.asc(event.occurredAt),
+                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+
+    final activeManualEventsById = <String, MatchEventRow>{
+      for (final event in events)
+        if (!event.isDeleted &&
+            event.type == EventKind.possession.name &&
+            event.side != null)
+          event.id: event,
+    };
+    final manualByStart = <String, _PossessionReplayState>{};
+    final desiredManualById = <String, _PossessionReplayState>{};
+    final manualEndById = <String, String?>{};
+    for (final row in manualRows) {
+      final event = activeManualEventsById[row.startedAtEventId];
+      if (event == null) continue;
+      final state = _PossessionReplayState(
+        id: row.id,
+        matchId: row.matchId,
+        side: TeamSide.values.byName(event.side!),
+        startedAtEventId: row.startedAtEventId,
+        reason: row.reason,
+        source: PossessionSource.manual,
+      );
+      manualByStart[row.startedAtEventId] = state;
+      desiredManualById[row.id] = state;
+      manualEndById[row.id] = null;
+    }
+
+    final desiredSuggestedByStart = <String, _PossessionReplayState>{};
+    _PossessionReplayState? active;
+
+    void closeActive(String eventId) {
+      final current = active;
+      if (current == null) return;
+      current.endedAtEventId = eventId;
+      if (current.source == PossessionSource.manual) {
+        manualEndById[current.id] = eventId;
+      }
+    }
+
+    for (final event in events.where((event) => !event.isDeleted)) {
+      if (event.type == EventKind.possession.name && event.side != null) {
+        final manual = manualByStart[event.id];
+        if (manual != null) {
+          if (active != null && active.id != manual.id) {
+            closeActive(event.id);
+          }
+          active = manual;
+        }
+        continue;
+      }
+      if (!template.possessionHintEnabled ||
+          template.possessionPolicy == PossessionPolicy.manual ||
+          !_isMadePossessionEvent(event) ||
+          event.side == null) {
+        continue;
+      }
+
+      final shooter = TeamSide.values.byName(event.side!);
+      final suggestedSide =
+          template.possessionPolicy == PossessionPolicy.switchAfterMade
+          ? (shooter == TeamSide.red ? TeamSide.blue : TeamSide.red)
+          : shooter;
+      if (active?.side == suggestedSide) continue;
+      closeActive(event.id);
+      final state = desiredSuggestedByStart.putIfAbsent(
+        event.id,
+        () => _PossessionReplayState(
+          id: '${event.id}:possession',
+          matchId: matchId,
+          side: suggestedSide,
+          startedAtEventId: event.id,
+          reason: 'made:${template.possessionPolicy.name};event:${event.id}',
+          source: PossessionSource.suggested,
+        ),
+      );
+      active = state;
+    }
+
+    for (final row in manualRows) {
+      final state = desiredManualById[row.id];
+      if (state == null) {
+        await (_database.delete(
+          _database.possessionSegments,
+        )..where((segment) => segment.id.equals(row.id))).go();
+        continue;
+      }
+      final nextEnd = manualEndById[row.id];
+      if (row.side == state.side.name && row.endedAtEventId == nextEnd) {
+        continue;
+      }
+      await (_database.update(
+        _database.possessionSegments,
+      )..where((segment) => segment.id.equals(row.id))).write(
+        PossessionSegmentsCompanion(
+          side: Value(state.side.name),
+          endedAtEventId: Value<String?>(nextEnd),
+        ),
+      );
+    }
+
+    final existingSuggestedByStart = <String, PossessionSegment>{
+      for (final row in suggestedRows) row.startedAtEventId: row,
+    };
+    final desiredStarts = desiredSuggestedByStart.keys.toSet();
+    for (final row in suggestedRows) {
+      if (desiredStarts.contains(row.startedAtEventId)) continue;
+      await (_database.delete(
+        _database.possessionSegments,
+      )..where((segment) => segment.id.equals(row.id))).go();
+    }
+
+    for (final state in desiredSuggestedByStart.values) {
+      final existing = existingSuggestedByStart[state.startedAtEventId];
+      if (existing == null) {
+        await _database
+            .into(_database.possessionSegments)
+            .insert(
+              PossessionSegmentsCompanion.insert(
+                id: state.id,
+                matchId: state.matchId,
+                side: state.side.name,
+                startedAtEventId: state.startedAtEventId,
+                endedAtEventId: Value(state.endedAtEventId),
+                reason: Value(state.reason),
+                source: Value(PossessionSource.suggested.name),
+              ),
+            );
+        continue;
+      }
+      if (existing.side == state.side.name &&
+          existing.endedAtEventId == state.endedAtEventId &&
+          existing.reason == state.reason) {
+        continue;
+      }
+      await (_database.update(
+        _database.possessionSegments,
+      )..where((segment) => segment.id.equals(existing.id))).write(
+        PossessionSegmentsCompanion(
+          side: Value(state.side.name),
+          startedAtEventId: Value(state.startedAtEventId),
+          endedAtEventId: Value<String?>(state.endedAtEventId),
+          reason: Value(state.reason),
+          source: Value(PossessionSource.suggested.name),
+        ),
+      );
+    }
+  }
+
   Future<void> _applyPossessionSuggestion(
     RecordMatchEventCommand command,
   ) async {
-    if (!_isMadeScore(command)) return;
+    // A free-throw command does not tell us whether it is the final attempt
+    // in a sequence. Keep possession unchanged until that fact is available;
+    // inferring a switch after an intermediate made free throw would create a
+    // false segment boundary.
+    if (!_isMadeScore(command) || command.type == EventKind.freeThrow) return;
     final match = await _matchRow(command.matchId);
     if (match == null) return;
     final template = _ruleTemplateFromMap(
@@ -2313,6 +2635,11 @@ class MatchCommandService {
               ])
               ..limit(1))
             .getSingleOrNull();
+    if (open != null &&
+        open.side == command.side!.name &&
+        open.source == PossessionSource.manual.name) {
+      return;
+    }
     if (open != null) {
       await (_database.update(
         _database.possessionSegments,
@@ -2431,6 +2758,13 @@ class MatchCommandService {
             command.type == EventKind.freeThrow) &&
         command.outcome == ShotOutcome.made &&
         command.points > 0;
+  }
+
+  static bool _isMadePossessionEvent(MatchEventRow event) {
+    if (event.points <= 0 || event.side == null) return false;
+    if (event.type == EventKind.score.name) return true;
+    return event.type == EventKind.fieldGoal.name &&
+        event.outcome == ShotOutcome.made.name;
   }
 
   MatchDecision? _decisionFromLabel(

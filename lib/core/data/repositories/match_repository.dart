@@ -362,7 +362,10 @@ class MatchRepository {
   Stream<List<MatchEvent>> watchEvents(String matchId) {
     final query = _database.select(_database.matchEvents)
       ..where((event) => event.matchId.equals(matchId))
-      ..orderBy([(event) => OrderingTerm.asc(event.occurredAt)]);
+      ..orderBy([
+        (event) => OrderingTerm.asc(event.occurredAt),
+        (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+      ]);
 
     return query.watch().map((rows) {
       return rows.map(mapEventRow).toList();
@@ -380,7 +383,10 @@ class MatchRepository {
 
       final eventQuery = _database.select(_database.matchEvents)
         ..where((event) => event.matchId.equals(matchId))
-        ..orderBy([(event) => OrderingTerm.asc(event.occurredAt)]);
+        ..orderBy([
+          (event) => OrderingTerm.asc(event.occurredAt),
+          (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+        ]);
       final locationQuery = _database.select(_database.shotLocations)
         ..where((location) => location.matchId.equals(matchId));
       final participantQuery = _database.select(_database.matchParticipants)
@@ -436,6 +442,7 @@ class MatchRepository {
         _database.matchParticipants,
         _database.matchEvents,
         _database.shotLocations,
+        _database.possessionSegments,
         _database.matchClocks,
       },
     );
@@ -461,6 +468,7 @@ class MatchRepository {
         _database.matchParticipants,
         _database.matchEvents,
         _database.shotLocations,
+        _database.possessionSegments,
         _database.matchClocks,
         _database.activeSessions,
       },
@@ -643,7 +651,16 @@ class MatchRepository {
     final locations = locationRows
         .map(_mapShotLocationRow)
         .toList(growable: false);
-    final possessionSegments = possessionRows
+    final eventOrder = <String, int>{
+      for (var index = 0; index < events.length; index++)
+        events[index].id: index,
+    };
+    final orderedPossessionRows = [...possessionRows]
+      ..sort(
+        (left, right) => (eventOrder[left.startedAtEventId] ?? events.length)
+            .compareTo(eventOrder[right.startedAtEventId] ?? events.length),
+      );
+    final possessionSegments = orderedPossessionRows
         .map(
           (row) => domain_possession.PossessionSegment(
             id: row.id,
@@ -675,20 +692,115 @@ class MatchRepository {
         .map((location) => location.eventId)
         .toSet();
 
+    final match = mapMatchRow(matchRow, participantRows: participantRows);
+    final redFouls = _countFouls(activeEvents, TeamSide.red);
+    final blueFouls = _countFouls(activeEvents, TeamSide.blue);
+    final decision = _decisionFromEvents(
+      events,
+      redScore: score.redScore,
+      blueScore: score.blueScore,
+      clock: clock,
+    );
+    final warnings = _warningsFor(
+      match.ruleTemplateSnapshot,
+      redFouls: redFouls,
+      blueFouls: blueFouls,
+    );
+
     return MatchDetail(
-      match: mapMatchRow(matchRow, participantRows: participantRows),
+      match: match,
       events: List.unmodifiable(events),
       shotLocations: List.unmodifiable(locations),
       possessionSegments: List.unmodifiable(possessionSegments),
       redScore: score.redScore,
       blueScore: score.blueScore,
-      redFouls: _countFouls(activeEvents, TeamSide.red),
-      blueFouls: _countFouls(activeEvents, TeamSide.blue),
+      redFouls: redFouls,
+      blueFouls: blueFouls,
       shotAttemptCount: shotEventIds.length,
       locatedShotCount: locatedEventIds.length,
       activeSession: activeSession,
       clock: clock,
+      decision: decision,
+      warnings: warnings,
     );
+  }
+
+  static MatchDecision? _decisionFromEvents(
+    List<MatchEvent> events, {
+    required int redScore,
+    required int blueScore,
+    ClockProjection? clock,
+  }) {
+    MatchEvent? latestSemantic;
+    for (final event in events.reversed) {
+      if (!event.isDeleted &&
+          event.type == EventKind.pause &&
+          event.customLabel != null) {
+        latestSemantic = event;
+        break;
+      }
+    }
+    final label = latestSemantic?.customLabel;
+    MatchDecisionReason? reason;
+    if (label != null && label.startsWith('decision:')) {
+      final name = label.substring('decision:'.length);
+      reason = MatchDecisionReason.values
+          .where((value) => value.name == name)
+          .firstOrNull;
+    }
+    if (reason == null && clock?.phase == ClockPhase.regulationExpired) {
+      reason = MatchDecisionReason.regulationExpired;
+    }
+    if (reason == null) return null;
+    final message = switch (reason) {
+      MatchDecisionReason.targetReached => '已达到目标分数，请确认结束或继续',
+      MatchDecisionReason.winByTwoRequired => '已达到目标分数，但还需领先两分，请继续',
+      MatchDecisionReason.regulationExpired => '常规时间结束，请确认结束或进入加时',
+    };
+    return MatchDecision(
+      kind: MatchDecisionKind.finishOrContinue,
+      reason: reason,
+      redScore: redScore,
+      blueScore: blueScore,
+      canFinish: reason != MatchDecisionReason.winByTwoRequired,
+      message: message,
+      messageKey: reason.name,
+    );
+  }
+
+  static List<MatchRuleWarning> _warningsFor(
+    RuleTemplate template, {
+    required int redFouls,
+    required int blueFouls,
+  }) {
+    final limit = template.foulLimit;
+    if (limit == null || limit <= 0) {
+      return const <MatchRuleWarning>[];
+    }
+    final warnings = <MatchRuleWarning>[];
+    if (redFouls >= limit) {
+      warnings.add(
+        MatchRuleWarning(
+          kind: MatchWarningKind.foulLimit,
+          side: TeamSide.red,
+          count: redFouls,
+          limit: limit,
+          message: 'Red foul limit reached.',
+        ),
+      );
+    }
+    if (blueFouls >= limit) {
+      warnings.add(
+        MatchRuleWarning(
+          kind: MatchWarningKind.foulLimit,
+          side: TeamSide.blue,
+          count: blueFouls,
+          limit: limit,
+          message: 'Blue foul limit reached.',
+        ),
+      );
+    }
+    return List.unmodifiable(warnings);
   }
 
   static ClockProjection _projectClock(MatchClock row) {

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/provider_router.dart';
+import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -65,6 +67,7 @@ void main() {
         RecordMatchEventCommand(
           commandId: '$matchId-score',
           matchId: matchId,
+          eventId: '$matchId-score-event',
           side: TeamSide.red,
           points: 2,
           occurredAt: now,
@@ -74,6 +77,25 @@ void main() {
         () =>
             activeValues.any((value) => value?.redScore == 2) &&
             liveValues.any((value) => value?.redScore == 2),
+      );
+
+      await database
+          .into(database.possessionSegments)
+          .insert(
+            PossessionSegmentsCompanion.insert(
+              id: '$matchId-segment',
+              matchId: matchId,
+              side: TeamSide.red.name,
+              startedAtEventId: '$matchId-score-event',
+              source: Value(PossessionSource.manual.name),
+            ),
+          );
+      await _eventually(
+        () =>
+            activeValues.any(
+              (value) => value?.possessionSegments.length == 1,
+            ) &&
+            liveValues.any((value) => value?.possessionSegments.length == 1),
       );
     },
   );

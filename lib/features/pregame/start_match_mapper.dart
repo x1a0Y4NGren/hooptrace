@@ -46,6 +46,7 @@ StartMatchCommand buildStartMatchCommand(MatchSetup setup, {DateTime? now}) {
       winByTwo: setup.winByTwo,
       foulLimit: setup.foulLimit,
       possessionHintEnabled: setup.possessionHintEnabled,
+      possessionPolicy: setup.possessionPolicy,
       customEventTypes: List.unmodifiable(setup.customEventTypes),
     ),
     createdAt: timestamp,

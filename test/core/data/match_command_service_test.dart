@@ -310,6 +310,7 @@ void main() {
           commandId: 'finish-6',
           matchId: 'match-6',
           endedAt: DateTime.utc(2026, 8, 22, 11),
+          confirmFinalScore: true,
         ),
       );
       final duplicate = await MatchCommandService(database).finish(
@@ -317,6 +318,7 @@ void main() {
           commandId: 'finish-6',
           matchId: 'match-6',
           endedAt: DateTime.utc(2026, 8, 22, 11),
+          confirmFinalScore: true,
         ),
       );
 

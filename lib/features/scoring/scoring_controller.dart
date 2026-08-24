@@ -110,6 +110,8 @@ class MatchScoringState {
     this.redFouls = 0,
     this.blueFouls = 0,
     this.ruleHints = const [],
+    this.decision,
+    this.ruleWarnings = const [],
   });
 
   final String matchId;
@@ -129,6 +131,8 @@ class MatchScoringState {
   final int redFouls;
   final int blueFouls;
   final List<RuleHint> ruleHints;
+  final MatchDecision? decision;
+  final List<MatchRuleWarning> ruleWarnings;
 
   MatchScoringState copyWith({
     List<MatchEvent>? events,
@@ -147,6 +151,8 @@ class MatchScoringState {
     int? redFouls,
     int? blueFouls,
     List<RuleHint>? ruleHints,
+    MatchDecision? decision,
+    List<MatchRuleWarning>? ruleWarnings,
   }) {
     return MatchScoringState(
       matchId: matchId,
@@ -170,6 +176,8 @@ class MatchScoringState {
       redFouls: redFouls ?? this.redFouls,
       blueFouls: blueFouls ?? this.blueFouls,
       ruleHints: ruleHints ?? this.ruleHints,
+      decision: decision ?? this.decision,
+      ruleWarnings: ruleWarnings ?? this.ruleWarnings,
     );
   }
 }
@@ -224,6 +232,10 @@ class ScoringController extends ChangeNotifier {
   TrackingCoverage get trackingCoverage => _state.trackingCoverage;
 
   ClockProjection? get clock => _state.clock;
+
+  MatchDecision? get decision => _state.decision;
+
+  List<MatchRuleWarning> get ruleWarnings => _state.ruleWarnings;
 
   TeamSide? get currentPossession => _state.currentPossession;
 
@@ -815,10 +827,73 @@ class ScoringController extends ChangeNotifier {
       trackingCoverage: projection.match.trackingCoverage,
       timerEnabled: projection.match.timerEnabled,
       clock: projection.clock,
-      currentPossession: _latestPossession(events),
+      // Command-backed projections already contain the durable possession
+      // segment history. Reconstructing this value from event rows loses
+      // suggested segments because those rows are not possession events.
+      // Local-only scoring still derives possession in _recordLocalCommand.
+      currentPossession: projection.currentPossession,
       redFouls: projection.redFouls,
       blueFouls: projection.blueFouls,
+      ruleHints: _ruleHintsFromProjection(projection),
+      decision: projection.decision,
+      ruleWarnings: List.unmodifiable(projection.warnings),
     );
+  }
+
+  static List<RuleHint> _ruleHintsFromProjection(MatchDetail projection) {
+    final activeEvents = projection.events
+        .where((event) => !event.isDeleted)
+        .toList(growable: false);
+    if (activeEvents.isEmpty) return const [];
+
+    MatchEvent? scoringEvent;
+    final latest = activeEvents.last;
+    if (_isRuleScoringEvent(latest)) {
+      scoringEvent = latest;
+    } else if (latest.type == EventKind.pause &&
+        latest.customLabel?.startsWith('decision:') == true) {
+      for (final event in activeEvents.reversed) {
+        if (_isRuleScoringEvent(event)) {
+          scoringEvent = event;
+          break;
+        }
+      }
+    }
+    if (scoringEvent?.side == null) return const [];
+
+    final event = scoringEvent!;
+    final previousScore = ScoreState(
+      redScore:
+          projection.redScore - (event.side == TeamSide.red ? event.points : 0),
+      blueScore:
+          projection.blueScore -
+          (event.side == TeamSide.blue ? event.points : 0),
+    );
+    final hints = RuleEngine().evaluate(
+      template: projection.match.ruleTemplateSnapshot,
+      score: previousScore,
+      scoringSide: event.side!,
+      scoringPoints: event.points,
+    );
+    // A made free throw can reach a target, but it does not establish a new
+    // possession boundary: the command projection deliberately waits for the
+    // end of the attempt sequence before suggesting possession.
+    if (event.type == EventKind.freeThrow) {
+      return List.unmodifiable(
+        hints.where((hint) => hint.type != RuleHintType.possessionChange),
+      );
+    }
+    return List.unmodifiable(hints);
+  }
+
+  static bool _isRuleScoringEvent(MatchEvent event) {
+    if (event.side == null || event.points <= 0) return false;
+    return switch (event.type) {
+      EventKind.score => true,
+      EventKind.fieldGoal ||
+      EventKind.freeThrow => event.outcome == ShotOutcome.made,
+      _ => false,
+    };
   }
 
   void _replaceFromProjection(

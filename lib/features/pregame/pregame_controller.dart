@@ -56,6 +56,7 @@ class MatchSetup {
     this.scoreButtons = const [1, 2, 3],
     this.foulLimit,
     this.possessionHintEnabled = false,
+    this.possessionPolicy = PossessionPolicy.manual,
     this.customEventTypes = const [],
     this.redPlayerProfileId,
     this.bluePlayerProfileId,
@@ -78,6 +79,7 @@ class MatchSetup {
   final List<int> scoreButtons;
   final int? foulLimit;
   final bool possessionHintEnabled;
+  final PossessionPolicy possessionPolicy;
   final List<String> customEventTypes;
   final RecordingMode? recordingMode;
   final TrackingCoverage trackingCoverage;
@@ -376,6 +378,7 @@ class PregameController {
       scoreButtons: selected?.scoreButtons ?? const [1, 2, 3],
       foulLimit: selected?.foulLimit,
       possessionHintEnabled: selected?.possessionHintEnabled ?? false,
+      possessionPolicy: selected?.possessionPolicy ?? PossessionPolicy.manual,
       customEventTypes: selected?.customEventTypes ?? const [],
       recordingMode: _state.recordingMode,
       trackingCoverage: _state.trackingCoverage,

@@ -923,6 +923,7 @@ void main() {
           commandId: 'finish-clock',
           matchId: 'match-clock',
           endedAt: _anchor.add(const Duration(seconds: 5)),
+          confirmFinalScore: true,
         ),
       );
 
@@ -1011,6 +1012,7 @@ void main() {
             commandId: 'finish-gate-too-early',
             matchId: 'match-clock',
             endedAt: _anchor,
+            confirmFinalScore: true,
           ),
         ),
       );
@@ -1043,6 +1045,7 @@ void main() {
           commandId: 'finish-gate-finish',
           matchId: 'match-clock',
           endedAt: _anchor,
+          confirmFinalScore: true,
         ),
       );
       expect(finished.match.lifecycle, MatchLifecycle.finished);
@@ -1334,6 +1337,7 @@ StartMatchCommand _start({
   clockMode: clockMode,
   regulationSeconds: regulationSeconds,
   timerEnabled: timerEnabled,
+  createdAt: _anchor,
   startedAt: _anchor,
 );
 

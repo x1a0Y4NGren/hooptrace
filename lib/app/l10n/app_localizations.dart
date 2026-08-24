@@ -163,6 +163,59 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'常规时间结束，请确认结束或进入加时'**
   String get finishOrContinueOvertime;
+
+  /// No description provided for @matchDecisionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'比赛决策'**
+  String get matchDecisionTitle;
+
+  /// No description provided for @continueMatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'继续比赛'**
+  String get continueMatch;
+
+  /// No description provided for @finishMatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'结束比赛'**
+  String get finishMatch;
+
+  /// No description provided for @confirmFinalScoreTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认最终比分'**
+  String get confirmFinalScoreTitle;
+
+  /// No description provided for @confirmFinalScoreBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'结束后将锁定当前比分并关闭进行中的比赛。'**
+  String get confirmFinalScoreBody;
+
+  /// No description provided for @finalScoreLine.
+  ///
+  /// In zh, this message translates to:
+  /// **'{redName} {redScore} : {blueScore} {blueName}'**
+  String finalScoreLine(
+    Object blueName,
+    Object blueScore,
+    Object redName,
+    Object redScore,
+  );
+
+  /// No description provided for @cancelAction.
+  ///
+  /// In zh, this message translates to:
+  /// **'取消'**
+  String get cancelAction;
+
+  /// No description provided for @actionFailedRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'操作失败，请重试。'**
+  String get actionFailedRetry;
 }
 
 class _AppLocalizationsDelegate

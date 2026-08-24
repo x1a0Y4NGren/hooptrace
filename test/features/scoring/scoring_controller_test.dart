@@ -169,6 +169,103 @@ void main() {
   );
 
   test(
+    'command-backed projection exposes possession and match-point hints',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await service.start(
+          StartMatchCommand(
+            commandId: 'command-hints-start',
+            matchId: 'command-hints',
+            redName: 'Red',
+            blueName: 'Blue',
+            ruleTemplate: const RuleTemplate(
+              id: 'command-hints-rule',
+              name: 'Command hints',
+              scoreButtons: [1, 2, 3],
+              targetScore: 3,
+              possessionHintEnabled: true,
+              possessionPolicy: PossessionPolicy.switchAfterMade,
+            ),
+            recordingMode: RecordingMode.simple,
+            createdAt: DateTime.utc(2026, 8, 23, 9),
+            startedAt: DateTime.utc(2026, 8, 23, 9),
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.red, points: 2),
+          isTrue,
+        );
+
+        final possessionHint = controller.state.ruleHints.singleWhere(
+          (hint) => hint.type == RuleHintType.possessionChange,
+        );
+        expect(possessionHint.suggestedSide, TeamSide.blue);
+        expect(
+          controller.state.ruleHints.any(
+            (hint) => hint.type == RuleHintType.matchPoint,
+          ),
+          isTrue,
+        );
+        expect(controller.currentPossession, TeamSide.blue);
+      });
+    },
+  );
+
+  test(
+    'command-backed target decision keeps a visible target hint for the scorer',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await service.start(
+          StartMatchCommand(
+            commandId: 'command-target-start',
+            matchId: 'command-target',
+            redName: 'Red',
+            blueName: 'Blue',
+            ruleTemplate: const RuleTemplate(
+              id: 'command-target-rule',
+              name: 'Command target',
+              scoreButtons: [1, 2, 3],
+              targetScore: 2,
+              possessionHintEnabled: true,
+              possessionPolicy: PossessionPolicy.switchAfterMade,
+            ),
+            recordingMode: RecordingMode.simple,
+            createdAt: DateTime.utc(2026, 8, 23, 9),
+            startedAt: DateTime.utc(2026, 8, 23, 9),
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+
+        expect(
+          controller.state.ruleHints.any(
+            (hint) => hint.type == RuleHintType.targetReached,
+          ),
+          isTrue,
+        );
+        expect(
+          controller.state.ruleHints
+              .where((hint) => hint.type == RuleHintType.possessionChange)
+              .single
+              .suggestedSide,
+          TeamSide.blue,
+        );
+      });
+    },
+  );
+
+  test(
     'command-backed confirmation persists fieldGoal location after commit',
     () async {
       await withTestDatabase((database) async {

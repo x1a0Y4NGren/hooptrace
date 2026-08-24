@@ -12,6 +12,33 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
       if (location.isConfirmed) location.eventId: location,
   };
   final startedAt = detail.match.startedAt ?? detail.match.createdAt;
+  final elapsedByEvent = {
+    for (final event in detail.events)
+      if (!event.isDeleted)
+        event.id: _nonNegativeDifference(event.occurredAt, startedAt),
+  };
+  final possessionSegments = <ReplayPossessionSegmentData>[];
+  for (final segment in detail.possessionSegments) {
+    final segmentStartedAt = elapsedByEvent[segment.startedAtEventId];
+    if (segmentStartedAt == null) continue;
+    final segmentEndedAt = segment.endedAtEventId == null
+        ? null
+        : elapsedByEvent[segment.endedAtEventId];
+    if (segment.endedAtEventId != null && segmentEndedAt == null) continue;
+    if (segmentEndedAt != null && segmentEndedAt < segmentStartedAt) continue;
+    possessionSegments.add(
+      ReplayPossessionSegmentData(
+        id: segment.id,
+        side: segment.side,
+        startedAtEventId: segment.startedAtEventId,
+        startedAt: segmentStartedAt,
+        endedAtEventId: segment.endedAtEventId,
+        endedAt: segmentEndedAt,
+        reason: segment.reason,
+        source: segment.source,
+      ),
+    );
+  }
 
   return ReplayMatchData(
     matchId: detail.match.id,
@@ -25,6 +52,7 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
       targetScore: detail.match.ruleTemplateSnapshot.targetScore,
       winByTwo: detail.match.ruleTemplateSnapshot.winByTwo,
     ),
+    possessionSegments: possessionSegments,
     isFinished:
         detail.match.status == MatchStatus.finished ||
         detail.match.status == MatchStatus.archived,
@@ -33,7 +61,7 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
         if (!event.isDeleted)
           ReplayEventData(
             id: event.id,
-            kind: _replayKind(event.type),
+            kind: _replayKind(event),
             side: event.side,
             points: event.points,
             elapsed: _nonNegativeDifference(event.occurredAt, startedAt),
@@ -60,9 +88,13 @@ HistoryMatchSummary historySummaryFromEntry(MatchHistoryEntry entry) {
   );
 }
 
-ReplayEventKind _replayKind(MatchEventType type) {
-  return switch (type) {
+ReplayEventKind _replayKind(MatchEvent event) {
+  return switch (event.type) {
     MatchEventType.score => ReplayEventKind.score,
+    MatchEventType.fieldGoal || MatchEventType.freeThrow =>
+      event.outcome == ShotOutcome.made
+          ? ReplayEventKind.score
+          : ReplayEventKind.miss,
     MatchEventType.foul => ReplayEventKind.foul,
     MatchEventType.miss => ReplayEventKind.miss,
     _ => ReplayEventKind.other,

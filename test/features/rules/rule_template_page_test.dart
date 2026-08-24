@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/features/rules/rule_template_editor_page.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
 
 import '../../test_helpers/test_database.dart';
@@ -55,4 +57,95 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
+
+  testWidgets(
+    'policy selection is disabled without hints and persists when enabled',
+    (tester) async {
+      final database = createTestDatabase();
+      final repository = RuleTemplateRepository(database);
+
+      await tester.pumpWidget(
+        MaterialApp(home: RuleTemplateEditorPage(repository: repository)),
+      );
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('rule-possession-policy')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+
+      expect(
+        tester
+            .widget<DropdownButtonFormField<PossessionPolicy>>(
+              find.byKey(const Key('rule-possession-policy')),
+            )
+            .onChanged,
+        isNull,
+      );
+
+      await tester.ensureVisible(find.byKey(const Key('rule-possession-hint')));
+      await tester.tap(find.byKey(const Key('rule-possession-hint')));
+      await tester.pump();
+
+      expect(
+        tester
+            .widget<DropdownButtonFormField<PossessionPolicy>>(
+              find.byKey(const Key('rule-possession-policy')),
+            )
+            .onChanged,
+        isNotNull,
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const Key('rule-possession-policy')),
+      );
+      await tester.tap(find.byKey(const Key('rule-possession-policy')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('命中后交换'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.byKey(const Key('rule-possession-hint')));
+      await tester.tap(find.byKey(const Key('rule-possession-hint')));
+      await tester.pump();
+      expect(
+        tester
+            .widget<DropdownButtonFormField<PossessionPolicy>>(
+              find.byKey(const Key('rule-possession-policy')),
+            )
+            .onChanged,
+        isNull,
+      );
+      expect(find.text('手动纠正'), findsOneWidget);
+      expect(find.text('命中后交换'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('rule-possession-hint')));
+      await tester.pump();
+      await tester.ensureVisible(
+        find.byKey(const Key('rule-possession-policy')),
+      );
+      await tester.tap(find.byKey(const Key('rule-possession-policy')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('命中后交换'));
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('rule-name')),
+        -300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.enterText(find.byKey(const Key('rule-name')), '命中后交换规则');
+      tester.testTextInput.hide();
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('rule-save')),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byKey(const Key('rule-save')));
+      await tester.pumpAndSettle();
+
+      final saved = (await repository.listAll()).single;
+      expect(saved.possessionHintEnabled, isTrue);
+      expect(saved.possessionPolicy, PossessionPolicy.switchAfterMade);
+    },
+  );
 }

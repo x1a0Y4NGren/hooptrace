@@ -10,5 +10,13 @@
   "ruleMatchPoint": "Match point",
   "rulePossessionSuggested": "Possession suggested",
   "ruleFoulLimit": "{side} foul limit reached ({limit}).",
-  "finishOrContinueOvertime": "Regulation time expired. Confirm finish or continue in overtime?"
+  "finishOrContinueOvertime": "Regulation time expired. Confirm finish or continue in overtime?",
+  "matchDecisionTitle": "Match decision",
+  "continueMatch": "Continue",
+  "finishMatch": "Finish match",
+  "confirmFinalScoreTitle": "Confirm final score",
+  "confirmFinalScoreBody": "Finishing locks this score and closes the live match.",
+  "finalScoreLine": "{redName} {redScore} : {blueScore} {blueName}",
+  "cancelAction": "Cancel",
+  "actionFailedRetry": "Action failed. Please try again."
 }

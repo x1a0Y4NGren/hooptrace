@@ -45,4 +45,36 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get finishOrContinueOvertime =>
       'Regulation time expired. Confirm finish or continue in overtime?';
+
+  @override
+  String get matchDecisionTitle => 'Match decision';
+
+  @override
+  String get continueMatch => 'Continue';
+
+  @override
+  String get finishMatch => 'Finish match';
+
+  @override
+  String get confirmFinalScoreTitle => 'Confirm final score';
+
+  @override
+  String get confirmFinalScoreBody =>
+      'Finishing locks this score and closes the live match.';
+
+  @override
+  String finalScoreLine(
+    Object blueName,
+    Object blueScore,
+    Object redName,
+    Object redScore,
+  ) {
+    return '$redName $redScore : $blueScore $blueName';
+  }
+
+  @override
+  String get cancelAction => 'Cancel';
+
+  @override
+  String get actionFailedRetry => 'Action failed. Please try again.';
 }
