@@ -63,8 +63,8 @@ class ScoringShotLocation {
 /// This object is deliberately local-only. It is promoted to a persisted
 /// [RecordMatchEventCommand] only when [ScoringController.commitDetailedShot]
 /// is called.
-class DetailedShotDraft {
-  const DetailedShotDraft({
+class CourtFirstShotDraft {
+  const CourtFirstShotDraft({
     required this.point,
     this.side,
     this.outcome = ShotOutcome.made,
@@ -76,18 +76,55 @@ class DetailedShotDraft {
   final ShotOutcome outcome;
   final int points;
 
-  DetailedShotDraft copyWith({
+  CourtFirstShotDraft copyWith({
     CourtPoint? point,
     TeamSide? side,
     ShotOutcome? outcome,
     int? points,
   }) {
-    return DetailedShotDraft(
+    return CourtFirstShotDraft(
       point: point ?? this.point,
       side: side ?? this.side,
       outcome: outcome ?? this.outcome,
       points: points ?? this.points,
     );
+  }
+}
+
+/// Compatibility alias for callers that used the pre-unification detailed
+/// draft name.
+typedef DetailedShotDraft = CourtFirstShotDraft;
+
+/// The durable score-first opportunity to attach a court location. The
+/// service enforces [openedAtUtc, expiresAtUtc) when a confirmation command
+/// carries its request timestamp.
+class LocationSupplementWindow {
+  const LocationSupplementWindow({
+    required this.eventId,
+    required this.side,
+    required this.points,
+    required this.openedAtUtc,
+  });
+
+  final String eventId;
+  final TeamSide side;
+  final int points;
+  final DateTime openedAtUtc;
+
+  DateTime get openedAt => openedAtUtc;
+
+  DateTime get expiresAtUtc =>
+      openedAtUtc.add(locationSupplementWindowDuration);
+
+  DateTime get deadlineUtc => expiresAtUtc;
+
+  DateTime get expiresAt => expiresAtUtc;
+
+  String get shotEventId => eventId;
+
+  bool contains(DateTime requestedAtUtc) {
+    final value = requestedAtUtc.toUtc();
+    return !value.isBefore(openedAtUtc) && value.isBefore(expiresAtUtc);
   }
 }
 
@@ -106,13 +143,15 @@ class MatchScoringState {
     this.clock,
     this.currentPossession,
     this.pendingLocation,
-    this.detailedShotDraft,
+    CourtFirstShotDraft? courtFirstShotDraft,
+    this.locationSupplementWindow,
+    DetailedShotDraft? detailedShotDraft,
     this.redFouls = 0,
     this.blueFouls = 0,
     this.ruleHints = const [],
     this.decision,
     this.ruleWarnings = const [],
-  });
+  }) : courtFirstShotDraft = courtFirstShotDraft ?? detailedShotDraft;
 
   final String matchId;
   final String redName;
@@ -127,7 +166,12 @@ class MatchScoringState {
   final ClockProjection? clock;
   final TeamSide? currentPossession;
   final PendingShotLocation? pendingLocation;
-  final DetailedShotDraft? detailedShotDraft;
+  final CourtFirstShotDraft? courtFirstShotDraft;
+  final LocationSupplementWindow? locationSupplementWindow;
+
+  /// Compatibility field for existing consumers; new code should use
+  /// [courtFirstShotDraft].
+  CourtFirstShotDraft? get detailedShotDraft => courtFirstShotDraft;
   final int redFouls;
   final int blueFouls;
   final List<RuleHint> ruleHints;
@@ -145,8 +189,12 @@ class MatchScoringState {
     ClockProjection? clock,
     TeamSide? currentPossession,
     PendingShotLocation? pendingLocation,
+    CourtFirstShotDraft? courtFirstShotDraft,
     DetailedShotDraft? detailedShotDraft,
+    LocationSupplementWindow? locationSupplementWindow,
     bool clearDetailedShotDraft = false,
+    bool clearCourtFirstShotDraft = false,
+    bool clearLocationSupplementWindow = false,
     bool clearPendingLocation = false,
     int? redFouls,
     int? blueFouls,
@@ -170,9 +218,14 @@ class MatchScoringState {
       pendingLocation: clearPendingLocation
           ? null
           : pendingLocation ?? this.pendingLocation,
-      detailedShotDraft: clearDetailedShotDraft
+      courtFirstShotDraft: clearDetailedShotDraft || clearCourtFirstShotDraft
           ? null
-          : detailedShotDraft ?? this.detailedShotDraft,
+          : courtFirstShotDraft ??
+                detailedShotDraft ??
+                this.courtFirstShotDraft,
+      locationSupplementWindow: clearLocationSupplementWindow
+          ? null
+          : locationSupplementWindow ?? this.locationSupplementWindow,
       redFouls: redFouls ?? this.redFouls,
       blueFouls: blueFouls ?? this.blueFouls,
       ruleHints: ruleHints ?? this.ruleHints,
@@ -241,7 +294,12 @@ class ScoringController extends ChangeNotifier {
 
   bool get timerEnabled => _state.timerEnabled;
 
-  DetailedShotDraft? get detailedShotDraft => _state.detailedShotDraft;
+  CourtFirstShotDraft? get courtFirstShotDraft => _state.courtFirstShotDraft;
+
+  DetailedShotDraft? get detailedShotDraft => courtFirstShotDraft;
+
+  LocationSupplementWindow? get locationSupplementWindow =>
+      _state.locationSupplementWindow;
 
   bool get isCommandBacked => _commandService != null;
 
@@ -269,12 +327,6 @@ class ScoringController extends ChangeNotifier {
         _state.pendingLocation != null) {
       return Future<bool>.value(false);
     }
-    if (_isMissCommand(command) && !_allowsShotAttempts) {
-      return Future<bool>.value(false);
-    }
-    if (command.shotLocation != null && !_allowsLocations) {
-      return Future<bool>.value(false);
-    }
     final service = _commandService;
     if (service == null) {
       return Future<bool>.value(_recordLocalCommand(command));
@@ -285,6 +337,7 @@ class ScoringController extends ChangeNotifier {
   Future<bool> recordScoreCommitted({
     required TeamSide side,
     required int points,
+    DateTime? occurredAt,
   }) async {
     if (_disposed || _ordinaryActionBlocked) return false;
     if (points <= 0) return false;
@@ -299,7 +352,7 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: points,
         outcome: ShotOutcome.made,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: (occurredAt ?? DateTime.now()).toUtc(),
       ),
     );
   }
@@ -309,16 +362,13 @@ class ScoringController extends ChangeNotifier {
     required ShotOutcome outcome,
     int points = 0,
     CourtPoint? location,
+    DateTime? occurredAt,
   }) {
     if (outcome == ShotOutcome.made && points <= 0) return Future.value(false);
     if (outcome == ShotOutcome.missed && points != 0) {
       return Future.value(false);
     }
     if (outcome == ShotOutcome.notApplicable) return Future.value(false);
-    if (outcome == ShotOutcome.missed && !_allowsShotAttempts) {
-      return Future.value(false);
-    }
-    if (location != null && !_allowsLocations) return Future.value(false);
     return recordEventCommitted(
       RecordMatchEventCommand(
         matchId: _state.matchId,
@@ -326,7 +376,7 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: points,
         outcome: outcome,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: (occurredAt ?? DateTime.now()).toUtc(),
         shotLocation: location == null
             ? null
             : MatchShotLocationInput(x: location.x, y: location.y),
@@ -334,8 +384,15 @@ class ScoringController extends ChangeNotifier {
     );
   }
 
-  Future<bool> recordMissCommitted({required TeamSide side}) {
-    return recordFieldGoalCommitted(side: side, outcome: ShotOutcome.missed);
+  Future<bool> recordMissCommitted({
+    required TeamSide side,
+    DateTime? occurredAt,
+  }) {
+    return recordFieldGoalCommitted(
+      side: side,
+      outcome: ShotOutcome.missed,
+      occurredAt: occurredAt,
+    );
   }
 
   Future<bool> recordFreeThrowCommitted({
@@ -343,7 +400,6 @@ class ScoringController extends ChangeNotifier {
     required bool made,
     int points = 1,
   }) {
-    if (!made && !_allowsShotAttempts) return Future<bool>.value(false);
     final resolvedPoints = made ? points : 0;
     if (made && resolvedPoints <= 0) return Future<bool>.value(false);
     return recordEventCommitted(
@@ -441,6 +497,91 @@ class ScoringController extends ChangeNotifier {
     return _runExclusive(command, () => service.undo(command));
   }
 
+  /// Undoes the latest scoring action. A committed supplement location is
+  /// undone before its score; a court-first event/location is one durable
+  /// action. Non-scoring events and timer/finish metadata are ignored.
+  Future<bool> undoLastScoringActionCommitted() async {
+    if (_disposed ||
+        _state.courtFirstShotDraft != null ||
+        _state.pendingLocation != null) {
+      return false;
+    }
+    final hasScoringAction = _state.events.any(
+      (event) =>
+          !event.isDeleted &&
+          (event.type == EventKind.score ||
+              event.type == EventKind.fieldGoal ||
+              event.type == EventKind.miss),
+    );
+    if (!hasScoringAction) return false;
+    final service = _commandService;
+    if (service == null) {
+      return _undoLocalScoringAction();
+    }
+    if (_exclusiveBusy || _drainingQueue || _commandQueue.isNotEmpty) {
+      return false;
+    }
+    final command = UndoLastScoringActionCommand(
+      matchId: _state.matchId,
+      reason: 'Scoring UI undo',
+    );
+    return _runExclusive(command, () => service.undoLastScoringAction(command));
+  }
+
+  bool _undoLocalScoringAction() {
+    MatchEvent? event;
+    for (final candidate in _state.events.reversed) {
+      if (candidate.isDeleted ||
+          (candidate.type != EventKind.score &&
+              candidate.type != EventKind.fieldGoal &&
+              candidate.type != EventKind.miss)) {
+        continue;
+      }
+      event = candidate;
+      break;
+    }
+    if (event == null) return false;
+    final locationIndex = _state.shotLocations.lastIndexWhere(
+      (location) => location.eventId == event!.id && location.isLocked,
+    );
+    if (locationIndex >= 0) {
+      final locations = [..._state.shotLocations]..removeAt(locationIndex);
+      _state = _state.copyWith(
+        shotLocations: locations,
+        clearLocationSupplementWindow: true,
+      );
+      notifyListeners();
+      return true;
+    }
+    final events = _state.events
+        .map(
+          (candidate) => candidate.id == event!.id
+              ? MatchEvent(
+                  id: candidate.id,
+                  matchId: candidate.matchId,
+                  type: candidate.type,
+                  side: candidate.side,
+                  points: candidate.points,
+                  occurredAt: candidate.occurredAt,
+                  note: candidate.note,
+                  customLabel: candidate.customLabel,
+                  outcome: candidate.outcome,
+                  matchClockPositionSeconds:
+                      candidate.matchClockPositionSeconds,
+                  isDeleted: true,
+                )
+              : candidate,
+        )
+        .toList(growable: false);
+    _state = _state.copyWith(
+      events: events,
+      score: _reducer.reduce(events),
+      clearLocationSupplementWindow: true,
+    );
+    notifyListeners();
+    return true;
+  }
+
   bool addScore({required TeamSide side, required int points}) {
     if (_disposed) return false;
     if (isCommandBacked) {
@@ -469,6 +610,12 @@ class ScoringController extends ChangeNotifier {
     _state = _state.copyWith(
       events: events,
       score: _reducer.reduce(events),
+      locationSupplementWindow: LocationSupplementWindow(
+        eventId: eventId,
+        side: side,
+        points: points,
+        openedAtUtc: event.occurredAt.toUtc(),
+      ),
       pendingLocation: PendingShotLocation(
         eventId: eventId,
         side: side,
@@ -498,6 +645,11 @@ class ScoringController extends ChangeNotifier {
       return;
     }
     final confirmedPoint = point ?? pending.point;
+    final window = _state.locationSupplementWindow;
+    if (window != null && window.eventId == pending.eventId) {
+      await attachSupplementLocation(confirmedPoint);
+      return;
+    }
     final service = _commandService;
     if (service != null) {
       if (_exclusiveBusy || _drainingQueue || _commandQueue.isNotEmpty) return;
@@ -545,13 +697,21 @@ class ScoringController extends ChangeNotifier {
         _exclusiveBusy ||
         _drainingQueue ||
         _commandQueue.isNotEmpty ||
-        _state.detailedShotDraft != null ||
-        !_allowsLocations) {
+        _state.detailedShotDraft != null) {
       return false;
     }
     final candidate = _latestUnlocatedShot;
     if (candidate == null || candidate.side == null) return false;
+    final window =
+        _state.locationSupplementWindow ??
+        LocationSupplementWindow(
+          eventId: candidate.id,
+          side: candidate.side!,
+          points: candidate.points,
+          openedAtUtc: candidate.occurredAt.toUtc(),
+        );
     _state = _state.copyWith(
+      locationSupplementWindow: window,
       pendingLocation: PendingShotLocation(
         eventId: candidate.id,
         side: candidate.side!,
@@ -566,11 +726,107 @@ class ScoringController extends ChangeNotifier {
 
   bool cancelLocateLastUnlocatedShot() => skipPendingLocation();
 
+  /// Begins or moves a court-first shot. Repeated taps update the same local
+  /// draft until it is committed or cancelled.
+  bool beginOrMoveCourtFirstShot(
+    CourtPoint point, {
+    TeamSide? side,
+    ShotOutcome? outcome,
+    int? points,
+  }) {
+    if (_disposed ||
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty ||
+        _state.pendingLocation != null) {
+      return false;
+    }
+    final existing = _state.courtFirstShotDraft;
+    _state = _state.copyWith(
+      courtFirstShotDraft: CourtFirstShotDraft(
+        point: point,
+        side: side ?? existing?.side ?? currentPossession,
+        outcome: outcome ?? existing?.outcome ?? ShotOutcome.made,
+        points: points ?? existing?.points ?? 1,
+      ),
+    );
+    notifyListeners();
+    return true;
+  }
+
+  bool cancelCourtFirstShot() => cancelDetailedShot();
+
+  /// Drops a stale supplement opportunity. The durable score remains in the
+  /// projection and can still be undone as a scoring action.
+  bool expireSupplementWindow({DateTime? atUtc}) {
+    final window = _state.locationSupplementWindow;
+    if (_disposed || window == null) return false;
+    final at = (atUtc ?? DateTime.now()).toUtc();
+    if (at.isBefore(window.expiresAtUtc)) return false;
+    _state = _state.copyWith(
+      clearLocationSupplementWindow: true,
+      clearPendingLocation: _state.pendingLocation?.eventId == window.eventId,
+    );
+    notifyListeners();
+    return true;
+  }
+
+  /// Confirms a score-first location through the transactional command. The
+  /// request timestamp is forwarded so the service remains the deadline
+  /// authority even if a controller is rebuilt or stale UI is restored.
+  Future<bool> attachSupplementLocation(
+    CourtPoint point, {
+    DateTime? requestedAtUtc,
+    String? eventId,
+  }) async {
+    if (_disposed || _exclusiveBusy) return false;
+    final window = _state.locationSupplementWindow;
+    if (window == null ||
+        (eventId != null && eventId != window.eventId) ||
+        !window.contains(requestedAtUtc ?? DateTime.now())) {
+      return false;
+    }
+    final service = _commandService;
+    final event = _state.events
+        .where((item) => item.id == window.eventId && !item.isDeleted)
+        .firstOrNull;
+    if (event == null) return false;
+    final requested = (requestedAtUtc ?? DateTime.now()).toUtc();
+    if (service == null) {
+      final marker = ScoringShotLocation(
+        id: '${_state.matchId}-shot-${_state.shotLocations.length + 1}',
+        eventId: event.id,
+        side: window.side,
+        points: window.points,
+        point: point,
+        isLocked: true,
+      );
+      _state = _state.copyWith(
+        shotLocations: [..._state.shotLocations, marker],
+        clearLocationSupplementWindow: true,
+        clearPendingLocation: true,
+      );
+      notifyListeners();
+      return true;
+    }
+    if (_drainingQueue || _commandQueue.isNotEmpty) return false;
+    final command = ConfirmShotLocationCommand(
+      matchId: _state.matchId,
+      eventId: event.id,
+      point: point,
+      requestedAtUtc: requested,
+    );
+    final accepted = await _runExclusive(
+      command,
+      () => service.confirmShotLocation(command),
+    );
+    return accepted;
+  }
+
   /// Starts a detailed-mode local draft. The current possession is used as
   /// the initial shooter when available, but remains explicitly correctable.
   bool beginDetailedShot(CourtPoint point, {TeamSide? side}) {
     if (_disposed ||
-        recordingMode != RecordingMode.detailed ||
         _exclusiveBusy ||
         _drainingQueue ||
         _commandQueue.isNotEmpty ||
@@ -579,7 +835,7 @@ class ScoringController extends ChangeNotifier {
       return false;
     }
     _state = _state.copyWith(
-      detailedShotDraft: DetailedShotDraft(
+      courtFirstShotDraft: CourtFirstShotDraft(
         point: point,
         side: side ?? currentPossession,
       ),
@@ -602,7 +858,7 @@ class ScoringController extends ChangeNotifier {
         ? 0
         : points ?? draft.points;
     _state = _state.copyWith(
-      detailedShotDraft: DetailedShotDraft(
+      courtFirstShotDraft: CourtFirstShotDraft(
         point: point ?? draft.point,
         side: side ?? draft.side,
         outcome: nextOutcome,
@@ -612,14 +868,23 @@ class ScoringController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateCourtFirstShot({
+    CourtPoint? point,
+    TeamSide? side,
+    ShotOutcome? outcome,
+    int? points,
+  }) => updateDetailedShot(
+    point: point,
+    side: side,
+    outcome: outcome,
+    points: points,
+  );
+
   Future<bool> commitDetailedShot() async {
     if (_disposed) return false;
     final draft = _state.detailedShotDraft;
     if (draft == null || draft.side == null) return false;
     if (draft.outcome == ShotOutcome.notApplicable) return false;
-    if (draft.outcome == ShotOutcome.missed && !_allowsShotAttempts) {
-      return false;
-    }
     if (_commandService == null) {
       final accepted = _recordLocalCommand(
         RecordMatchEventCommand(
@@ -663,6 +928,8 @@ class ScoringController extends ChangeNotifier {
     }
     return accepted;
   }
+
+  Future<bool> commitCourtFirstShot() => commitDetailedShot();
 
   bool cancelDetailedShot() {
     if (_disposed || _exclusiveBusy || _state.detailedShotDraft == null) {
@@ -812,6 +1079,37 @@ class ScoringController extends ChangeNotifier {
         ),
       );
     }
+    final locationEventIds = projection.shotLocations
+        .where((location) => location.isConfirmed)
+        .map((location) => location.eventId)
+        .toSet();
+    LocationSupplementWindow? supplement;
+    final nowUtc = DateTime.now().toUtc();
+    for (final event in events.reversed) {
+      if (event.isDeleted ||
+          event.side == null ||
+          (event.type != EventKind.score &&
+              event.type != EventKind.fieldGoal &&
+              event.type != EventKind.miss)) {
+        continue;
+      }
+      // The newest scoring event owns the supplement opportunity. Once that
+      // event is located, an older unlocated event must not reappear as the
+      // active window.
+      if (locationEventIds.contains(event.id)) break;
+      if (!nowUtc.isBefore(
+        event.occurredAt.toUtc().add(locationSupplementWindowDuration),
+      )) {
+        break;
+      }
+      supplement = LocationSupplementWindow(
+        eventId: event.id,
+        side: event.side!,
+        points: event.points,
+        openedAtUtc: event.occurredAt.toUtc(),
+      );
+      break;
+    }
     return MatchScoringState(
       matchId: projection.match.id,
       redName: projection.match.redName,
@@ -822,6 +1120,7 @@ class ScoringController extends ChangeNotifier {
         blueScore: projection.blueScore,
       ),
       shotLocations: List.unmodifiable(locations),
+      locationSupplementWindow: supplement,
       ruleTemplate: projection.match.ruleTemplateSnapshot,
       recordingMode: projection.match.recordingMode,
       trackingCoverage: projection.match.trackingCoverage,
@@ -915,7 +1214,7 @@ class ScoringController extends ChangeNotifier {
       _state = _state.copyWith(pendingLocation: pending);
     }
     if (previousDraft != null) {
-      _state = _state.copyWith(detailedShotDraft: previousDraft);
+      _state = _state.copyWith(courtFirstShotDraft: previousDraft);
     }
   }
 
@@ -1015,6 +1314,10 @@ class ScoringController extends ChangeNotifier {
     );
     final events = [..._state.events, event];
     final locations = [..._state.shotLocations];
+    final isScoringEvent =
+        event.type == EventKind.score ||
+        event.type == EventKind.fieldGoal ||
+        event.type == EventKind.miss;
     if (command.shotLocation != null && command.type == EventKind.fieldGoal) {
       locations.add(
         ScoringShotLocation(
@@ -1034,6 +1337,17 @@ class ScoringController extends ChangeNotifier {
       events: List.unmodifiable(events),
       score: _reducer.reduce(events),
       shotLocations: List.unmodifiable(locations),
+      locationSupplementWindow: command.shotLocation == null && isScoringEvent
+          ? (event.side == null
+                ? null
+                : LocationSupplementWindow(
+                    eventId: event.id,
+                    side: event.side!,
+                    points: event.points,
+                    openedAtUtc: event.occurredAt.toUtc(),
+                  ))
+          : null,
+      clearLocationSupplementWindow: command.shotLocation != null,
       currentPossession: _latestPossession(events),
       redFouls: _countFouls(events).red,
       blueFouls: _countFouls(events).blue,
@@ -1055,31 +1369,25 @@ class ScoringController extends ChangeNotifier {
     );
   }
 
-  bool get _allowsShotAttempts =>
-      trackingCoverage.index >= TrackingCoverage.shotAttempts.index;
-
-  bool get _allowsLocations =>
-      trackingCoverage.index >= TrackingCoverage.locations.index ||
-      recordingMode == RecordingMode.detailed;
-
   bool get _ordinaryActionBlocked =>
       _state.pendingLocation != null || _state.detailedShotDraft != null;
 
-  static bool _isMissCommand(RecordMatchEventCommand command) {
-    if (command.type == EventKind.miss) return true;
-    return (command.type == EventKind.fieldGoal ||
-            command.type == EventKind.freeThrow) &&
-        command.outcome == ShotOutcome.missed;
-  }
-
   MatchEvent? get _latestUnlocatedShot {
     final locatedIds = _state.shotLocations.map((item) => item.eventId).toSet();
+    final nowUtc = DateTime.now().toUtc();
     for (final event in _state.events.reversed) {
       if (event.isDeleted ||
-          event.type != EventKind.fieldGoal ||
-          event.side == null ||
-          locatedIds.contains(event.id)) {
+          (event.type != EventKind.fieldGoal &&
+              event.type != EventKind.score &&
+              event.type != EventKind.miss) ||
+          event.side == null) {
         continue;
+      }
+      if (locatedIds.contains(event.id)) return null;
+      if (!nowUtc.isBefore(
+        event.occurredAt.toUtc().add(locationSupplementWindowDuration),
+      )) {
+        return null;
       }
       return event;
     }

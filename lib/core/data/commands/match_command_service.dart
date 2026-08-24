@@ -28,6 +28,17 @@ export 'package:hooptrace/core/domain/entities/match_detail.dart'
         MatchDecision,
         MatchRuleWarning;
 
+/// Location supplements are accepted in the half-open interval
+/// [openedAtUtc, openedAtUtc + ten seconds).
+const Duration locationSupplementWindowDuration = Duration(seconds: 10);
+
+/// Compatibility spelling used by scoring surfaces that describe the same
+/// window as a deadline rather than a duration.
+const Duration scoringLocationSupplementDuration =
+    locationSupplementWindowDuration;
+const Duration scoringSupplementWindowDuration =
+    locationSupplementWindowDuration;
+
 /// A test-only hook which is intentionally absent from the default service.
 /// Hooks run after the business rows have been written but before the Drift
 /// transaction callback returns, making rollback behavior observable without
@@ -253,15 +264,23 @@ class ConfirmShotLocationCommand extends MatchCommand {
     required this.matchId,
     required this.eventId,
     required this.point,
+    DateTime? requestedAtUtc,
     String? shotLocationId,
     String? auditId,
   }) : shotLocationId = shotLocationId ?? _newUuid(),
+       requestedAtUtc = requestedAtUtc?.toUtc(),
        auditId = auditId ?? _newUuid();
 
   @override
   final String matchId;
   final String eventId;
   final CourtPoint point;
+
+  /// Timestamp captured by the scoring surface when the user requested the
+  /// location confirmation. It is optional for pre-1.0 callers; new scoring
+  /// surfaces always supply it so the ten-second deadline is enforced by the
+  /// command boundary rather than by UI state.
+  final DateTime? requestedAtUtc;
   final String shotLocationId;
   final String auditId;
 
@@ -276,9 +295,40 @@ class ConfirmShotLocationCommand extends MatchCommand {
     'shotLocationId': shotLocationId,
     'x': point.x,
     'y': point.y,
+    'requestedAtUtc': requestedAtUtc?.toUtc().toIso8601String(),
     'auditId': auditId,
   };
 }
+
+/// Undoes the latest durable scoring action for a match. The service selects
+/// the action from persisted event/location rows and audit chronology, so the
+/// command remains correct after a controller or process rebuild.
+class UndoLastScoringActionCommand extends MatchCommand {
+  UndoLastScoringActionCommand({
+    super.commandId,
+    required this.matchId,
+    this.reason,
+    String? auditId,
+  }) : auditId = auditId ?? _newUuid();
+
+  @override
+  final String matchId;
+  final String? reason;
+  final String auditId;
+
+  @override
+  String get commandType => 'undoLastScoringAction';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'reason': reason,
+    'auditId': auditId,
+  };
+}
+
+typedef UndoScoringActionCommand = UndoLastScoringActionCommand;
 
 class CorrectMatchEventCommand extends MatchCommand {
   CorrectMatchEventCommand({
@@ -862,6 +912,27 @@ class _PossessionReplayState {
   String? endedAtEventId;
 }
 
+enum _ScoringUndoKind { event, location }
+
+class _UndoableScoringAction {
+  const _UndoableScoringAction.event({
+    required this.event,
+    required this.atomicLocation,
+  }) : kind = _ScoringUndoKind.event,
+       location = null;
+
+  const _UndoableScoringAction.location({
+    required this.event,
+    required this.location,
+  }) : kind = _ScoringUndoKind.location,
+       atomicLocation = false;
+
+  final _ScoringUndoKind kind;
+  final MatchEventRow? event;
+  final ShotLocation? location;
+  final bool atomicLocation;
+}
+
 class MatchCommandService {
   MatchCommandService(
     this._database, {
@@ -1119,13 +1190,60 @@ class MatchCommandService {
             projectionMatchId: command.matchId,
           );
         }
+        final requestedAtUtc = command.requestedAtUtc;
+        if (requestedAtUtc != null) {
+          final openedAtUtc = event.occurredAt.toUtc();
+          final deadline = openedAtUtc.add(locationSupplementWindowDuration);
+          if (requestedAtUtc.isBefore(openedAtUtc) ||
+              !requestedAtUtc.isBefore(deadline) ||
+              !_now().toUtc().isBefore(deadline)) {
+            throw CommandValidationFailure(
+              command: command,
+              message:
+                  'Shot locations must be confirmed within ten seconds of the shot.',
+              projectionMatchId: command.matchId,
+            );
+          }
+        }
         final existing = await _shotLocationForEvent(command.eventId);
         if (existing != null) {
-          throw CommandValidationFailure(
-            command: command,
-            message: 'Event ${command.eventId} already has a shot location.',
-            projectionMatchId: command.matchId,
+          if (existing.isConfirmed) {
+            throw CommandValidationFailure(
+              command: command,
+              message: 'Event ${command.eventId} already has a shot location.',
+              projectionMatchId: command.matchId,
+            );
+          }
+          // Undo keeps the row as durable history and merely unconfirms it.
+          // Reconfirmation therefore updates the same identity instead of
+          // allocating a second row (the event index is unique).
+          await (_database.update(
+            _database.shotLocations,
+          )..where((row) => row.id.equals(existing.id))).write(
+            ShotLocationsCompanion(
+              x: Value(command.point.x),
+              y: Value(command.point.y),
+              isConfirmed: const Value(true),
+            ),
           );
+          await _writeAudit(
+            id: command.auditId,
+            matchId: command.matchId,
+            targetId: command.eventId,
+            action: 'locate',
+            before: _shotLocationJson(existing),
+            after: <String, Object?>{
+              ..._shotLocationJson(existing),
+              'x': command.point.x,
+              'y': command.point.y,
+              'isConfirmed': true,
+            },
+          );
+          await _inject(MatchCommandFailurePoint.afterEventWritten);
+          final result = await _writeReceipt(command);
+          await _inject(MatchCommandFailurePoint.afterAuditWritten);
+          await _inject(MatchCommandFailurePoint.beforeCommit);
+          return result;
         }
         await _database
             .into(_database.shotLocations)
@@ -1161,6 +1279,98 @@ class MatchCommandService {
       });
     });
   }
+
+  /// Undoes the latest scoring action using durable audit chronology.
+  ///
+  /// A location supplement is its own action, so it is unconfirmed first and
+  /// the score remains intact. A court-first event/location write is one
+  /// `create` action and is undone atomically. Timer, finish, semantic, and
+  /// replay-only edits never enter the candidate set.
+  Future<MatchDetail> undoLastScoringAction(
+    UndoLastScoringActionCommand command,
+  ) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+        await _requireReplayEditableMatch(command);
+        final selected = await _latestScoringAction(command.matchId);
+        if (selected == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'There is no committed scoring action to undo.',
+            projectionMatchId: command.matchId,
+          );
+        }
+
+        if (selected.kind == _ScoringUndoKind.location) {
+          final location = selected.location!;
+          final before = _shotLocationJson(location);
+          await (_database.update(_database.shotLocations)
+                ..where((row) => row.id.equals(location.id)))
+              .write(const ShotLocationsCompanion(isConfirmed: Value(false)));
+          await _writeAudit(
+            id: command.auditId,
+            matchId: command.matchId,
+            targetId: location.eventId,
+            action: 'undo',
+            before: before,
+            after: <String, Object?>{...before, 'isConfirmed': false},
+            reason: command.reason,
+          );
+        } else {
+          final event = selected.event!;
+          final beforeProjection = await _projectionInTransaction(
+            command.matchId,
+          );
+          final before = _eventJson(event);
+          final after = <String, Object?>{...before, 'isDeleted': true};
+          await (_database.update(_database.matchEvents)
+                ..where((row) => row.id.equals(event.id)))
+              .write(const MatchEventsCompanion(isDeleted: Value(true)));
+          final location = await _shotLocationForEvent(event.id);
+          if (location != null && selected.atomicLocation) {
+            final locationBefore = _shotLocationJson(location);
+            await (_database.update(_database.shotLocations)
+                  ..where((row) => row.id.equals(location.id)))
+                .write(const ShotLocationsCompanion(isConfirmed: Value(false)));
+            after['shotLocation'] = <String, Object?>{
+              ...locationBefore,
+              'isConfirmed': false,
+            };
+          }
+          await _writeAudit(
+            id: command.auditId,
+            matchId: command.matchId,
+            targetId: event.id,
+            action: 'undo',
+            before: before,
+            after: after,
+            reason: command.reason,
+          );
+          await _recalculatePossessionSuggestions(command.matchId);
+          final afterProjection = await _projectionInTransaction(
+            command.matchId,
+          );
+          await _applyPostScoreRules(
+            command.matchId,
+            scoreChanged: _scoresChanged(beforeProjection, afterProjection),
+            decisionEventId: '${command.commandId}:decision',
+          );
+        }
+
+        await _inject(MatchCommandFailurePoint.afterEventWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
+  Future<MatchDetail> undoLastScoringActionCommitted(
+    UndoLastScoringActionCommand command,
+  ) => undoLastScoringAction(command);
 
   Future<MatchDetail> correct(CorrectMatchEventCommand command) {
     return _execute(command, () {
@@ -1861,6 +2071,9 @@ class MatchCommandService {
 
   Future<MatchDetail> undoEvent(UndoMatchEventCommand command) => undo(command);
 
+  Future<MatchDetail> undoScoringAction(UndoLastScoringActionCommand command) =>
+      undoLastScoringAction(command);
+
   Future<MatchDetail> restoreEvent(RestoreMatchEventCommand command) =>
       restore(command);
 
@@ -2496,6 +2709,68 @@ class MatchCommandService {
     final query = _database.select(_database.shotLocations)
       ..where((row) => row.eventId.equals(eventId));
     return query.getSingleOrNull();
+  }
+
+  Future<_UndoableScoringAction?> _latestScoringAction(String matchId) async {
+    final events =
+        await (_database.select(_database.matchEvents)..where(
+              (event) =>
+                  event.matchId.equals(matchId) &
+                  event.isDeleted.equals(false) &
+                  event.type.isIn([
+                    EventKind.score.name,
+                    EventKind.fieldGoal.name,
+                    EventKind.miss.name,
+                  ]),
+            ))
+            .get();
+    final eventById = <String, MatchEventRow>{
+      for (final event in events) event.id: event,
+    };
+    final locations =
+        await (_database.select(_database.shotLocations)..where(
+              (location) =>
+                  location.matchId.equals(matchId) &
+                  location.isConfirmed.equals(true),
+            ))
+            .get();
+    final locationByEvent = <String, ShotLocation>{
+      for (final location in locations) location.eventId: location,
+    };
+    final audits =
+        await (_database.select(_database.auditLogs)
+              ..where(
+                (audit) =>
+                    audit.matchId.equals(matchId) &
+                    audit.action.isIn(['create', 'locate']),
+              )
+              ..orderBy([
+                (audit) => OrderingTerm.asc(audit.createdAt),
+                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+
+    _UndoableScoringAction? latest;
+    for (final audit in audits) {
+      final event = eventById[audit.targetId];
+      if (event == null) continue;
+      if (audit.action == 'locate') {
+        final location = locationByEvent[event.id];
+        if (location == null) continue;
+        latest = _UndoableScoringAction.location(
+          event: event,
+          location: location,
+        );
+        continue;
+      }
+      final location = locationByEvent[event.id];
+      final after = _decodeObject(audit.afterJson);
+      latest = _UndoableScoringAction.event(
+        event: event,
+        atomicLocation: location != null && after['shotLocation'] is Map,
+      );
+    }
+    return latest;
   }
 
   static Map<String, Object?> _shotLocationJson(ShotLocation row) =>

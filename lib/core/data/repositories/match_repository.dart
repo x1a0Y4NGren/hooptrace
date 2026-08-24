@@ -983,7 +983,18 @@ class MatchRepository {
     ClockProjection? clock,
   }) {
     final events = eventRows.map(mapEventRow).toList(growable: false);
+    final activeEventIds = events
+        .where((event) => !event.isDeleted)
+        .map((event) => event.id)
+        .toSet();
+    // Unconfirmed rows remain durable so a location can be reconfirmed with
+    // the same identity, but they are deliberately absent from every public
+    // projection. Deleted events likewise hide their historical locations.
     final locations = locationRows
+        .where(
+          (location) =>
+              location.isConfirmed && activeEventIds.contains(location.eventId),
+        )
         .map(_mapShotLocationRow)
         .toList(growable: false);
     final eventOrder = <String, int>{

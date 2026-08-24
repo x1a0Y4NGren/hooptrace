@@ -16,7 +16,8 @@ void main() {
     'projection exposes mode coverage clock and latest possession',
     () async {
       await withTestDatabase((database) async {
-        final service = MatchCommandService(database);
+        final openedAt = DateTime.now().toUtc();
+        final service = MatchCommandService(database, now: () => openedAt);
         final started = await service.start(
           _startCommand(
             matchId: 'task8-projection',
@@ -48,6 +49,121 @@ void main() {
       });
     },
   );
+
+  test('court-first draft is atomic and can move before commit', () async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(
+        database,
+        now: () => DateTime.utc(2026, 8, 23, 9),
+      );
+      final started = await service.start(
+        _startCommand(matchId: 'task8-court-first'),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+
+      expect(
+        controller.beginOrMoveCourtFirstShot(
+          CourtPoint(x: 0.2, y: 0.8),
+          side: TeamSide.red,
+        ),
+        isTrue,
+      );
+      expect(
+        controller.beginOrMoveCourtFirstShot(CourtPoint(x: 0.3, y: 0.7)),
+        isTrue,
+      );
+      expect(controller.courtFirstShotDraft?.point.x, 0.3);
+      expect(controller.cancelCourtFirstShot(), isTrue);
+      expect(controller.courtFirstShotDraft, isNull);
+      expect(await database.select(database.matchEvents).get(), isEmpty);
+    });
+  });
+
+  test(
+    'score-first supplement window survives controller rebuild and expires at deadline',
+    () async {
+      await withTestDatabase((database) async {
+        final openedAt = DateTime.now().toUtc();
+        final service = MatchCommandService(database, now: () => openedAt);
+        final started = await service.start(
+          _startCommand(
+            matchId: 'task8-supplement',
+            trackingCoverage: TrackingCoverage.scoresOnly,
+          ),
+        );
+        final scored = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-supplement-score',
+            matchId: started.match.id,
+            eventId: 'task8-supplement-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: openedAt,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          scored,
+          service,
+        );
+        expect(controller.locationSupplementWindow, isNotNull);
+        expect(
+          controller.expireSupplementWindow(
+            atUtc: openedAt.add(const Duration(seconds: 10)),
+          ),
+          isTrue,
+        );
+        expect(controller.locationSupplementWindow, isNull);
+        final rebuilt = ScoringController.fromCommittedProjection(
+          scored,
+          service,
+        );
+        expect(rebuilt.locationSupplementWindow, isNotNull);
+      });
+    },
+  );
+
+  test('unified scoring actions ignore legacy capability metadata', () async {
+    await withTestDatabase((database) async {
+      final openedAt = DateTime.now().toUtc();
+      final service = MatchCommandService(database, now: () => openedAt);
+      final started = await service.start(
+        _startCommand(
+          matchId: 'task8-unified-capabilities',
+          recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.none,
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+      expect(
+        await controller.recordMissCommitted(
+          side: TeamSide.red,
+          occurredAt: openedAt,
+        ),
+        isTrue,
+      );
+      expect(controller.beginLocateLastUnlocatedShot(), isTrue);
+      expect(
+        await controller.attachSupplementLocation(
+          CourtPoint(x: 0.2, y: 0.8),
+          requestedAtUtc: openedAt.add(const Duration(seconds: 1)),
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  test('unified undo excludes timer and finish actions', () async {
+    final controller = ScoringController(matchId: 'task8-local-undo');
+    expect(await controller.undoLastScoringActionCommitted(), isFalse);
+  });
 
   test(
     'projection preserves timerEnabled independently from clock presence',
@@ -295,7 +411,7 @@ void main() {
     },
   );
 
-  test('miss tracking is rejected when coverage excludes attempts', () async {
+  test('miss tracking ignores legacy coverage metadata', () async {
     await withTestDatabase((database) async {
       final service = MatchCommandService(database);
       final started = await service.start(
@@ -309,8 +425,8 @@ void main() {
         service,
       );
 
-      expect(await controller.recordMissCommitted(side: TeamSide.red), isFalse);
-      expect(await database.select(database.matchEvents).get(), isEmpty);
+      expect(await controller.recordMissCommitted(side: TeamSide.red), isTrue);
+      expect(await database.select(database.matchEvents).get(), hasLength(1));
     });
   });
 
@@ -792,9 +908,9 @@ void main() {
             side: TeamSide.red,
             made: false,
           ),
-          isFalse,
+          isTrue,
         );
-        expect(await database.select(database.matchEvents).get(), isEmpty);
+        expect(await database.select(database.matchEvents).get(), hasLength(1));
       });
     },
   );

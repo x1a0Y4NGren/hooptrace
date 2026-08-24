@@ -1202,6 +1202,199 @@ void main() {
   );
 
   test(
+    'location confirmation accepts 9.999 seconds but rejects 10 seconds',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'window-score',
+          matchId: 'match-clock',
+          eventId: 'window-score-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'window-confirm-in-time',
+          matchId: 'match-clock',
+          eventId: 'window-score-event',
+          point: CourtPoint(x: 0.4, y: 0.6),
+          requestedAtUtc: _anchor.add(const Duration(milliseconds: 9999)),
+        ),
+      );
+
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'window-score-2',
+          matchId: 'match-clock',
+          eventId: 'window-score-event-2',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      await expectLater(
+        service.confirmShotLocation(
+          ConfirmShotLocationCommand(
+            commandId: 'window-confirm-at-deadline',
+            matchId: 'match-clock',
+            eventId: 'window-score-event-2',
+            point: CourtPoint(x: 0.4, y: 0.6),
+            requestedAtUtc: _anchor.add(const Duration(seconds: 10)),
+          ),
+        ),
+        throwsA(isA<CommandValidationFailure>()),
+      );
+    },
+  );
+
+  test(
+    'latest scoring action undo unconfirms location before deleting score',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'undo-score',
+          matchId: 'match-clock',
+          eventId: 'undo-score-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'undo-location',
+          matchId: 'match-clock',
+          eventId: 'undo-score-event',
+          point: CourtPoint(x: 0.4, y: 0.6),
+          requestedAtUtc: _anchor.add(const Duration(seconds: 1)),
+        ),
+      );
+
+      final locationUndo = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'undo-location-action',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(locationUndo.redScore, 2);
+      expect(locationUndo.locatedShotCount, 0);
+      expect(
+        (await database.select(database.shotLocations).getSingle()).isConfirmed,
+        isFalse,
+      );
+
+      final scoreUndo = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'undo-score-action',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(scoreUndo.redScore, 0);
+      expect(scoreUndo.events.single.isDeleted, isTrue);
+      expect(scoreUndo.shotLocations, isEmpty);
+    },
+  );
+
+  test(
+    'reconfirmation updates the durable location row instead of inserting another',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'reconfirm-score',
+          matchId: 'match-clock',
+          eventId: 'reconfirm-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      final first = await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'reconfirm-first',
+          matchId: 'match-clock',
+          eventId: 'reconfirm-event',
+          point: CourtPoint(x: 0.2, y: 0.3),
+          requestedAtUtc: _anchor.add(const Duration(seconds: 1)),
+        ),
+      );
+      await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'reconfirm-undo-location',
+          matchId: 'match-clock',
+        ),
+      );
+      final second = await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'reconfirm-second',
+          matchId: 'match-clock',
+          eventId: 'reconfirm-event',
+          point: CourtPoint(x: 0.8, y: 0.7),
+          requestedAtUtc: _anchor.add(const Duration(seconds: 2)),
+        ),
+      );
+      final rows = await database.select(database.shotLocations).get();
+      expect(rows, hasLength(1));
+      expect(rows.single.id, first.shotLocations.single.id);
+      expect(rows.single.isConfirmed, isTrue);
+      expect(second.shotLocations.single.point.x, 0.8);
+    },
+  );
+
+  test(
+    'court-first event and location undo together as one scoring action',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      final committed = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'atomic-score',
+          matchId: 'match-clock',
+          eventId: 'atomic-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 3,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+          shotLocation: MatchShotLocationInput(x: 0.3, y: 0.7),
+        ),
+      );
+      expect(committed.shotLocations, hasLength(1));
+      final undone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'atomic-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(undone.redScore, 0);
+      expect(undone.shotLocations, isEmpty);
+      expect(
+        (await database.select(database.shotLocations).getSingle()).isConfirmed,
+        isFalse,
+      );
+    },
+  );
+
+  test(
     'score-changing corrections and undo after target continuation re-evaluate the decision',
     () async {
       final database = createTestDatabase();
