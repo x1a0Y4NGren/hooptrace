@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
+import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
@@ -18,11 +20,12 @@ void main() {
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
 
-    expect(find.text('\u5f00\u59cb\u8ba1\u5206'), findsOneWidget);
-    expect(find.text('\u590d\u76d8\u5386\u53f2'), findsOneWidget);
-    expect(find.byTooltip('球员'), findsOneWidget);
-    expect(find.byTooltip('设置'), findsOneWidget);
-    expect(find.byTooltip('项目详情'), findsOneWidget);
+    final l10n = _l10n(tester);
+    expect(find.byKey(homeStartScoringKey), findsOneWidget);
+    expect(find.text(l10n.replayHistory), findsOneWidget);
+    expect(find.byTooltip(l10n.homePlayersTooltip), findsOneWidget);
+    expect(find.byTooltip(l10n.homeSettingsTooltip), findsOneWidget);
+    expect(find.byTooltip(l10n.homeProjectTooltip), findsOneWidget);
   });
 
   testWidgets('start scoring route enters landscape scoring shell', (
@@ -36,7 +39,7 @@ void main() {
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('\u5f00\u59cb\u8ba1\u5206'));
+    await tester.tap(find.byKey(homeStartScoringKey));
     await tester.pumpAndSettle();
     expect(find.byType(PregamePage), findsOneWidget);
 
@@ -57,30 +60,30 @@ void main() {
       await database.close();
     });
     await tester.pumpWidget(HoopTraceApp(database: database));
-    await _pumpUntilFound(tester, find.text('\u5f00\u59cb\u8ba1\u5206'));
+    await _pumpUntilFound(tester, find.byKey(homeStartScoringKey));
 
-    await tester.tap(find.text('\u5f00\u59cb\u8ba1\u5206'));
+    await tester.tap(find.byKey(homeStartScoringKey));
     await _pumpUntilFound(tester, find.byType(PregamePage));
     await _selectSimpleAndStart(tester);
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     await tester.tap(find.byKey(const Key('red-score-2')));
     await tester.pump();
-    await tester.tap(find.text(scoringReplayText));
+    await tester.tap(find.byKey(const Key('scoring-replay')));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
 
     expect(find.byType(ReplayPage), findsOneWidget);
-    expect(find.text('\u8fdb\u884c\u4e2d'), findsOneWidget);
+    expect(find.text(_l10n(tester).replayInProgress), findsOneWidget);
 
-    await tester.tap(find.text('\u7ed3\u675f\u6bd4\u8d5b'));
+    await tester.tap(find.byKey(const Key('replay-finish-match')));
     await _pumpUntilFound(
       tester,
       find.byKey(const Key('replay-finish-confirm')),
     );
     expect(find.textContaining('2'), findsWidgets);
     await tester.tap(find.byKey(const Key('replay-finish-confirm')));
-    await _pumpUntilFound(tester, find.text('\u7ec8\u573a'));
+    await _pumpUntilFound(tester, find.text(_l10n(tester).replayFinished));
     expect(find.byType(ReplayPage), findsOneWidget);
-    expect(find.text('\u7ec8\u573a'), findsOneWidget);
+    expect(find.text(_l10n(tester).replayFinished), findsOneWidget);
     expect(find.byKey(const Key('replay-finish-match')), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -102,6 +105,10 @@ Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
   fail('Timed out waiting for the expected widget.');
 }
 
+AppLocalizations _l10n(WidgetTester tester) {
+  return AppLocalizations.of(tester.element(find.byType(Scaffold).first))!;
+}
+
 Future<void> _selectSimpleAndStart(WidgetTester tester) async {
   await tester.scrollUntilVisible(
     find.byKey(const Key('pregame-recording-simple')),
@@ -110,9 +117,9 @@ Future<void> _selectSimpleAndStart(WidgetTester tester) async {
   );
   await tester.tap(find.byKey(const Key('pregame-recording-simple')));
   await tester.scrollUntilVisible(
-    find.text(pregameStartMatchText),
+    find.byKey(const Key('pregame-start-match')),
     300,
     scrollable: find.byType(Scrollable).first,
   );
-  await tester.tap(find.text(pregameStartMatchText));
+  await tester.tap(find.byKey(const Key('pregame-start-match')));
 }

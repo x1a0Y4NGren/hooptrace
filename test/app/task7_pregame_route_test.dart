@@ -26,8 +26,8 @@ void main() {
     });
 
     await tester.pumpWidget(HoopTraceApp(database: database));
-    await _pumpUntilFound(tester, find.text('开始计分'));
-    await tester.tap(find.text('开始计分'));
+    await _pumpUntilFound(tester, find.byKey(const Key('home-start-scoring')));
+    await tester.tap(find.byKey(const Key('home-start-scoring')));
     await _pumpUntilFound(tester, find.byType(PregamePage));
 
     await tester.tap(find.byKey(const Key('pregame-red-profile')));

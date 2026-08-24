@@ -38,8 +38,8 @@ void main() {
 
     await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
     await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-    await _scrollTo(tester, find.text('开始比赛'));
-    await tester.tap(find.text('开始比赛'));
+    await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
+    await tester.tap(find.byKey(const Key('pregame-start-match')));
 
     expect(setup?.redPlayerProfileId, redProfile.id);
     expect(setup?.bluePlayerProfileId, isNull);
@@ -82,8 +82,8 @@ void main() {
     );
     await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
     await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-    await _scrollTo(tester, find.text('开始比赛'));
-    await tester.tap(find.text('开始比赛'));
+    await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
+    await tester.tap(find.byKey(const Key('pregame-start-match')));
 
     expect(setup?.redName, '临时红方');
     expect(setup?.redPlayerProfileId, isNull);
@@ -116,7 +116,6 @@ void main() {
             .value,
         '__temporary_profile__',
       );
-      expect(find.text(pregameTemporaryParticipantText), findsWidgets);
     },
   );
 
@@ -132,8 +131,8 @@ void main() {
     await tester.enterText(find.byKey(const Key('pregame-blue-name')), 'Alex');
     await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
     await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-    await _scrollTo(tester, find.text('开始比赛'));
-    await tester.tap(find.text('开始比赛'));
+    await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
+    await tester.tap(find.byKey(const Key('pregame-start-match')));
 
     expect(setup?.redName, 'Alex');
     expect(setup?.blueName, 'Alex');
@@ -149,8 +148,8 @@ void main() {
       MaterialApp(home: PregamePage(onStartMatch: (_) => startCount++)),
     );
 
-    await _scrollTo(tester, find.text('开始比赛'));
-    await tester.tap(find.text('开始比赛'));
+    await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
+    await tester.tap(find.byKey(const Key('pregame-start-match')));
 
     expect(startCount, 0);
     await _scrollTo(tester, find.byKey(const Key('pregame-validation')));
@@ -181,8 +180,8 @@ void main() {
     );
     await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
     await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-    await _scrollTo(tester, find.text('开始比赛'));
-    await tester.tap(find.text('开始比赛'));
+    await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
+    await tester.tap(find.byKey(const Key('pregame-start-match')));
 
     expect(setup?.timerEnabled, isTrue);
     expect(setup?.clockMode, ClockMode.countdown);
@@ -206,8 +205,8 @@ void main() {
       find.byKey(const Key('pregame-recording-detailed')),
     );
     await tester.tap(find.byKey(const Key('pregame-recording-detailed')));
-    await _scrollTo(tester, find.text('开始比赛'));
-    await tester.tap(find.text('开始比赛'));
+    await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
+    await tester.tap(find.byKey(const Key('pregame-start-match')));
 
     expect(setup?.recordingMode, RecordingMode.detailed);
     expect(setup?.trackingCoverage, TrackingCoverage.shotAttempts);

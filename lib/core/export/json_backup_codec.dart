@@ -40,6 +40,19 @@ class UnsupportedBackupSchemaException extends BackupException {
   final int supportedSchemaVersion;
 }
 
+class UnsupportedBackupFormatException extends BackupException {
+  const UnsupportedBackupFormatException({
+    required this.formatVersion,
+    required this.supportedFormatVersion,
+  }) : super(
+         'Backup format $formatVersion is not supported; expected '
+         '$supportedFormatVersion.',
+       );
+
+  final int formatVersion;
+  final int supportedFormatVersion;
+}
+
 class BackupValidationException extends BackupException {
   const BackupValidationException(super.message);
 }
@@ -48,57 +61,195 @@ class BackupRestoreException extends BackupException {
   const BackupRestoreException(super.message);
 }
 
+/// Raised when replace restore would delete a locally active match.
+///
+/// The invariant is enforced inside the same transaction that performs the
+/// replacement so a session started while a document picker is open cannot be
+/// lost.
+class BackupRestoreBlockedException extends BackupException {
+  const BackupRestoreBlockedException()
+    : super(
+        'Finish the active match before replacing local data from a backup.',
+      );
+}
+
+/// A backup document after all envelope, row, domain and graph checks have
+/// completed. Consumers that import a backup should use this view so the
+/// complete validation pass is shared before any mutation begins.
+class JsonBackupDocument {
+  const JsonBackupDocument({
+    required this.manifest,
+    required this.data,
+    required this.matches,
+    required this.participants,
+    required this.clocks,
+    required this.activeSessions,
+    required this.events,
+    required this.locations,
+    required this.players,
+    required this.templates,
+    required this.possessions,
+    required this.audits,
+    required this.settings,
+  });
+
+  final BackupManifest manifest;
+  final Map<String, List<Map<String, dynamic>>> data;
+  final List<Matche> matches;
+  final List<MatchParticipant> participants;
+  final List<MatchClock> clocks;
+  final List<ActiveSession> activeSessions;
+  final List<MatchEventRow> events;
+  final List<ShotLocation> locations;
+  final List<PlayerRow> players;
+  final List<RuleTemplateRow> templates;
+  final List<PossessionSegment> possessions;
+  final List<AuditLog> audits;
+  final List<AppSetting> settings;
+
+  String get checksum => manifest.checksum;
+}
+
+/// Compatibility alias for callers that prefer the shorter validated name.
+typedef ValidatedBackup = JsonBackupDocument;
+
 class JsonBackupCodec {
   JsonBackupCodec(
     this.database, {
     required this.appVersion,
     DateTime Function()? now,
+    this.maxPayloadBytes = 32 * 1024 * 1024,
+    this.maxRowsPerTable = 100000,
+    this.maxTotalRows = 200000,
   }) : now = now ?? DateTime.now;
 
   static const appName = 'HoopTrace';
+  static const currentFormatVersion = 1;
 
   final AppDatabase database;
   final String appVersion;
   final DateTime Function() now;
+  final int maxPayloadBytes;
+  final int maxRowsPerTable;
+  final int maxTotalRows;
 
-  Future<String> export() async {
-    final tables = <String, List<Map<String, dynamic>>>{
-      'matches': await _rows(database.matches),
-      'matchParticipants': await _rows(database.matchParticipants),
-      'matchClocks': await _rows(database.matchClocks),
-      'activeSessions': await _rows(database.activeSessions),
-      'matchEvents': await _rows(database.matchEvents),
-      'shotLocations': await _rows(database.shotLocations),
-      'players': await _rows(database.players),
-      'ruleTemplates': await _rows(database.ruleTemplates),
-      'possessionSegments': await _rows(database.possessionSegments),
-      'auditLogs': await _rows(database.auditLogs),
-      'appSettings': await _rows(database.appSettings, key: 'key'),
-    };
-    final counts = <String, int>{
-      for (final entry in tables.entries) entry.key: entry.value.length,
-    };
-    final sourceManifest = BackupManifest(
-      appName: appName,
-      appVersion: appVersion,
-      schemaVersion: database.schemaVersion,
-      exportedAt: now().toUtc(),
-      recordCounts: counts,
-      checksum: '',
-    );
-    final checksum = _checksum(sourceManifest, tables);
-    final manifest = BackupManifest(
-      appName: sourceManifest.appName,
-      appVersion: sourceManifest.appVersion,
-      schemaVersion: sourceManifest.schemaVersion,
-      exportedAt: sourceManifest.exportedAt,
-      recordCounts: sourceManifest.recordCounts,
-      checksum: checksum,
-    );
-    return jsonEncode({'manifest': manifest.toJson(), 'data': tables});
+  Future<String> export() {
+    // A headless WorkManager engine may run beside the foreground engine. A
+    // single read transaction keeps the eleven table snapshots at one SQLite
+    // point in time, so graph validation can never observe a half-committed
+    // domain mutation.
+    return database.transaction(() async {
+      final tables = <String, List<Map<String, dynamic>>>{
+        'matches': await _rows(database.matches),
+        'matchParticipants': await _rows(database.matchParticipants),
+        'matchClocks': await _rows(database.matchClocks),
+        'activeSessions': await _rows(database.activeSessions),
+        'matchEvents': await _rows(database.matchEvents),
+        'shotLocations': await _rows(database.shotLocations),
+        'players': await _rows(database.players),
+        'ruleTemplates': await _rows(database.ruleTemplates),
+        'possessionSegments': await _rows(database.possessionSegments),
+        'auditLogs': await _rows(database.auditLogs),
+        'appSettings': await _rows(
+          database.appSettings,
+          key: 'key',
+          include: (row) => row['key'] != automaticBackupRunLeaseSettingKey,
+        ),
+      };
+      final counts = <String, int>{
+        for (final entry in tables.entries) entry.key: entry.value.length,
+      };
+      final sourceManifest = BackupManifest(
+        appName: appName,
+        appVersion: appVersion,
+        formatVersion: currentFormatVersion,
+        schemaVersion: database.schemaVersion,
+        exportedAt: now().toUtc(),
+        recordCounts: counts,
+        checksum: '',
+      );
+      final checksum = _checksum(sourceManifest, tables);
+      final manifest = BackupManifest(
+        appName: sourceManifest.appName,
+        appVersion: sourceManifest.appVersion,
+        formatVersion: sourceManifest.formatVersion,
+        schemaVersion: sourceManifest.schemaVersion,
+        exportedAt: sourceManifest.exportedAt,
+        recordCounts: sourceManifest.recordCounts,
+        checksum: checksum,
+      );
+      return jsonEncode({'manifest': manifest.toJson(), 'data': tables});
+    });
   }
 
   Future<void> restore(String source) async {
+    final document = decodeAndValidate(source);
+    final matches = document.matches;
+    final participants = document.participants;
+    final clocks = document.clocks
+        .map(
+          (clock) => _pausedRestoredClock(
+            clock,
+            exportedAt: document.manifest.exportedAt,
+          ),
+        )
+        .toList(growable: false);
+    final activeSessions = document.activeSessions;
+    final events = document.events;
+    final locations = document.locations;
+    final players = document.players;
+    final templates = document.templates;
+    final possessions = document.possessions;
+    final audits = document.audits;
+    final settings = document.settings;
+
+    try {
+      await database.transaction(() async {
+        if ((await database.select(database.activeSessions).get()).isNotEmpty) {
+          throw const BackupRestoreBlockedException();
+        }
+        await database.delete(database.shotLocations).go();
+        await database.delete(database.activeSessions).go();
+        await database.delete(database.possessionSegments).go();
+        await database.delete(database.auditLogs).go();
+        await database.delete(database.matchEvents).go();
+        await database.delete(database.matchParticipants).go();
+        await database.delete(database.matchClocks).go();
+        await database.delete(database.matches).go();
+        await database.delete(database.players).go();
+        await database.delete(database.ruleTemplates).go();
+        await database.delete(database.appSettings).go();
+
+        await _insertAll(database.players, players);
+        await _insertAll(database.ruleTemplates, templates);
+        await _insertAll(database.appSettings, settings);
+        await _insertAll(database.matches, matches);
+        await _insertAll(database.matchParticipants, participants);
+        await _insertAll(database.matchClocks, clocks);
+        await _insertAll(database.matchEvents, events);
+        await _insertAll(database.shotLocations, locations);
+        await _insertAll(database.possessionSegments, possessions);
+        await _insertAll(database.auditLogs, audits);
+        await _insertAll(database.activeSessions, activeSessions);
+      });
+    } on BackupRestoreBlockedException {
+      rethrow;
+    } on Object catch (error) {
+      throw BackupRestoreException('Atomic restore failed: $error');
+    }
+  }
+
+  /// Parses and fully validates [source] without touching the database.
+  ///
+  /// Merge/import workflows use this method to share the exact same size,
+  /// version, checksum, enum, reference and domain checks as replace restore
+  /// before opening their write transaction.
+  JsonBackupDocument decodeAndValidate(String source) {
+    if (utf8.encode(source).length > maxPayloadBytes) {
+      throw BackupValidationException(
+        'Backup payload exceeds the $maxPayloadBytes byte limit.',
+      );
+    }
     late final BackupManifest manifest;
     late final Map<String, List<Map<String, dynamic>>> data;
     try {
@@ -121,6 +272,13 @@ class JsonBackupCodec {
     } on Object catch (error) {
       throw BackupFormatException('Backup JSON is invalid: $error');
     }
+    if (manifest.formatVersion != currentFormatVersion) {
+      throw UnsupportedBackupFormatException(
+        formatVersion: manifest.formatVersion,
+        supportedFormatVersion: currentFormatVersion,
+      );
+    }
+    _validateResourceLimits(manifest);
     if (manifest.schemaVersion > database.schemaVersion) {
       throw UnsupportedBackupSchemaException(
         schemaVersion: manifest.schemaVersion,
@@ -149,23 +307,37 @@ class JsonBackupCodec {
     late final List<AuditLog> audits;
     late final List<AppSetting> settings;
     try {
-      matches = data['matches']!.map(Matche.fromJson).toList();
+      matches = data['matches']!.map(Matche.fromJson).toList(growable: false);
       participants = data['matchParticipants']!
           .map(MatchParticipant.fromJson)
-          .toList();
-      clocks = data['matchClocks']!.map(MatchClock.fromJson).toList();
+          .toList(growable: false);
+      clocks = data['matchClocks']!
+          .map(MatchClock.fromJson)
+          .toList(growable: false);
       activeSessions = data['activeSessions']!
           .map(ActiveSession.fromJson)
-          .toList();
-      events = data['matchEvents']!.map(MatchEventRow.fromJson).toList();
-      locations = data['shotLocations']!.map(ShotLocation.fromJson).toList();
-      players = data['players']!.map(PlayerRow.fromJson).toList();
-      templates = data['ruleTemplates']!.map(RuleTemplateRow.fromJson).toList();
+          .toList(growable: false);
+      events = data['matchEvents']!
+          .map(MatchEventRow.fromJson)
+          .toList(growable: false);
+      locations = data['shotLocations']!
+          .map(ShotLocation.fromJson)
+          .toList(growable: false);
+      players = data['players']!
+          .map(PlayerRow.fromJson)
+          .toList(growable: false);
+      templates = data['ruleTemplates']!
+          .map(RuleTemplateRow.fromJson)
+          .toList(growable: false);
       possessions = data['possessionSegments']!
           .map(PossessionSegment.fromJson)
-          .toList();
-      audits = data['auditLogs']!.map(AuditLog.fromJson).toList();
-      settings = data['appSettings']!.map(AppSetting.fromJson).toList();
+          .toList(growable: false);
+      audits = data['auditLogs']!
+          .map(AuditLog.fromJson)
+          .toList(growable: false);
+      settings = data['appSettings']!
+          .map(AppSetting.fromJson)
+          .toList(growable: false);
     } on Object catch (error) {
       throw BackupValidationException('Backup row is invalid: $error');
     }
@@ -182,36 +354,39 @@ class JsonBackupCodec {
       audits: audits,
       settings: settings,
     );
+    return JsonBackupDocument(
+      manifest: manifest,
+      data: data,
+      matches: matches,
+      participants: participants,
+      clocks: clocks,
+      activeSessions: activeSessions,
+      events: events,
+      locations: locations,
+      players: players,
+      templates: templates,
+      possessions: possessions,
+      audits: audits,
+      settings: settings,
+    );
+  }
 
-    try {
-      await database.transaction(() async {
-        await database.delete(database.shotLocations).go();
-        await database.delete(database.activeSessions).go();
-        await database.delete(database.possessionSegments).go();
-        await database.delete(database.auditLogs).go();
-        await database.delete(database.matchEvents).go();
-        await database.delete(database.matchParticipants).go();
-        await database.delete(database.matchClocks).go();
-        await database.delete(database.matches).go();
-        await database.delete(database.players).go();
-        await database.delete(database.ruleTemplates).go();
-        await database.delete(database.appSettings).go();
+  /// Alias kept explicit for import callers.
+  JsonBackupDocument validate(String source) => decodeAndValidate(source);
 
-        await _insertAll(database.players, players);
-        await _insertAll(database.ruleTemplates, templates);
-        await _insertAll(database.appSettings, settings);
-        await _insertAll(database.matches, matches);
-        await _insertAll(database.matchParticipants, participants);
-        await _insertAll(database.matchClocks, clocks);
-        await _insertAll(database.matchEvents, events);
-        await _insertAll(database.shotLocations, locations);
-        await _insertAll(database.possessionSegments, possessions);
-        await _insertAll(database.auditLogs, audits);
-        await _insertAll(database.activeSessions, activeSessions);
-      });
-    } on Object catch (error) {
-      throw BackupRestoreException('Atomic restore failed: $error');
-    }
+  MatchClock _pausedRestoredClock(
+    MatchClock clock, {
+    required DateTime exportedAt,
+  }) {
+    final runningSince = clock.runningSinceUtc;
+    if (runningSince == null) return clock;
+    final elapsed = exportedAt.toUtc().difference(runningSince.toUtc());
+    return clock.copyWith(
+      accumulatedSeconds:
+          clock.accumulatedSeconds +
+          (elapsed.isNegative ? 0 : elapsed.inSeconds),
+      runningSinceUtc: const Value(null),
+    );
   }
 
   static List<Map<String, dynamic>> _jsonRows(String table, Object? value) {
@@ -226,6 +401,24 @@ class JsonBackupCodec {
           return row;
         })
         .toList(growable: false);
+  }
+
+  void _validateResourceLimits(BackupManifest manifest) {
+    var totalRows = 0;
+    for (final entry in manifest.recordCounts.entries) {
+      final count = entry.value;
+      if (count < 0 || count > maxRowsPerTable) {
+        throw BackupValidationException(
+          'Manifest count for ${entry.key} exceeds the per-table limit.',
+        );
+      }
+      totalRows += count;
+      if (totalRows > maxTotalRows) {
+        throw BackupValidationException(
+          'Manifest row counts exceed the total row limit.',
+        );
+      }
+    }
   }
 
   void _validateTableGroups(
@@ -295,12 +488,20 @@ class JsonBackupCodec {
     _uniqueIds('auditLogs', audits.map((row) => row.id));
     _uniqueIds('appSettings', settings.map((row) => row.key));
 
-    if (activeSessions.length > 1 ||
+    final activeMatches = matches
+        .where(
+          (match) => match.lifecycle == domain_match.MatchLifecycle.active.name,
+        )
+        .toList(growable: false);
+    if (activeMatches.length > 1 ||
+        activeSessions.length > 1 ||
+        activeMatches.length != activeSessions.length ||
         (activeSessions.isNotEmpty &&
             (activeSessions.single.id != 'active' ||
                 !matchIds.contains(activeSessions.single.matchId) ||
                 matchesById[activeSessions.single.matchId]?.lifecycle !=
-                    domain_match.MatchLifecycle.active.name))) {
+                    domain_match.MatchLifecycle.active.name ||
+                activeMatches.single.id != activeSessions.single.matchId))) {
       throw const BackupValidationException(
         'Backup contains an invalid active session graph.',
       );
@@ -317,6 +518,22 @@ class JsonBackupCodec {
         throw BackupValidationException(
           'Participant ${participant.id} contains invalid references or values.',
         );
+      }
+    }
+    final profileAssignments = <String, Set<String>>{};
+    for (final participant in participants) {
+      final profileId = participant.playerProfileId;
+      if (profileId != null && profileId.isNotEmpty) {
+        final profiles = profileAssignments.putIfAbsent(
+          participant.matchId,
+          () => <String>{},
+        );
+        if (!profiles.add(profileId)) {
+          throw BackupValidationException(
+            'Match ${participant.matchId} assigns player profile '
+            '$profileId to both sides.',
+          );
+        }
       }
     }
     final participantSides = <String>{};
@@ -345,7 +562,9 @@ class JsonBackupCodec {
     }
     final clocksByMatch = <String, String>{};
     for (final clock in clocks) {
+      final match = matchesById[clock.matchId];
       if (!matchIds.contains(clock.matchId) ||
+          match == null ||
           !{'countUp', 'countdown'}.contains(clock.mode) ||
           !{
             'regulation',
@@ -358,12 +577,28 @@ class JsonBackupCodec {
           'Clock ${clock.id} contains invalid references or values.',
         );
       }
+      if (clock.runningSinceUtc != null &&
+          (match.lifecycle != domain_match.MatchLifecycle.active.name ||
+              clock.phase == 'regulationExpired')) {
+        throw BackupValidationException(
+          'Clock ${clock.id} cannot be running for its match state.',
+        );
+      }
       if (clocksByMatch.containsKey(clock.matchId)) {
         throw BackupValidationException(
           'Match ${clock.matchId} contains more than one clock.',
         );
       }
       clocksByMatch[clock.matchId] = clock.id;
+    }
+    for (final match in matches) {
+      if ((match.lifecycle == domain_match.MatchLifecycle.active.name ||
+              match.timerEnabled) &&
+          !clocksByMatch.containsKey(match.id)) {
+        throw BackupValidationException(
+          'Match ${match.id} requires exactly one clock.',
+        );
+      }
     }
 
     for (final event in events) {
@@ -372,9 +607,23 @@ class JsonBackupCodec {
           'Event ${event.id} references missing match ${event.matchId}.',
         );
       }
-      if (event.type == 'score' && (event.side == null || event.points <= 0)) {
+      if (event.type == 'score' &&
+          (event.side == null ||
+              event.points <= 0 ||
+              (event.outcome != null && event.outcome != 'made'))) {
         throw BackupValidationException(
           'Score event ${event.id} has invalid side or points.',
+        );
+      }
+      if ({'fieldGoal', 'freeThrow'}.contains(event.type) &&
+          (event.side == null || !_hasValidShotResult(event))) {
+        throw BackupValidationException(
+          'Shot event ${event.id} has invalid side, outcome, or points.',
+        );
+      }
+      if (event.type == 'miss' && (event.side == null || event.points != 0)) {
+        throw BackupValidationException(
+          'Miss event ${event.id} has invalid side or points.',
         );
       }
       if (!_enumNames(MatchEventType.values).contains(event.type) ||
@@ -392,6 +641,7 @@ class JsonBackupCodec {
       }
     }
     final eventsById = {for (final event in events) event.id: event};
+    final locatedEventIds = <String>{};
     for (final location in locations) {
       final event = eventsById[location.eventId];
       if (!matchIds.contains(location.matchId) ||
@@ -403,7 +653,8 @@ class JsonBackupCodec {
           location.x < 0 ||
           location.x > 1 ||
           location.y < 0 ||
-          location.y > 1) {
+          location.y > 1 ||
+          !locatedEventIds.add(location.eventId)) {
         throw BackupValidationException(
           'Shot location ${location.id} has invalid match/event references.',
         );
@@ -452,6 +703,14 @@ class JsonBackupCodec {
     for (final setting in settings) {
       _decodeJson('App setting ${setting.key}', setting.valueJson);
     }
+  }
+
+  bool _hasValidShotResult(MatchEventRow event) {
+    return switch (event.outcome) {
+      'made' => event.points > 0,
+      'missed' => event.points == 0,
+      _ => false,
+    };
   }
 
   void _validateMatch(Matche match) {
@@ -580,9 +839,13 @@ class JsonBackupCodec {
   Future<List<Map<String, dynamic>>> _rows<T extends DataClass>(
     TableInfo<Table, T> table, {
     String key = 'id',
+    bool Function(Map<String, dynamic> row)? include,
   }) async {
     final rows = await database.select(table).get();
-    final json = rows.map((row) => row.toJson()).toList();
+    final json = rows
+        .map((row) => row.toJson())
+        .where((row) => include == null || include(row))
+        .toList();
     json.sort(
       (first, second) =>
           (first[key] as String).compareTo(second[key] as String),

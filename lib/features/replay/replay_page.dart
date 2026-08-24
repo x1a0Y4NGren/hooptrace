@@ -6,12 +6,14 @@ import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
-import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/domain/entities/possession_segment.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/export/replay_image_exporter.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/widgets/replay_analytics_summary.dart';
+import 'package:hooptrace/features/replay/widgets/replay_audit_sheet.dart';
+import 'package:hooptrace/features/replay/widgets/replay_event_editor.dart';
+import 'package:hooptrace/features/replay/widgets/replay_timeline.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 
 class ReplayPage extends StatefulWidget {
@@ -31,6 +33,8 @@ class ReplayPage extends StatefulWidget {
   @override
   State<ReplayPage> createState() => _ReplayPageState();
 }
+
+enum _ReplayAppBarAction { edit, finish }
 
 class _ReplayPageState extends State<ReplayPage> {
   bool _finishBusy = false;
@@ -65,7 +69,7 @@ class _ReplayPageState extends State<ReplayPage> {
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      builder: (context) => _AuditHistorySheet(logs: logs),
+      builder: (context) => ReplayAuditSheet(logs: logs),
     );
   }
 
@@ -77,7 +81,8 @@ class _ReplayPageState extends State<ReplayPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => _EventEditorSheet(controller: controller, event: event),
+      builder: (_) =>
+          ReplayEventEditorSheet(controller: controller, event: event),
     );
   }
 
@@ -152,54 +157,113 @@ class _ReplayPageState extends State<ReplayPage> {
     return AppLocalizations.of(context) ?? AppLocalizationsZh();
   }
 
+  List<Widget> _appBarActions(
+    BuildContext context,
+    ReplayController controller,
+  ) {
+    final l10n = _localizations(context);
+    final compact =
+        MediaQuery.sizeOf(context).width < 600 ||
+        MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final actions = <Widget>[
+      if (widget.onShareSummary != null)
+        IconButton(
+          key: const Key('replay-export-image'),
+          tooltip: l10n.replayExportTooltip,
+          onPressed: _showExportPreview,
+          icon: const Icon(Icons.ios_share_outlined),
+        ),
+      if (controller.loadAuditLogs != null)
+        IconButton(
+          key: const Key('replay-audit-history'),
+          tooltip: l10n.replayAuditTooltip,
+          onPressed: _showAuditHistory,
+          icon: const Icon(Icons.history),
+        ),
+    ];
+    if (compact) {
+      actions.add(
+        PopupMenuButton<_ReplayAppBarAction>(
+          key: const Key('replay-actions-menu'),
+          tooltip: l10n.replayMoreActions,
+          onSelected: (action) {
+            switch (action) {
+              case _ReplayAppBarAction.edit:
+                if (controller.canEdit) {
+                  controller.setEditing(!controller.isEditing);
+                }
+              case _ReplayAppBarAction.finish:
+                if (!_finishBusy && widget.onFinishMatch != null) {
+                  _confirmFinishMatch();
+                }
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: _ReplayAppBarAction.edit,
+              enabled: controller.canEdit,
+              child: Text(
+                controller.isEditing
+                    ? l10n.replayEditMode
+                    : l10n.replayReadOnly,
+              ),
+            ),
+            if (widget.onFinishMatch != null)
+              PopupMenuItem(
+                value: _ReplayAppBarAction.finish,
+                enabled: !_finishBusy,
+                child: Text(l10n.finishMatch),
+              ),
+          ],
+          icon: const Icon(Icons.more_vert),
+        ),
+      );
+      return actions;
+    }
+    actions.add(
+      SizedBox(
+        height: 48,
+        child: TextButton.icon(
+          key: const Key('replay-edit-toggle'),
+          onPressed: controller.canEdit
+              ? () => controller.setEditing(!controller.isEditing)
+              : null,
+          icon: Icon(
+            controller.isEditing ? Icons.lock_open : Icons.lock_outline,
+          ),
+          label: Text(
+            controller.isEditing ? l10n.replayEditMode : l10n.replayReadOnly,
+          ),
+        ),
+      ),
+    );
+    if (widget.onFinishMatch != null) {
+      actions.add(
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: SizedBox(
+            height: 48,
+            child: FilledButton.icon(
+              key: const Key('replay-finish-match'),
+              onPressed: _finishBusy ? null : _confirmFinishMatch,
+              icon: const Icon(Icons.stop_circle_outlined),
+              label: Text(l10n.finishMatch),
+            ),
+          ),
+        ),
+      );
+    }
+    return actions;
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = widget.controller;
+    final l10n = _localizations(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('比赛复盘'),
-        actions: [
-          if (widget.onShareSummary != null)
-            IconButton(
-              key: const Key('replay-export-image'),
-              tooltip: '导出复盘图',
-              onPressed: _showExportPreview,
-              icon: const Icon(Icons.ios_share_outlined),
-            ),
-          if (controller.loadAuditLogs != null)
-            IconButton(
-              key: const Key('replay-audit-history'),
-              tooltip: '审计历史',
-              onPressed: _showAuditHistory,
-              icon: const Icon(Icons.history),
-            ),
-          SizedBox(
-            height: 48,
-            child: TextButton.icon(
-              key: const Key('replay-edit-toggle'),
-              onPressed: controller.canEdit
-                  ? () => controller.setEditing(!controller.isEditing)
-                  : null,
-              icon: Icon(
-                controller.isEditing ? Icons.lock_open : Icons.lock_outline,
-              ),
-              label: Text(controller.isEditing ? '编辑模式' : '只读模式'),
-            ),
-          ),
-          if (widget.onFinishMatch != null)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: SizedBox(
-                height: 48,
-                child: FilledButton.icon(
-                  key: const Key('replay-finish-match'),
-                  onPressed: _finishBusy ? null : _confirmFinishMatch,
-                  icon: const Icon(Icons.stop_circle_outlined),
-                  label: Text(_localizations(context).finishMatch),
-                ),
-              ),
-            ),
-        ],
+        title: Text(l10n.replayTitle),
+        actions: _appBarActions(context, controller),
       ),
       body: SafeArea(
         top: false,
@@ -232,7 +296,7 @@ class _ReplayPageState extends State<ReplayPage> {
                         const VerticalDivider(width: 1),
                         Expanded(
                           flex: 4,
-                          child: _TimelinePanel(
+                          child: ReplayTimelinePanel(
                             controller: controller,
                             onEventTap: _showEventEditor,
                           ),
@@ -247,7 +311,7 @@ class _ReplayPageState extends State<ReplayPage> {
                       children: [
                         _ReplayOverview(controller: controller),
                         const SizedBox(height: 24),
-                        _TimelinePanel(
+                        ReplayTimelinePanel(
                           controller: controller,
                           embedded: true,
                           onEventTap: _showEventEditor,
@@ -288,6 +352,7 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
   @override
   Widget build(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
+    final l10n = _localizations(context);
     return Dialog(
       insetPadding: const EdgeInsets.all(20),
       child: SizedBox(
@@ -308,20 +373,20 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      '复盘分享图',
+                      l10n.replayExportTitle,
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
                   IconButton(
-                    tooltip: '关闭',
+                    tooltip: l10n.replayClose,
                     onPressed: _busy ? null : () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
                 ],
               ),
-              const Text('落点与分析会生成一张本地图片'),
+              Text(l10n.replayExportDescription),
               const SizedBox(height: 16),
               Expanded(
                 child: Center(
@@ -349,7 +414,7 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
                 children: [
                   TextButton(
                     onPressed: _busy ? null : () => Navigator.pop(context),
-                    child: const Text('取消'),
+                    child: Text(l10n.cancelAction),
                   ),
                   const SizedBox(width: 12),
                   FilledButton.icon(
@@ -361,7 +426,9 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.ios_share_outlined),
-                    label: Text(_busy ? '生成中' : '生成并分享'),
+                    label: Text(
+                      _busy ? l10n.replayGenerating : l10n.replayGenerateShare,
+                    ),
                   ),
                 ],
               ),
@@ -373,6 +440,7 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
   }
 
   Future<void> _export() async {
+    final l10n = _localizations(context);
     setState(() {
       _busy = true;
       _error = null;
@@ -386,7 +454,7 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = '图片生成或分享失败，请重试';
+          _error = l10n.replayExportFailed;
         });
       }
     }
@@ -401,15 +469,18 @@ class _ReplayExportSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = controller.data;
+    final l10n = _localizations(context);
     final analytics = data.analytics;
     final attempts = analytics == null
         ? controller.scoreEventCount
-        : analytics.madeShotCount + analytics.missedShotCount;
+        : analytics.attempts;
     final shootingPercentage = analytics == null || attempts == 0
-        ? '暂无'
-        : '${(analytics.shootingPercentage * 100).round()}%';
+        ? l10n.replayNoData
+        : analytics.hasReliableShootingPercentage
+        ? '${(analytics.reliableShootingPercentage! * 100).round()}%'
+        : '${l10n.replayAnalyticsRecordedAttempts} · $attempts';
     final largestLead = analytics?.largestLeadSide == null
-        ? '暂无'
+        ? l10n.replayNoData
         : '${analytics!.largestLeadSide == TeamSide.red ? data.redName : data.blueName} '
               '+${analytics.largestLeadPoints}';
 
@@ -418,7 +489,7 @@ class _ReplayExportSummary extends StatelessWidget {
       width: 900,
       height: 520,
       padding: const EdgeInsets.all(26),
-      color: HoopTraceColors.offWhite,
+      color: Theme.of(context).colorScheme.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -433,15 +504,18 @@ class _ReplayExportSummary extends StatelessWidget {
               Text(
                 'HoopTrace',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: HoopTraceColors.ink,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               const Spacer(),
               Text(
-                data.isFinished ? '比赛复盘 · 终场' : '比赛复盘 · 进行中',
+                '${l10n.replayTitle} · '
+                '${data.isFinished ? l10n.replayFinished : l10n.replayInProgress}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: HoopTraceColors.ink.withValues(alpha: 0.68),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.72),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -461,7 +535,7 @@ class _ReplayExportSummary extends StatelessWidget {
               Text(
                 ':',
                 style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                  color: HoopTraceColors.ink,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -500,10 +574,10 @@ class _ReplayExportSummary extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        '本场分析',
+                        l10n.replayExportAnalysis,
                         style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(
-                              color: HoopTraceColors.ink,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
@@ -517,26 +591,32 @@ class _ReplayExportSummary extends StatelessWidget {
                           crossAxisSpacing: 10,
                           children: [
                             _ExportMetric(
-                              label: '比赛时长',
+                              label: l10n.replayDuration,
                               value: _formatDuration(data.duration),
                             ),
                             _ExportMetric(
-                              label: '落点记录',
+                              label: l10n.replayExportShotLocations,
                               value: '${controller.locatedShotCount}',
                             ),
                             _ExportMetric(
-                              label: '投篮命中率',
+                              label: l10n.replayExportShootingPercentage,
                               value: shootingPercentage,
                             ),
                             _ExportMetric(
-                              label: '领先变化',
-                              value: '${analytics?.leadChanges ?? 0} 次',
+                              label: l10n.replayExportLeadChanges,
+                              value: l10n.replayExportLeadChangesValue(
+                                analytics?.leadChanges ?? 0,
+                              ),
                             ),
-                            _ExportMetric(label: '最大领先', value: largestLead),
                             _ExportMetric(
-                              label: '关键节点',
-                              value:
-                                  '${analytics?.keyPossessions.length ?? 0} 次',
+                              label: l10n.replayExportLargestLead,
+                              value: largestLead,
+                            ),
+                            _ExportMetric(
+                              label: l10n.replayExportKeyMoments,
+                              value: l10n.replayExportKeyMomentsValue(
+                                analytics?.keyPossessions.length ?? 0,
+                              ),
                             ),
                           ],
                         ),
@@ -602,7 +682,7 @@ class _ExportMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: HoopTraceColors.cream,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Padding(
@@ -631,127 +711,6 @@ class _ExportMetric extends StatelessWidget {
   }
 }
 
-class _EventEditorSheet extends StatefulWidget {
-  const _EventEditorSheet({required this.controller, required this.event});
-
-  final ReplayController controller;
-  final ReplayEventData event;
-
-  @override
-  State<_EventEditorSheet> createState() => _EventEditorSheetState();
-}
-
-class _EventEditorSheetState extends State<_EventEditorSheet> {
-  late final TextEditingController _note;
-  late final TextEditingController _reason;
-
-  @override
-  void initState() {
-    super.initState();
-    _note = TextEditingController(text: widget.event.note ?? '');
-    _reason = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    _note.dispose();
-    _reason.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        4,
-        20,
-        MediaQuery.viewInsetsOf(context).bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('编辑事件', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _note,
-            decoration: const InputDecoration(
-              labelText: '备注',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _reason,
-            decoration: const InputDecoration(
-              labelText: '修改原因（可选）',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    onPressed: _deleteEvent,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('软删除'),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: FilledButton.icon(
-                    onPressed: _saveNote,
-                    icon: const Icon(Icons.save_outlined),
-                    label: const Text('保存备注'),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _deleteEvent() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('删除这条事件？'),
-        content: const Text('事件将被标记为已删除，并保留完整审计记录。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('确认删除'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await widget.controller.deleteSelectedEvent(reason: _reason.text);
-    if (mounted) Navigator.pop(context);
-  }
-
-  Future<void> _saveNote() async {
-    await widget.controller.updateSelectedNote(
-      _note.text,
-      reason: _reason.text,
-    );
-    if (mounted) Navigator.pop(context);
-  }
-}
-
 class _ScoreHeader extends StatelessWidget {
   const _ScoreHeader({required this.data});
 
@@ -759,6 +718,7 @@ class _ScoreHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -774,9 +734,11 @@ class _ScoreHeader extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Text(
-              data.isFinished ? '终场' : '进行中',
+              data.isFinished ? l10n.replayFinished : l10n.replayInProgress,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: HoopTraceColors.ink.withValues(alpha: 0.65),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.72),
               ),
             ),
           ),
@@ -840,6 +802,7 @@ class _ReplayOverview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final scoreCount = controller.scoreEventCount;
     final completeness = scoreCount == 0
         ? 0
@@ -847,7 +810,7 @@ class _ReplayOverview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SectionTitle(title: '落点图', icon: Icons.sports_basketball),
+        _SectionTitle(title: l10n.replayCourt, icon: Icons.sports_basketball),
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -885,24 +848,33 @@ class _ReplayOverview extends StatelessWidget {
               key: const Key('replay-save-location'),
               onPressed: () => _saveLocation(context),
               icon: const Icon(Icons.save_outlined),
-              label: const Text('保存落点位置'),
+              label: Text(l10n.replaySaveLocation),
             ),
           ),
         ],
         const SizedBox(height: 20),
-        const _SectionTitle(title: '总览', icon: Icons.assessment_outlined),
+        _SectionTitle(
+          title: l10n.replayOverview,
+          icon: Icons.assessment_outlined,
+        ),
         const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
             _Metric(
-              label: '时长',
+              label: l10n.replayDuration,
               value: _formatDuration(controller.data.duration),
             ),
-            _Metric(label: '得分事件', value: '$scoreCount'),
-            _Metric(label: '犯规', value: '${controller.foulEventCount}'),
-            _Metric(label: '落点完整度', value: '$completeness%'),
+            _Metric(label: l10n.replayScoringEvents, value: '$scoreCount'),
+            _Metric(
+              label: l10n.replayFouls,
+              value: '${controller.foulEventCount}',
+            ),
+            _Metric(
+              label: l10n.replayLocationCompleteness,
+              value: '$completeness%',
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -949,23 +921,24 @@ class _ShotLocationReasonDialogState extends State<_ShotLocationReasonDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return AlertDialog(
-      title: const Text('保存落点修改'),
+      title: Text(l10n.replayLocationEditTitle),
       content: TextField(
         controller: _reason,
-        decoration: const InputDecoration(
-          labelText: '修改原因（可选）',
+        decoration: InputDecoration(
+          labelText: l10n.replayEditorReason,
           border: OutlineInputBorder(),
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('取消'),
+          child: Text(l10n.cancelAction),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, _reason.text),
-          child: const Text('保存'),
+          child: Text(l10n.replayLocationSaveAction),
         ),
       ],
     );
@@ -984,7 +957,7 @@ class _Metric extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 108, minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: HoopTraceColors.cream,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -1011,33 +984,60 @@ class _PossessionSegmentsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Container(
       key: const Key('replay-possession-segments'),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: HoopTraceColors.cream,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: _SectionTitle(
-                  title: '球权分段',
-                  icon: Icons.swap_horiz_outlined,
-                ),
-              ),
-              Text(
-                data.isFinished ? '终场边界' : '进行中边界',
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final boundary = Text(
+                data.isFinished
+                    ? l10n.replayFinishedBoundary
+                    : l10n.replayInProgressBoundary,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelMedium,
-              ),
-            ],
+              );
+              final compact =
+                  constraints.maxWidth < 360 ||
+                  MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _SectionTitle(
+                      title: l10n.replayPossession,
+                      icon: Icons.swap_horiz_outlined,
+                    ),
+                    const SizedBox(height: 4),
+                    Align(alignment: Alignment.centerLeft, child: boundary),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(
+                    child: _SectionTitle(
+                      title: l10n.replayPossession,
+                      icon: Icons.swap_horiz_outlined,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(child: boundary),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 10),
           if (data.possessionSegments.isEmpty)
-            const Text('暂无已记录的球权分段')
+            Text(l10n.replayNoPossession)
           else
             ...data.possessionSegments.map(
               (segment) => _PossessionSegmentRow(
@@ -1065,21 +1065,24 @@ class _PossessionSegmentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final sideColor = data.side == TeamSide.red
         ? HoopTraceColors.red
         : HoopTraceColors.blue;
     final sideName = data.side == TeamSide.red ? redName : blueName;
-    final sourceLabel = data.source == PossessionSource.manual ? '人工' : '建议';
+    final sourceLabel = data.source == PossessionSource.manual
+        ? l10n.replayPossessionManual
+        : l10n.replayPossessionSuggested;
     final reason = data.source == PossessionSource.suggested
-        ? '命中后按规则建议'
+        ? l10n.replaySuggestedReason
         : (data.reason == null || data.reason!.isEmpty
-              ? '未填写原因'
+              ? l10n.replayNoReason
               : data.reason!);
     final boundary = data.isOpen
-        ? '当前进行中'
+        ? l10n.replayPossessionCurrent
         : data.endedAt == null
-        ? '已结束'
-        : '结束 ${_formatDuration(data.endedAt!)}';
+        ? l10n.replayPossessionEnded(l10n.replayNoData)
+        : l10n.replayPossessionEnded(_formatDuration(data.endedAt!));
 
     return Container(
       key: Key('replay-possession-${data.id}'),
@@ -1088,7 +1091,9 @@ class _PossessionSegmentRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: HoopTraceColors.ink.withValues(alpha: 0.12),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.16),
           ),
         ),
       ),
@@ -1108,11 +1113,11 @@ class _PossessionSegmentRow extends StatelessWidget {
                   ).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 Text(
-                  '${_formatDuration(data.startedAt)} 开始 · $boundary',
+                  '${_formatDuration(data.startedAt)} · $boundary',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 Text(
-                  '原因：$reason',
+                  l10n.replayPossessionReason(reason),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
@@ -1121,300 +1126,6 @@ class _PossessionSegmentRow extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _TimelinePanel extends StatelessWidget {
-  const _TimelinePanel({
-    required this.controller,
-    required this.onEventTap,
-    this.embedded = false,
-  });
-
-  final ReplayController controller;
-  final bool embedded;
-  final ValueChanged<ReplayEventData> onEventTap;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget buildContent({required bool inlineEvents}) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: inlineEvents ? MainAxisSize.min : MainAxisSize.max,
-        children: [
-          const _SectionTitle(title: '事件时间线', icon: Icons.timeline),
-          const SizedBox(height: 10),
-          _ReplayFilters(controller: controller),
-          const SizedBox(height: 12),
-          if (controller.visibleEvents.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 32),
-              child: Center(child: Text('没有符合筛选条件的事件')),
-            )
-          else if (inlineEvents)
-            ...controller.visibleEvents.map(
-              (event) => _TimelineEvent(
-                event: event,
-                data: controller.data,
-                onTap: controller.isEditing ? () => onEventTap(event) : null,
-              ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                itemCount: controller.visibleEvents.length,
-                itemBuilder: (context, index) => _TimelineEvent(
-                  event: controller.visibleEvents[index],
-                  data: controller.data,
-                  onTap: controller.isEditing
-                      ? () => onEventTap(controller.visibleEvents[index])
-                      : null,
-                ),
-              ),
-            ),
-        ],
-      );
-    }
-
-    if (embedded) return buildContent(inlineEvents: true);
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compactHeight = constraints.maxHeight < 280;
-          final content = buildContent(inlineEvents: compactHeight);
-          return compactHeight
-              ? SingleChildScrollView(child: content)
-              : content;
-        },
-      ),
-    );
-  }
-}
-
-class _ReplayFilters extends StatelessWidget {
-  const _ReplayFilters({required this.controller});
-
-  final ReplayController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Wrap(
-          spacing: 8,
-          children: [
-            _FilterChip(
-              key: const Key('replay-kind-all'),
-              label: '全部',
-              selected: controller.kindFilter == ReplayKindFilter.all,
-              onSelected: () => controller.setKindFilter(ReplayKindFilter.all),
-            ),
-            _FilterChip(
-              key: const Key('replay-kind-scores'),
-              label: '得分',
-              selected: controller.kindFilter == ReplayKindFilter.scores,
-              onSelected: () =>
-                  controller.setKindFilter(ReplayKindFilter.scores),
-            ),
-            _FilterChip(
-              key: const Key('replay-kind-fouls'),
-              label: '犯规',
-              selected: controller.kindFilter == ReplayKindFilter.fouls,
-              onSelected: () =>
-                  controller.setKindFilter(ReplayKindFilter.fouls),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          children: [
-            _FilterChip(
-              label: '双方',
-              selected: controller.sideFilter == ReplaySideFilter.all,
-              onSelected: () => controller.setSideFilter(ReplaySideFilter.all),
-            ),
-            _FilterChip(
-              label: '红方',
-              selected: controller.sideFilter == ReplaySideFilter.red,
-              selectedColor: HoopTraceColors.red.withValues(alpha: 0.18),
-              onSelected: () => controller.setSideFilter(ReplaySideFilter.red),
-            ),
-            _FilterChip(
-              label: '蓝方',
-              selected: controller.sideFilter == ReplaySideFilter.blue,
-              selectedColor: HoopTraceColors.blue.withValues(alpha: 0.18),
-              onSelected: () => controller.setSideFilter(ReplaySideFilter.blue),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-    this.selectedColor,
-    super.key,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-  final Color? selectedColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: ChoiceChip(
-        label: Text(label),
-        selected: selected,
-        selectedColor: selectedColor,
-        onSelected: (_) => onSelected(),
-      ),
-    );
-  }
-}
-
-class _TimelineEvent extends StatelessWidget {
-  const _TimelineEvent({required this.event, required this.data, this.onTap});
-
-  final ReplayEventData event;
-  final ReplayMatchData data;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final sideColor = event.side == TeamSide.red
-        ? HoopTraceColors.red
-        : event.side == TeamSide.blue
-        ? HoopTraceColors.blue
-        : HoopTraceColors.ink;
-    final sideName = event.side == TeamSide.red
-        ? data.redName
-        : event.side == TeamSide.blue
-        ? data.blueName
-        : '比赛';
-    final action = switch (event.kind) {
-      ReplayEventKind.score => '+${event.points} 分',
-      ReplayEventKind.foul => '犯规',
-      ReplayEventKind.miss => '投篮未中',
-      ReplayEventKind.other => '记录',
-    };
-    return InkWell(
-      key: Key('replay-event-${event.id}'),
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 64),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: HoopTraceColors.ink.withValues(alpha: 0.12),
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 52,
-              child: Text(
-                _formatDuration(event.elapsed),
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-            Container(width: 4, height: 32, color: sideColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$sideName · $action',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (event.note != null && event.note!.isNotEmpty)
-                    Text(
-                      event.note!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-            if (onTap != null)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.edit_outlined, size: 20),
-              )
-            else if (event.shotPoint != null)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.location_on_outlined, size: 20),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AuditHistorySheet extends StatelessWidget {
-  const _AuditHistorySheet({required this.logs});
-
-  final List<AuditLogEntry> logs;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SizedBox(
-        height: math.min(MediaQuery.sizeOf(context).height * 0.75, 560),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text(
-                '审计历史',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            Expanded(
-              child: logs.isEmpty
-                  ? const Center(child: Text('暂无编辑记录'))
-                  : ListView.separated(
-                      itemCount: logs.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        final log = logs[index];
-                        return ListTile(
-                          minTileHeight: 64,
-                          leading: Icon(
-                            log.action == AuditAction.delete
-                                ? Icons.delete_outline
-                                : Icons.edit_outlined,
-                          ),
-                          title: Text('${log.action.name} · ${log.targetId}'),
-                          subtitle: Text(
-                            log.reason == null ? '未填写原因' : '原因：${log.reason}',
-                          ),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1432,11 +1143,15 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Icon(icon, size: 21, color: HoopTraceColors.orange),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+          ),
         ),
       ],
     );
@@ -1447,4 +1162,8 @@ String _formatDuration(Duration duration) {
   final minutes = duration.inMinutes.toString().padLeft(2, '0');
   final seconds = (duration.inSeconds % 60).toString().padLeft(2, '0');
   return '$minutes:$seconds';
+}
+
+AppLocalizations _localizations(BuildContext context) {
+  return AppLocalizations.of(context) ?? AppLocalizationsZh();
 }

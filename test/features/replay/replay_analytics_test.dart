@@ -35,6 +35,8 @@ void main() {
       madeShotCount: 2,
       missedShotCount: 1,
       shootingPercentage: 2 / 3,
+      recordedShootingPercentage: 2 / 3,
+      shootingPercentageIsTrustworthy: true,
       keyPossessions: [
         KeyPossession(
           type: KeyPossessionType.overtake,

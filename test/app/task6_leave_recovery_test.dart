@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations_en.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -10,6 +11,8 @@ import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 void main() {
+  final l10n = AppLocalizationsEn();
+
   testWidgets('running clock pause-and-leave persists paused state', (
     tester,
   ) async {
@@ -137,7 +140,7 @@ void main() {
 
     await tester.binding.handlePopRoute();
     await tester.pump();
-    expect(find.text('离开比赛'), findsOneWidget);
+    expect(find.text(l10n.routeLeaveTitle), findsOneWidget);
     expect(find.byKey(const Key('leave-stay')), findsOneWidget);
     expect(find.byKey(const Key('leave-keep-running')), findsOneWidget);
     expect(find.byKey(const Key('leave-pause-and-leave')), findsOneWidget);

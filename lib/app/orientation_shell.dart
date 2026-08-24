@@ -1,7 +1,27 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 enum HoopTraceOrientationMode { portraitFriendly, landscapeRequired }
+
+const double expandedOrientationShortestSide = 600;
+
+List<DeviceOrientation> preferredOrientationsForWindow(
+  HoopTraceOrientationMode mode, {
+  required double shortestSide,
+  double? displayShortestSide,
+}) {
+  if (mode == HoopTraceOrientationMode.landscapeRequired &&
+      (displayShortestSide ?? shortestSide) < expandedOrientationShortestSide) {
+    return const [
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ];
+  }
+  return DeviceOrientation.values;
+}
 
 class OrientationShell extends StatefulWidget {
   const OrientationShell({required this.mode, required this.child, super.key});
@@ -14,9 +34,12 @@ class OrientationShell extends StatefulWidget {
 }
 
 class _OrientationShellState extends State<OrientationShell> {
+  List<DeviceOrientation>? _appliedOrientations;
+  bool _edgeToEdgeApplied = false;
+
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
     _applyOrientation();
   }
 
@@ -30,20 +53,37 @@ class _OrientationShellState extends State<OrientationShell> {
 
   @override
   void dispose() {
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+    if (!listEquals(_appliedOrientations, DeviceOrientation.values)) {
+      unawaited(
+        SystemChrome.setPreferredOrientations(DeviceOrientation.values),
+      );
+    }
     super.dispose();
   }
 
   void _applyOrientation() {
-    if (widget.mode == HoopTraceOrientationMode.landscapeRequired) {
-      SystemChrome.setPreferredOrientations(const [
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-      return;
+    if (!_edgeToEdgeApplied) {
+      _edgeToEdgeApplied = true;
+      unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     }
+    final orientations = preferredOrientationsForWindow(
+      widget.mode,
+      shortestSide: MediaQuery.sizeOf(context).shortestSide,
+      // Android applies an orientation lock to the whole display. On a
+      // split-screen or foldable window, the app's MediaQuery is narrow even
+      // though the physical display is large enough to remain adaptive.
+      displayShortestSide: _displayShortestSide(context),
+    );
+    if (listEquals(_appliedOrientations, orientations)) return;
+    _appliedOrientations = orientations;
+    unawaited(SystemChrome.setPreferredOrientations(orientations));
+  }
 
-    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
+  double? _displayShortestSide(BuildContext context) {
+    final display = View.maybeOf(context)?.display;
+    if (display == null || display.devicePixelRatio <= 0) return null;
+    final logicalSize = display.size / display.devicePixelRatio;
+    return logicalSize.shortestSide;
   }
 
   @override

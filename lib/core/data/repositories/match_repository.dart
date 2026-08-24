@@ -288,7 +288,7 @@ class MatchRepository {
             id: row.id,
             matchId: row.matchId,
             targetId: row.targetId,
-            action: AuditAction.values.byName(row.action),
+            action: AuditAction.fromStorage(row.action),
             createdAt: row.createdAt.toUtc(),
             reason: row.reason,
             diff: AuditDiff(
@@ -492,42 +492,377 @@ class MatchRepository {
     return getMatchDetail(row.matchId);
   }
 
-  Future<List<MatchHistoryEntry>> listHistory() async {
-    final query = _database.select(_database.matches)
-      ..where(
-        (match) => match.lifecycle.isIn([
-          domain_match.MatchLifecycle.finished.name,
-          domain_match.MatchLifecycle.archived.name,
-        ]),
-      )
-      ..orderBy([
-        (match) => OrderingTerm.desc(match.startedAt),
-        (match) => OrderingTerm.desc(match.createdAt),
-      ]);
-    final rows = await query.get();
-    final entries = <MatchHistoryEntry>[];
-    for (final row in rows) {
-      final detail = await getMatchDetail(row.id);
-      if (detail != null) {
-        entries.add(_historyEntry(detail));
-      }
+  /// Loads one bounded history page with a single aggregate projection query.
+  ///
+  /// The query deliberately does not call [getMatchDetail] for each row. All
+  /// score, attempt, location, participant, and profile values are projected
+  /// by grouped subqueries and joins, which keeps the first page O(page size)
+  /// in both returned data and Dart-side work.
+  Future<MatchHistoryPage> queryHistory({
+    MatchHistoryFilter filter = const MatchHistoryFilter(),
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    final spec = _historyQuerySpec(
+      filter: filter,
+      offset: offset,
+      limit: limit,
+    );
+    if (spec.empty) {
+      return MatchHistoryPage(
+        entries: const [],
+        offset: offset,
+        limit: limit,
+        hasMore: false,
+      );
     }
-    entries.sort((left, right) => right.playedAt.compareTo(left.playedAt));
-    return entries;
+    await _database.ensureSchemaIndexes();
+    final rows = await _database
+        .customSelect(
+          spec.sql,
+          variables: spec.variables,
+          readsFrom: _historyReadsFrom,
+        )
+        .get();
+    return _mapHistoryPage(rows, offset: offset, limit: limit);
   }
 
-  Stream<List<MatchHistoryEntry>> watchHistory() {
-    final query = _database.select(_database.matches).join([
-      leftOuterJoin(
-        _database.matchEvents,
-        _database.matchEvents.matchId.equalsExp(_database.matches.id),
+  /// Loads the bounded recovery projection for unfinished matches imported
+  /// from a backup. Keeping this named entry point beside [queryHistory]
+  /// prevents callers from accidentally exposing ordinary abandoned matches.
+  Future<MatchHistoryPage> queryImportedIncomplete({
+    int offset = 0,
+    int limit = 20,
+  }) => queryHistory(
+    filter: const MatchHistoryFilter(importedIncomplete: true),
+    offset: offset,
+    limit: limit,
+  );
+
+  /// Alias kept intentionally descriptive for callers that prefer list/page
+  /// terminology over query terminology.
+  Future<MatchHistoryPage> listHistoryPage({
+    MatchHistoryFilter filter = const MatchHistoryFilter(),
+    int offset = 0,
+    int limit = 20,
+  }) => queryHistory(filter: filter, offset: offset, limit: limit);
+
+  /// Legacy all-history API. New screens should use [queryHistory] so the
+  /// result remains bounded. This wrapper walks bounded pages without opening
+  /// a detail query per match.
+  Future<List<MatchHistoryEntry>> listHistory({
+    MatchHistoryFilter filter = const MatchHistoryFilter(),
+  }) async {
+    const pageSize = 100;
+    final entries = <MatchHistoryEntry>[];
+    var offset = 0;
+    while (true) {
+      final page = await queryHistory(
+        filter: filter,
+        offset: offset,
+        limit: pageSize,
+      );
+      entries.addAll(page.entries);
+      if (!page.hasMore) return List.unmodifiable(entries);
+      offset = page.nextOffset!;
+    }
+  }
+
+  Stream<MatchHistoryPage> watchHistoryPage({
+    MatchHistoryFilter filter = const MatchHistoryFilter(),
+    int offset = 0,
+    int limit = 20,
+  }) {
+    final spec = _historyQuerySpec(
+      filter: filter,
+      offset: offset,
+      limit: limit,
+    );
+    if (spec.empty) {
+      return Stream.value(
+        MatchHistoryPage(
+          entries: const [],
+          offset: offset,
+          limit: limit,
+          hasMore: false,
+        ),
+      );
+    }
+    return Stream.fromFuture(_database.ensureSchemaIndexes()).asyncExpand((_) {
+      final query = _database.customSelect(
+        spec.sql,
+        variables: spec.variables,
+        readsFrom: _historyReadsFrom,
+      );
+      return query.watch().map(
+        (rows) => _mapHistoryPage(rows, offset: offset, limit: limit),
+      );
+    });
+  }
+
+  Stream<List<MatchHistoryEntry>> watchHistory({
+    MatchHistoryFilter filter = const MatchHistoryFilter(),
+  }) =>
+      watchHistoryPage(filter: filter, limit: 100).map((page) => page.entries);
+
+  Set<TableInfo> get _historyReadsFrom => {
+    _database.matches,
+    _database.matchParticipants,
+    _database.players,
+    _database.matchEvents,
+    _database.shotLocations,
+  };
+
+  _HistoryQuerySpec _historyQuerySpec({
+    required MatchHistoryFilter filter,
+    required int offset,
+    required int limit,
+  }) {
+    if (offset < 0) throw ArgumentError.value(offset, 'offset');
+    if (limit < 1 || limit > 100) {
+      throw ArgumentError.value(limit, 'limit', 'must be between 1 and 100');
+    }
+
+    final variables = <Variable<Object>>[];
+    final conditions = <String>['m.lifecycle != ?'];
+    variables.add(Variable.withString(domain_match.MatchLifecycle.active.name));
+
+    // History is a public completed-match projection. Draft/active/abandoned
+    // rows are owned by pregame, recovery, and discard flows respectively and
+    // must remain invisible even when a caller supplies an explicit lifecycle
+    // filter. Imported unfinished rows are the one deliberate exception: the
+    // recovery projection opts into them with a reserved note marker.
+    var lifecycles = filter.selectedLifecycles
+        .where(
+          (lifecycle) => filter.importedIncomplete
+              ? lifecycle == domain_match.MatchLifecycle.abandoned
+              : lifecycle == domain_match.MatchLifecycle.finished ||
+                    lifecycle == domain_match.MatchLifecycle.archived,
+        )
+        .toSet();
+    if (filter.importedIncomplete) {
+      conditions.add('(m.note = ? OR m.note LIKE ?)');
+      variables.add(Variable.withString(importedIncompleteNoteMarker));
+      variables.add(Variable.withString('% [$importedIncompleteNoteMarker]'));
+    } else if (filter.archived == true) {
+      lifecycles = {domain_match.MatchLifecycle.archived};
+    } else if (filter.archived == false) {
+      lifecycles = lifecycles
+          .where(
+            (lifecycle) => lifecycle != domain_match.MatchLifecycle.archived,
+          )
+          .toSet();
+    }
+    if (lifecycles.isEmpty) {
+      return const _HistoryQuerySpec.empty();
+    }
+
+    final lifecycleNames = lifecycles
+        .map((lifecycle) {
+          variables.add(Variable.withString(lifecycle.name));
+          return '?';
+        })
+        .join(', ');
+    conditions.add('m.lifecycle IN ($lifecycleNames)');
+
+    final search = filter.search?.trim().toLowerCase();
+    if (search != null && search.isNotEmpty) {
+      final pattern = '%$search%';
+      conditions.add('''(
+        lower(COALESCE(red.name_snapshot, '')) LIKE ? OR
+        lower(COALESCE(blue.name_snapshot, '')) LIKE ? OR
+        lower(COALESCE(red.player_profile_id, '')) LIKE ? OR
+        lower(COALESCE(blue.player_profile_id, '')) LIKE ? OR
+        lower(COALESCE(red_player.nickname, '')) LIKE ? OR
+        lower(COALESCE(blue_player.nickname, '')) LIKE ?
+      )''');
+      for (var index = 0; index < 6; index++) {
+        variables.add(Variable.withString(pattern));
+      }
+    }
+    if (filter.playerProfileId != null &&
+        filter.playerProfileId!.trim().isNotEmpty) {
+      conditions.add('''(
+        red.player_profile_id = ? OR blue.player_profile_id = ?
+      )''');
+      variables.add(Variable.withString(filter.playerProfileId!.trim()));
+      variables.add(Variable.withString(filter.playerProfileId!.trim()));
+    }
+    if (filter.from != null) {
+      conditions.add('COALESCE(m.started_at, m.created_at) >= ?');
+      variables.add(Variable.withDateTime(filter.from!.toUtc()));
+    }
+    if (filter.to != null) {
+      conditions.add('COALESCE(m.started_at, m.created_at) < ?');
+      variables.add(Variable.withDateTime(filter.to!.toUtc()));
+    }
+    if (filter.ruleId != null && filter.ruleId!.trim().isNotEmpty) {
+      conditions.add("json_extract(m.rule_template_json, '\$.id') = ?");
+      variables.add(Variable.withString(filter.ruleId!.trim()));
+    }
+    if (filter.ruleName != null && filter.ruleName!.trim().isNotEmpty) {
+      conditions.add("json_extract(m.rule_template_json, '\$.name') = ?");
+      variables.add(Variable.withString(filter.ruleName!.trim()));
+    }
+    if (filter.recordingMode != null) {
+      conditions.add('m.recording_mode = ?');
+      variables.add(Variable.withString(filter.recordingMode!.name));
+    }
+
+    variables.add(Variable.withInt(limit + 1));
+    variables.add(Variable.withInt(offset));
+    return _HistoryQuerySpec(
+      sql:
+          '''
+        WITH candidates AS (
+          SELECT
+            m.id AS match_id,
+            COALESCE(m.started_at, m.created_at) AS played_at,
+            m.started_at AS started_at,
+            m.created_at AS created_at,
+            m.ended_at AS ended_at,
+            m.note AS note,
+            m.lifecycle AS lifecycle,
+            m.recording_mode AS recording_mode,
+            m.tracking_coverage AS tracking_coverage,
+            m.rule_template_json AS rule_json,
+            red.name_snapshot AS red_name,
+            red.player_profile_id AS red_profile_id,
+            red_player.nickname AS red_profile_nickname,
+            blue.name_snapshot AS blue_name,
+            blue.player_profile_id AS blue_profile_id,
+            blue_player.nickname AS blue_profile_nickname
+          FROM matches m
+          LEFT JOIN match_participants red
+            ON red.match_id = m.id AND red.side = 'red'
+          LEFT JOIN match_participants blue
+            ON blue.match_id = m.id AND blue.side = 'blue'
+          LEFT JOIN players red_player ON red_player.id = red.player_profile_id
+          LEFT JOIN players blue_player ON blue_player.id = blue.player_profile_id
+          WHERE ${conditions.join('\n            AND ')}
+          ORDER BY played_at DESC, m.id DESC
+          LIMIT ? OFFSET ?
+        ),
+        scores AS (
+          SELECT
+            e.match_id,
+            SUM(CASE WHEN e.is_deleted = 0 AND e.side = 'red' AND (
+              e.type = 'score' OR
+              ((e.type = 'fieldGoal' OR e.type = 'freeThrow') AND e.outcome = 'made')
+            ) THEN e.points ELSE 0 END) AS red_score,
+            SUM(CASE WHEN e.is_deleted = 0 AND e.side = 'blue' AND (
+              e.type = 'score' OR
+              ((e.type = 'fieldGoal' OR e.type = 'freeThrow') AND e.outcome = 'made')
+            ) THEN e.points ELSE 0 END) AS blue_score
+          FROM match_events e
+          INNER JOIN candidates c ON c.match_id = e.match_id
+          GROUP BY e.match_id
+        ),
+        attempts AS (
+          SELECT
+            e.match_id,
+            COUNT(DISTINCT CASE WHEN e.is_deleted = 0 AND
+              (e.type = 'score' OR e.type = 'fieldGoal' OR e.type = 'miss')
+              THEN e.id END) AS shot_attempt_count,
+            COUNT(DISTINCT CASE WHEN e.is_deleted = 0 AND
+              (e.type = 'score' OR e.type = 'fieldGoal' OR e.type = 'miss') AND
+              locations.is_confirmed = 1 THEN e.id END) AS located_shot_count
+          FROM match_events e
+          INNER JOIN candidates c ON c.match_id = e.match_id
+          LEFT JOIN shot_locations locations ON locations.event_id = e.id
+          GROUP BY e.match_id
+        )
+        SELECT
+          c.match_id AS match_id,
+          c.played_at AS played_at,
+          c.started_at AS started_at,
+          c.created_at AS created_at,
+          c.ended_at AS ended_at,
+          c.note AS note,
+          c.lifecycle AS lifecycle,
+          c.recording_mode AS recording_mode,
+          c.tracking_coverage AS tracking_coverage,
+          c.rule_json AS rule_json,
+          c.red_name AS red_name,
+          c.red_profile_id AS red_profile_id,
+          c.red_profile_nickname AS red_profile_nickname,
+          c.blue_name AS blue_name,
+          c.blue_profile_id AS blue_profile_id,
+          c.blue_profile_nickname AS blue_profile_nickname,
+          COALESCE(scores.red_score, 0) AS red_score,
+          COALESCE(scores.blue_score, 0) AS blue_score,
+          COALESCE(attempts.shot_attempt_count, 0) AS shot_attempt_count,
+          COALESCE(attempts.located_shot_count, 0) AS located_shot_count
+        FROM candidates c
+        LEFT JOIN scores ON scores.match_id = c.match_id
+        LEFT JOIN attempts ON attempts.match_id = c.match_id
+        ORDER BY c.played_at DESC, c.match_id DESC
+      ''',
+      variables: variables,
+    );
+  }
+
+  MatchHistoryPage _mapHistoryPage(
+    List<QueryRow> rows, {
+    required int offset,
+    required int limit,
+  }) {
+    final hasMore = rows.length > limit;
+    final pageRows = hasMore ? rows.take(limit) : rows;
+    final entries = pageRows.map(_mapHistoryRow).toList(growable: false);
+    return MatchHistoryPage(
+      entries: entries,
+      offset: offset,
+      limit: limit,
+      hasMore: hasMore,
+    );
+  }
+
+  MatchHistoryEntry _mapHistoryRow(QueryRow row) {
+    final startedAt = row.read<DateTime?>('started_at')?.toUtc();
+    final createdAt = row.read<DateTime>('created_at').toUtc();
+    final endedAt = row.read<DateTime?>('ended_at')?.toUtc();
+    final playedAt = row.read<DateTime>('played_at').toUtc();
+    final redScore = row.read<int>('red_score');
+    final blueScore = row.read<int>('blue_score');
+    final attempts = row.read<int>('shot_attempt_count');
+    final located = row.read<int>('located_shot_count');
+    final rule = _ruleTemplateFromJson(row.read<String>('rule_json'));
+    final lifecycle = domain_match.MatchLifecycle.values.byName(
+      row.read<String>('lifecycle'),
+    );
+    final duration = endedAt?.difference(startedAt ?? createdAt);
+    return MatchHistoryEntry(
+      id: row.read<String>('match_id'),
+      playedAt: playedAt,
+      redName: row.read<String?>('red_name') ?? '',
+      blueName: row.read<String?>('blue_name') ?? '',
+      redScore: redScore,
+      blueScore: blueScore,
+      winner: redScore == blueScore
+          ? null
+          : redScore > blueScore
+          ? TeamSide.red
+          : TeamSide.blue,
+      ruleName: rule.name,
+      duration: duration,
+      shotAttemptCount: attempts,
+      locatedShotCount: located,
+      shotLocationCompleteness: attempts == 0 ? 0 : located / attempts,
+      lifecycle: lifecycle,
+      importedIncomplete: _isImportedIncompleteNote(row.read<String?>('note')),
+      recordingMode: RecordingMode.values.byName(
+        row.read<String>('recording_mode'),
       ),
-      leftOuterJoin(
-        _database.shotLocations,
-        _database.shotLocations.matchId.equalsExp(_database.matches.id),
+      trackingCoverage: TrackingCoverage.values.byName(
+        row.read<String>('tracking_coverage'),
       ),
-    ]);
-    return query.watch().asyncMap((_) => listHistory());
+      ruleId: rule.id,
+      redPlayerProfileId: row.read<String?>('red_profile_id'),
+      bluePlayerProfileId: row.read<String?>('blue_profile_id'),
+      redPlayerNickname: row.read<String?>('red_profile_nickname'),
+      bluePlayerNickname: row.read<String?>('blue_profile_nickname'),
+    );
   }
 
   static MatchEvent mapEventRow(MatchEventRow row) {
@@ -824,23 +1159,6 @@ class MatchRepository {
         .length;
   }
 
-  static MatchHistoryEntry _historyEntry(MatchDetail detail) {
-    return MatchHistoryEntry(
-      id: detail.match.id,
-      playedAt: detail.match.startedAt ?? detail.match.createdAt,
-      redName: detail.match.redName,
-      blueName: detail.match.blueName,
-      redScore: detail.redScore,
-      blueScore: detail.blueScore,
-      winner: detail.winner,
-      ruleName: detail.match.ruleTemplateSnapshot.name,
-      duration: detail.duration,
-      shotAttemptCount: detail.shotAttemptCount,
-      locatedShotCount: detail.locatedShotCount,
-      shotLocationCompleteness: detail.shotLocationCompleteness,
-    );
-  }
-
   static Map<String, Object?> _ruleTemplateToJson(RuleTemplate template) {
     return {
       'id': template.id,
@@ -877,4 +1195,24 @@ class MatchRepository {
           .cast<String>(),
     );
   }
+
+  static bool _isImportedIncompleteNote(String? note) {
+    final value = note?.trim();
+    return value == importedIncompleteNoteMarker ||
+        (value?.endsWith('[$importedIncompleteNoteMarker]') ?? false);
+  }
+}
+
+class _HistoryQuerySpec {
+  const _HistoryQuerySpec({required this.sql, required this.variables})
+    : empty = false;
+
+  const _HistoryQuerySpec.empty()
+    : sql = '',
+      variables = const [],
+      empty = true;
+
+  final String sql;
+  final List<Variable<Object>> variables;
+  final bool empty;
 }

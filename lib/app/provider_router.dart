@@ -4,10 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooptrace/app/app_providers.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/match_view_data_mapper.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/data/repositories/match_repository.dart';
+import 'package:hooptrace/core/data/repositories/match_lifecycle_repository.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
+import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
@@ -17,6 +23,7 @@ import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/pregame/start_match_mapper.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/players/player_editor_page.dart';
+import 'package:hooptrace/features/players/player_career_page.dart';
 import 'package:hooptrace/features/players/player_list_page.dart';
 import 'package:hooptrace/features/project/project_details_page.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
@@ -110,6 +117,8 @@ GoRouter buildProviderAppRouter() {
             repository: ref.watch(playerRepositoryProvider),
             onCreate: () => context.push('/players/new'),
             onEdit: (player) => context.push('/players/${player.id}/edit'),
+            onViewAnalytics: (player) =>
+                context.push('/players/${player.id}/analytics'),
           ),
         ),
       ),
@@ -131,6 +140,43 @@ GoRouter buildProviderAppRouter() {
             onSaved: () => context.pop(),
             onDeleted: () => context.pop(),
           ),
+        ),
+      ),
+      GoRoute(
+        path: '/players/:playerId/analytics',
+        builder: (context, state) => Consumer(
+          builder: (context, ref, child) {
+            final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+            final playerId = state.pathParameters['playerId']!;
+            final players = ref.watch(playerProfilesProvider);
+            return players.when(
+              loading: () => const _RouteLoading(),
+              error: (error, stackTrace) => _RouteMessage(
+                title: l10n.playerAnalyticsLoadError,
+                message: l10n.actionFailedRetry,
+              ),
+              data: (values) {
+                final player = values
+                    .where((value) => value.id == playerId)
+                    .firstOrNull;
+                if (player == null) {
+                  return _RouteMessage(
+                    title: l10n.playerAnalyticsNotFound,
+                    message: l10n.playerAnalyticsNotFoundBody,
+                  );
+                }
+                return PlayerCareerPage(
+                  controller: ref.watch(
+                    playerCareerControllerProvider(playerId),
+                  ),
+                  player: player,
+                  opponents: values
+                      .where((value) => value.id != playerId)
+                      .toList(growable: false),
+                );
+              },
+            );
+          },
         ),
       ),
       GoRoute(
@@ -157,11 +203,14 @@ class _HomeRoute extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final active = ref.watch(activeMatchProvider);
     return active.when(
       loading: () => const _RouteLoading(),
-      error: (error, stackTrace) =>
-          _RouteMessage(title: '无法读取进行中的比赛', message: '$error'),
+      error: (error, stackTrace) => _RouteMessage(
+        title: l10n.routeHomeLoadError,
+        message: l10n.actionFailedRetry,
+      ),
       data: (detail) => HomePage(
         activeMatch: detail,
         onStartScoring: () {
@@ -169,7 +218,7 @@ class _HomeRoute extends ConsumerWidget {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
               ..showSnackBar(
-                const SnackBar(content: Text('已有进行中的比赛，请先继续或放弃它。')),
+                SnackBar(content: Text(l10n.routeActiveMatchTitle)),
               );
             return;
           }
@@ -195,12 +244,13 @@ class _PregameRoute extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final activeState = ref.watch(activeMatchProvider);
     if (activeState.isLoading) return const _RouteLoading();
     if (activeState.hasError) {
-      return const _RouteMessage(
-        title: '无法确认进行中的比赛',
-        message: '请返回主页后重试，避免在状态未确认时创建新比赛。',
+      return _RouteMessage(
+        title: l10n.routeActiveMatchCheckError,
+        message: l10n.routeActiveMatchCheckBody,
       );
     }
     final active = activeState.valueOrNull;
@@ -221,9 +271,11 @@ class _PregameRoute extends ConsumerWidget {
         ref,
         RuleTemplateRepositoryFallback.templates,
         players,
+        l10n: l10n,
         templatesError: true,
       ),
-      data: (values) => _buildPregamePage(context, ref, values, players),
+      data: (values) =>
+          _buildPregamePage(context, ref, values, players, l10n: l10n),
     );
   }
 }
@@ -233,29 +285,32 @@ Widget _buildPregamePage(
   WidgetRef ref,
   List<RuleTemplate> templates,
   AsyncValue<List<Player>> players, {
+  required AppLocalizations l10n,
   bool templatesError = false,
 }) {
   return players.when(
     loading: () => PregamePage(
       templates: templates,
       playersNotice: templatesError
-          ? '规则模板暂时无法读取，已使用内置规则；正在加载球员档案。'
-          : '正在加载球员档案；也可以先输入临时姓名。',
+          ? l10n.pregameTemplatesFallbackLoading
+          : l10n.pregamePlayersLoading,
       onManageRules: () => context.push('/settings/rules'),
       onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
     ),
     error: (error, stackTrace) => PregamePage(
       templates: templates,
       playersNotice: templatesError
-          ? '规则模板和球员档案暂时无法读取；可以使用临时姓名后重试。'
-          : '球员档案暂时无法读取；可以使用临时姓名后重试。',
+          ? l10n.pregameTemplatesPlayersError
+          : l10n.pregamePlayersError,
       onManageRules: () => context.push('/settings/rules'),
       onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
     ),
     data: (values) => PregamePage(
       templates: templates,
       players: values,
-      playersNotice: templatesError ? '规则模板暂时无法读取，已使用内置规则。' : null,
+      playersNotice: templatesError
+          ? l10n.pregameTemplatesFallbackNotice
+          : null,
       onManageRules: () => context.push('/settings/rules'),
       onStartMatch: (setup) => unawaited(_startMatch(context, ref, setup)),
     ),
@@ -269,24 +324,31 @@ class _ScoringRoute extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final detail = ref.watch(liveMatchProvider(matchId));
     // A missing/terminal/error projection is a real route state. Check it
     // before controller availability so a controller that is still being
     // reconstructed cannot mask a useful explanation with an endless
     // loading page.
     if (detail.hasError) {
-      return _RouteMessage(title: '无法读取比赛', message: '${detail.error}');
+      return _RouteMessage(
+        title: l10n.routeMatchLoadError,
+        message: l10n.actionFailedRetry,
+      );
     }
     if (detail.hasValue) {
       final projection = detail.valueOrNull;
       if (projection == null || projection.match.lifecycle.name != 'active') {
-        return const _RouteMessage(title: '比赛未在进行中', message: '请从主页继续一场活动比赛。');
+        return _RouteMessage(
+          title: l10n.routeMatchNotActive,
+          message: l10n.routeMatchNotActiveBody,
+        );
       }
       final controller = ref.watch(scoringControllerProvider(matchId));
       if (controller == null) {
-        return const _RouteMessage(
-          title: '正在恢复比赛',
-          message: '已读取比赛，但计分状态还在恢复，请稍候。',
+        return _RouteMessage(
+          title: l10n.routeMatchRestoring,
+          message: l10n.routeMatchRestoringBody,
         );
       }
       final canResumeClock =
@@ -321,25 +383,180 @@ class _ScoringRoute extends ConsumerWidget {
   }
 }
 
-class _HistoryRoute extends ConsumerWidget {
+class _HistoryRoute extends ConsumerStatefulWidget {
   const _HistoryRoute();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final history = ref.watch(historyProvider);
-    return history.when(
-      loading: () => const _RouteLoading(),
-      error: (error, stackTrace) =>
-          _RouteMessage(title: '无法读取比赛记录', message: '$error'),
-      data: (entries) => HistoryPage(
-        controller: HistoryController(
-          matches: entries.map(historySummaryFromEntry).toList(growable: false),
-        ),
-        onMatchTap: (matchId) => context.push('/matches/$matchId/replay'),
-        onHome: () => context.go('/'),
+  ConsumerState<_HistoryRoute> createState() => _HistoryRouteState();
+}
+
+class _HistoryRouteState extends ConsumerState<_HistoryRoute> {
+  late final HistoryController _controller;
+  List<HistoryMatchSummary> _importedIncompleteMatches = const [];
+  bool _importedIncompleteLoadError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = HistoryController(
+      matches: const [],
+      dataSource: _RepositoryHistoryDataSource(
+        ref.read(matchRepositoryProvider),
+        ref.read(matchLifecycleRepositoryProvider),
       ),
     );
+    unawaited(_controller.loadNextPage());
+    unawaited(_loadImportedIncomplete());
   }
+
+  Future<void> _loadImportedIncomplete() async {
+    if (mounted) {
+      setState(() => _importedIncompleteLoadError = false);
+    }
+    try {
+      final page = await ref
+          .read(matchRepositoryProvider)
+          .queryImportedIncomplete();
+      if (!mounted) return;
+      setState(() {
+        _importedIncompleteMatches = page.entries
+            .map(historySummaryFromEntry)
+            .toList(growable: false);
+        _importedIncompleteLoadError = false;
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() => _importedIncompleteLoadError = true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final active = ref.watch(activeMatchProvider).valueOrNull;
+    return HistoryPage(
+      controller: _controller,
+      activeMatch: active == null ? null : _historySummaryFromActive(active),
+      onResumeActive: active == null
+          ? null
+          : () => context.go('/scoring/${active.match.id}'),
+      importedIncompleteMatches: _importedIncompleteMatches,
+      onResumeImportedIncomplete: (matchId) =>
+          _resumeImportedIncomplete(context, ref, matchId),
+      importedIncompleteLoadError: _importedIncompleteLoadError,
+      onRetryImportedIncomplete: () => unawaited(_loadImportedIncomplete()),
+      onArchive: (matchId) => _controller.archiveMatch(matchId),
+      onUnarchive: (matchId) => _controller.unarchiveMatch(matchId),
+      onDelete: (matchId) => _controller.deleteMatch(matchId, confirmed: true),
+      onMatchTap: (matchId) => context.push('/matches/$matchId/replay'),
+      onHome: () => context.go('/'),
+    );
+  }
+
+  Future<void> _resumeImportedIncomplete(
+    BuildContext context,
+    WidgetRef ref,
+    String matchId,
+  ) async {
+    try {
+      await ref
+          .read(matchCommandServiceProvider)
+          .resumeImportedIncomplete(
+            ResumeImportedIncompleteMatchCommand(matchId: matchId),
+          );
+      if (context.mounted) context.go('/scoring/$matchId');
+    } on MatchCommandFailure {
+      if (!context.mounted) return;
+      final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(content: Text(l10n.historyResumeImportedIncompleteFailed)),
+        );
+      await _loadImportedIncomplete();
+    }
+  }
+}
+
+class _RepositoryHistoryDataSource implements HistoryDataSource {
+  const _RepositoryHistoryDataSource(this.repository, this.lifecycle);
+
+  final MatchRepository repository;
+  final MatchLifecycleRepository lifecycle;
+
+  @override
+  Future<HistoryPageResult> loadPage({
+    required HistoryFilters filters,
+    required int limit,
+    String? cursor,
+  }) async {
+    final offset = int.tryParse(cursor ?? '') ?? 0;
+    final recordingMode = filters.recordingMode == null
+        ? null
+        : RecordingMode.values
+              .where((mode) => mode.name == filters.recordingMode)
+              .firstOrNull;
+    final selectedLifecycles = switch (filters.lifecycle) {
+      HistoryLifecycleFilter.finished => {MatchLifecycle.finished},
+      HistoryLifecycleFilter.archived => {MatchLifecycle.archived},
+      HistoryLifecycleFilter.all => {
+        MatchLifecycle.finished,
+        MatchLifecycle.archived,
+      },
+    };
+    final page = await repository.queryHistory(
+      filter: MatchHistoryFilter(
+        search: filters.search.trim().isEmpty ? null : filters.search.trim(),
+        from: filters.from?.toUtc(),
+        to: filters.to?.add(const Duration(days: 1)).toUtc(),
+        ruleName: filters.ruleName?.trim().isEmpty == true
+            ? null
+            : filters.ruleName?.trim(),
+        recordingMode: recordingMode,
+        lifecycles: selectedLifecycles,
+      ),
+      offset: offset,
+      limit: limit,
+    );
+    return HistoryPageResult(
+      entries: page.entries
+          .map(historySummaryFromEntry)
+          .toList(growable: false),
+      nextCursor: page.nextOffset == null ? null : '${page.nextOffset}',
+    );
+  }
+
+  @override
+  Future<void> archiveMatch(String matchId) => lifecycle.archive(matchId);
+
+  @override
+  Future<void> unarchiveMatch(String matchId) => lifecycle.unarchive(matchId);
+
+  @override
+  Future<void> permanentlyDeleteMatch(String matchId) =>
+      lifecycle.permanentlyDelete(matchId, confirmed: true);
+}
+
+HistoryMatchSummary _historySummaryFromActive(MatchDetail detail) {
+  return HistoryMatchSummary(
+    matchId: detail.match.id,
+    playedAt: (detail.match.startedAt ?? detail.match.createdAt).toLocal(),
+    redName: detail.match.redName,
+    blueName: detail.match.blueName,
+    redScore: detail.redScore,
+    blueScore: detail.blueScore,
+    ruleName: detail.match.ruleTemplateSnapshot.name,
+    duration: detail.duration ?? Duration.zero,
+    locatedShots: detail.locatedShotCount,
+    scoringEvents: detail.shotAttemptCount,
+    lifecycle: HistoryMatchLifecycle.active,
+    recordingMode: detail.match.recordingMode.name,
+  );
 }
 
 class _SettingsRoute extends ConsumerWidget {
@@ -349,6 +566,7 @@ class _SettingsRoute extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SettingsPage(
       controller: ref.watch(settingsControllerProvider),
+      themeController: ref.watch(themePreferencesControllerProvider),
       onOpenProject: () => context.push('/project'),
       onOpenRules: () => context.push('/settings/rules'),
       onDataRestored: () => context.go('/'),
@@ -379,8 +597,10 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
     final repository = ref.read(matchRepositoryProvider);
     final detail = await repository.getMatchDetail(widget.matchId);
     if (detail == null) return null;
-    final active =
-        ref.read(activeMatchProvider).valueOrNull?.match.id == widget.matchId;
+    final replayEditable =
+        detail.match.lifecycle == MatchLifecycle.finished ||
+        detail.match.lifecycle == MatchLifecycle.archived;
+    final commandService = ref.read(matchCommandServiceProvider);
     late final ReplayController controller;
     Future<void> refresh() async {
       final refreshed = await repository.getMatchDetail(widget.matchId);
@@ -391,35 +611,83 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
 
     controller = ReplayController(
       data: replayDataFromDetail(detail),
-      onMoveShotLocation: active
-          ? null
-          : (locationId, point, reason) async {
-              await repository.moveShotLocation(
-                locationId: locationId,
-                point: point,
-                reason: reason,
-              );
-              await refresh();
-            },
-      onSoftDeleteEvent: active
-          ? null
-          : (eventId, reason) async {
-              await repository.softDeleteEvent(
-                eventId: eventId,
-                reason: reason,
-              );
-              await refresh();
-            },
-      onUpdateEventNote: active
-          ? null
-          : (eventId, note, reason) async {
-              await repository.updateEventNote(
-                eventId: eventId,
-                note: note,
-                reason: reason,
-              );
-              await refresh();
-            },
+      onCorrectEvent: replayEditable
+          ? (correction) async {
+              try {
+                final projection = await commandService.correct(
+                  CorrectMatchEventCommand(
+                    matchId: widget.matchId,
+                    eventId: correction.eventId,
+                    type: correction.type,
+                    side: correction.side,
+                    points: correction.points,
+                    outcome: correction.outcome,
+                    note: correction.note,
+                    customLabel: correction.customLabel,
+                    matchClockPositionSeconds:
+                        correction.matchClockPositionSeconds,
+                    reason: correction.reason,
+                  ),
+                );
+                controller.replaceData(replayDataFromDetail(projection));
+              } on Object {
+                await refresh();
+                rethrow;
+              }
+            }
+          : null,
+      onUndoEvent: replayEditable
+          ? (eventId, reason) async {
+              try {
+                final projection = await commandService.undo(
+                  UndoMatchEventCommand(
+                    matchId: widget.matchId,
+                    eventId: eventId,
+                    reason: reason,
+                  ),
+                );
+                controller.replaceData(replayDataFromDetail(projection));
+              } on Object {
+                await refresh();
+                rethrow;
+              }
+            }
+          : null,
+      onRestoreEvent: replayEditable
+          ? (eventId, reason) async {
+              try {
+                final projection = await commandService.restore(
+                  RestoreMatchEventCommand(
+                    matchId: widget.matchId,
+                    eventId: eventId,
+                    reason: reason,
+                  ),
+                );
+                controller.replaceData(replayDataFromDetail(projection));
+              } on Object {
+                await refresh();
+                rethrow;
+              }
+            }
+          : null,
+      onCorrectShotLocation: replayEditable
+          ? (eventId, point, reason) async {
+              try {
+                final projection = await commandService.correctShotLocation(
+                  CorrectShotLocationCommand(
+                    matchId: widget.matchId,
+                    eventId: eventId,
+                    point: point,
+                    reason: reason,
+                  ),
+                );
+                controller.replaceData(replayDataFromDetail(projection));
+              } on Object {
+                await refresh();
+                rethrow;
+              }
+            }
+          : null,
       loadAuditLogs: () => repository.listAuditLogs(widget.matchId),
     );
     return _controller = controller;
@@ -443,15 +711,16 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final active =
         ref.watch(activeMatchProvider).valueOrNull?.match.id == widget.matchId;
     return FutureBuilder<ReplayController?>(
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const _RouteMessage(
-            title: '无法打开复盘',
-            message: '比赛数据读取失败，请返回后重试。',
+          return _RouteMessage(
+            title: l10n.routeReplayOpenError,
+            message: l10n.routeReplayOpenErrorBody,
           );
         }
         if (snapshot.connectionState != ConnectionState.done) {
@@ -459,13 +728,20 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
         }
         final controller = snapshot.data;
         if (controller == null) {
-          return const _RouteMessage(title: '没有找到这场比赛', message: '记录可能已被移除。');
+          return _RouteMessage(
+            title: l10n.routeReplayNotFound,
+            message: l10n.routeReplayNotFoundBody,
+          );
         }
         return ReplayPage(
           controller: controller,
           onShareSummary: (bytes, matchId) => ref
               .read(exportCoordinatorProvider)
-              .shareReplayImage(bytes, matchId: matchId),
+              .shareReplayImage(
+                bytes,
+                matchId: matchId,
+                subject: l10n.exportReplaySubject,
+              ),
           onFinishMatch: active
               ? (redScore, blueScore) async {
                   try {
@@ -487,7 +763,7 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
                   try {
                     await ref
                         .read(automaticBackupServiceProvider)
-                        .runIfEnabled();
+                        .runAfterMatchFinish();
                   } on Object {
                     // A moved backup folder does not undo a successful finish.
                   }
@@ -513,27 +789,33 @@ class _ActiveMatchGatePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
-      appBar: AppBar(title: const Text('已有进行中的比赛')),
-      body: Center(
-        child: Card(
-          margin: const EdgeInsets.all(24),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '${detail.match.redName} ${detail.redScore} : ${detail.blueScore} ${detail.match.blueName}',
-                ),
-                const SizedBox(height: 16),
-                FilledButton(onPressed: onContinue, child: const Text('继续比赛')),
-                OutlinedButton(
-                  key: homeAbandonKey,
-                  onPressed: () => onAbandon(),
-                  child: const Text('放弃比赛'),
-                ),
-              ],
+      appBar: AppBar(title: Text(l10n.routeActiveMatchTitle)),
+      body: SafeArea(
+        child: Center(
+          child: Card(
+            margin: const EdgeInsets.all(24),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '${detail.match.redName} ${detail.redScore} : ${detail.blueScore} ${detail.match.blueName}',
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: onContinue,
+                    child: Text(l10n.routeContinueMatch),
+                  ),
+                  OutlinedButton(
+                    key: homeAbandonKey,
+                    onPressed: () => onAbandon(),
+                    child: Text(l10n.routeAbandonMatch),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -547,19 +829,20 @@ Future<void> _startMatch(
   WidgetRef ref,
   MatchSetup setup,
 ) async {
+  final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
   try {
     final activeState = ref.read(activeMatchProvider);
     if (!activeState.hasValue) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('正在确认是否已有进行中的比赛，请稍后再试。')));
+      ).showSnackBar(SnackBar(content: Text(l10n.routeActiveCheckLoading)));
       return;
     }
     final active = activeState.valueOrNull;
     if (active != null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('已有进行中的比赛，请先继续或放弃它。')));
+      ).showSnackBar(SnackBar(content: Text(l10n.routeStartMatchConflict)));
       return;
     }
     await ref
@@ -569,17 +852,17 @@ Future<void> _startMatch(
   } on PregameSetupValidationException catch (error) {
     if (context.mounted) {
       final message = error.result.errors
-          .map(pregameValidationErrorText)
+          .map((error) => localizedPregameValidationErrorText(error, l10n))
           .join('\n');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     }
-  } on MatchCommandFailure catch (error) {
+  } on MatchCommandFailure {
     if (context.mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(error.message)));
+        ..showSnackBar(SnackBar(content: Text(l10n.actionFailedRetry)));
     }
   }
 }
@@ -589,6 +872,7 @@ Future<void> _abandon(
   WidgetRef ref,
   String matchId,
 ) async {
+  final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
   try {
     await ref
         .read(matchCommandServiceProvider)
@@ -598,11 +882,11 @@ Future<void> _abandon(
             endedAt: DateTime.now().toUtc(),
           ),
         );
-  } on MatchCommandFailure catch (error) {
+  } on MatchCommandFailure {
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ).showSnackBar(SnackBar(content: Text(l10n.routeAbandonFailed)));
     }
   }
 }
@@ -612,6 +896,7 @@ Future<void> _resumeScoring(
   WidgetRef ref,
   String matchId,
 ) async {
+  final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
   try {
     await ref
         .read(matchCommandServiceProvider)
@@ -622,11 +907,11 @@ Future<void> _resumeScoring(
           ),
         );
     await ref.read(scoringFeedbackServiceProvider).emitCommitted();
-  } on MatchCommandFailure catch (error) {
+  } on MatchCommandFailure {
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ).showSnackBar(SnackBar(content: Text(l10n.routeResumeFailed)));
     }
   }
 }
@@ -661,7 +946,7 @@ Future<void> _finishScoringDecision(
         ),
       );
   try {
-    await ref.read(automaticBackupServiceProvider).runIfEnabled();
+    await ref.read(automaticBackupServiceProvider).runAfterMatchFinish();
   } on Object {
     // Backup failure must not undo a committed match finish.
   }
@@ -673,6 +958,7 @@ Future<void> _leaveScoring(
   WidgetRef ref,
   String matchId,
 ) async {
+  final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
   final projection = ref
       .read(leaveScoringProjectionProvider(matchId))
       .valueOrNull;
@@ -685,23 +971,23 @@ Future<void> _leaveScoring(
   final action = await showDialog<String>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Text('离开比赛'),
-      content: const Text('可以继续计时，或先暂停再离开。'),
+      title: Text(l10n.routeLeaveTitle),
+      content: Text(l10n.routeLeaveBody),
       actions: [
         TextButton(
           key: const Key('leave-stay'),
           onPressed: () => Navigator.of(dialogContext).pop('stay'),
-          child: const Text('留在比赛'),
+          child: Text(l10n.routeLeaveStay),
         ),
         TextButton(
           key: const Key('leave-keep-running'),
           onPressed: () => Navigator.of(dialogContext).pop('keep'),
-          child: const Text('继续运行'),
+          child: Text(l10n.routeLeaveKeepRunning),
         ),
         FilledButton(
           key: const Key('leave-pause-and-leave'),
           onPressed: () => Navigator.of(dialogContext).pop('pause'),
-          child: const Text('暂停并离开'),
+          child: Text(l10n.routeLeavePauseAndLeave),
         ),
       ],
     ),
@@ -716,7 +1002,7 @@ Future<void> _leaveScoring(
     if (context.mounted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('无法确认计时状态，请留在比赛中重试。')));
+        ..showSnackBar(SnackBar(content: Text(l10n.routeClockCheckError)));
     }
     return;
   }
@@ -738,11 +1024,11 @@ Future<void> _leaveScoring(
         PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
       );
     }
-  } on MatchCommandFailure catch (error) {
+  } on MatchCommandFailure {
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      ).showSnackBar(SnackBar(content: Text(l10n.actionFailedRetry)));
     }
     return;
   }
@@ -758,7 +1044,18 @@ class _RouteLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Semantics(
+            label: l10n.routeLoading,
+            liveRegion: true,
+            child: const CircularProgressIndicator(),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -772,16 +1069,24 @@ class _RouteMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text(message, textAlign: TextAlign.center),
-            ],
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(message, textAlign: TextAlign.center),
+              ],
+            ),
           ),
         ),
       ),

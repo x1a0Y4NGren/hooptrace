@@ -1,0 +1,34 @@
+name: Feature request / 功能建议
+description: Propose an offline-first 1v1 improvement / 提议离线单挑体验改进
+title: "[Feature]: "
+labels: [enhancement, needs-triage]
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Court-side scenario / 球场使用场景
+      description: Who needs this, at what moment, and what currently goes wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome / 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Offline, privacy, and data impact / 离线、隐私与数据影响
+      description: Explain any new permission, network, schema, backup, or migration requirement.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check / 范围检查
+      options:
+        - label: This keeps core scoring usable offline / 核心计分仍可离线使用
+          required: true
+        - label: This is for 1v1 rather than team-stat expansion / 这是单挑需求而非团队统计扩张
+          required: true

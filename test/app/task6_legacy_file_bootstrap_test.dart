@@ -3,10 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations_en.dart';
 import 'package:hooptrace/core/data/app_database_provider.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 void main() {
+  final l10n = AppLocalizationsEn();
+
   testWidgets('production LazyDatabase bootstrap preserves a real v1 file', (
     tester,
   ) async {
@@ -24,10 +27,10 @@ void main() {
     raw.close();
     final database = openAppDatabaseAt(file);
     await tester.pumpWidget(HoopTraceApp(database: database));
-    await tester.pump(const Duration(milliseconds: 100));
+    await _pumpUntilFound(tester, find.byKey(const Key('legacy-bootstrap')));
     expect(find.byKey(const Key('legacy-bootstrap')), findsOneWidget);
-    expect(find.text('无法打开 HoopTrace v0.1 数据'), findsOneWidget);
-    expect(find.textContaining('不会静默迁移、删除或清空'), findsOneWidget);
+    expect(find.text(l10n.legacyBootstrapHeadline), findsOneWidget);
+    expect(find.text(l10n.legacyBootstrapBody(' v1')), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.runAsync(database.close);
@@ -48,4 +51,15 @@ void main() {
     );
     verify.close();
   });
+}
+
+Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    await tester.pump(const Duration(milliseconds: 20));
+    if (finder.evaluate().isNotEmpty) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 5)),
+    );
+  }
+  fail('Timed out waiting for $finder');
 }

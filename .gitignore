@@ -152,6 +152,8 @@ vite.config.ts.timestamp-*
 .flutter-plugins-dependencies
 .packages
 build/
+test/**/failures/
+android/.kotlin/
 ios/Flutter/Generated.xcconfig
 ios/Flutter/flutter_export_environment.sh
 

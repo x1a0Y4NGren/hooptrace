@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations_en.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -12,6 +13,8 @@ import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import '../test_helpers/test_database.dart';
 
 void main() {
+  final l10n = AppLocalizationsEn();
+
   test(
     'ready startup runs built-ins and automatic backup exactly once',
     () async {
@@ -91,8 +94,9 @@ void main() {
         child: const HoopTraceApp(),
       ),
     );
-    await _pumpUntilFound(tester, find.textContaining('built-ins failed'));
-    expect(find.textContaining('本地数据库暂时无法打开'), findsOneWidget);
+    await _pumpUntilFound(tester, find.text(l10n.bootstrapFailureBody));
+    expect(find.text(l10n.bootstrapFailureBody), findsOneWidget);
+    expect(find.textContaining('built-ins failed'), findsNothing);
   });
 
   test('restore is allowed only for settled null active state', () async {

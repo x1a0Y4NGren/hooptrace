@@ -1,15 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
-
-class BackupRestoreBlockedException implements Exception {
-  const BackupRestoreBlockedException();
-
-  @override
-  String toString() =>
-      'Finish the active match before replacing local data from a backup.';
-}
 
 class SettingsController extends ChangeNotifier {
   SettingsController({
@@ -45,16 +38,26 @@ class SettingsController extends ChangeNotifier {
     });
   }
 
-  Future<void> shareJsonBackup() => _perform(exports.shareJsonBackup);
+  Future<void> shareJsonBackup({required String subject}) =>
+      _perform(() => exports.shareJsonBackup(subject: subject));
 
-  Future<void> shareCsvExports() => _perform(exports.shareCsvExports);
+  Future<void> shareCsvExports({required String subject}) =>
+      _perform(() => exports.shareCsvExports(subject: subject));
 
-  Future<bool> restoreBackup() {
-    if (!canRestoreBackup) {
+  Future<bool> restoreBackup({
+    RestoreMode mode = RestoreMode.replace,
+    required String safetySubject,
+    String? pickerDialogTitle,
+  }) {
+    if (mode == RestoreMode.replace && !canRestoreBackup) {
       throw const BackupRestoreBlockedException();
     }
     return _perform(() async {
-      final restored = await exports.restorePickedBackup();
+      final restored = await exports.restorePickedBackup(
+        mode: mode,
+        safetySubject: safetySubject,
+        pickerDialogTitle: pickerDialogTitle,
+      );
       if (restored) {
         _backupState = await automaticBackup.loadState();
         if (feedback != null) _feedbackState = await feedback!.reload();
@@ -63,9 +66,11 @@ class SettingsController extends ChangeNotifier {
     });
   }
 
-  Future<bool> configureBackupDirectory() {
+  Future<bool> configureBackupDirectory({String? dialogTitle}) {
     return _perform(() async {
-      final directory = await exports.pickBackupDirectory();
+      final directory = await exports.pickBackupDirectory(
+        dialogTitle: dialogTitle,
+      );
       if (directory == null) return false;
       await automaticBackup.configureDirectory(
         directory.reference,
@@ -76,11 +81,13 @@ class SettingsController extends ChangeNotifier {
     });
   }
 
-  Future<bool> setAutomaticBackupEnabled(bool enabled) {
+  Future<bool> setAutomaticBackupEnabled(bool enabled, {String? dialogTitle}) {
     return _perform(() async {
       if (enabled) {
         if (_backupState.directory == null) {
-          final directory = await exports.pickBackupDirectory();
+          final directory = await exports.pickBackupDirectory(
+            dialogTitle: dialogTitle,
+          );
           if (directory == null) return false;
           await automaticBackup.configureDirectory(
             directory.reference,
@@ -121,6 +128,13 @@ class SettingsController extends ChangeNotifier {
       final destination = await automaticBackup.runNow();
       _backupState = await automaticBackup.loadState();
       return destination;
+    });
+  }
+
+  Future<void> setBackupRetentionLimit(int value) {
+    return _perform(() async {
+      await automaticBackup.setRetentionLimit(value);
+      _backupState = await automaticBackup.loadState();
     });
   }
 

@@ -2,9 +2,14 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
+import 'package:hooptrace/core/export/backup_merge_service.dart';
 import 'package:hooptrace/core/export/csv_exporter.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
+
+export 'package:hooptrace/core/export/json_backup_codec.dart'
+    show BackupRestoreBlockedException;
 
 class ExportArtifact {
   const ExportArtifact({
@@ -33,9 +38,9 @@ class ExportArtifact {
 abstract interface class ExportGateway {
   Future<void> share(List<ExportArtifact> artifacts, {required String subject});
 
-  Future<ExportArtifact?> pickBackup();
+  Future<ExportArtifact?> pickBackup({String? dialogTitle});
 
-  Future<BackupDirectorySelection?> pickDirectory();
+  Future<BackupDirectorySelection?> pickDirectory({String? dialogTitle});
 }
 
 class ExportCoordinator {
@@ -44,16 +49,20 @@ class ExportCoordinator {
     this.codec, {
     required this.gateway,
     required this.automaticBackup,
+    BackupMergeService? mergeService,
     DateTime Function()? now,
-  }) : now = now ?? DateTime.now;
+  }) : mergeService =
+           mergeService ?? BackupMergeService.withCodec(database, codec: codec),
+       now = now ?? DateTime.now;
 
   final AppDatabase database;
   final JsonBackupCodec codec;
   final ExportGateway gateway;
   final AutomaticBackupService automaticBackup;
+  final BackupMergeService mergeService;
   final DateTime Function() now;
 
-  Future<void> shareJsonBackup() async {
+  Future<void> shareJsonBackup({required String subject}) async {
     final timestamp = now().toUtc();
     final payload = await codec.export();
     await gateway.share([
@@ -62,19 +71,46 @@ class ExportCoordinator {
         mimeType: 'application/json',
         contents: payload,
       ),
-    ], subject: 'HoopTrace 完整本地备份');
+    ], subject: subject);
   }
 
-  Future<bool> restorePickedBackup() async {
-    final artifact = await gateway.pickBackup();
+  Future<bool> restorePickedBackup({
+    RestoreMode mode = RestoreMode.replace,
+    required String safetySubject,
+    String? pickerDialogTitle,
+  }) async {
+    if (mode == RestoreMode.replace) await _throwIfReplacementBlocked();
+    final artifact = await gateway.pickBackup(dialogTitle: pickerDialogTitle);
     if (artifact == null) return false;
     final payload = utf8.decode(artifact.bytes, allowMalformed: false);
+    if (mode == RestoreMode.merge) {
+      final result = await mergeService.merge(payload);
+      if (result.changed) await automaticBackup.markDirty();
+      return true;
+    }
+    codec.validate(payload);
+    await _throwIfReplacementBlocked();
+    final timestamp = now().toUtc();
+    final safetyPayload = await codec.export();
+    await gateway.share([
+      ExportArtifact.text(
+        fileName: 'hooptrace-safety-backup-${_fileTimestamp(timestamp)}.json',
+        mimeType: 'application/json',
+        contents: safetyPayload,
+      ),
+    ], subject: safetySubject);
     await codec.restore(payload);
     await automaticBackup.resetAfterRestore();
     return true;
   }
 
-  Future<void> shareCsvExports() async {
+  Future<void> _throwIfReplacementBlocked() async {
+    final hasActiveSession =
+        (await database.select(database.activeSessions).get()).isNotEmpty;
+    if (hasActiveSession) throw const BackupRestoreBlockedException();
+  }
+
+  Future<void> shareCsvExports({required String subject}) async {
     final timestamp = now().toUtc();
     final matches = await database.select(database.matches).get();
     final events = await database.select(database.matchEvents).get();
@@ -105,10 +141,14 @@ class ExportCoordinator {
         mimeType: 'text/csv',
         contents: CsvExporter.playerStatistics(statistics),
       ),
-    ], subject: 'HoopTrace CSV 数据导出');
+    ], subject: subject);
   }
 
-  Future<void> shareReplayImage(Uint8List bytes, {required String matchId}) {
+  Future<void> shareReplayImage(
+    Uint8List bytes, {
+    required String matchId,
+    required String subject,
+  }) {
     final safeMatchId = _safeFilePart(matchId);
     return gateway.share([
       ExportArtifact(
@@ -116,11 +156,12 @@ class ExportCoordinator {
         mimeType: 'image/png',
         bytes: bytes,
       ),
-    ], subject: 'HoopTrace 比赛复盘');
+    ], subject: subject);
   }
 
-  Future<BackupDirectorySelection?> pickBackupDirectory() =>
-      gateway.pickDirectory();
+  Future<BackupDirectorySelection?> pickBackupDirectory({
+    String? dialogTitle,
+  }) => gateway.pickDirectory(dialogTitle: dialogTitle);
 
   static List<PlayerStatisticsRow> _buildPlayerStatistics(
     List<Matche> matches,

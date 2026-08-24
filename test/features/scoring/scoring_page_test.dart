@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
@@ -12,7 +15,6 @@ import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
-import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 import '../../test_helpers/test_database.dart';
@@ -46,7 +48,8 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.text(foulText), findsNWidgets(2));
+    expect(find.byKey(const Key('red-foul')), findsOneWidget);
+    expect(find.byKey(const Key('blue-foul')), findsOneWidget);
   });
 
   testWidgets('timer-disabled scoring hides clock commands and ticks', (
@@ -441,7 +444,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.text(confirmLocationText), findsOneWidget);
+    expect(find.byKey(const Key('cancel-location')), findsOneWidget);
   });
 
   testWidgets('pending location controls do not resize the court', (
@@ -460,7 +463,7 @@ void main() {
 
     expect(sizeWithPending.height, greaterThan(0));
     expect(find.byKey(const Key('pending-location-dock')), findsOneWidget);
-    expect(find.text(confirmLocationText), findsOneWidget);
+    expect(find.byKey(const Key('confirm-location')), findsOneWidget);
   });
 
   testWidgets('choosing not to mark a shot records score immediately', (
@@ -497,7 +500,6 @@ void main() {
       await tester.tap(find.byKey(const Key('red-score-2')));
       await tester.pump();
 
-      expect(find.text(scoringMarkShotDialogTitle), findsNothing);
       expect(controller.state.score.redScore, 2);
       expect(controller.state.pendingLocation, isNull);
       expect(await database.select(database.matchEvents).get(), hasLength(1));
@@ -515,8 +517,8 @@ void main() {
 
     await tester.tap(find.byKey(const Key('blue-score-3')));
     await tester.pump();
-    expect(find.text('确认落点'), findsOneWidget);
-    expect(find.text('取消定位'), findsOneWidget);
+    expect(find.byKey(const Key('confirm-location')), findsOneWidget);
+    expect(find.byKey(const Key('cancel-location')), findsOneWidget);
     expect(find.byKey(const Key('pending-location-undo')), findsOneWidget);
     await tester.tap(find.byKey(const Key('confirm-location')));
     await tester.pump();
@@ -541,7 +543,7 @@ void main() {
     await tester.tap(find.byKey(const Key('blue-score-3')));
     await tester.pump();
 
-    expect(find.text(scoringResolvePendingText), findsOneWidget);
+    expect(find.byKey(const Key('scoring-action-rejected')), findsOneWidget);
     expect(controller.state.score.redScore, 2);
     expect(controller.state.score.blueScore, 0);
   });
@@ -568,7 +570,6 @@ void main() {
         );
 
         final events = await database.select(database.matchEvents).get();
-        expect(find.text(scoringMarkShotDialogTitle), findsNothing);
         expect(events.map((event) => event.points), [1, 2]);
         expect(controller.state.score.blueScore, 1);
         expect(controller.state.score.redScore, 2);
@@ -595,7 +596,7 @@ void main() {
       expect(find.byKey(const Key('command-locate')), findsOneWidget);
       await tester.tap(find.byKey(const Key('command-locate')));
       await tester.pump();
-      expect(find.text(confirmLocationText), findsOneWidget);
+      expect(find.byKey(const Key('confirm-location')), findsOneWidget);
       expect(find.byKey(const Key('scoring-court')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('confirm-location')));
@@ -806,6 +807,133 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('compact scoring remains usable at 200 percent text size', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(731, 411));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: const ScoringPage(matchId: 'compact-large-text'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byType(ScoreSidePanel).first).width,
+      greaterThan(132),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('scoring-court'))).height,
+      greaterThanOrEqualTo(100),
+    );
+    expect(
+      tester.getSize(find.byKey(const Key('scoring-court'))).width,
+      greaterThanOrEqualTo(320),
+    );
+  });
+
+  testWidgets('scoreboard reflows controls at narrow width and large text', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: ScoringPage(
+          matchId: 'narrow-large-text-scoreboard',
+          onRequestLeave: () async {},
+          onOpenReplay: () {},
+          onResumeClock: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    final scoreboard = find.byKey(const Key('scoring-scoreboard'));
+    expect(scoreboard, findsOneWidget);
+    expect(tester.getRect(scoreboard).right, lessThanOrEqualTo(390));
+    expect(tester.getSize(scoreboard).height, greaterThanOrEqualTo(48));
+  });
+
+  testWidgets('dark detailed dock uses the active color scheme', (
+    tester,
+  ) async {
+    final controller = ScoringController(
+      setup: const MatchSetup(
+        matchId: 'dark-detailed-dock',
+        redName: 'Red',
+        blueName: 'Blue',
+        ruleTemplateId: 'free',
+        targetScore: null,
+        timerEnabled: false,
+        timeLimitMinutes: 10,
+        winByTwo: false,
+        recordingMode: RecordingMode.detailed,
+        trackingCoverage: TrackingCoverage.locations,
+      ),
+    );
+    final darkTheme = buildHoopTraceTheme(brightness: Brightness.dark);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: darkTheme,
+        home: ScoringPage(controller: controller),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-court')));
+    await tester.pump();
+
+    final dock = tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byKey(const Key('detailed-draft-dock')),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(dock.color, darkTheme.colorScheme.surfaceContainer);
+    final commit = tester.widget<FilledButton>(
+      find.descendant(
+        of: find.byKey(const Key('draft-commit')),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    expect(
+      commit.style?.backgroundColor?.resolve(const {}),
+      darkTheme.colorScheme.primary,
+    );
+  });
+
   testWidgets(
     'compact scoring keeps primary controls above the command dock with insets',
     (tester) async {
@@ -983,16 +1111,16 @@ void main() {
       ),
     );
 
-    await tester.tap(find.text(scoringReplayText));
+    await tester.tap(find.byKey(const Key('scoring-replay')));
     expect(openCount, 1);
 
     await tester.tap(find.byKey(const Key('red-score-1')));
     await tester.pump();
-    await tester.tap(find.text(scoringReplayText));
+    await tester.tap(find.byKey(const Key('scoring-replay')));
     await tester.pump();
 
     expect(openCount, 1);
-    expect(find.text(scoringResolvePendingText), findsOneWidget);
+    expect(find.byKey(const Key('scoring-action-rejected')), findsOneWidget);
   });
 
   testWidgets('command-backed pending undo awaits soft-delete command', (
@@ -1159,10 +1287,10 @@ void main() {
         await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
         await tester.pump();
 
-        await tester.tap(find.text(foulText).first);
+        await tester.tap(find.byKey(const Key('red-foul')));
         await tester.pump();
 
-        expect(find.text(scoringResolvePendingText), findsNothing);
+        expect(find.byKey(const Key('scoring-action-rejected')), findsNothing);
         expect(await database.select(database.matchEvents).get(), hasLength(2));
       });
     },

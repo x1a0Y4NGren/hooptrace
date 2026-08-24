@@ -1,9 +1,13 @@
-HoopTrace is an offline scoring and replay tool for one-on-one basketball.
+HoopTrace is an offline scoring, replay, and player-development tool for one-on-one basketball.
 
-Record points, fouls, match events, and confirmed shot locations on a half court. Review the game through a local timeline, shot chart, and key analytics. Manage players and scoring rules, correct finished records with an audit trail, and export complete JSON backups, CSV data, or a replay image.
+Choose a fast one-tap mode or a detailed court-first mode. Record points, attempts, fouls, possession, match events, and confirmed shot locations. Recover an interrupted active match and use count-up, countdown, or overtime clocks with explicit finish decisions.
+
+Review the game through a local timeline, shot chart, scoring flow, key moments, and analytics that clearly reflect tracking coverage. Profile-linked career views provide 7/30/90-day and all-time growth, opponent filters, recorded shooting trends, and zone heatmaps.
+
+Manage players and scoring rules, archive history, correct finished records with a human-readable audit trail, and export complete JSON backups, CSV data, or a replay image. Versioned restore supports safe replacement and deterministic merge. Optional automatic backup writes only to a user-approved folder with bounded retention.
 
 All records stay on the device by default. HoopTrace has no account, cloud sync, ads, analytics, tracking, or personal-data upload. Automatic backup is optional, disabled by default, and writes only to a folder explicitly selected by the user.
 
 The official HoopTrace project is permanently free and open source under the MIT License.
 
-The v0.1.0 interface is primarily available in Simplified Chinese. Additional interface languages are planned for later releases.
+The complete interface is available in Simplified Chinese and English, with system/light/dark themes, large-text accessibility, and adaptive phone, tablet, foldable, and multi-window layouts. Android is the supported release platform; no iOS binary is promised.

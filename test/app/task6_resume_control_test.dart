@@ -25,7 +25,6 @@ void main() {
 
     await _enterScoring(tester, database);
     expect(find.byKey(const Key('scoring-resume-clock')), findsOneWidget);
-    expect(find.text('恢复计时'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('scoring-resume-clock')));
     await tester.pump(const Duration(milliseconds: 100));

@@ -15,6 +15,9 @@
 ## 2. 依赖、隐私与权限
 
 - [ ] 运行 `flutter pub outdated`，评估但不要盲目升级发布分支依赖。
+- [ ] 确认 `third_party/sqlite/sqlite3.c` SHA-256 与
+      `docs/release/reproducible-builds.md` 一致，且 `pubspec.yaml` 保持
+      `source: source`；不得重新引入 `drift_flutter`/EOL SQLite binary 包。
 - [ ] 记录所有直接依赖的许可证和来源，确认不存在专有 SDK。
 - [ ] 确认没有广告、追踪、分析、崩溃遥测或账号依赖。
 - [ ] 确认 `PRIVACY.md` 与真实数据流一致。
@@ -28,18 +31,34 @@
 
 ```powershell
 flutter clean
-flutter pub get
+bash tool/release/prepare_android_toolchain.sh
+flutter pub get --enforce-lockfile
+dart --packages=.dart_tool/package_config.json tool/release/verify_sqlite_source.dart
+./android/gradlew -p android :app:exportReleaseRuntimeCoordinates
+diff -u third_party/android_runtime/coordinates.txt \
+  build/app/reports/release-runtime-coordinates.txt
 dart format --output=none --set-exit-if-changed .
 flutter analyze
 flutter test
+flutter test test/performance/task15_query_benchmarks_test.dart --reporter expanded
+dart --packages=.dart_tool/package_config.json tool/release/generate_third_party_notices.dart
+git diff --exit-code -- THIRD_PARTY_NOTICES.md
+dart --packages=.dart_tool/package_config.json tool/release/validate_metadata.dart
 flutter test integration_test/main_loop_test.dart -d <android-device-id>
+flutter test integration_test/command_performance_test.dart -d <android-device-id>
 flutter build apk --debug
 ```
 
-如果同一工作树此前运行过 Android Integration Test，应确认忽略目录中的 `android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java` 不存在；Flutter Integration Test 可能留下仅适用于调试构建的注册文件，而 `flutter clean` 不会删除它。正式构建优先使用全新 clone。
+如果同一工作树此前运行过 Android Integration Test，正式 release 构建不得使用 `--no-pub`：Flutter 必须在 release 模式重新生成 `GeneratedPluginRegistrant.java`，从而排除仅适用于调试构建的 `integration_test`，同时保留运行时插件。正式构建优先使用全新 clone。
 
 - [ ] 所有命令退出码为 0。
 - [ ] GitHub Actions 的 quality 和 Android integration jobs 均通过。
+- [ ] CI 的 golden/widget 测试、Drift schema 测试、API 36 主流程及 Android 命令 p95
+      基准均通过；日志保留 `TASK15_QUERY_BENCHMARK` 和
+      `TASK15_COMMAND_BENCHMARK` 结果。
+- [ ] CI 在两份独立源码树中逐字节核验未签名 Release APK，并通过 macOS iOS
+      `flutter build ios --release --no-codesign`。
+- [ ] `THIRD_PARTY_NOTICES.md` 可由当前锁定依赖确定性生成且无 diff。
 - [ ] CI 生成的 Debug APK artifact 可以下载并安装。
 - [ ] 工作树除预期版本和 Changelog 修改外保持干净。
 
@@ -72,7 +91,7 @@ flutter build apk --debug
 - [ ] 准备至少两张仅含经过整理的演示数据、不含个人信息的手机截图。
 - [ ] 检查 `fastlane/metadata/android/en-US` 和 `zh-CN` 的短描述、完整描述、图标及对应 `versionCode` Changelog。
 - [ ] 确认短描述少于 80 个字符，Changelog 不超过 500 个字符。
-- [ ] 在目标发布提交创建签名 tag，例如 `v0.1.0`。
+- [ ] 在目标发布提交创建签名 tag，例如 `v1.0.0`。
 - [ ] 确认 tag 中的版本号、源码和构建 APK 完全对应。
 
 ## 7. GitHub Release

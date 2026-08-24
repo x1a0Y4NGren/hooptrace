@@ -65,54 +65,60 @@ void main() {
     expect(replay.analytics?.scoringFlow.single.eventId, 'score-1');
   });
 
-  test('omits soft-deleted events and their locations from replay data', () {
-    final startedAt = DateTime.utc(2026, 7, 10, 10);
-    final detail = MatchDetail(
-      match: Match(
-        id: 'match-1',
-        createdAt: startedAt,
-        startedAt: startedAt,
-        status: MatchStatus.finished,
-        redName: 'Red',
-        blueName: 'Blue',
-        ruleTemplateSnapshot: const RuleTemplate(
-          id: 'free',
-          name: 'Free scoring',
-          scoreButtons: [1, 2, 3],
+  test(
+    'preserves soft-deleted events and confirmed locations for replay review',
+    () {
+      final startedAt = DateTime.utc(2026, 7, 10, 10);
+      final detail = MatchDetail(
+        match: Match(
+          id: 'match-1',
+          createdAt: startedAt,
+          startedAt: startedAt,
+          status: MatchStatus.finished,
+          redName: 'Red',
+          blueName: 'Blue',
+          ruleTemplateSnapshot: const RuleTemplate(
+            id: 'free',
+            name: 'Free scoring',
+            scoreButtons: [1, 2, 3],
+          ),
         ),
-      ),
-      events: [
-        MatchEvent(
-          id: 'deleted-score',
-          matchId: 'match-1',
-          type: MatchEventType.score,
-          side: TeamSide.red,
-          points: 2,
-          occurredAt: startedAt.add(const Duration(seconds: 12)),
-          isDeleted: true,
-        ),
-      ],
-      shotLocations: [
-        ShotLocation(
-          id: 'deleted-shot',
-          matchId: 'match-1',
-          eventId: 'deleted-score',
-          point: CourtPoint(x: 0.2, y: 0.7),
-          isConfirmed: true,
-        ),
-      ],
-      redScore: 0,
-      blueScore: 0,
-      redFouls: 0,
-      blueFouls: 0,
-      shotAttemptCount: 0,
-      locatedShotCount: 0,
-    );
+        events: [
+          MatchEvent(
+            id: 'deleted-score',
+            matchId: 'match-1',
+            type: MatchEventType.score,
+            side: TeamSide.red,
+            points: 2,
+            occurredAt: startedAt.add(const Duration(seconds: 12)),
+            isDeleted: true,
+          ),
+        ],
+        shotLocations: [
+          ShotLocation(
+            id: 'deleted-shot',
+            matchId: 'match-1',
+            eventId: 'deleted-score',
+            point: CourtPoint(x: 0.2, y: 0.7),
+            isConfirmed: true,
+          ),
+        ],
+        redScore: 0,
+        blueScore: 0,
+        redFouls: 0,
+        blueFouls: 0,
+        shotAttemptCount: 0,
+        locatedShotCount: 0,
+      );
 
-    final replay = replayDataFromDetail(detail);
+      final replay = replayDataFromDetail(detail);
 
-    expect(replay.events, isEmpty);
-  });
+      expect(replay.events, hasLength(1));
+      expect(replay.events.single.isDeleted, isTrue);
+      expect(replay.events.single.locationId, 'deleted-shot');
+      expect(replay.events.single.rawKind, MatchEventType.score);
+    },
+  );
 
   test('maps canonical made and missed attempts into replay categories', () {
     final startedAt = DateTime.utc(2026, 7, 10, 10);
@@ -181,6 +187,60 @@ void main() {
       ReplayEventKind.score,
       ReplayEventKind.miss,
     ]);
+    expect(replay.analytics?.recordedShootingPercentage, isNull);
+    expect(replay.analytics?.shootingPercentageIsTrustworthy, isFalse);
+  });
+
+  test('keeps raw event facts needed by replay editors', () {
+    final startedAt = DateTime.utc(2026, 7, 10, 10);
+    final occurredAt = startedAt.add(const Duration(seconds: 31));
+    final replay = replayDataFromDetail(
+      MatchDetail(
+        match: Match(
+          id: 'raw-replay',
+          createdAt: startedAt,
+          startedAt: startedAt,
+          status: MatchStatus.finished,
+          redName: 'Red',
+          blueName: 'Blue',
+          ruleTemplateSnapshot: const RuleTemplate(
+            id: 'free',
+            name: 'Free scoring',
+            scoreButtons: [1, 2, 3],
+          ),
+        ),
+        events: [
+          MatchEvent(
+            id: 'raw-event',
+            matchId: 'raw-replay',
+            type: MatchEventType.custom,
+            side: TeamSide.blue,
+            points: 0,
+            occurredAt: occurredAt,
+            note: 'review this',
+            outcome: ShotOutcome.notApplicable,
+            matchClockPositionSeconds: 44,
+            customLabel: 'timeout',
+          ),
+        ],
+        shotLocations: const [],
+        redScore: 0,
+        blueScore: 0,
+        redFouls: 0,
+        blueFouls: 0,
+        shotAttemptCount: 0,
+        locatedShotCount: 0,
+      ),
+    );
+
+    final event = replay.events.single;
+    expect(event.rawKind, MatchEventType.custom);
+    expect(event.eventType, MatchEventType.custom);
+    expect(event.outcome, ShotOutcome.notApplicable);
+    expect(event.customLabel, 'timeout');
+    expect(event.occurredAt, occurredAt);
+    expect(event.matchClockPositionSeconds, 44);
+    expect(event.note, 'review this');
   });
 
   test('maps possession source and closed/open replay boundaries', () {
@@ -327,5 +387,6 @@ void main() {
     );
 
     expect(replay.possessionSegments, isEmpty);
+    expect(replay.analytics!.possessionCount, 0);
   });
 }

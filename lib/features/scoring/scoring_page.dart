@@ -15,12 +15,6 @@ import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
-const scoringMarkShotDialogTitle = '标记投篮位置？';
-const scoringMarkShotDialogContent = '可在球场上点选或拖动圆点后确认。';
-const scoringDoNotMarkText = '不标记';
-const scoringMarkText = '标记';
-const scoringResolvePendingText = '请先确认、跳过或撤销当前落点';
-const scoringReplayText = '复盘';
 const scoringResumeClockKey = Key('scoring-resume-clock');
 
 class ScoringPage extends StatefulWidget {
@@ -184,6 +178,8 @@ class _ScoringPageState extends State<ScoringPage> {
     );
     final onRequestLeave = widget.onRequestLeave;
     if (onRequestLeave == null) return page;
+    // PopScope(canPop: false) is intentional: the synchronous guard keeps an
+    // unfinished shot from leaving before stay/cancel/commit is chosen.
     return PopScope<void>(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
@@ -198,9 +194,16 @@ class _ScoringPageState extends State<ScoringPage> {
     BoxConstraints constraints,
     MatchScoringState state,
   ) {
+    final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
     final sideWidth = constraints.maxWidth < 640
-        ? (constraints.maxWidth * 0.22).clamp(88.0, 132.0)
-        : (constraints.maxWidth * 0.2).clamp(132.0, 188.0);
+        ? (constraints.maxWidth * (largeText ? 0.24 : 0.22)).clamp(
+            largeText ? 96.0 : 88.0,
+            largeText ? 148.0 : 132.0,
+          )
+        : (constraints.maxWidth * 0.2).clamp(
+            largeText ? 144.0 : 132.0,
+            largeText ? 204.0 : 188.0,
+          );
     return Row(
       children: [
         SizedBox(
@@ -373,29 +376,32 @@ class _ScoringPageState extends State<ScoringPage> {
     MatchScoringState state,
     bool compact,
   ) {
+    final l10n = _localizations(context);
     final draft = state.detailedShotDraft!;
     final selectors = <Widget>[
       Text(
-        '草稿 ${draft.outcome == ShotOutcome.missed ? '未中' : '${draft.points} 分'}',
-        semanticsLabel: '当前投篮草稿',
+        draft.outcome == ShotOutcome.missed
+            ? l10n.scoringMissed
+            : l10n.scoringPoints(draft.points),
+        semanticsLabel: l10n.scoringSubmitShot,
       ),
       _DockAction(
         key: const Key('draft-shooter-blue'),
-        label: '蓝方出手',
+        label: l10n.scoringSimpleBlueShot,
         icon: Icons.person,
         selected: draft.side == TeamSide.blue,
         onPressed: () => _controller.updateDetailedShot(side: TeamSide.blue),
       ),
       _DockAction(
         key: const Key('draft-shooter-red'),
-        label: '红方出手',
+        label: l10n.scoringSimpleRedShot,
         icon: Icons.person,
         selected: draft.side == TeamSide.red,
         onPressed: () => _controller.updateDetailedShot(side: TeamSide.red),
       ),
       _DockAction(
         key: const Key('draft-outcome-made'),
-        label: '命中',
+        label: l10n.scoringMade,
         icon: Icons.check,
         selected: draft.outcome == ShotOutcome.made,
         onPressed: () =>
@@ -403,7 +409,7 @@ class _ScoringPageState extends State<ScoringPage> {
       ),
       _DockAction(
         key: const Key('draft-outcome-missed'),
-        label: '未中',
+        label: l10n.scoringMissed,
         icon: Icons.close,
         selected: draft.outcome == ShotOutcome.missed,
         onPressed: () =>
@@ -412,20 +418,20 @@ class _ScoringPageState extends State<ScoringPage> {
       for (final point in state.ruleTemplate.scoreButtons)
         _DockAction(
           key: Key('draft-points-$point'),
-          label: '$point 分',
+          label: l10n.scoringPoints(point),
           onPressed: () => _controller.updateDetailedShot(points: point),
         ),
     ];
     final actions = <Widget>[
       _DockAction(
         key: const Key('draft-cancel'),
-        label: '取消草稿',
+        label: l10n.scoringCancelDraft,
         icon: Icons.undo,
         onPressed: _cancelDetailedShot,
       ),
       _DockAction(
         key: const Key('draft-commit'),
-        label: '提交投篮',
+        label: l10n.scoringSubmitShot,
         icon: Icons.check_circle,
         emphasized: true,
         onPressed: () => unawaited(_commitDetailedShot()),
@@ -433,7 +439,7 @@ class _ScoringPageState extends State<ScoringPage> {
     ];
     return _DockSurface(
       key: const Key('detailed-draft-dock'),
-      color: HoopTraceColors.cream,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       maxHeight: compact ? 64 : 154,
       child: compact
           ? Row(
@@ -476,6 +482,7 @@ class _ScoringPageState extends State<ScoringPage> {
     ClockProjection? clock,
     bool compact,
   ) {
+    final l10n = _localizations(context);
     final canLocate =
         state.recordingMode == RecordingMode.simple && _allowsLocations;
     final activeClock = clock;
@@ -489,81 +496,85 @@ class _ScoringPageState extends State<ScoringPage> {
     final actions = <Widget>[
       _DockAction(
         key: const Key('command-undo'),
-        label: '撤销',
+        label: l10n.scoringUndo,
         icon: Icons.undo,
         onPressed: () => unawaited(_undoLastEvent()),
       ),
       if (canLocate)
         _DockAction(
           key: const Key('command-locate'),
-          label: '定位最近投篮',
+          label: l10n.scoringLocateLastShot,
           icon: Icons.location_on_outlined,
           onPressed: _beginLocate,
         ),
       if (showPause)
         _DockAction(
           key: const Key('command-pause'),
-          label: '暂停',
+          label: l10n.scoringPause,
           icon: Icons.pause,
           onPressed: () => unawaited(_pause()),
         ),
       if (showResume)
         _DockAction(
           key: const Key('command-resume'),
-          label: '恢复',
+          label: l10n.scoringResume,
           icon: Icons.play_arrow,
           onPressed: () => unawaited(_resume()),
         ),
       _DockAction(
         key: const Key('command-free-throw-blue-made'),
-        label: '蓝罚中',
+        label: l10n.scoringBlueFreeThrowMade,
         onPressed: () => unawaited(_recordFreeThrow(TeamSide.blue, true)),
       ),
       if (_allowsShotAttempts)
         _DockAction(
           key: const Key('command-free-throw-blue-miss'),
-          label: '蓝罚失',
+          label: l10n.scoringBlueFreeThrowMissed,
           onPressed: () => unawaited(_recordFreeThrow(TeamSide.blue, false)),
         ),
       _DockAction(
         key: const Key('command-free-throw-red-made'),
-        label: '红罚中',
+        label: l10n.scoringRedFreeThrowMade,
         onPressed: () => unawaited(_recordFreeThrow(TeamSide.red, true)),
       ),
       if (_allowsShotAttempts)
         _DockAction(
           key: const Key('command-free-throw-red-miss'),
-          label: '红罚失',
+          label: l10n.scoringRedFreeThrowMissed,
           onPressed: () => unawaited(_recordFreeThrow(TeamSide.red, false)),
         ),
       _DockAction(
         key: const Key('command-possession-blue'),
-        label: '球权蓝',
+        label: l10n.scoringPossessionBlue,
         selected: state.currentPossession == TeamSide.blue,
         onPressed: () => unawaited(_recordPossession(TeamSide.blue)),
       ),
       _DockAction(
         key: const Key('command-possession-red'),
-        label: '球权红',
+        label: l10n.scoringPossessionRed,
         selected: state.currentPossession == TeamSide.red,
         onPressed: () => unawaited(_recordPossession(TeamSide.red)),
       ),
       _DockAction(
         key: const Key('command-note'),
-        label: '备注',
+        label: l10n.scoringNote,
         icon: Icons.notes,
         onPressed: () => unawaited(_enterNote()),
       ),
       _DockAction(
         key: const Key('command-custom'),
-        label: '自定义',
+        label: l10n.scoringCustom,
         icon: Icons.add_circle_outline,
         onPressed: () => unawaited(_enterCustom()),
       ),
       if (showClockActions)
         Text(
-          activeClock.isRunning ? '计时进行中' : _clockStatus(activeClock),
-          semanticsLabel: '计时状态 ${_clockStatus(activeClock)}',
+          activeClock.isRunning
+              ? l10n.scoringClockRunning
+              : _clockStatus(activeClock, l10n),
+          semanticsLabel: l10n.scoringClockStatus(
+            _clockStatus(activeClock, l10n),
+          ),
         ),
     ];
     return _DockSurface(
@@ -595,6 +606,7 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _requestLeave() async {
+    final l10n = _localizations(context);
     final onRequestLeave = widget.onRequestLeave;
     if (onRequestLeave == null || _leaveBusy) return;
 
@@ -604,15 +616,21 @@ class _ScoringPageState extends State<ScoringPage> {
       final decision = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
-          title: Text(hasPending ? '当前有待定位投篮' : '当前有未提交投篮'),
+          title: Text(
+            hasPending
+                ? l10n.scoringPendingLocationTitle
+                : l10n.scoringPendingDraftTitle,
+          ),
           content: Text(
-            hasPending ? '离开前请取消定位、确认落点或撤销这次记录。' : '离开前请取消或提交当前投篮草稿。',
+            hasPending
+                ? l10n.scoringPendingLocationBody
+                : l10n.scoringPendingDraftBody,
           ),
           actions: [
             TextButton(
               key: const Key('leave-stay'),
               onPressed: () => Navigator.of(context).pop('stay'),
-              child: const Text('留在本场'),
+              child: Text(l10n.scoringStay),
             ),
             if (hasPending)
               TextButton(
@@ -622,7 +640,7 @@ class _ScoringPageState extends State<ScoringPage> {
                     Navigator.of(context).pop('leave');
                   }
                 },
-                child: const Text('取消定位并离开'),
+                child: Text(l10n.scoringCancelLocationLeave),
               )
             else ...[
               TextButton(
@@ -632,7 +650,7 @@ class _ScoringPageState extends State<ScoringPage> {
                     Navigator.of(context).pop('leave');
                   }
                 },
-                child: const Text('取消草稿并离开'),
+                child: Text(l10n.scoringCancelDraftLeave),
               ),
               FilledButton(
                 key: const Key('leave-commit-draft'),
@@ -642,7 +660,7 @@ class _ScoringPageState extends State<ScoringPage> {
                     Navigator.of(context).pop(accepted ? 'leave' : 'stay');
                   }
                 },
-                child: const Text('提交并离开'),
+                child: Text(l10n.scoringSubmitLeave),
               ),
             ],
           ],
@@ -666,11 +684,12 @@ class _ScoringPageState extends State<ScoringPage> {
     }
     if (_controller.recordingMode == RecordingMode.detailed &&
         !_controller.beginDetailedShot(point)) {
-      _showActionRejected('当前无法创建投篮草稿');
+      _showActionRejected(_localizations(context).scoringDraftCreateFailed);
     }
   }
 
   Future<void> _recordScore(TeamSide side, int points) async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.recordScoreCommitted(
         side: side,
@@ -679,7 +698,7 @@ class _ScoringPageState extends State<ScoringPage> {
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected(scoringResolvePendingText);
+        _showActionRejected(l10n.scoringResolvePending);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -687,12 +706,13 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _recordMiss(TeamSide side) async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.recordMissCommitted(side: side);
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('当前跟踪设置不记录未中投篮');
+        _showActionRejected(l10n.scoringMissTrackingDisabled);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -700,12 +720,13 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _recordFoul(TeamSide side) async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.recordFoulCommitted(side);
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('当前操作被拒绝，请先完成落点或草稿');
+        _showActionRejected(l10n.scoringActionRejected);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -713,6 +734,7 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _recordFreeThrow(TeamSide side, bool made) async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.recordFreeThrowCommitted(
         side: side,
@@ -721,7 +743,7 @@ class _ScoringPageState extends State<ScoringPage> {
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('当前跟踪设置不记录该罚球');
+        _showActionRejected(l10n.scoringFreeThrowTrackingDisabled);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -729,12 +751,13 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _recordPossession(TeamSide side) async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.recordPossessionCommitted(side);
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('球权修改未提交');
+        _showActionRejected(l10n.scoringPossessionNotCommitted);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -743,13 +766,15 @@ class _ScoringPageState extends State<ScoringPage> {
 
   bool _beginLocate() {
     final accepted = _controller.beginLocateLastUnlocatedShot();
-    if (!accepted) _showActionRejected('暂无可定位的未标记投篮');
+    if (!accepted) {
+      _showActionRejected(_localizations(context).scoringNoUnlocatedShot);
+    }
     return accepted;
   }
 
   void _cancelPendingLocation() {
     if (!_controller.cancelLocateLastUnlocatedShot()) {
-      _showActionRejected('当前落点无法取消');
+      _showActionRejected(_localizations(context).scoringLocationCancelFailed);
     }
   }
 
@@ -768,12 +793,13 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _undoPendingEvent() => _undoLastEvent();
 
   Future<void> _undoLastEvent() async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.undoLastEventCommitted();
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('撤销未提交');
+        _showActionRejected(l10n.scoringUndoFailed);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -781,12 +807,13 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _pause() async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.pauseCommitted();
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('当前无法暂停计时');
+        _showActionRejected(l10n.scoringPauseFailed);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -794,12 +821,13 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _resume() async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.resumeCommitted();
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('当前无法恢复计时');
+        _showActionRejected(l10n.scoringResumeFailed);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -807,12 +835,13 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _commitDetailedShot() async {
+    final l10n = _localizations(context);
     try {
       final accepted = await _controller.commitDetailedShot();
       if (accepted) {
         _notifyCommitted();
       } else {
-        _showActionRejected('投篮草稿尚未完成');
+        _showActionRejected(l10n.scoringDraftIncomplete);
       }
     } on MatchCommandFailure catch (failure) {
       _showCommandFailure(failure);
@@ -821,15 +850,15 @@ class _ScoringPageState extends State<ScoringPage> {
 
   void _cancelDetailedShot() {
     if (!_controller.cancelDetailedShot()) {
-      _showActionRejected('当前没有可取消的草稿');
+      _showActionRejected(_localizations(context).scoringNoDraft);
     }
   }
 
   Future<void> _enterNote() async {
     final note = await _showTextEntry(
-      title: '添加备注',
-      hint: '例如：暂停、战术或现场情况',
-      confirm: '记录备注',
+      title: _localizations(context).scoringAddNote,
+      hint: _localizations(context).scoringNoteHint,
+      confirm: _localizations(context).scoringRecordNote,
     );
     if (note == null) return;
     try {
@@ -842,9 +871,9 @@ class _ScoringPageState extends State<ScoringPage> {
 
   Future<void> _enterCustom() async {
     final label = await _showTextEntry(
-      title: '记录自定义事件',
-      hint: '事件标签',
-      confirm: '记录事件',
+      title: _localizations(context).scoringRecordCustom,
+      hint: _localizations(context).scoringEventLabel,
+      confirm: _localizations(context).scoringRecordEvent,
     );
     if (label == null) return;
     try {
@@ -874,7 +903,7 @@ class _ScoringPageState extends State<ScoringPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('取消'),
+              child: Text(_localizations(context).cancelAction),
             ),
             FilledButton(
               onPressed: () =>
@@ -996,9 +1025,12 @@ class _ScoringPageState extends State<ScoringPage> {
 
   void _showActionRejected(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        key: const Key('scoring-action-rejected'),
+        content: Text(message),
+      ),
+    );
   }
 
   void _showCommandFailure(MatchCommandFailure failure) {
@@ -1007,10 +1039,10 @@ class _ScoringPageState extends State<ScoringPage> {
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        content: Text(failure.message),
+        content: Text(_localizations(context).actionFailedRetry),
         action: failure.canRetry
             ? SnackBarAction(
-                label: '重试',
+                label: _localizations(context).retryAction,
                 onPressed: () => unawaited(_retryCommand(failure)),
               )
             : null,
@@ -1030,7 +1062,7 @@ class _ScoringPageState extends State<ScoringPage> {
   void _openReplay() {
     if (_controller.state.pendingLocation != null ||
         _controller.state.detailedShotDraft != null) {
-      _showActionRejected(scoringResolvePendingText);
+      _showActionRejected(_localizations(context).scoringResolvePending);
       return;
     }
     widget.onOpenReplay?.call();
@@ -1042,10 +1074,10 @@ class _ScoringPageState extends State<ScoringPage> {
   bool get _allowsLocations =>
       _controller.trackingCoverage.index >= TrackingCoverage.locations.index;
 
-  String _clockStatus(ClockProjection clock) {
-    if (clock.isRegulationExpired) return '常规时间结束';
-    if (clock.phase == ClockPhase.overtime) return '加时赛';
-    return clock.isRunning ? '计时进行中' : '计时已暂停';
+  String _clockStatus(ClockProjection clock, AppLocalizations l10n) {
+    if (clock.isRegulationExpired) return l10n.scoringRegulationExpired;
+    if (clock.phase == ClockPhase.overtime) return l10n.scoringOvertime;
+    return clock.isRunning ? l10n.scoringClockRunning : l10n.scoringClockPaused;
   }
 }
 
@@ -1066,98 +1098,196 @@ class _Scoreboard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final clockLabel = clock == null
-        ? '无计时'
+        ? l10n.scoringNoTimer
         : '${clock!.phase == ClockPhase.overtime ? 'OT ' : ''}${_formatSeconds(clock!.displaySeconds)}';
     final clockStatus = clock == null
-        ? '计时未配置'
+        ? l10n.scoringTimerNotConfigured
         : clock!.phase == ClockPhase.overtime
-        ? '加时赛'
+        ? l10n.scoringOvertime
         : clock!.isRegulationExpired
-        ? '常规时间结束'
+        ? l10n.scoringRegulationExpired
         : clock!.isRunning
-        ? '计时进行中'
-        : '计时已暂停';
-    return Material(
-      color: HoopTraceColors.ink,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        child: Row(
-          children: [
-            if (onLeave != null)
-              IconButton(
-                key: const Key('scoring-leave'),
-                tooltip: '返回计分列表',
-                color: Colors.white,
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                onPressed: onLeave,
-                icon: const Icon(Icons.arrow_back),
-              ),
-            Expanded(
-              child: _ScoreLabel(
-                name: state.blueName,
-                score: state.score.blueScore,
-                color: HoopTraceColors.blue,
-                alignment: Alignment.centerLeft,
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    clockLabel,
-                    semanticsLabel: '比赛时间 $clockLabel',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  Text(
-                    clockStatus,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: Colors.white70),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: _ScoreLabel(
-                name: state.redName,
-                score: state.score.redScore,
-                color: HoopTraceColors.red,
-                alignment: Alignment.centerRight,
-              ),
-            ),
-            if (onReplay != null)
-              Tooltip(
-                message: scoringReplayText,
-                child: TextButton.icon(
-                  onPressed: onReplay,
-                  icon: const Icon(Icons.query_stats, color: Colors.white),
-                  label: const Text(scoringReplayText),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                    foregroundColor: Colors.white,
+        ? l10n.scoringClockRunning
+        : l10n.scoringClockPaused;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxWidth < 600 ||
+            (MediaQuery.textScalerOf(context).scale(1) >= 1.5 &&
+                constraints.maxWidth < 720);
+        final colorScheme = Theme.of(context).colorScheme;
+        final blueColor = teamColorForScheme(
+          TeamSide.blue,
+          colorScheme,
+          background: HoopTraceColors.ink,
+        );
+        final redColor = teamColorForScheme(
+          TeamSide.red,
+          colorScheme,
+          background: HoopTraceColors.ink,
+        );
+
+        Widget iconAction({
+          required Key key,
+          required String tooltip,
+          required IconData icon,
+          required VoidCallback? onPressed,
+        }) {
+          return IconButton(
+            key: key,
+            tooltip: tooltip,
+            color: Colors.white,
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            onPressed: onPressed,
+            icon: Icon(icon),
+          );
+        }
+
+        final clock = SizedBox(
+          width: compact ? 62 : null,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  clockLabel,
+                  maxLines: 1,
+                  semanticsLabel: l10n.scoringMatchTime(clockLabel),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
               ),
-            if (onResumeClock != null)
-              TextButton(
-                key: scoringResumeClockKey,
-                onPressed: onResumeClock,
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(48, 48),
-                  foregroundColor: Colors.white,
+              if (!compact)
+                Text(
+                  clockStatus,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: Colors.white70),
                 ),
-                child: const Text('恢复计时'),
-              ),
-          ],
-        ),
-      ),
+            ],
+          ),
+        );
+
+        return Material(
+          key: const Key('scoring-scoreboard'),
+          color: HoopTraceColors.ink,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: compact
+                ? Row(
+                    children: [
+                      if (onLeave != null)
+                        iconAction(
+                          key: const Key('scoring-leave'),
+                          tooltip: l10n.scoringBackToScoringList,
+                          icon: Icons.arrow_back,
+                          onPressed: onLeave,
+                        ),
+                      Expanded(
+                        child: _ScoreLabel(
+                          name: state.blueName,
+                          score: state.score.blueScore,
+                          color: blueColor,
+                          alignment: Alignment.centerLeft,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: clock,
+                      ),
+                      Expanded(
+                        child: _ScoreLabel(
+                          name: state.redName,
+                          score: state.score.redScore,
+                          color: redColor,
+                          alignment: Alignment.centerRight,
+                        ),
+                      ),
+                      if (onReplay != null)
+                        iconAction(
+                          key: const Key('scoring-replay'),
+                          tooltip: l10n.scoringReplay,
+                          icon: Icons.query_stats,
+                          onPressed: onReplay,
+                        ),
+                      if (onResumeClock != null)
+                        iconAction(
+                          key: scoringResumeClockKey,
+                          tooltip: l10n.scoringResumeClock,
+                          icon: Icons.play_arrow,
+                          onPressed: onResumeClock,
+                        ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      if (onLeave != null)
+                        iconAction(
+                          key: const Key('scoring-leave'),
+                          tooltip: l10n.scoringBackToScoringList,
+                          icon: Icons.arrow_back,
+                          onPressed: onLeave,
+                        ),
+                      Expanded(
+                        child: _ScoreLabel(
+                          name: state.blueName,
+                          score: state.score.blueScore,
+                          color: blueColor,
+                          alignment: Alignment.centerLeft,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: clock,
+                      ),
+                      Expanded(
+                        child: _ScoreLabel(
+                          name: state.redName,
+                          score: state.score.redScore,
+                          color: redColor,
+                          alignment: Alignment.centerRight,
+                        ),
+                      ),
+                      if (onReplay != null)
+                        Tooltip(
+                          message: l10n.scoringReplay,
+                          child: TextButton.icon(
+                            key: const Key('scoring-replay'),
+                            onPressed: onReplay,
+                            icon: const Icon(
+                              Icons.query_stats,
+                              color: Colors.white,
+                            ),
+                            label: Text(l10n.scoringReplay),
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(48, 48),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ),
+                      if (onResumeClock != null)
+                        TextButton(
+                          key: scoringResumeClockKey,
+                          onPressed: onResumeClock,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(48, 48),
+                            foregroundColor: Colors.white,
+                          ),
+                          child: Text(l10n.scoringResumeClock),
+                        ),
+                    ],
+                  ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1245,9 +1375,8 @@ class _DockAction extends StatelessWidget {
             label: Text(label),
             style: FilledButton.styleFrom(
               minimumSize: const Size(48, 48),
-              backgroundColor: selected
-                  ? HoopTraceColors.orange
-                  : HoopTraceColors.ink,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
             ),
           )
         : OutlinedButton.icon(

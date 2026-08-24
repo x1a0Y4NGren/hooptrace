@@ -7,6 +7,12 @@ enum RecordingMode { simple, detailed }
 
 enum MatchLifecycle { draft, active, finished, archived, abandoned }
 
+/// Reserved note marker used for imported unfinished matches. Keeping the
+/// marker in the existing `abandoned` lifecycle preserves the schema-v2
+/// contract while allowing recovery screens to query these records without
+/// confusing them with user-abandoned matches.
+const importedIncompleteNoteMarker = 'imported-incomplete';
+
 /// Compatibility alias for the pre-1.0 name. New code should use
 /// [MatchLifecycle].
 typedef MatchStatus = MatchLifecycle;

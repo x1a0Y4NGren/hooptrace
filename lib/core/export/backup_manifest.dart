@@ -2,6 +2,7 @@ class BackupManifest {
   const BackupManifest({
     required this.appName,
     required this.appVersion,
+    required this.formatVersion,
     required this.schemaVersion,
     required this.exportedAt,
     required this.recordCounts,
@@ -10,6 +11,7 @@ class BackupManifest {
 
   final String appName;
   final String appVersion;
+  final int formatVersion;
   final int schemaVersion;
   final DateTime exportedAt;
   final Map<String, int> recordCounts;
@@ -23,6 +25,7 @@ class BackupManifest {
   Map<String, dynamic> checksumSourceJson() => {
     'appName': appName,
     'appVersion': appVersion,
+    'formatVersion': formatVersion,
     'schemaVersion': schemaVersion,
     'exportedAt': exportedAt.toUtc().toIso8601String(),
     'recordCounts': recordCounts,
@@ -32,6 +35,7 @@ class BackupManifest {
     return BackupManifest(
       appName: json['appName'] as String,
       appVersion: json['appVersion'] as String,
+      formatVersion: json['formatVersion'] as int,
       schemaVersion: json['schemaVersion'] as int,
       exportedAt: DateTime.parse(json['exportedAt'] as String).toUtc(),
       recordCounts: (json['recordCounts'] as Map<String, dynamic>).map(

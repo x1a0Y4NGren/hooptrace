@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+### 1.0 release candidate / 1.0 发布候选
+
+- 完成离线单挑计分、可恢复比赛、规则/球权、分页历史、复盘审计和真实数据覆盖分析。
+- 提供版本化备份的安全替换/确定性合并、用户授权目录自动备份及保留策略。
+- 完成简体中文/英文、系统/浅色/深色主题、自适应布局、无障碍和 Android 16 适配。
+- 建立性能基准、API 36 集成验证、未签名可复现构建和 iOS 无签名编译门槛。
+
+The 1.0 entry will be dated only after the signed release tag and all RC gates
+are complete. Until then, this section describes the release candidate and is
+not a published version.
+
 ## [0.1.0] - 2026-08-21
 
 ### Added

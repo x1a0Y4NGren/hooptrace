@@ -15,9 +15,9 @@ class DeviceExportGateway implements ExportGateway {
   final DeviceAutomaticBackupStorage backupStorage;
 
   @override
-  Future<ExportArtifact?> pickBackup() async {
+  Future<ExportArtifact?> pickBackup({String? dialogTitle}) async {
     final picked = await FilePicker.pickFile(
-      dialogTitle: '选择 HoopTrace 备份',
+      dialogTitle: dialogTitle ?? 'Choose a HoopTrace backup',
       type: FileType.custom,
       allowedExtensions: const ['json'],
     );
@@ -31,10 +31,10 @@ class DeviceExportGateway implements ExportGateway {
   }
 
   @override
-  Future<BackupDirectorySelection?> pickDirectory() async {
+  Future<BackupDirectorySelection?> pickDirectory({String? dialogTitle}) async {
     if (Platform.isAndroid) return backupStorage.pickDirectory();
     final directory = await FilePicker.getDirectoryPath(
-      dialogTitle: '选择自动备份文件夹',
+      dialogTitle: dialogTitle ?? 'Choose an automatic backup folder',
     );
     if (directory == null) return null;
     return BackupDirectorySelection(

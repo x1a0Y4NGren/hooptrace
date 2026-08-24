@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations_en.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -13,6 +14,8 @@ import 'package:hooptrace/features/scoring/scoring_page.dart';
 import '../test_helpers/test_database.dart';
 
 void main() {
+  final l10n = AppLocalizationsEn();
+
   test(
     'activeMatchProvider reacts to committed match and score writes',
     () async {
@@ -143,12 +146,12 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('home-start-scoring')));
       await tester.pump();
-      expect(find.textContaining('已有进行中的比赛'), findsOneWidget);
+      expect(find.text(l10n.routeActiveMatchTitle), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('active-abandon')));
       await tester.pump();
-      expect(find.text('放弃这场比赛？'), findsOneWidget);
-      await tester.tap(find.text('确认放弃'));
+      expect(find.text(l10n.homeAbandonTitle), findsOneWidget);
+      await tester.tap(find.text(l10n.homeConfirmAbandon));
       await _pumpUntilFound(
         tester,
         find.byKey(const Key('home-start-scoring')),
@@ -156,7 +159,7 @@ void main() {
       expect(find.byKey(const Key('home-resume-card')), findsNothing);
 
       await tester.tap(find.byKey(const Key('home-start-scoring')));
-      await _pumpUntilFound(tester, find.text('赛前设置'));
+      await _pumpUntilFound(tester, find.text(l10n.pregameTitle));
     },
   );
 
@@ -193,7 +196,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('scoring-leave')));
     await tester.pump();
-    expect(find.text('离开比赛'), findsOneWidget);
+    expect(find.text(l10n.routeLeaveTitle), findsOneWidget);
     expect(find.byKey(const Key('leave-stay')), findsOneWidget);
     expect(find.byKey(const Key('leave-keep-running')), findsOneWidget);
     expect(find.byKey(const Key('leave-pause-and-leave')), findsOneWidget);
@@ -235,8 +238,8 @@ void main() {
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('legacy-bootstrap')));
-    expect(find.text('无法打开 HoopTrace v0.1 数据'), findsOneWidget);
-    expect(find.textContaining('不会静默迁移、删除或清空'), findsOneWidget);
+    expect(find.text(l10n.legacyBootstrapHeadline), findsOneWidget);
+    expect(find.text(l10n.legacyBootstrapBody(' v1')), findsOneWidget);
   });
 }
 

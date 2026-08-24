@@ -1,25 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:hooptrace/app/app_metadata.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/app_database_provider.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/data/repositories/match_lifecycle_repository.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
+import 'package:hooptrace/core/data/repositories/player_career_repository.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
+import 'package:hooptrace/core/export/automatic_backup_scheduler.dart';
 import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
 import 'package:hooptrace/core/export/device_export_gateway.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
+import 'package:hooptrace/core/settings/theme_preferences.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
+import 'package:hooptrace/features/players/player_career_controller.dart';
 
 /// The result of the pre-Drift compatibility probe. A legacy result is
 /// deliberately a value instead of an exception so the app can show a clear
@@ -68,8 +74,8 @@ final databaseBootstrapProvider = FutureProvider<DatabaseBootstrapState>((
   try {
     await ref.watch(databaseCompatibilityProbeProvider)(database);
     return const DatabaseBootstrapState.ready();
-  } on LegacySchemaDetectedException catch (error) {
-    return DatabaseBootstrapState.incompatibleLegacy(error.version);
+  } on LegacySchemaDetectedException catch (legacy) {
+    return DatabaseBootstrapState.incompatibleLegacy(legacy.version);
   }
 });
 
@@ -83,9 +89,28 @@ final matchRepositoryProvider = Provider<MatchRepository>(
   (ref) => MatchRepository(ref.watch(appDatabaseProvider)),
 );
 
+final matchLifecycleRepositoryProvider = Provider<MatchLifecycleRepository>(
+  (ref) => MatchLifecycleRepository(ref.watch(appDatabaseProvider)),
+);
+
 final playerRepositoryProvider = Provider<PlayerRepository>(
   (ref) => PlayerRepository(ref.watch(appDatabaseProvider)),
 );
+
+final playerCareerRepositoryProvider = Provider<PlayerCareerRepository>(
+  (ref) => PlayerCareerRepository(ref.watch(appDatabaseProvider)),
+);
+
+final playerCareerControllerProvider = Provider.autoDispose
+    .family<PlayerCareerController, String>((ref, playerId) {
+      final repository = ref.watch(playerCareerRepositoryProvider);
+      final controller = PlayerCareerController(
+        playerId: playerId,
+        loader: (query) => repository.watchByPlayerId(playerId, query: query),
+      );
+      ref.onDispose(controller.dispose);
+      return controller;
+    });
 
 /// The pre-game route consumes this stream directly so profile edits become
 /// available without rebuilding the page's local setup controller.
@@ -124,6 +149,7 @@ final automaticBackupServiceProvider = Provider<AutomaticBackupService>((ref) {
     ref.watch(appDatabaseProvider),
     ref.watch(backupCodecProvider),
     storage: ref.watch(backupStorageProvider),
+    scheduler: DeviceAutomaticBackupScheduler(),
   );
 });
 
@@ -138,6 +164,22 @@ final scoringFeedbackServiceProvider = Provider<ScoringFeedbackService>((ref) {
   return ScoringFeedbackService(ref.watch(scoringFeedbackPreferencesProvider));
 });
 
+final themePreferencesRepositoryProvider = Provider<ThemePreferencesRepository>(
+  (ref) => ThemePreferencesRepository(ref.watch(appDatabaseProvider)),
+);
+
+/// The provider is kept alive for the app shell, while its initial value is
+/// system so MaterialApp can render immediately and then react to the
+/// persisted manual choice once the local database read completes.
+final themePreferencesControllerProvider =
+    ChangeNotifierProvider<ThemePreferencesController>((ref) {
+      final controller = ThemePreferencesController(
+        ref.watch(themePreferencesRepositoryProvider),
+      );
+      unawaited(controller.load());
+      return controller;
+    });
+
 /// Startup tasks are function providers instead of hard-coded calls so a
 /// provider container can verify ordering/counts without touching a user's
 /// backup directory. The production functions still delegate to the real
@@ -150,7 +192,7 @@ final startupEnsureBuiltInsProvider = Provider<AppStartupTask>((ref) {
 final startupAutomaticBackupProvider = Provider<AppStartupTask>((ref) {
   final automaticBackup = ref.watch(automaticBackupServiceProvider);
   return () async {
-    await automaticBackup.runIfEnabled();
+    await automaticBackup.runIfDue();
   };
 });
 

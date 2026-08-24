@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations_en.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -14,6 +15,8 @@ import 'package:hooptrace/features/scoring/scoring_page.dart';
 import '../test_helpers/test_database.dart';
 
 void main() {
+  final l10n = AppLocalizationsEn();
+
   testWidgets('production decision finish commits then opens final replay', (
     tester,
   ) async {
@@ -32,8 +35,8 @@ void main() {
         child: const HoopTraceApp(),
       ),
     );
-    await _pumpUntilFound(tester, find.text('继续比赛'));
-    await tester.tap(find.text('继续比赛'));
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
 
@@ -44,7 +47,7 @@ void main() {
     expect(find.textContaining('Red 1 : 0 Blue'), findsWidgets);
     await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
-    await _pumpUntilFound(tester, find.text('终场'));
+    await _pumpUntilFound(tester, find.text(l10n.replayFinished));
     expect(find.byKey(const Key('replay-finish-match')), findsNothing);
 
     final match = await database.select(database.matches).getSingle();
@@ -70,8 +73,8 @@ void main() {
         child: const HoopTraceApp(),
       ),
     );
-    await _pumpUntilFound(tester, find.text('继续比赛'));
-    await tester.tap(find.text('继续比赛'));
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     tester
         .widget<OutlinedButton>(
@@ -108,13 +111,11 @@ void main() {
           child: const HoopTraceApp(),
         ),
       );
-      await _pumpUntilFound(tester, find.text('继续比赛'));
-      await tester.tap(find.text('继续比赛'));
+      await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+      await tester.tap(find.byKey(const Key('home-resume')));
       await _pumpUntilFound(tester, find.byType(ScoringPage));
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.widgetWithText(TextButton, scoringReplayText).hitTestable(),
-      );
+      await tester.tap(find.byKey(const Key('scoring-replay')));
       await _pumpUntilFound(tester, find.byType(ReplayPage));
       await tester.pumpAndSettle();
 
@@ -136,14 +137,14 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('replay-finish-confirm')));
       await tester.pumpAndSettle();
-      expect(find.text('操作失败，请重试。'), findsOneWidget);
+      expect(find.text(l10n.actionFailedRetry), findsOneWidget);
       expect(find.byKey(const Key('replay-finish-match')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('replay-finish-match')));
       await tester.pumpAndSettle();
       expect(find.textContaining('Red 2 : 0 Blue'), findsOneWidget);
       await tester.tap(find.byKey(const Key('replay-finish-confirm')));
-      await _pumpUntilFound(tester, find.text('终场'));
+      await _pumpUntilFound(tester, find.text(l10n.replayFinished));
 
       final match = await database.select(database.matches).getSingle();
       expect(match.lifecycle, MatchLifecycle.finished.name);

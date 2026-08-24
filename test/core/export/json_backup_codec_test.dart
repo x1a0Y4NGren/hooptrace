@@ -9,6 +9,27 @@ import '../../test_helpers/test_database.dart';
 
 void main() {
   group('JsonBackupCodec', () {
+    test('atomic replace refuses to delete a local active session', () async {
+      final exported = await withTestDatabase((source) async {
+        return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
+      });
+      final destination = createTestDatabase();
+      addTearDown(destination.close);
+      await _seedActiveBackup(
+        destination,
+        runningSinceUtc: DateTime.utc(2026, 7, 18, 9, 1),
+      );
+
+      await expectLater(
+        JsonBackupCodec(destination, appVersion: '0.1.0+1').restore(exported),
+        throwsA(isA<BackupRestoreBlockedException>()),
+      );
+
+      expect(
+        (await destination.select(destination.activeSessions).get()).single.id,
+        'active',
+      );
+    });
     test('round-trips all eleven persisted table groups', () async {
       final exported = await withTestDatabase((source) async {
         await _seedCompleteBackup(source);
@@ -89,6 +110,38 @@ void main() {
       );
 
       expect(await codec.export(), await codec.export());
+    });
+
+    test('restores a running backed-up clock in a paused state', () async {
+      final exportedAt = DateTime.utc(2026, 7, 18, 9, 30);
+      final exported = await withTestDatabase((source) async {
+        await _seedActiveBackup(
+          source,
+          runningSinceUtc: exportedAt.subtract(const Duration(seconds: 30)),
+        );
+        return JsonBackupCodec(
+          source,
+          appVersion: '0.1.0+1',
+          now: () => exportedAt,
+        ).export();
+      });
+      final destination = createTestDatabase();
+
+      await JsonBackupCodec(
+        destination,
+        appVersion: '0.1.0+1',
+      ).restore(exported);
+
+      final clock =
+          (await destination.select(destination.matchClocks).get()).single;
+      expect(clock.runningSinceUtc, isNull);
+      expect(clock.accumulatedSeconds, 70);
+      expect(
+        (await destination.select(destination.activeSessions).get())
+            .single
+            .matchId,
+        'active-match',
+      );
     });
 
     test('rejects a future schema with a typed exception', () async {
@@ -241,6 +294,152 @@ void main() {
       },
     );
 
+    test(
+      'rejects a match that assigns one player profile to both sides',
+      () async {
+        await _expectGraphRejected((document) {
+          final participants =
+              (document['data'] as Map<String, dynamic>)['matchParticipants']
+                  as List<dynamic>;
+          final blue = participants.cast<Map<String, dynamic>>().singleWhere(
+            (participant) => participant['side'] == 'blue',
+          );
+          blue['playerProfileId'] = 'player-1';
+        });
+      },
+    );
+
+    test(
+      'requires active matches and sessions to correspond one-to-one',
+      () async {
+        final exported = await withTestDatabase((source) async {
+          await _seedActiveBackup(
+            source,
+            runningSinceUtc: DateTime.utc(2026, 7, 18, 9, 1),
+          );
+          return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
+        });
+        final database = createTestDatabase();
+        addTearDown(database.close);
+        final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+
+        final missingSession = jsonDecode(exported) as Map<String, dynamic>;
+        final missingSessionData =
+            missingSession['data'] as Map<String, dynamic>;
+        (missingSessionData['activeSessions'] as List<dynamic>).clear();
+        _setRecordCount(missingSession, 'activeSessions', 0);
+        _refreshChecksum(missingSession);
+        expect(
+          () => codec.decodeAndValidate(jsonEncode(missingSession)),
+          throwsA(isA<BackupValidationException>()),
+        );
+
+        final duplicateActive = jsonDecode(exported) as Map<String, dynamic>;
+        final duplicateData = duplicateActive['data'] as Map<String, dynamic>;
+        final duplicateMatch = Map<String, dynamic>.from(
+          (duplicateData['matches'] as List<dynamic>).single
+              as Map<String, dynamic>,
+        )..['id'] = 'active-match-2';
+        (duplicateData['matches'] as List<dynamic>).add(duplicateMatch);
+        _setRecordCount(duplicateActive, 'matches', 2);
+        _refreshChecksum(duplicateActive);
+        expect(
+          () => codec.decodeAndValidate(jsonEncode(duplicateActive)),
+          throwsA(isA<BackupValidationException>()),
+        );
+      },
+    );
+
+    test('requires a clock for active or timer-enabled matches', () async {
+      final exported = await withTestDatabase((source) async {
+        await _seedActiveBackup(
+          source,
+          runningSinceUtc: DateTime.utc(2026, 7, 18, 9, 1),
+        );
+        return JsonBackupCodec(source, appVersion: '1.0.0').export();
+      });
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final codec = JsonBackupCodec(database, appVersion: '1.0.0');
+
+      final activeWithoutClock = jsonDecode(exported) as Map<String, dynamic>;
+      final activeData = activeWithoutClock['data'] as Map<String, dynamic>;
+      (activeData['matchClocks'] as List<dynamic>).clear();
+      _setRecordCount(activeWithoutClock, 'matchClocks', 0);
+      _refreshChecksum(activeWithoutClock);
+      expect(
+        () => codec.decodeAndValidate(jsonEncode(activeWithoutClock)),
+        throwsA(isA<BackupValidationException>()),
+      );
+
+      final historical = await withTestDatabase((source) async {
+        await _seedCompleteBackup(source);
+        return JsonBackupCodec(source, appVersion: '1.0.0').export();
+      });
+      final timerEnabledWithoutClock =
+          jsonDecode(historical) as Map<String, dynamic>;
+      final timerData =
+          timerEnabledWithoutClock['data'] as Map<String, dynamic>;
+      final match =
+          (timerData['matches'] as List<dynamic>).single
+              as Map<String, dynamic>;
+      match['timerEnabled'] = true;
+      _refreshChecksum(timerEnabledWithoutClock);
+      expect(
+        () => codec.decodeAndValidate(jsonEncode(timerEnabledWithoutClock)),
+        throwsA(isA<BackupValidationException>()),
+      );
+
+      // A completed, timer-disabled record from older versions may have no
+      // clock and remains valid.
+      final completedWithoutClock =
+          jsonDecode(historical) as Map<String, dynamic>;
+      expect(
+        () => codec.decodeAndValidate(jsonEncode(completedWithoutClock)),
+        returnsNormally,
+      );
+    });
+
+    test(
+      'rejects running clocks on non-active matches and expired regulation',
+      () async {
+        final exported = await withTestDatabase((source) async {
+          await _seedActiveBackup(
+            source,
+            runningSinceUtc: DateTime.utc(2026, 7, 18, 9, 1),
+          );
+          return JsonBackupCodec(source, appVersion: '1.0.0').export();
+        });
+        final database = createTestDatabase();
+        addTearDown(database.close);
+        final codec = JsonBackupCodec(database, appVersion: '1.0.0');
+
+        final nonActive = jsonDecode(exported) as Map<String, dynamic>;
+        final nonActiveData = nonActive['data'] as Map<String, dynamic>;
+        ((nonActiveData['matches'] as List<dynamic>).single
+                as Map<String, dynamic>)['lifecycle'] =
+            'finished';
+        (nonActiveData['activeSessions'] as List<dynamic>).clear();
+        _setRecordCount(nonActive, 'activeSessions', 0);
+        _refreshChecksum(nonActive);
+        expect(
+          () => codec.decodeAndValidate(jsonEncode(nonActive)),
+          throwsA(isA<BackupValidationException>()),
+        );
+
+        final expired = jsonDecode(exported) as Map<String, dynamic>;
+        final expiredData = expired['data'] as Map<String, dynamic>;
+        ((expiredData['matchClocks'] as List<dynamic>).single
+                as Map<String, dynamic>)['phase'] =
+            'regulationExpired';
+        _refreshChecksum(expired);
+        expect(
+          () => codec.decodeAndValidate(jsonEncode(expired)),
+          throwsA(isA<BackupValidationException>()),
+        );
+      },
+    );
+
     test('rejects an orphan clock before replacement', () async {
       await _expectGraphRejected((document) {
         final data = document['data'] as Map<String, dynamic>;
@@ -266,6 +465,55 @@ void main() {
               (data['possessionSegments'] as List<dynamic>).single
                   as Map<String, dynamic>;
           possession['matchId'] = 'missing-match';
+        });
+      },
+    );
+
+    test('prevalidates every persisted shot event invariant', () async {
+      final invalidEvents = <Map<String, Object?>>[
+        {'type': 'fieldGoal', 'side': 'red', 'points': 2, 'outcome': 'missed'},
+        {'type': 'freeThrow', 'side': 'red', 'points': 0, 'outcome': 'made'},
+        {'type': 'miss', 'side': null, 'points': 1, 'outcome': 'missed'},
+      ];
+      for (final invalid in invalidEvents) {
+        await _expectGraphRejected((document) {
+          final data = document['data'] as Map<String, dynamic>;
+          final event =
+              (data['matchEvents'] as List<dynamic>).single
+                  as Map<String, dynamic>;
+          event.addAll(invalid);
+          (data['shotLocations'] as List<dynamic>).clear();
+          _setRecordCount(document, 'shotLocations', 0);
+        });
+      }
+    });
+
+    test('rejects a score event with a non-made outcome', () async {
+      await _expectGraphRejected((document) {
+        final data = document['data'] as Map<String, dynamic>;
+        final event =
+            (data['matchEvents'] as List<dynamic>).single
+                as Map<String, dynamic>;
+        event['type'] = 'score';
+        event['side'] = 'red';
+        event['points'] = 2;
+        event['outcome'] = 'missed';
+        (data['shotLocations'] as List<dynamic>).clear();
+        _setRecordCount(document, 'shotLocations', 0);
+      });
+    });
+
+    test(
+      'rejects duplicate shot locations for one event before writes',
+      () async {
+        await _expectGraphRejected((document) {
+          final data = document['data'] as Map<String, dynamic>;
+          final locations = data['shotLocations'] as List<dynamic>;
+          final duplicate = Map<String, dynamic>.from(
+            locations.single as Map<String, dynamic>,
+          )..['id'] = 'shot-duplicate';
+          locations.add(duplicate);
+          _setRecordCount(document, 'shotLocations', 2);
         });
       },
     );
@@ -322,35 +570,39 @@ Future<void> _expectGraphRejected(
   _refreshChecksum(document);
 
   final destination = createTestDatabase();
-  await destination
-      .into(destination.matches)
-      .insert(
-        Matche(
-          id: 'keep-me',
-          lifecycle: 'active',
-          recordingMode: 'simple',
-          trackingCoverage: 'scoresOnly',
-          ruleTemplateJson: '{}',
-          createdAt: DateTime.utc(2026, 7, 17),
-          startedAt: null,
-          endedAt: null,
-          timerEnabled: false,
-          note: null,
-        ),
-      );
+  try {
+    await destination
+        .into(destination.matches)
+        .insert(
+          Matche(
+            id: 'keep-me',
+            lifecycle: 'active',
+            recordingMode: 'simple',
+            trackingCoverage: 'scoresOnly',
+            ruleTemplateJson: '{}',
+            createdAt: DateTime.utc(2026, 7, 17),
+            startedAt: null,
+            endedAt: null,
+            timerEnabled: false,
+            note: null,
+          ),
+        );
 
-  await expectLater(
-    JsonBackupCodec(
-      destination,
-      appVersion: '0.1.0+1',
-    ).restore(jsonEncode(document)),
-    throwsA(isA<BackupValidationException>()),
-  );
-  expect(
-    (await destination.select(destination.matches).get()).single.id,
-    'keep-me',
-  );
-  expect(await destination.select(destination.matchEvents).get(), isEmpty);
+    await expectLater(
+      JsonBackupCodec(
+        destination,
+        appVersion: '0.1.0+1',
+      ).restore(jsonEncode(document)),
+      throwsA(isA<BackupValidationException>()),
+    );
+    expect(
+      (await destination.select(destination.matches).get()).single.id,
+      'keep-me',
+    );
+    expect(await destination.select(destination.matchEvents).get(), isEmpty);
+  } finally {
+    await destination.close();
+  }
 }
 
 void _setRecordCount(Map<String, dynamic> document, String table, int count) {
@@ -503,4 +755,73 @@ Future<void> _seedCompleteBackup(AppDatabase database) async {
       .insert(
         AppSetting(key: 'theme', valueJson: '"light"', updatedAt: createdAt),
       );
+}
+
+Future<void> _seedActiveBackup(
+  AppDatabase database, {
+  required DateTime runningSinceUtc,
+}) async {
+  final createdAt = DateTime.utc(2026, 7, 18, 9);
+  await database
+      .into(database.matches)
+      .insert(
+        Matche(
+          id: 'active-match',
+          lifecycle: 'active',
+          recordingMode: 'simple',
+          trackingCoverage: 'scoresOnly',
+          ruleTemplateJson: jsonEncode({
+            'id': 'rule-1',
+            'name': 'Race to 11',
+            'scoreButtons': [1, 2, 3],
+            'targetScore': 11,
+            'timeLimitSeconds': null,
+            'winByTwo': true,
+            'foulLimit': null,
+            'possessionHintEnabled': false,
+            'customEventTypes': <String>[],
+          }),
+          createdAt: createdAt,
+          startedAt: createdAt,
+          endedAt: null,
+          timerEnabled: true,
+          note: null,
+        ),
+      );
+  await database.batch((batch) {
+    batch.insertAll(database.matchParticipants, const [
+      MatchParticipant(
+        id: 'active-red',
+        matchId: 'active-match',
+        side: 'red',
+        nameSnapshot: 'Red',
+      ),
+      MatchParticipant(
+        id: 'active-blue',
+        matchId: 'active-match',
+        side: 'blue',
+        nameSnapshot: 'Blue',
+      ),
+    ]);
+    batch.insert(
+      database.matchClocks,
+      MatchClock(
+        id: 'active-clock',
+        matchId: 'active-match',
+        mode: 'countUp',
+        phase: 'regulation',
+        accumulatedSeconds: 40,
+        runningSinceUtc: runningSinceUtc,
+        regulationSeconds: null,
+      ),
+    );
+    batch.insert(
+      database.activeSessions,
+      ActiveSession(
+        id: 'active',
+        matchId: 'active-match',
+        claimedAtUtc: createdAt,
+      ),
+    );
+  });
 }

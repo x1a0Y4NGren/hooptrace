@@ -6,6 +6,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_en.dart';
 import 'package:hooptrace/app/provider_router.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
@@ -17,6 +18,8 @@ import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import '../test_helpers/test_database.dart';
 
 void main() {
+  final l10n = AppLocalizationsEn();
+
   test(
     'active and live watches have one initial snapshot and later updates',
     () async {
@@ -284,8 +287,8 @@ void main() {
       ),
     );
     router.go('/scoring/not-a-match');
-    await _pumpUntilFound(tester, find.text('比赛未在进行中'));
-    expect(find.text('请从主页继续一场活动比赛。'), findsOneWidget);
+    await _pumpUntilFound(tester, find.text(l10n.routeMatchNotActive));
+    expect(find.text(l10n.routeMatchNotActiveBody), findsOneWidget);
   });
 }
 

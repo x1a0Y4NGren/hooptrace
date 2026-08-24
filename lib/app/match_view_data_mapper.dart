@@ -1,8 +1,8 @@
-import 'package:hooptrace/core/domain/entities/match.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics_calculator.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 
@@ -14,18 +14,27 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
   final startedAt = detail.match.startedAt ?? detail.match.createdAt;
   final elapsedByEvent = {
     for (final event in detail.events)
-      if (!event.isDeleted)
-        event.id: _nonNegativeDifference(event.occurredAt, startedAt),
+      event.id: _nonNegativeDifference(event.occurredAt, startedAt),
   };
+  final validPossessionSegments = detail.possessionSegments
+      .where((segment) {
+        final segmentStartedAt = elapsedByEvent[segment.startedAtEventId];
+        if (segmentStartedAt == null) return false;
+        final segmentEndedAt = segment.endedAtEventId == null
+            ? null
+            : elapsedByEvent[segment.endedAtEventId];
+        if (segment.endedAtEventId != null && segmentEndedAt == null) {
+          return false;
+        }
+        return segmentEndedAt == null || segmentEndedAt >= segmentStartedAt;
+      })
+      .toList(growable: false);
   final possessionSegments = <ReplayPossessionSegmentData>[];
-  for (final segment in detail.possessionSegments) {
-    final segmentStartedAt = elapsedByEvent[segment.startedAtEventId];
-    if (segmentStartedAt == null) continue;
+  for (final segment in validPossessionSegments) {
+    final segmentStartedAt = elapsedByEvent[segment.startedAtEventId]!;
     final segmentEndedAt = segment.endedAtEventId == null
         ? null
         : elapsedByEvent[segment.endedAtEventId];
-    if (segment.endedAtEventId != null && segmentEndedAt == null) continue;
-    if (segmentEndedAt != null && segmentEndedAt < segmentStartedAt) continue;
     possessionSegments.add(
       ReplayPossessionSegmentData(
         id: segment.id,
@@ -51,6 +60,9 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
       detail.events,
       targetScore: detail.match.ruleTemplateSnapshot.targetScore,
       winByTwo: detail.match.ruleTemplateSnapshot.winByTwo,
+      trackingCoverage: detail.match.trackingCoverage,
+      shotLocations: detail.shotLocations,
+      possessionSegments: validPossessionSegments,
     ),
     possessionSegments: possessionSegments,
     isFinished:
@@ -58,17 +70,22 @@ ReplayMatchData replayDataFromDetail(MatchDetail detail) {
         detail.match.status == MatchStatus.archived,
     events: [
       for (final event in detail.events)
-        if (!event.isDeleted)
-          ReplayEventData(
-            id: event.id,
-            kind: _replayKind(event),
-            side: event.side,
-            points: event.points,
-            elapsed: _nonNegativeDifference(event.occurredAt, startedAt),
-            note: event.note,
-            locationId: locationsByEvent[event.id]?.id,
-            shotPoint: locationsByEvent[event.id]?.point,
-          ),
+        ReplayEventData(
+          id: event.id,
+          kind: _replayKind(event),
+          rawKind: event.type,
+          side: event.side,
+          points: event.points,
+          elapsed: _nonNegativeDifference(event.occurredAt, startedAt),
+          note: event.note,
+          outcome: event.outcome,
+          customLabel: event.customLabel,
+          occurredAt: event.occurredAt,
+          matchClockPositionSeconds: event.matchClockPositionSeconds,
+          isDeleted: event.isDeleted,
+          locationId: locationsByEvent[event.id]?.id,
+          shotPoint: locationsByEvent[event.id]?.point,
+        ),
     ],
   );
 }
@@ -85,6 +102,15 @@ HistoryMatchSummary historySummaryFromEntry(MatchHistoryEntry entry) {
     duration: entry.duration ?? Duration.zero,
     locatedShots: entry.locatedShotCount,
     scoringEvents: entry.shotAttemptCount,
+    lifecycle: switch (entry.lifecycle) {
+      MatchLifecycle.active => HistoryMatchLifecycle.active,
+      MatchLifecycle.finished => HistoryMatchLifecycle.finished,
+      MatchLifecycle.archived => HistoryMatchLifecycle.archived,
+      MatchLifecycle.abandoned => HistoryMatchLifecycle.abandoned,
+      MatchLifecycle.draft => HistoryMatchLifecycle.draft,
+    },
+    recordingMode: entry.recordingMode.name,
+    isImportedIncomplete: entry.importedIncomplete,
   );
 }
 

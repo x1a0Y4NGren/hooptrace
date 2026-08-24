@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 
 const homeResumeCardKey = Key('home-resume-card');
@@ -31,19 +32,19 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('HoopTrace'),
+        title: Text(l10n.appName),
         actions: [
           IconButton(
             onPressed: onOpenPlayers,
-            tooltip: '球员',
+            tooltip: l10n.homePlayersTooltip,
             icon: const Icon(Icons.people_outline),
           ),
           IconButton(
             onPressed: onOpenSettings,
-            tooltip: '设置',
+            tooltip: l10n.homeSettingsTooltip,
             icon: const Icon(Icons.settings_outlined),
           ),
           const SizedBox(width: 8),
@@ -51,7 +52,7 @@ class HomePage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.small(
         onPressed: onOpenProject,
-        tooltip: '项目详情',
+        tooltip: l10n.homeProjectTooltip,
         child: const Icon(Icons.info_outline),
       ),
       body: SafeArea(
@@ -102,20 +103,23 @@ class _ResumeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final clock = detail.clock;
     final clockStatus = clock == null
-        ? '计时未配置'
+        ? l10n.homeClockNotConfigured
         : clock.isRegulationExpired
-        ? '常规时间结束'
+        ? l10n.homeClockRegulationExpired
         : clock.isRunning
-        ? '计时进行中'
-        : '计时已暂停';
+        ? l10n.homeClockRunning
+        : l10n.homeClockPaused;
     final persisted = detail.lastPersistedAt?.toLocal();
     final persistedLabel = persisted == null
-        ? '最近持久化：未知'
-        : '最近持久化：${persisted.year}-${persisted.month.toString().padLeft(2, '0')}-'
-              '${persisted.day.toString().padLeft(2, '0')} '
-              '${persisted.hour.toString().padLeft(2, '0')}:${persisted.minute.toString().padLeft(2, '0')}';
+        ? l10n.homeLastPersistedUnknown
+        : l10n.homeLastPersisted(
+            '${persisted.year}-${persisted.month.toString().padLeft(2, '0')}-'
+            '${persisted.day.toString().padLeft(2, '0')} '
+            '${persisted.hour.toString().padLeft(2, '0')}:${persisted.minute.toString().padLeft(2, '0')}',
+          );
 
     return Card(
       key: homeResumeCardKey,
@@ -125,7 +129,7 @@ class _ResumeCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '进行中的比赛',
+              l10n.homeActiveMatch,
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -134,7 +138,7 @@ class _ResumeCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(child: Text(detail.match.redName)),
-                const Text(' vs '),
+                Text(' ${l10n.homeVersus} '),
                 Expanded(
                   child: Text(detail.match.blueName, textAlign: TextAlign.end),
                 ),
@@ -154,7 +158,7 @@ class _ResumeCard extends StatelessWidget {
                   child: FilledButton(
                     key: homeResumeKey,
                     onPressed: onContinue,
-                    child: const Text('继续比赛'),
+                    child: Text(l10n.homeResumeMatch),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -162,7 +166,7 @@ class _ResumeCard extends StatelessWidget {
                   child: OutlinedButton(
                     key: homeAbandonKey,
                     onPressed: () => _confirmAbandon(context),
-                    child: const Text('放弃比赛'),
+                    child: Text(l10n.homeAbandonMatch),
                   ),
                 ),
               ],
@@ -174,19 +178,20 @@ class _ResumeCard extends StatelessWidget {
   }
 
   Future<void> _confirmAbandon(BuildContext context) async {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('放弃这场比赛？'),
-        content: const Text('比赛会保留在本地记录中，但不会再出现在进行中入口。'),
+        title: Text(l10n.homeAbandonTitle),
+        content: Text(l10n.homeAbandonBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('取消'),
+            child: Text(l10n.cancelAction),
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('确认放弃'),
+            child: Text(l10n.homeConfirmAbandon),
           ),
         ],
       ),

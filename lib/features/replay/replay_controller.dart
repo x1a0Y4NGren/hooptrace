@@ -3,16 +3,46 @@ import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
-import 'package:hooptrace/core/domain/entities/possession_segment.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
+import 'package:hooptrace/features/replay/replay_event_filter.dart';
 
 enum ReplayEventKind { score, foul, miss, other }
 
 enum ReplayKindFilter { all, scores, fouls }
 
 enum ReplaySideFilter { all, red, blue }
+
+/// The complete set of fields a replay reviewer can correct on an existing
+/// event.  Every value is optional so command adapters can send a partial
+/// correction, while the editor sends the current value for each field it
+/// exposes.  [eventId] and [reason] are kept outside the persisted payload so
+/// the controller remains independent from the command kernel.
+class ReplayEventCorrection {
+  const ReplayEventCorrection({
+    required this.eventId,
+    this.type,
+    this.side,
+    this.points,
+    this.outcome,
+    this.note,
+    this.customLabel,
+    this.matchClockPositionSeconds,
+    this.reason,
+  });
+
+  final String eventId;
+  final EventKind? type;
+  final TeamSide? side;
+  final int? points;
+  final ShotOutcome? outcome;
+  final String? note;
+  final String? customLabel;
+  final int? matchClockPositionSeconds;
+  final String? reason;
+}
 
 class ReplayEventData {
   const ReplayEventData({
@@ -24,6 +54,12 @@ class ReplayEventData {
     this.note,
     this.locationId,
     this.shotPoint,
+    this.rawKind,
+    this.outcome,
+    this.customLabel,
+    this.occurredAt,
+    this.matchClockPositionSeconds,
+    this.isDeleted = false,
   });
 
   final String id;
@@ -35,6 +71,17 @@ class ReplayEventData {
   final String? locationId;
   final CourtPoint? shotPoint;
 
+  /// The persisted event vocabulary. [kind] remains the display category.
+  final EventKind? rawKind;
+  final ShotOutcome? outcome;
+  final String? customLabel;
+  final DateTime? occurredAt;
+  final int? matchClockPositionSeconds;
+  final bool isDeleted;
+
+  /// Compatibility alias for consumers that call the persisted value type.
+  EventKind? get eventType => rawKind;
+
   ReplayEventData copyWith({String? note, CourtPoint? shotPoint}) {
     return ReplayEventData(
       id: id,
@@ -45,6 +92,12 @@ class ReplayEventData {
       note: note ?? this.note,
       locationId: locationId,
       shotPoint: shotPoint ?? this.shotPoint,
+      rawKind: rawKind,
+      outcome: outcome,
+      customLabel: customLabel,
+      occurredAt: occurredAt,
+      matchClockPositionSeconds: matchClockPositionSeconds,
+      isDeleted: isDeleted,
     );
   }
 }
@@ -106,6 +159,10 @@ class ReplayController extends ChangeNotifier {
     this.onMoveShotLocation,
     this.onSoftDeleteEvent,
     this.onUpdateEventNote,
+    this.onCorrectEvent,
+    this.onUndoEvent,
+    this.onRestoreEvent,
+    this.onCorrectShotLocation,
     this.loadAuditLogs,
   }) : _data = data;
 
@@ -120,9 +177,15 @@ class ReplayController extends ChangeNotifier {
   onSoftDeleteEvent;
   final Future<void> Function(String eventId, String note, String? reason)?
   onUpdateEventNote;
+  final Future<void> Function(ReplayEventCorrection correction)? onCorrectEvent;
+  final Future<void> Function(String eventId, String? reason)? onUndoEvent;
+  final Future<void> Function(String eventId, String? reason)? onRestoreEvent;
+  final Future<void> Function(String eventId, CourtPoint point, String? reason)?
+  onCorrectShotLocation;
   final Future<List<AuditLogEntry>> Function()? loadAuditLogs;
   ReplayKindFilter _kindFilter = ReplayKindFilter.all;
   ReplaySideFilter _sideFilter = ReplaySideFilter.all;
+  ReplayEventFilter _eventFilter = ReplayEventFilter.all;
   bool _isEditing = false;
   String? _selectedEventId;
   CourtPoint? _pendingShotPoint;
@@ -130,11 +193,16 @@ class ReplayController extends ChangeNotifier {
   ReplayMatchData get data => _data;
   ReplayKindFilter get kindFilter => _kindFilter;
   ReplaySideFilter get sideFilter => _sideFilter;
+  ReplayEventFilter get eventFilter => _eventFilter;
   bool get isEditing => _isEditing;
   bool get canEdit =>
       onMoveShotLocation != null ||
       onSoftDeleteEvent != null ||
-      onUpdateEventNote != null;
+      onUpdateEventNote != null ||
+      onCorrectEvent != null ||
+      onUndoEvent != null ||
+      onRestoreEvent != null ||
+      onCorrectShotLocation != null;
   String? get selectedEventId => _selectedEventId;
   ReplayEventData? get selectedEvent {
     final id = _selectedEventId;
@@ -158,18 +226,28 @@ class ReplayController extends ChangeNotifier {
 
   UnmodifiableListView<ReplayEventData> get visibleEvents {
     return UnmodifiableListView(
-      data.events.where(_matchesFilters).toList(growable: false),
+      data.events
+          .where(
+            (event) => _eventFilter.matches(event) && _matchesFilters(event),
+          )
+          .toList(growable: false),
     );
   }
 
   UnmodifiableListView<ScoringShotLocation> get shotLocations {
     final locations = <ScoringShotLocation>[];
-    for (final event in _data.events) {
+    for (final event in visibleEvents) {
       final point = event.shotPoint;
       final side = event.side;
-      if (event.kind != ReplayEventKind.score ||
-          point == null ||
-          side == null) {
+      final rawKind = event.rawKind;
+      final isShot =
+          event.kind == ReplayEventKind.score ||
+          event.kind == ReplayEventKind.miss ||
+          rawKind == EventKind.fieldGoal ||
+          rawKind == EventKind.freeThrow ||
+          rawKind == EventKind.miss ||
+          rawKind == EventKind.score;
+      if (event.isDeleted || !isShot || point == null || side == null) {
         continue;
       }
       locations.add(
@@ -186,23 +264,52 @@ class ReplayController extends ChangeNotifier {
     return UnmodifiableListView(locations);
   }
 
-  int get scoreEventCount =>
-      _data.events.where((event) => event.kind == ReplayEventKind.score).length;
+  int get scoreEventCount => _data.events
+      .where((event) => !event.isDeleted && event.kind == ReplayEventKind.score)
+      .length;
 
-  int get foulEventCount =>
-      _data.events.where((event) => event.kind == ReplayEventKind.foul).length;
+  int get foulEventCount => _data.events
+      .where((event) => !event.isDeleted && event.kind == ReplayEventKind.foul)
+      .length;
 
   int get locatedShotCount => shotLocations.length;
 
   void setKindFilter(ReplayKindFilter value) {
     if (_kindFilter == value) return;
     _kindFilter = value;
+    _eventFilter = _eventFilter.copyWith(
+      kinds: switch (value) {
+        ReplayKindFilter.all => const <EventKind>{},
+        ReplayKindFilter.scores => const <EventKind>{
+          EventKind.score,
+          EventKind.fieldGoal,
+          EventKind.freeThrow,
+        },
+        ReplayKindFilter.fouls => const <EventKind>{EventKind.foul},
+      },
+    );
     notifyListeners();
   }
 
   void setSideFilter(ReplaySideFilter value) {
     if (_sideFilter == value) return;
     _sideFilter = value;
+    _eventFilter = _eventFilter.copyWith(
+      sides: switch (value) {
+        ReplaySideFilter.all => const <TeamSide>{},
+        ReplaySideFilter.red => const <TeamSide>{TeamSide.red},
+        ReplaySideFilter.blue => const <TeamSide>{TeamSide.blue},
+      },
+    );
+    notifyListeners();
+  }
+
+  /// Replaces the composable filter used by replay consumers.
+  void setEventFilter(ReplayEventFilter value) {
+    if (_eventFilter == value) return;
+    _eventFilter = value;
+    _kindFilter = _kindFilterFrom(value.kinds);
+    _sideFilter = _sideFilterFrom(value.sides);
     notifyListeners();
   }
 
@@ -247,22 +354,83 @@ class ReplayController extends ChangeNotifier {
     final event = selectedEvent;
     final point = _pendingShotPoint;
     final locationId = event?.locationId;
-    if (locationId == null || point == null || onMoveShotLocation == null) {
+    if (event == null || locationId == null || point == null) {
       return;
     }
-    await onMoveShotLocation!(locationId, point, reason);
+    if (onCorrectShotLocation != null) {
+      await onCorrectShotLocation!(event.id, point, reason);
+    } else if (onMoveShotLocation != null) {
+      await onMoveShotLocation!(locationId, point, reason);
+    }
   }
 
   Future<void> updateSelectedNote(String note, {String? reason}) async {
     final eventId = _selectedEventId;
-    if (eventId == null || onUpdateEventNote == null) return;
-    await onUpdateEventNote!(eventId, note, reason);
+    if (eventId == null) return;
+    if (onCorrectEvent != null) {
+      await onCorrectEvent!(
+        ReplayEventCorrection(eventId: eventId, note: note, reason: reason),
+      );
+    } else if (onUpdateEventNote != null) {
+      await onUpdateEventNote!(eventId, note, reason);
+    }
+  }
+
+  Future<void> correctSelectedEvent({
+    EventKind? type,
+    TeamSide? side,
+    int? points,
+    ShotOutcome? outcome,
+    String? note,
+    String? customLabel,
+    int? matchClockPositionSeconds,
+    String? reason,
+  }) async {
+    final eventId = _selectedEventId;
+    final callback = onCorrectEvent;
+    if (eventId == null || callback == null) return;
+    await callback(
+      ReplayEventCorrection(
+        eventId: eventId,
+        type: type,
+        side: side,
+        points: points,
+        outcome: outcome,
+        note: note,
+        customLabel: customLabel,
+        matchClockPositionSeconds: matchClockPositionSeconds,
+        reason: reason,
+      ),
+    );
+  }
+
+  Future<void> correctSelectedShotLocation(
+    CourtPoint point, {
+    String? reason,
+  }) async {
+    final event = selectedEvent;
+    final callback = onCorrectShotLocation;
+    if (event == null || callback == null) return;
+    await callback(event.id, point, reason);
   }
 
   Future<void> deleteSelectedEvent({String? reason}) async {
     final eventId = _selectedEventId;
-    if (eventId == null || onSoftDeleteEvent == null) return;
-    await onSoftDeleteEvent!(eventId, reason);
+    if (eventId == null) return;
+    if (onUndoEvent != null) {
+      await onUndoEvent!(eventId, reason);
+    } else if (onSoftDeleteEvent != null) {
+      await onSoftDeleteEvent!(eventId, reason);
+    } else {
+      return;
+    }
+    clearSelection(notify: false);
+  }
+
+  Future<void> restoreSelectedEvent({String? reason}) async {
+    final eventId = _selectedEventId;
+    if (eventId == null || onRestoreEvent == null) return;
+    await onRestoreEvent!(eventId, reason);
     clearSelection(notify: false);
   }
 
@@ -289,5 +457,25 @@ class ReplayController extends ChangeNotifier {
       ReplaySideFilter.blue => event.side == TeamSide.blue,
     };
     return matchesKind && matchesSide;
+  }
+
+  ReplayKindFilter _kindFilterFrom(Set<EventKind> kinds) {
+    if (kinds.length == 1 && kinds.single == EventKind.score) {
+      return ReplayKindFilter.scores;
+    }
+    if (kinds.length == 1 && kinds.single == EventKind.foul) {
+      return ReplayKindFilter.fouls;
+    }
+    return ReplayKindFilter.all;
+  }
+
+  ReplaySideFilter _sideFilterFrom(Set<TeamSide> sides) {
+    if (sides.length == 1 && sides.single == TeamSide.red) {
+      return ReplaySideFilter.red;
+    }
+    if (sides.length == 1 && sides.single == TeamSide.blue) {
+      return ReplaySideFilter.blue;
+    }
+    return ReplaySideFilter.all;
   }
 }

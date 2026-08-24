@@ -1,1 +1,1 @@
-const hoopTraceAppVersion = '0.1.0+1';
+const hoopTraceAppVersion = '1.0.0+2';

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
-
-const foulText = '犯规';
 
 class ScoreSidePanel extends StatelessWidget {
   const ScoreSidePanel({
@@ -32,9 +32,8 @@ class ScoreSidePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = side == TeamSide.red
-        ? HoopTraceColors.red
-        : HoopTraceColors.blue;
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final color = teamColorForScheme(side, Theme.of(context).colorScheme);
 
     return ColoredBox(
       color: color.withValues(alpha: 0.08),
@@ -46,10 +45,14 @@ class ScoreSidePanel extends StatelessWidget {
           final gap = compact ? 4.0 : 8.0;
 
           if (compact) {
-            final actionWidth = ((constraints.maxWidth - 8 - 4) / 2).clamp(
+            final availableWidth = (constraints.maxWidth - 8).clamp(
               48.0,
               double.infinity,
             );
+            final twoColumns = availableWidth >= 48 * 2 + 4;
+            final actionWidth = twoColumns
+                ? (availableWidth - 4) / 2
+                : availableWidth;
             final actions = <Widget>[
               for (final points in scoreButtons)
                 SizedBox(
@@ -63,7 +66,7 @@ class ScoreSidePanel extends StatelessWidget {
                       padding: EdgeInsets.zero,
                     ),
                     onPressed: scoreEnabled ? () => onScore(points) : null,
-                    child: Text('+$points'),
+                    child: _CompactActionLabel('+$points'),
                   ),
                 ),
               SizedBox(
@@ -76,7 +79,7 @@ class ScoreSidePanel extends StatelessWidget {
                     minimumSize: const Size(48, buttonHeight),
                     padding: EdgeInsets.zero,
                   ),
-                  child: const Text(foulText),
+                  child: _CompactActionLabel(l10n.scoringFoul),
                 ),
               ),
               if (missEnabled && onMiss != null)
@@ -90,7 +93,7 @@ class ScoreSidePanel extends StatelessWidget {
                       minimumSize: const Size(48, buttonHeight),
                       padding: EdgeInsets.zero,
                     ),
-                    child: const Text('未中'),
+                    child: _CompactActionLabel(l10n.scoringMissed),
                   ),
                 ),
             ];
@@ -118,14 +121,14 @@ class ScoreSidePanel extends StatelessWidget {
                         '$score',
                         style: Theme.of(context).textTheme.displayMedium
                             ?.copyWith(
-                              color: HoopTraceColors.ink,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontWeight: FontWeight.w900,
                             ),
                       ),
                     ),
                   ),
                   Text(
-                    '$foulText $fouls',
+                    '${l10n.scoringFoul} $fouls',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.labelSmall,
                   ),
@@ -184,14 +187,16 @@ class ScoreSidePanel extends StatelessWidget {
                               '$score',
                               style: Theme.of(context).textTheme.displayLarge
                                   ?.copyWith(
-                                    color: HoopTraceColors.ink,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                     fontWeight: FontWeight.w900,
                                   ),
                             ),
                           ),
                         ),
                         Text(
-                          '$foulText $fouls',
+                          '${l10n.scoringFoul} $fouls',
                           textAlign: TextAlign.center,
                           style: Theme.of(context).textTheme.labelLarge,
                         ),
@@ -225,7 +230,7 @@ class ScoreSidePanel extends StatelessWidget {
                               key: Key('${side.name}-miss'),
                               onPressed: onMiss,
                               icon: const Icon(Icons.close, size: 18),
-                              label: const Text('未中'),
+                              label: Text(l10n.scoringMissed),
                             ),
                           ),
                           SizedBox(height: gap),
@@ -236,7 +241,7 @@ class ScoreSidePanel extends StatelessWidget {
                             key: Key('${side.name}-foul'),
                             onPressed: onFoul,
                             icon: const Icon(Icons.flag_outlined, size: 18),
-                            label: const Text(foulText),
+                            label: Text(l10n.scoringFoul),
                           ),
                         ),
                       ],
@@ -248,6 +253,20 @@ class ScoreSidePanel extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _CompactActionLabel extends StatelessWidget {
+  const _CompactActionLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Text(label, maxLines: 1, softWrap: false),
     );
   }
 }

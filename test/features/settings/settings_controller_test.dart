@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
@@ -96,6 +97,16 @@ void main() {
     expect(controller.backupState.enabled, isFalse);
   });
 
+  test('backup retention is configurable and clamped to safe bounds', () async {
+    await controller.load();
+
+    await controller.setBackupRetentionLimit(100);
+    expect(controller.backupState.retentionLimit, 50);
+
+    await controller.setBackupRetentionLimit(0);
+    expect(controller.backupState.retentionLimit, 1);
+  });
+
   test('blocks restore while a match is active', () async {
     final blocked = SettingsController(
       exports: controller.exports,
@@ -106,8 +117,17 @@ void main() {
     await blocked.load();
 
     expect(
-      blocked.restoreBackup,
+      () => blocked.restoreBackup(
+        safetySubject: 'HoopTrace safety backup before restore',
+      ),
       throwsA(isA<BackupRestoreBlockedException>()),
+    );
+    expect(
+      await blocked.restoreBackup(
+        mode: RestoreMode.merge,
+        safetySubject: 'HoopTrace safety backup before restore',
+      ),
+      isFalse,
     );
   });
 }
@@ -116,10 +136,12 @@ class _Gateway implements ExportGateway {
   BackupDirectorySelection? pickedDirectory;
 
   @override
-  Future<ExportArtifact?> pickBackup() async => null;
+  Future<ExportArtifact?> pickBackup({String? dialogTitle}) async => null;
 
   @override
-  Future<BackupDirectorySelection?> pickDirectory() async => pickedDirectory;
+  Future<BackupDirectorySelection?> pickDirectory({
+    String? dialogTitle,
+  }) async => pickedDirectory;
 
   @override
   Future<void> share(

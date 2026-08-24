@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/features/project/external_link_launcher.dart';
 
 const hoopTraceRepositoryUrl = 'https://github.com/x1a0Y4NGren/hooptrace';
@@ -18,16 +20,22 @@ class ProjectDetailsPage extends StatelessWidget {
   Future<void> _open(BuildContext context, String url) async {
     final opened = await launcher.open(url);
     if (!opened && context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('无法打开链接，请稍后重试。')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            (AppLocalizations.of(context) ?? AppLocalizationsZh())
+                .routeProjectLinkError,
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
-      appBar: AppBar(title: const Text('项目详情')),
+      appBar: AppBar(title: Text(l10n.projectTitle)),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -39,31 +47,31 @@ class ProjectDetailsPage extends StatelessWidget {
               ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
-            const Text('为一对一篮球而做的本地计分与复盘工具。'),
+            Text(l10n.projectTagline),
             const SizedBox(height: 24),
-            const _PromiseTile(
+            _PromiseTile(
               icon: Icons.all_inclusive,
-              title: '永久免费',
-              detail: '核心计分与复盘功能不会转为付费功能。',
+              title: l10n.projectFreeForever,
+              detail: l10n.projectFreeForeverDetail,
             ),
-            const _PromiseTile(
+            _PromiseTile(
               icon: Icons.code,
-              title: '永久开源',
-              detail: '源代码持续公开，任何人都可以审阅与参与。',
+              title: l10n.projectOpenSource,
+              detail: l10n.projectOpenSourceDetail,
             ),
-            const _PromiseTile(
+            _PromiseTile(
               icon: Icons.offline_bolt_outlined,
-              title: '本地离线',
-              detail: '无需账号或网络即可记录比赛。',
+              title: l10n.projectOffline,
+              detail: l10n.projectOfflineDetail,
             ),
-            const _PromiseTile(
+            _PromiseTile(
               icon: Icons.shield_outlined,
-              title: '不会上传个人数据',
-              detail: '球员与比赛数据只保存在你的设备上。',
+              title: l10n.projectPrivacy,
+              detail: l10n.projectPrivacyDetail,
             ),
             const SizedBox(height: 24),
             Text(
-              '开放项目',
+              l10n.projectOpen,
               style: Theme.of(
                 context,
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -71,22 +79,22 @@ class ProjectDetailsPage extends StatelessWidget {
             const SizedBox(height: 8),
             _ProjectLink(
               icon: Icons.code,
-              label: 'GitHub',
+              label: l10n.projectGitHub,
               onTap: () => _open(context, hoopTraceRepositoryUrl),
             ),
             _ProjectLink(
               icon: Icons.balance_outlined,
-              label: 'License',
+              label: l10n.projectLicense,
               onTap: () => _open(context, hoopTraceLicenseUrl),
             ),
             _ProjectLink(
               icon: Icons.handshake_outlined,
-              label: '贡献指南',
+              label: l10n.projectContribute,
               onTap: () => _open(context, hoopTraceContributingUrl),
             ),
             _ProjectLink(
               icon: Icons.bug_report_outlined,
-              label: '问题反馈',
+              label: l10n.projectIssue,
               onTap: () => _open(context, hoopTraceIssuesUrl),
             ),
           ],
@@ -153,8 +161,9 @@ class _ProjectLink extends StatelessWidget {
       contentPadding: EdgeInsets.zero,
       leading: Icon(icon),
       title: Text(label),
-      trailing: const Tooltip(
-        message: '在浏览器中打开',
+      trailing: Tooltip(
+        message: (AppLocalizations.of(context) ?? AppLocalizationsZh())
+            .projectOpenBrowser,
         child: Icon(Icons.open_in_new),
       ),
       onTap: onTap,

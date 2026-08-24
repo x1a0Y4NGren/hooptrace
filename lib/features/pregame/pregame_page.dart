@@ -1,27 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
+import 'package:hooptrace/app/l10n/rule_template_localizations.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
-
-const pregameTitleText = '赛前设置';
-const pregamePlayersText = '球员';
-const pregameRuleTemplateText = '规则模板';
-const pregameFreeScoringText = '自由计分';
-const pregameElevenPointText = '11 分制';
-const pregameTwentyOnePointText = '21 分制';
-const pregameTimerText = '计时';
-const pregameWinByTwoText = '领先 2 分获胜';
-const pregameAdvancedText = '高级设置';
-const pregameTargetScoreText = '目标分';
-const pregamePointText = '分';
-const pregameStartMatchText = '开始比赛';
-const pregameRecordingModeText = '记录模式（必选）';
-const pregameTrackingCoverageText = '失误追踪范围';
-const pregameClockModeText = '计时方式';
-const pregameTemporaryParticipantText = '临时姓名（未关联档案）';
 
 const _temporaryProfileId = '__temporary_profile__';
 
@@ -29,6 +15,34 @@ const _temporaryProfileId = '__temporary_profile__';
 /// canonical human-readable validation vocabulary lives in the controller.
 String pregameValidationErrorText(PregameValidationError error) {
   return pregameValidationErrorMessage(error);
+}
+
+String localizedPregameValidationErrorText(
+  PregameValidationError error,
+  AppLocalizations l10n,
+) {
+  return _validationText(error, l10n);
+}
+
+String _validationText(PregameValidationError error, AppLocalizations l10n) {
+  return switch (error) {
+    PregameValidationError.redParticipantRequired =>
+      l10n.pregameValidationRedRequired,
+    PregameValidationError.blueParticipantRequired =>
+      l10n.pregameValidationBlueRequired,
+    PregameValidationError.duplicatePlayerProfile =>
+      l10n.pregameValidationDuplicateProfile,
+    PregameValidationError.redPlayerProfileMissing =>
+      l10n.pregameValidationRedMissing,
+    PregameValidationError.bluePlayerProfileMissing =>
+      l10n.pregameValidationBlueMissing,
+    PregameValidationError.recordingModeRequired =>
+      l10n.pregameValidationModeRequired,
+    PregameValidationError.countdownTimerRequired =>
+      l10n.pregameValidationCountdownRequired,
+    PregameValidationError.invalidCountdownDuration =>
+      l10n.pregameValidationCountdownDuration,
+  };
 }
 
 class PregamePage extends StatefulWidget {
@@ -57,6 +71,9 @@ class _PregamePageState extends State<PregamePage> {
   late final TextEditingController _blueNameController;
   late final TextEditingController _countdownMinutesController;
   List<PregameValidationError> _validationErrors = const [];
+  Locale? _defaultNamesLocale;
+  bool _redNameUsesLocalizedDefault = true;
+  bool _blueNameUsesLocalizedDefault = true;
 
   @override
   void initState() {
@@ -72,6 +89,21 @@ class _PregamePageState extends State<PregamePage> {
     _countdownMinutesController = TextEditingController(
       text: _controller.state.countdownMinutesText,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final locale = Localizations.localeOf(context);
+    if (_defaultNamesLocale == locale) return;
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    if (_redNameUsesLocalizedDefault) {
+      _setLocalizedDefaultName(red: true, value: l10n.pregameRed);
+    }
+    if (_blueNameUsesLocalizedDefault) {
+      _setLocalizedDefaultName(red: false, value: l10n.pregameBlue);
+    }
+    _defaultNamesLocale = locale;
   }
 
   @override
@@ -99,11 +131,12 @@ class _PregamePageState extends State<PregamePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final textTheme = Theme.of(context).textTheme;
     final state = _controller.state;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(pregameTitleText)),
+      appBar: AppBar(title: Text(l10n.pregameTitle)),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -112,14 +145,14 @@ class _PregamePageState extends State<PregamePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  pregamePlayersText,
+                  l10n.pregamePlayers,
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 12),
                 _ParticipantSetup(
-                  sideLabel: '红方',
+                  sideLabel: l10n.pregameRed,
                   profileKey: const Key('pregame-red-profile'),
                   nameKey: const Key('pregame-red-name'),
                   nameController: _redNameController,
@@ -128,6 +161,7 @@ class _PregamePageState extends State<PregamePage> {
                   onProfileChanged: (value) => _selectProfile(true, value),
                   onNameChanged: (value) {
                     setState(() {
+                      _redNameUsesLocalizedDefault = false;
                       _controller.setRedName(value);
                       _clearValidation();
                     });
@@ -135,7 +169,7 @@ class _PregamePageState extends State<PregamePage> {
                 ),
                 const SizedBox(height: 12),
                 _ParticipantSetup(
-                  sideLabel: '蓝方',
+                  sideLabel: l10n.pregameBlue,
                   profileKey: const Key('pregame-blue-profile'),
                   nameKey: const Key('pregame-blue-name'),
                   nameController: _blueNameController,
@@ -144,6 +178,7 @@ class _PregamePageState extends State<PregamePage> {
                   onProfileChanged: (value) => _selectProfile(false, value),
                   onNameChanged: (value) {
                     setState(() {
+                      _blueNameUsesLocalizedDefault = false;
                       _controller.setBlueName(value);
                       _clearValidation();
                     });
@@ -160,15 +195,15 @@ class _PregamePageState extends State<PregamePage> {
                 DropdownButtonFormField<String>(
                   key: const Key('pregame-rule-template'),
                   initialValue: state.ruleTemplateId,
-                  decoration: const InputDecoration(
-                    labelText: pregameRuleTemplateText,
+                  decoration: InputDecoration(
+                    labelText: l10n.pregameRuleTemplate,
                     border: OutlineInputBorder(),
                   ),
                   items: [
                     for (final template in widget.templates)
                       DropdownMenuItem(
                         value: template.id,
-                        child: Text(_templateLabel(template)),
+                        child: Text(_templateLabel(template, l10n)),
                       ),
                   ],
                   onChanged: (value) {
@@ -188,12 +223,12 @@ class _PregamePageState extends State<PregamePage> {
                       child: TextButton.icon(
                         onPressed: widget.onManageRules,
                         icon: const Icon(Icons.tune),
-                        label: const Text('管理规则模板'),
+                        label: Text(l10n.pregameManageRules),
                       ),
                     ),
                   ),
                 const SizedBox(height: 8),
-                _SectionLabel(text: pregameRecordingModeText),
+                _SectionLabel(text: l10n.pregameRecordingMode),
                 const SizedBox(height: 4),
                 Wrap(
                   spacing: 8,
@@ -201,14 +236,14 @@ class _PregamePageState extends State<PregamePage> {
                   children: [
                     _SelectionButton<RecordingMode>(
                       key: const Key('pregame-recording-simple'),
-                      label: '简洁记录',
+                      label: l10n.pregameSimpleMode,
                       selected: state.recordingMode == RecordingMode.simple,
                       onPressed: () =>
                           _selectRecordingMode(RecordingMode.simple),
                     ),
                     _SelectionButton<RecordingMode>(
                       key: const Key('pregame-recording-detailed'),
-                      label: '详细记录',
+                      label: l10n.pregameDetailedMode,
                       selected: state.recordingMode == RecordingMode.detailed,
                       onPressed: () =>
                           _selectRecordingMode(RecordingMode.detailed),
@@ -219,16 +254,16 @@ class _PregamePageState extends State<PregamePage> {
                 DropdownButtonFormField<TrackingCoverage>(
                   key: const Key('pregame-tracking-coverage'),
                   initialValue: state.trackingCoverage,
-                  decoration: const InputDecoration(
-                    labelText: pregameTrackingCoverageText,
-                    helperText: '选择需要记录到比赛回放中的出手与失误范围。',
+                  decoration: InputDecoration(
+                    labelText: l10n.pregameTrackingCoverage,
+                    helperText: l10n.pregameTrackingHelper,
                     border: OutlineInputBorder(),
                   ),
                   items: [
                     for (final coverage in TrackingCoverage.values)
                       DropdownMenuItem(
                         value: coverage,
-                        child: Text(_trackingCoverageLabel(coverage)),
+                        child: Text(_trackingCoverageLabel(coverage, l10n)),
                       ),
                   ],
                   onChanged: (value) {
@@ -244,9 +279,11 @@ class _PregamePageState extends State<PregamePage> {
                   key: const Key('pregame-timer'),
                   contentPadding: EdgeInsets.zero,
                   value: state.timerEnabled,
-                  title: const Text(pregameTimerText),
+                  title: Text(l10n.pregameTimer),
                   subtitle: Text(
-                    state.timerEnabled ? '已开启：请选择计时方式' : '关闭时不记录比赛计时',
+                    state.timerEnabled
+                        ? l10n.pregameTimerEnabled
+                        : l10n.pregameTimerDisabled,
                   ),
                   onChanged: (value) {
                     setState(() {
@@ -257,7 +294,7 @@ class _PregamePageState extends State<PregamePage> {
                 ),
                 if (state.timerEnabled) ...[
                   const SizedBox(height: 4),
-                  _SectionLabel(text: pregameClockModeText),
+                  _SectionLabel(text: l10n.pregameClockMode),
                   const SizedBox(height: 4),
                   Wrap(
                     spacing: 8,
@@ -265,13 +302,13 @@ class _PregamePageState extends State<PregamePage> {
                     children: [
                       _SelectionButton<ClockMode>(
                         key: const Key('pregame-clock-count-up'),
-                        label: '正计时',
+                        label: l10n.pregameCountUp,
                         selected: state.clockMode == ClockMode.countUp,
                         onPressed: () => _selectClockMode(ClockMode.countUp),
                       ),
                       _SelectionButton<ClockMode>(
                         key: const Key('pregame-clock-countdown'),
-                        label: '倒计时',
+                        label: l10n.pregameCountDown,
                         selected: state.clockMode == ClockMode.countdown,
                         onPressed: () => _selectClockMode(ClockMode.countdown),
                       ),
@@ -287,11 +324,11 @@ class _PregamePageState extends State<PregamePage> {
                         decimal: false,
                       ),
                       decoration: InputDecoration(
-                        labelText: '倒计时分钟（1–180）',
-                        helperText: '倒计时必须设置在 1 到 180 分钟之间。',
-                        suffixText: '分钟',
+                        labelText: l10n.pregameCountdownLabel,
+                        helperText: l10n.pregameCountdownHelper,
+                        suffixText: l10n.pregameMinutes,
                         border: OutlineInputBorder(),
-                        errorText: _countdownErrorText(state),
+                        errorText: _countdownErrorText(state, l10n),
                       ),
                       onChanged: (value) {
                         setState(() {
@@ -306,7 +343,7 @@ class _PregamePageState extends State<PregamePage> {
                   key: const Key('pregame-win-by-two'),
                   contentPadding: EdgeInsets.zero,
                   value: state.winByTwo,
-                  title: const Text(pregameWinByTwoText),
+                  title: Text(l10n.pregameWinByTwo),
                   onChanged: (value) {
                     setState(() {
                       _controller.setWinByTwo(value);
@@ -317,12 +354,12 @@ class _PregamePageState extends State<PregamePage> {
                 ExpansionTile(
                   key: const Key('pregame-advanced'),
                   tilePadding: EdgeInsets.zero,
-                  title: const Text(pregameAdvancedText),
+                  title: Text(l10n.pregameAdvanced),
                   initiallyExpanded: state.advancedExpanded,
                   onExpansionChanged: _controller.setAdvancedExpanded,
                   children: [
                     _NumberSetting(
-                      label: pregameTargetScoreText,
+                      label: l10n.pregameTargetScore,
                       value: state.targetScore,
                       onChanged: (value) {
                         setState(() {
@@ -346,7 +383,7 @@ class _PregamePageState extends State<PregamePage> {
                   child: FilledButton(
                     key: const Key('pregame-start-match'),
                     onPressed: _startMatch,
-                    child: const Text(pregameStartMatchText),
+                    child: Text(l10n.pregameStartMatch),
                   ),
                 ),
               ],
@@ -364,8 +401,20 @@ class _PregamePageState extends State<PregamePage> {
     if (!accepted) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('该球员档案已用于另一方，请选择其他档案。')));
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              (AppLocalizations.of(context) ?? AppLocalizationsZh())
+                  .pregameProfileConflict,
+            ),
+          ),
+        );
       return;
+    }
+    if (red) {
+      _redNameUsesLocalizedDefault = false;
+    } else {
+      _blueNameUsesLocalizedDefault = false;
     }
     if (value != null) {
       final name = red ? _controller.state.redName : _controller.state.blueName;
@@ -377,6 +426,24 @@ class _PregamePageState extends State<PregamePage> {
       );
     }
     setState(_clearValidation);
+  }
+
+  void _setLocalizedDefaultName({required bool red, required String value}) {
+    if (red) {
+      _controller.setRedName(value);
+      _redNameController.value = _redNameController.value.copyWith(
+        text: value,
+        selection: TextSelection.collapsed(offset: value.length),
+        composing: TextRange.empty,
+      );
+    } else {
+      _controller.setBlueName(value);
+      _blueNameController.value = _blueNameController.value.copyWith(
+        text: value,
+        selection: TextSelection.collapsed(offset: value.length),
+        composing: TextRange.empty,
+      );
+    }
   }
 
   void _selectRecordingMode(RecordingMode mode) {
@@ -424,34 +491,41 @@ class _PregamePageState extends State<PregamePage> {
         );
   }
 
-  static String? _countdownErrorText(PregameState state) {
+  static String? _countdownErrorText(
+    PregameState state,
+    AppLocalizations l10n,
+  ) {
     final parsed = int.tryParse(state.countdownMinutesText);
     if (state.countdownDurationInputInvalid ||
         parsed == null ||
         parsed != state.timeLimitMinutes ||
         state.timeLimitMinutes < 1 ||
         state.timeLimitMinutes > 180) {
-      return '请输入 1 到 180 之间的整数分钟。';
+      return l10n.pregameCountdownInvalid;
     }
     return null;
   }
 
-  static String _templateLabel(RuleTemplate template) {
-    if (template.id == 'free') return pregameFreeScoringText;
-    if (template.id == 'eleven_win_by_two') return pregameElevenPointText;
-    if (template.id == 'twenty_one_win_by_two') {
-      return pregameTwentyOnePointText;
-    }
-    return template.name;
+  static String _templateLabel(RuleTemplate template, AppLocalizations l10n) {
+    return switch (template.id) {
+      'free' => l10n.pregameFreeScoring,
+      'eleven_win_by_two' => l10n.pregameElevenPoint,
+      'twenty_one' => l10n.pregameTwentyOnePoint,
+      'timed_ten' => l10n.ruleBuiltInTimedTen,
+      _ => localizedRuleTemplateName(template, l10n),
+    };
   }
 
-  static String _trackingCoverageLabel(TrackingCoverage coverage) {
+  static String _trackingCoverageLabel(
+    TrackingCoverage coverage,
+    AppLocalizations l10n,
+  ) {
     return switch (coverage) {
-      TrackingCoverage.none => '不追踪出手与失误',
-      TrackingCoverage.scoresOnly => '仅记录比分',
-      TrackingCoverage.shotAttempts => '投篮出手',
-      TrackingCoverage.locations => '投篮出手与位置',
-      TrackingCoverage.full => '完整记录（含失误）',
+      TrackingCoverage.none => l10n.pregameTrackingNone,
+      TrackingCoverage.scoresOnly => l10n.pregameTrackingScoresOnly,
+      TrackingCoverage.shotAttempts => l10n.pregameTrackingShotAttempts,
+      TrackingCoverage.locations => l10n.pregameTrackingLocations,
+      TrackingCoverage.full => l10n.pregameTrackingFull,
     };
   }
 }
@@ -479,10 +553,11 @@ class _ParticipantSetup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final profileItems = <DropdownMenuItem<String>>[
-      const DropdownMenuItem(
+      DropdownMenuItem(
         value: _temporaryProfileId,
-        child: Text(pregameTemporaryParticipantText),
+        child: Text(l10n.pregameTemporaryParticipant),
       ),
       for (final player in players)
         DropdownMenuItem(value: player.id, child: Text(player.nickname)),
@@ -493,7 +568,7 @@ class _ParticipantSetup extends StatelessWidget {
         DropdownMenuItem(
           value: selectedProfileId,
           enabled: false,
-          child: const Text('已删除的球员档案'),
+          child: Text(l10n.pregameDeletedPlayer),
         ),
       );
     }
@@ -504,8 +579,8 @@ class _ParticipantSetup extends StatelessWidget {
         Text(sideLabel, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 6),
         InputDecorator(
-          decoration: const InputDecoration(
-            labelText: '参赛方式',
+          decoration: InputDecoration(
+            labelText: l10n.pregameParticipationMode,
             border: OutlineInputBorder(),
             contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           ),
@@ -528,11 +603,11 @@ class _ParticipantSetup extends StatelessWidget {
           controller: nameController,
           decoration: InputDecoration(
             labelText: selectedProfileId == null
-                ? '$sideLabel临时姓名'
-                : '$sideLabel姓名快照',
+                ? l10n.pregameTemporaryName(sideLabel)
+                : l10n.pregameNameSnapshot(sideLabel),
             helperText: selectedProfileId == null
-                ? '可输入临时姓名；双方临时同名也可以。'
-                : '比赛开始时保存当前显示的姓名快照。',
+                ? l10n.pregameTemporaryHint
+                : l10n.pregameSnapshotHint,
             border: const OutlineInputBorder(),
           ),
           textInputAction: TextInputAction.next,
@@ -605,7 +680,10 @@ class _ValidationMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final messages = errors.map(pregameValidationErrorText).toList();
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final messages = errors
+        .map((error) => _validationText(error, l10n))
+        .toList();
     return Semantics(
       liveRegion: true,
       container: true,
@@ -645,13 +723,17 @@ class _NumberSetting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(label),
       trailing: SegmentedButton<int>(
         segments: [
           ButtonSegment(value: value - 1, label: const Icon(Icons.remove)),
-          ButtonSegment(value: value, label: Text('$value$pregamePointText')),
+          ButtonSegment(
+            value: value,
+            label: Text('$value${l10n.pregamePoint}'),
+          ),
           ButtonSegment(value: value + 1, label: const Icon(Icons.add)),
         ],
         selected: {value},

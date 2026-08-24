@@ -73,4 +73,1771 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get actionFailedRetry => '操作失败，请重试。';
+
+  @override
+  String get historyTitle => '最近比赛';
+
+  @override
+  String get historyHomeTooltip => '返回主页';
+
+  @override
+  String get historySearchHint => '搜索球员或比赛';
+
+  @override
+  String get historyCompleted => '已完成';
+
+  @override
+  String get historyArchived => '已归档';
+
+  @override
+  String get historyAll => '全部';
+
+  @override
+  String get historyResetFilters => '重置筛选';
+
+  @override
+  String get historyEmpty => '暂无比赛记录';
+
+  @override
+  String get historyEmptyDescription => '完成一场比赛后，记录会显示在这里。';
+
+  @override
+  String get historyActiveMatch => '进行中的比赛';
+
+  @override
+  String get historyResume => '继续';
+
+  @override
+  String get historyActions => '比赛操作';
+
+  @override
+  String get historyArchive => '归档';
+
+  @override
+  String get historyUnarchive => '取消归档';
+
+  @override
+  String get historyDeletePermanently => '永久删除';
+
+  @override
+  String get historyDeleteTitle => '永久删除比赛？';
+
+  @override
+  String get historyDeleteBody => '比赛事件、落点和审计记录都会被删除，且无法恢复。';
+
+  @override
+  String get historyLoadMore => '加载更多';
+
+  @override
+  String get historyMoreFilters => '更多筛选';
+
+  @override
+  String get historyAdvancedTitle => '高级筛选';
+
+  @override
+  String get historyRuleLabel => '规则名称';
+
+  @override
+  String get historyRecordingModeLabel => '记录模式';
+
+  @override
+  String get historyAllModes => '全部模式';
+
+  @override
+  String get historySimpleMode => '简单记录';
+
+  @override
+  String get historyDetailedMode => '详细记录';
+
+  @override
+  String get historyStartDate => '开始日期';
+
+  @override
+  String get historyEndDate => '结束日期';
+
+  @override
+  String get historyClearDates => '清除日期';
+
+  @override
+  String get historyApplyFilters => '应用筛选';
+
+  @override
+  String get historyLoadError => '无法加载比赛记录。';
+
+  @override
+  String get historyRetry => '重试';
+
+  @override
+  String get historyRule => '规则';
+
+  @override
+  String get historyDuration => '时长';
+
+  @override
+  String get historyResult => '结果';
+
+  @override
+  String get historyDraw => '平局';
+
+  @override
+  String historyWinner(Object winnerName) {
+    return '胜者：$winnerName';
+  }
+
+  @override
+  String get historyLocationCompleteness => '落点完整度';
+
+  @override
+  String get replayTitle => '比赛复盘';
+
+  @override
+  String get replayExportTooltip => '导出复盘图';
+
+  @override
+  String get replayAuditTooltip => '审计历史';
+
+  @override
+  String get replayEditMode => '编辑模式';
+
+  @override
+  String get replayReadOnly => '只读模式';
+
+  @override
+  String get replayFinished => '终场';
+
+  @override
+  String get replayInProgress => '进行中';
+
+  @override
+  String get replayExportTitle => '复盘分享图';
+
+  @override
+  String get replayExportDescription => '落点与分析会生成一张本地图片';
+
+  @override
+  String get replayClose => '关闭';
+
+  @override
+  String get replayGenerating => '生成中';
+
+  @override
+  String get replayGenerateShare => '生成并分享';
+
+  @override
+  String get replayExportFailed => '图片生成或分享失败，请重试';
+
+  @override
+  String get replayExportAnalysis => '本场分析';
+
+  @override
+  String get replayExportShotLocations => '落点记录';
+
+  @override
+  String get replayExportShootingPercentage => '投篮命中率';
+
+  @override
+  String get replayExportLeadChanges => '领先变化';
+
+  @override
+  String get replayExportLargestLead => '最大领先';
+
+  @override
+  String get replayExportKeyMoments => '关键节点';
+
+  @override
+  String get replayNoData => '暂无';
+
+  @override
+  String replayExportLeadChangesValue(Object count) {
+    return '$count 次';
+  }
+
+  @override
+  String replayExportKeyMomentsValue(Object count) {
+    return '$count 次';
+  }
+
+  @override
+  String get replayCourt => '落点图';
+
+  @override
+  String get replaySaveLocation => '保存落点位置';
+
+  @override
+  String get replayOverview => '总览';
+
+  @override
+  String get replayDuration => '时长';
+
+  @override
+  String get replayScoringEvents => '得分事件';
+
+  @override
+  String get replayFouls => '犯规';
+
+  @override
+  String get replayLocationCompleteness => '落点完整度';
+
+  @override
+  String get replayPossession => '球权分段';
+
+  @override
+  String get replayFinishedBoundary => '终场边界';
+
+  @override
+  String get replayInProgressBoundary => '进行中边界';
+
+  @override
+  String get replayNoPossession => '暂无已记录的球权分段';
+
+  @override
+  String get replayPossessionManual => '人工';
+
+  @override
+  String get replayPossessionSuggested => '建议';
+
+  @override
+  String get replayPossessionCurrent => '当前进行中';
+
+  @override
+  String replayPossessionEnded(Object time) {
+    return '结束 $time';
+  }
+
+  @override
+  String replayPossessionReason(Object reason) {
+    return '原因：$reason';
+  }
+
+  @override
+  String get replayNoReason => '未填写原因';
+
+  @override
+  String get replaySuggestedReason => '命中后按规则建议';
+
+  @override
+  String get replayTimeline => '事件时间线';
+
+  @override
+  String get replayNoEvents => '没有符合筛选条件的事件';
+
+  @override
+  String get replayFilterAll => '全部';
+
+  @override
+  String get replayFilterScores => '得分';
+
+  @override
+  String get replayFilterFouls => '犯规';
+
+  @override
+  String get replayFilterMisses => '未中';
+
+  @override
+  String get replayFilterOther => '其他';
+
+  @override
+  String get replayFilterBoth => '双方';
+
+  @override
+  String get replayFilterRed => '红方';
+
+  @override
+  String get replayFilterBlue => '蓝方';
+
+  @override
+  String get replayFilterShowDeleted => '显示已删除';
+
+  @override
+  String get replayFilterHideDeleted => '隐藏已删除';
+
+  @override
+  String get replayFilterMade => '命中';
+
+  @override
+  String get replayFilterMissed => '未中';
+
+  @override
+  String get replayFilterPoints => '分值';
+
+  @override
+  String replayActionScore(Object points) {
+    return '+$points 分';
+  }
+
+  @override
+  String get replayActionFoul => '犯规';
+
+  @override
+  String get replayActionMiss => '投篮未中';
+
+  @override
+  String get replayActionRecord => '记录';
+
+  @override
+  String get replayMatchSide => '比赛';
+
+  @override
+  String get replayDeleted => '已删除';
+
+  @override
+  String replayClockPosition(Object seconds) {
+    return '比赛时钟 $seconds 秒';
+  }
+
+  @override
+  String get replayEditorTitle => '编辑事件';
+
+  @override
+  String get replayEditorSide => '所属方';
+
+  @override
+  String get replayEditorEventKind => '事件类型';
+
+  @override
+  String get replayEditorPoints => '分值';
+
+  @override
+  String get replayEditorOutcome => '结果';
+
+  @override
+  String get replayEditorNote => '备注';
+
+  @override
+  String get replayEditorCustomLabel => '自定义标签';
+
+  @override
+  String get replayEditorClock => '比赛时钟位置（秒）';
+
+  @override
+  String get replayEditorLocationX => '落点 X';
+
+  @override
+  String get replayEditorLocationY => '落点 Y';
+
+  @override
+  String get replayLocationEditTitle => '保存落点修改';
+
+  @override
+  String get replayLocationSaveAction => '保存';
+
+  @override
+  String get replayEditorReason => '修改原因（可选）';
+
+  @override
+  String get replayEditorDelete => '软删除';
+
+  @override
+  String get replayEditorRestore => '恢复';
+
+  @override
+  String get replayEditorSave => '保存修改';
+
+  @override
+  String get replayEditorSaveNote => '保存备注';
+
+  @override
+  String get replayEditorInvalidNumber => '请输入有效数字。';
+
+  @override
+  String get replayEditorLocationRange => '落点数值必须在 0 到 1 之间。';
+
+  @override
+  String get replayEditorDeleteTitle => '删除这条事件？';
+
+  @override
+  String get replayEditorDeleteBody => '事件将被标记为已删除，并保留完整审计记录。';
+
+  @override
+  String get replayEditorConfirmDelete => '确认删除';
+
+  @override
+  String get replayEditorRestoreTitle => '恢复这条事件？';
+
+  @override
+  String get replayEditorRestoreBody => '恢复后事件会重新计入比赛投影。';
+
+  @override
+  String get replayEditorConfirmRestore => '确认恢复';
+
+  @override
+  String get replayAuditTitle => '审计历史';
+
+  @override
+  String get replayAuditEmpty => '暂无编辑记录';
+
+  @override
+  String replayAuditReason(Object reason) {
+    return '原因：$reason';
+  }
+
+  @override
+  String get replayAuditNoReason => '未填写原因';
+
+  @override
+  String get replayAuditActionCreate => '创建';
+
+  @override
+  String get replayAuditActionUndo => '撤销';
+
+  @override
+  String get replayAuditActionEdit => '编辑';
+
+  @override
+  String get replayAuditActionDelete => '删除';
+
+  @override
+  String get replayAuditActionImport => '导入';
+
+  @override
+  String get replayAuditActionRestore => '恢复';
+
+  @override
+  String get replayAuditActionCommand => '命令';
+
+  @override
+  String get replayAuditActionLocate => '定位';
+
+  @override
+  String get replayAuditActionPossession => '更新球权';
+
+  @override
+  String get replayAuditActionPossessionSuggestion => '建议球权';
+
+  @override
+  String get replayAuditActionUnknown => '未知操作';
+
+  @override
+  String get replayAuditTargetEvent => '事件';
+
+  @override
+  String get replayAuditTargetLocation => '落点';
+
+  @override
+  String get replayAuditTargetMatch => '比赛';
+
+  @override
+  String get replayAuditTargetCommand => '命令';
+
+  @override
+  String get replayAuditFieldType => '事件类型';
+
+  @override
+  String get replayAuditFieldSide => '所属方';
+
+  @override
+  String get replayAuditFieldPoints => '分数';
+
+  @override
+  String get replayAuditFieldOutcome => '结果';
+
+  @override
+  String get replayAuditFieldNote => '备注';
+
+  @override
+  String get replayAuditFieldCustomLabel => '自定义标签';
+
+  @override
+  String get replayAuditFieldClock => '比赛时钟';
+
+  @override
+  String get replayAuditFieldDeleted => '已删除';
+
+  @override
+  String get replayAuditFieldX => '落点 X';
+
+  @override
+  String get replayAuditFieldY => '落点 Y';
+
+  @override
+  String get replayAuditValueNone => '—';
+
+  @override
+  String get replayAuditValueDeleted => '是';
+
+  @override
+  String get replayAuditValueActive => '否';
+
+  @override
+  String get replayAnalyticsTitle => '比赛分析';
+
+  @override
+  String get replayAnalyticsLeadChanges => '领先变化';
+
+  @override
+  String get replayAnalyticsLargestLead => '最大领先';
+
+  @override
+  String get replayAnalyticsShootingPercentage => '投篮命中率';
+
+  @override
+  String get replayAnalyticsKeyMoments => '关键节点';
+
+  @override
+  String get replayAnalyticsNoAttempts => '暂无出手';
+
+  @override
+  String get replayAnalyticsScoringFlow => '比分流';
+
+  @override
+  String get replayAnalyticsNoScoringEvents => '本场暂无得分事件';
+
+  @override
+  String get replayAnalyticsKeyPossessions => '关键回合';
+
+  @override
+  String get replayAnalyticsNoKeyPossessions => '本场暂无关键回合';
+
+  @override
+  String replayAnalyticsScoreSemantics(
+    Object blueScore,
+    Object points,
+    Object redScore,
+    Object side,
+  ) {
+    return '$side 得 $points 分，$redScore 比 $blueScore';
+  }
+
+  @override
+  String get replayAnalyticsTie => '扳平比分';
+
+  @override
+  String get replayAnalyticsOvertake => '完成反超';
+
+  @override
+  String get replayAnalyticsMatchPoint => '到达赛点';
+
+  @override
+  String get replayAnalyticsScoringRun => '连续得分';
+
+  @override
+  String get replayAnalyticsShotRecord => '投篮记录';
+
+  @override
+  String get replayAnalyticsRecordedAttempts => '记录的出手';
+
+  @override
+  String get replayAnalyticsIncompleteShooting => '记录不完整，暂不显示命中率';
+
+  @override
+  String get replayAnalyticsFieldGoals => '投篮';
+
+  @override
+  String get replayAnalyticsFreeThrows => '罚球';
+
+  @override
+  String get replayAnalyticsFouls => '犯规';
+
+  @override
+  String get replayAnalyticsPossessions => '球权';
+
+  @override
+  String get replayAnalyticsTrackingCoverage => '记录完整度';
+
+  @override
+  String get replayAnalyticsLocationCoverage => '位置覆盖';
+
+  @override
+  String get replayAnalyticsShotZones => '出手区域';
+
+  @override
+  String get replayAnalyticsZoneRestrictedArea => '篮下';
+
+  @override
+  String get replayAnalyticsZonePaint => '油漆区';
+
+  @override
+  String get replayAnalyticsZoneMidRange => '中距离';
+
+  @override
+  String get replayAnalyticsZoneCornerThree => '底角三分';
+
+  @override
+  String get replayAnalyticsZoneWingThree => '侧翼三分';
+
+  @override
+  String get replayAnalyticsZoneTopThree => '弧顶三分';
+
+  @override
+  String get replayAnalyticsZoneUnknown => '未知区域';
+
+  @override
+  String get replayAnalyticsTrackingNone => '无记录';
+
+  @override
+  String get replayAnalyticsTrackingScoresOnly => '仅记录得分';
+
+  @override
+  String get replayAnalyticsTrackingShotAttempts => '记录出手结果';
+
+  @override
+  String get replayAnalyticsTrackingLocations => '记录出手与位置';
+
+  @override
+  String get replayAnalyticsTrackingFull => '记录完整';
+
+  @override
+  String get playerAnalyticsTooltip => '查看球员分析';
+
+  @override
+  String get playerAnalyticsTitle => '球员分析';
+
+  @override
+  String get playerAnalyticsWindow => '统计周期';
+
+  @override
+  String get playerAnalyticsSevenDays => '近 7 天';
+
+  @override
+  String get playerAnalyticsThirtyDays => '近 30 天';
+
+  @override
+  String get playerAnalyticsNinetyDays => '近 90 天';
+
+  @override
+  String get playerAnalyticsAllTime => '全部';
+
+  @override
+  String get playerAnalyticsOpponent => '对手';
+
+  @override
+  String get playerAnalyticsAllOpponents => '所有对手';
+
+  @override
+  String get playerAnalyticsGrowth => '成长趋势';
+
+  @override
+  String get playerAnalyticsRecentChange => '近期变化';
+
+  @override
+  String get playerAnalyticsAveragePoints => '场均得分';
+
+  @override
+  String get playerAnalyticsAverageMargin => '场均分差';
+
+  @override
+  String get playerAnalyticsRecord => '胜负战绩';
+
+  @override
+  String get playerAnalyticsMatches => '场';
+
+  @override
+  String get playerAnalyticsWins => '胜';
+
+  @override
+  String get playerAnalyticsShootingTrend => '投篮趋势';
+
+  @override
+  String get playerAnalyticsFieldGoals => '投篮';
+
+  @override
+  String get playerAnalyticsFreeThrows => '罚球';
+
+  @override
+  String get playerAnalyticsRecordedShots => '记录出手';
+
+  @override
+  String get playerAnalyticsNoReliablePercentage => '暂无足够的完整出手记录，暂不显示命中率';
+
+  @override
+  String get playerAnalyticsZoneHeatmap => '出手区域';
+
+  @override
+  String get playerAnalyticsNoMatches => '该周期暂无已完成比赛';
+
+  @override
+  String get playerAnalyticsNoTrend => '暂无足够的趋势数据';
+
+  @override
+  String get playerAnalyticsOpponentNone => '不限对手';
+
+  @override
+  String get playerAnalyticsLoadError => '无法读取分析数据';
+
+  @override
+  String get playerAnalyticsNotFound => '找不到球员';
+
+  @override
+  String get playerAnalyticsNotFoundBody => '该球员档案可能已被删除。';
+
+  @override
+  String get playerAnalyticsRetry => '重试';
+
+  @override
+  String get replayMoreActions => '更多操作';
+
+  @override
+  String get legacyBootstrapTitle => 'HoopTrace 数据兼容性检查';
+
+  @override
+  String get legacyBootstrapHeadline => '无法打开 HoopTrace v0.1 数据';
+
+  @override
+  String legacyBootstrapBody(Object version) {
+    return '检测到不兼容的旧数据库版本$version。现有文件会保持原样；HoopTrace 不会静默迁移、删除或清空它。请先导出或备份旧文件，再使用当前版本创建新的本地数据。';
+  }
+
+  @override
+  String get bootstrapFailureBody => '本地数据库暂时无法打开，现有数据未被修改。请稍后重试，或创建新的本地数据库。';
+
+  @override
+  String get settingsDefaultSection => '默认值';
+
+  @override
+  String get settingsDefaultRuleTitle => '默认计分规则';
+
+  @override
+  String get settingsDefaultRuleSubtitle => '当前沿用赛前设置';
+
+  @override
+  String get settingsRulesSection => '比赛规则';
+
+  @override
+  String get settingsRulesTemplateTitle => '规则模板';
+
+  @override
+  String get settingsRulesTemplateSubtitle => '内置模板与自定义比赛规则';
+
+  @override
+  String get settingsFeedbackSection => '计分反馈';
+
+  @override
+  String get settingsHapticTitle => '触觉反馈';
+
+  @override
+  String get settingsHapticEnabled => '已开启';
+
+  @override
+  String get settingsHapticDisabled => '已关闭';
+
+  @override
+  String get settingsSoundTitle => '操作音效';
+
+  @override
+  String get settingsSoundEnabled => '已开启';
+
+  @override
+  String get settingsSoundDisabled => '已关闭';
+
+  @override
+  String get settingsAppearanceSection => '外观';
+
+  @override
+  String get settingsThemeTitle => '主题';
+
+  @override
+  String get settingsThemeSubtitle => '选择应用的显示主题';
+
+  @override
+  String get settingsThemeSystem => '跟随系统';
+
+  @override
+  String get settingsThemeLight => '浅色';
+
+  @override
+  String get settingsThemeDark => '深色';
+
+  @override
+  String get settingsStatisticsSection => '统计';
+
+  @override
+  String get settingsStatisticsSubtitle => '基于本地比赛事件计算';
+
+  @override
+  String get settingsBackupSection => '备份与导出';
+
+  @override
+  String get settingsExportBackupTitle => '导出完整备份';
+
+  @override
+  String get settingsExportBackupSubtitle => '包含比赛、球员、规则、事件与设置的 JSON 文件';
+
+  @override
+  String get settingsExportBackupSuccess => '已打开系统分享，可保存或发送备份文件';
+
+  @override
+  String get settingsRestoreTitle => '从备份恢复';
+
+  @override
+  String get settingsRestoreSubtitleMerge => '可安全合并，或在创建安全备份后替换本机数据';
+
+  @override
+  String get settingsRestoreSubtitleBlocked => '比赛进行中仍可合并；替换模式需先结束比赛';
+
+  @override
+  String get settingsExportCsvTitle => '导出 CSV';
+
+  @override
+  String get settingsExportCsvSubtitle => '比赛列表、事件列表与球员统计，共 3 个文件';
+
+  @override
+  String get settingsExportCsvSuccess => '已打开系统分享，可保存 3 个 CSV 文件';
+
+  @override
+  String get settingsAutomaticBackupTitle => '自动备份';
+
+  @override
+  String get settingsAutomaticBackupEnabled => '已开启';
+
+  @override
+  String get settingsAutomaticBackupDisabled => '已关闭';
+
+  @override
+  String get settingsBackupDirectoryTitle => '备份位置';
+
+  @override
+  String get settingsBackupDirectoryPickerTitle => '选择自动备份文件夹';
+
+  @override
+  String get settingsBackupDirectoryUnselected => '未选择，只会访问你明确选择的文件夹';
+
+  @override
+  String get settingsBackupNowTitle => '立即备份';
+
+  @override
+  String get settingsBackupNever => '尚未执行手动或自动备份';
+
+  @override
+  String settingsBackupLastSuccess(Object date, Object time) {
+    return '上次成功：$date $time';
+  }
+
+  @override
+  String get settingsBackupRetentionTitle => '自动备份保留数量';
+
+  @override
+  String get settingsBackupRetentionSubtitle => '仅清理 HoopTrace 自动备份，不影响手动或安全备份';
+
+  @override
+  String get settingsPrivacySection => '隐私';
+
+  @override
+  String get settingsPrivacyTitle => '本地数据';
+
+  @override
+  String get settingsPrivacySubtitle => '个人数据只保存在这台设备上，不会上传';
+
+  @override
+  String get settingsExperimentalSection => '实验功能';
+
+  @override
+  String get settingsExperimentalTitle => '实验功能开关';
+
+  @override
+  String get settingsExperimentalSubtitle => '当前没有可用实验功能';
+
+  @override
+  String get settingsDiagnosticsSection => '开发诊断';
+
+  @override
+  String get settingsDiagnosticsTitle => '诊断信息';
+
+  @override
+  String get settingsDiagnosticsSubtitle => '当前没有诊断数据';
+
+  @override
+  String get settingsProjectSection => '项目详情';
+
+  @override
+  String get settingsAboutTitle => '关于 HoopTrace';
+
+  @override
+  String get settingsAboutSubtitle => '永久开源免费、许可证与贡献方式';
+
+  @override
+  String get settingsRestoreDialogTitle => '选择备份导入方式';
+
+  @override
+  String get settingsRestorePickerTitle => '选择 HoopTrace 备份';
+
+  @override
+  String get settingsMergeTitle => '合并导入（推荐）';
+
+  @override
+  String get settingsMergeSubtitle => '保留本机设置；冲突数据会确定性重映射，不按昵称合并球员';
+
+  @override
+  String get settingsReplaceTitle => '替换本机数据';
+
+  @override
+  String get settingsReplaceSubtitle => '先创建恢复前安全备份，再原子替换全部本地数据';
+
+  @override
+  String get settingsReplaceBlocked => '请先结束正在进行的比赛';
+
+  @override
+  String get settingsReplaceConfirmTitle => '替换全部本机数据？';
+
+  @override
+  String get settingsReplaceConfirmBody =>
+      '文件验证通过后，HoopTrace 会先创建一份恢复前安全备份，再一次性替换本机数据。';
+
+  @override
+  String get settingsReplaceConfirmAction => '选择备份';
+
+  @override
+  String get settingsRestoreNotSelected => '未选择备份文件';
+
+  @override
+  String get settingsMergeCompleted => '备份合并完成，本机设置与活动比赛保持不变';
+
+  @override
+  String get settingsReplaceCompleted => '备份替换完成，自动备份位置已重置';
+
+  @override
+  String get settingsDirectoryUpdated => '自动备份位置已更新';
+
+  @override
+  String get settingsDirectoryNotSelected => '未选择文件夹';
+
+  @override
+  String get settingsAutomaticBackupNotConfigured => '未选择文件夹，自动备份保持关闭';
+
+  @override
+  String get settingsAutomaticBackupTurnedOn => '自动备份已开启';
+
+  @override
+  String get settingsAutomaticBackupTurnedOff => '自动备份已关闭';
+
+  @override
+  String get settingsHapticTurnedOn => '触觉反馈已开启';
+
+  @override
+  String get settingsHapticTurnedOff => '触觉反馈已关闭';
+
+  @override
+  String get settingsSoundTurnedOn => '操作音效已开启';
+
+  @override
+  String get settingsSoundTurnedOff => '操作音效已关闭';
+
+  @override
+  String get settingsBackupWritten => '本地备份已写入所选文件夹';
+
+  @override
+  String settingsRetentionUpdated(Object count) {
+    return '将保留最近 $count 份自动备份';
+  }
+
+  @override
+  String get settingsErrorChecksum => '备份校验失败，文件可能已损坏或被修改';
+
+  @override
+  String get settingsErrorFutureVersion => '该备份由更高版本创建，请升级 HoopTrace 后再试';
+
+  @override
+  String get settingsErrorInvalidBackup => '备份内容无效，现有数据未被修改';
+
+  @override
+  String get settingsErrorMerge => '备份合并失败，本机数据未被修改';
+
+  @override
+  String get settingsErrorDirectoryRequired => '请先选择自动备份文件夹';
+
+  @override
+  String get settingsErrorDirectoryUnavailable => '所选文件夹当前不可写，请重新选择';
+
+  @override
+  String get settingsErrorBackupWrite => '备份写入失败，请重新选择备份文件夹后再试';
+
+  @override
+  String get settingsErrorRestoreBlocked => '请先结束正在进行的比赛';
+
+  @override
+  String get settingsErrorGeneric => '操作失败，请稍后重试';
+
+  @override
+  String get playerAnalyticsNoLocationData => '暂无位置数据';
+
+  @override
+  String get homePlayersTooltip => '球员';
+
+  @override
+  String get homeSettingsTooltip => '设置';
+
+  @override
+  String get homeProjectTooltip => '项目详情';
+
+  @override
+  String get homeActiveMatch => '进行中的比赛';
+
+  @override
+  String get homeClockNotConfigured => '计时未配置';
+
+  @override
+  String get homeClockRegulationExpired => '常规时间结束';
+
+  @override
+  String get homeClockRunning => '计时进行中';
+
+  @override
+  String get homeClockPaused => '计时已暂停';
+
+  @override
+  String get homeLastPersistedUnknown => '最近持久化：未知';
+
+  @override
+  String homeLastPersisted(Object date) {
+    return '最近持久化：$date';
+  }
+
+  @override
+  String get homeResumeMatch => '继续比赛';
+
+  @override
+  String get homeAbandonMatch => '放弃比赛';
+
+  @override
+  String get homeAbandonTitle => '放弃这场比赛？';
+
+  @override
+  String get homeAbandonBody => '比赛会保留在本地记录中，但不会再出现在进行中入口。';
+
+  @override
+  String get homeConfirmAbandon => '确认放弃';
+
+  @override
+  String get homeActiveMatchBlocked => '已有进行中的比赛，请先继续或放弃它。';
+
+  @override
+  String get homeVersus => '对阵';
+
+  @override
+  String get playersTitle => '球员';
+
+  @override
+  String get playersCreate => '新建球员';
+
+  @override
+  String get playersEdit => '编辑球员';
+
+  @override
+  String get playersEmptyTitle => '还没有保存的球员';
+
+  @override
+  String get playersEmptyBody => '临时球员仍可直接参加比赛；保存档案后，下次更容易找到。';
+
+  @override
+  String get playersLoadError => '无法读取球员';
+
+  @override
+  String get playersLoadErrorBody => '本地球员数据暂时无法打开。';
+
+  @override
+  String get retryAction => '重试';
+
+  @override
+  String get playersPreferredRed => '偏好红方';
+
+  @override
+  String get playersPreferredBlue => '偏好蓝方';
+
+  @override
+  String get playersPreferredUnset => '未设置偏好方';
+
+  @override
+  String get playerSaveFailed => '保存失败，请重试。';
+
+  @override
+  String get playerDeleteTitle => '删除球员？';
+
+  @override
+  String get playerDeleteBody => '只会删除此球员档案，不会删除已有比赛记录。';
+
+  @override
+  String get deleteAction => '删除';
+
+  @override
+  String get playerDeleteFailed => '删除失败，请重试。';
+
+  @override
+  String get playerNewTitle => '新建球员';
+
+  @override
+  String get playerEditTitle => '编辑球员';
+
+  @override
+  String get playerDeleteTooltip => '删除球员';
+
+  @override
+  String get playerSaveTooltip => '保存球员';
+
+  @override
+  String get playerOpenError => '无法打开球员档案';
+
+  @override
+  String get playerNicknameLabel => '昵称';
+
+  @override
+  String get playerNicknameRequired => '请输入球员昵称';
+
+  @override
+  String get playerPreferredSide => '偏好方';
+
+  @override
+  String get playerSideAny => '不限';
+
+  @override
+  String get playerSideRed => '红方';
+
+  @override
+  String get playerSideBlue => '蓝方';
+
+  @override
+  String get playerNoteLabel => '备注';
+
+  @override
+  String get playerNoteHint => '打法、习惯或需要记住的信息';
+
+  @override
+  String get playerSaving => '保存中';
+
+  @override
+  String get rulesTitle => '规则模板';
+
+  @override
+  String get rulesCreate => '新建规则';
+
+  @override
+  String get rulesLoadError => '规则模板读取失败';
+
+  @override
+  String get rulesBuiltIn => '内置';
+
+  @override
+  String get ruleBuiltInFreeScoring => '自由计分';
+
+  @override
+  String get ruleBuiltInElevenWinByTwo => '11 分制（领先 2 分）';
+
+  @override
+  String get ruleBuiltInTwentyOne => '21 分制';
+
+  @override
+  String get ruleBuiltInTimedTen => '10 分钟计时';
+
+  @override
+  String rulesScoringButtons(Object buttons) {
+    return '计分 $buttons';
+  }
+
+  @override
+  String rulesTarget(Object points) {
+    return '目标 $points 分';
+  }
+
+  @override
+  String rulesMinutes(Object minutes) {
+    return '$minutes 分钟';
+  }
+
+  @override
+  String get rulesWinByTwo => '领先 2 分';
+
+  @override
+  String get ruleNewTitle => '新建规则';
+
+  @override
+  String get ruleEditTitle => '编辑规则';
+
+  @override
+  String get ruleNameLabel => '模板名称';
+
+  @override
+  String get ruleNameRequired => '请输入名称';
+
+  @override
+  String get ruleTargetLabel => '目标分（可选）';
+
+  @override
+  String get ruleTimeLimitLabel => '时限分钟（可选）';
+
+  @override
+  String get ruleFoulLimitLabel => '犯规上限（可选）';
+
+  @override
+  String get ruleScoreButtonsLabel => '计分按钮（逗号分隔）';
+
+  @override
+  String get ruleCustomLabelsLabel => '自定义事件类型（逗号分隔）';
+
+  @override
+  String get ruleWinByTwoTitle => '领先 2 分获胜';
+
+  @override
+  String get rulePossessionHintTitle => '得分后提示球权';
+
+  @override
+  String get rulePossessionHintSubtitle => '仅提示，不阻断手动计分';
+
+  @override
+  String get rulePossessionPolicyLabel => '得分后球权策略';
+
+  @override
+  String get rulePossessionPolicyHelper => '仅在启用球权提示时可选择自动建议。';
+
+  @override
+  String get ruleSaveAction => '保存规则';
+
+  @override
+  String rulePositiveInteger(Object label) {
+    return '$label 必须为正整数';
+  }
+
+  @override
+  String get ruleAtLeastOneInteger => '至少填写一个正整数';
+
+  @override
+  String get rulePolicyManual => '手动纠正';
+
+  @override
+  String get rulePolicySwitchAfterMade => '命中后交换';
+
+  @override
+  String get rulePolicyKeepAfterMade => '命中后保持';
+
+  @override
+  String get pregameTitle => '赛前设置';
+
+  @override
+  String get pregamePlayers => '球员';
+
+  @override
+  String get pregameRuleTemplate => '规则模板';
+
+  @override
+  String get pregameFreeScoring => '自由计分';
+
+  @override
+  String get pregameElevenPoint => '11 分制';
+
+  @override
+  String get pregameTwentyOnePoint => '21 分制';
+
+  @override
+  String get pregameTimer => '计时';
+
+  @override
+  String get pregameWinByTwo => '领先 2 分获胜';
+
+  @override
+  String get pregameAdvanced => '高级设置';
+
+  @override
+  String get pregameTargetScore => '目标分';
+
+  @override
+  String get pregamePoint => '分';
+
+  @override
+  String get pregameStartMatch => '开始比赛';
+
+  @override
+  String get pregameRecordingMode => '记录模式（必选）';
+
+  @override
+  String get pregameTrackingCoverage => '失误追踪范围';
+
+  @override
+  String get pregameClockMode => '计时方式';
+
+  @override
+  String get pregameTemporaryParticipant => '临时姓名（未关联档案）';
+
+  @override
+  String get pregameManageRules => '管理规则模板';
+
+  @override
+  String get pregameSimpleMode => '简洁记录';
+
+  @override
+  String get pregameDetailedMode => '详细记录';
+
+  @override
+  String get pregameTrackingHelper => '选择需要记录到比赛回放中的出手与失误范围。';
+
+  @override
+  String get pregameTimerEnabled => '已开启：请选择计时方式';
+
+  @override
+  String get pregameTimerDisabled => '关闭时不记录比赛计时';
+
+  @override
+  String get pregameCountUp => '正计时';
+
+  @override
+  String get pregameCountDown => '倒计时';
+
+  @override
+  String get pregameCountdownLabel => '倒计时分钟（1–180）';
+
+  @override
+  String get pregameCountdownHelper => '倒计时必须设置在 1 到 180 分钟之间。';
+
+  @override
+  String get pregameMinutes => '分钟';
+
+  @override
+  String get pregameProfileConflict => '该球员档案已用于另一方，请选择其他档案。';
+
+  @override
+  String get pregameCountdownInvalid => '请输入 1 到 180 之间的整数分钟。';
+
+  @override
+  String get pregameTrackingNone => '不追踪出手与失误';
+
+  @override
+  String get pregameTrackingScoresOnly => '仅记录比分';
+
+  @override
+  String get pregameTrackingShotAttempts => '投篮出手';
+
+  @override
+  String get pregameTrackingLocations => '投篮出手与位置';
+
+  @override
+  String get pregameTrackingFull => '完整记录（含失误）';
+
+  @override
+  String get pregameDeletedPlayer => '已删除的球员档案';
+
+  @override
+  String get pregameParticipationMode => '参赛方式';
+
+  @override
+  String pregameTemporaryName(Object side) {
+    return '$side临时姓名';
+  }
+
+  @override
+  String pregameNameSnapshot(Object side) {
+    return '$side姓名快照';
+  }
+
+  @override
+  String get pregameTemporaryHint => '可输入临时姓名；双方临时同名也可以。';
+
+  @override
+  String get pregameSnapshotHint => '比赛开始时保存当前显示的姓名快照。';
+
+  @override
+  String get pregameRed => '红方';
+
+  @override
+  String get pregameBlue => '蓝方';
+
+  @override
+  String get pregameValidationRedRequired => '请输入红方姓名。';
+
+  @override
+  String get pregameValidationBlueRequired => '请输入蓝方姓名。';
+
+  @override
+  String get pregameValidationDuplicateProfile => '同一球员档案不能同时用于红方和蓝方。';
+
+  @override
+  String get pregameValidationRedMissing => '红方所选球员档案已不存在，请重新选择或改用临时姓名。';
+
+  @override
+  String get pregameValidationBlueMissing => '蓝方所选球员档案已不存在，请重新选择或改用临时姓名。';
+
+  @override
+  String get pregameValidationModeRequired => '请选择记录模式后再开始比赛。';
+
+  @override
+  String get pregameValidationCountdownRequired => '倒计时必须先打开计时开关。';
+
+  @override
+  String get pregameValidationCountdownDuration => '倒计时分钟数必须是 1 到 180 分钟。';
+
+  @override
+  String get scoringSimpleRedShot => '红方出手';
+
+  @override
+  String get scoringSimpleBlueShot => '蓝方出手';
+
+  @override
+  String get scoringMade => '命中';
+
+  @override
+  String get scoringMissed => '未中';
+
+  @override
+  String scoringPoints(Object points) {
+    return '$points 分';
+  }
+
+  @override
+  String get scoringCancelDraft => '取消草稿';
+
+  @override
+  String get scoringSubmitShot => '提交投篮';
+
+  @override
+  String get scoringUndo => '撤销';
+
+  @override
+  String get scoringLocateLastShot => '定位最近投篮';
+
+  @override
+  String get scoringPause => '暂停';
+
+  @override
+  String get scoringResume => '恢复';
+
+  @override
+  String get scoringBlueFreeThrowMade => '蓝罚中';
+
+  @override
+  String get scoringBlueFreeThrowMissed => '蓝罚失';
+
+  @override
+  String get scoringRedFreeThrowMade => '红罚中';
+
+  @override
+  String get scoringRedFreeThrowMissed => '红罚失';
+
+  @override
+  String get scoringPossessionBlue => '球权蓝';
+
+  @override
+  String get scoringPossessionRed => '球权红';
+
+  @override
+  String get scoringNote => '备注';
+
+  @override
+  String get scoringCustom => '自定义';
+
+  @override
+  String get scoringClockRunning => '计时进行中';
+
+  @override
+  String scoringClockStatus(Object status) {
+    return '计时状态：$status';
+  }
+
+  @override
+  String get scoringPendingLocationTitle => '当前有待定位投篮';
+
+  @override
+  String get scoringPendingDraftTitle => '当前有未提交投篮';
+
+  @override
+  String get scoringPendingLocationBody => '离开前请取消定位、确认落点或撤销这次记录。';
+
+  @override
+  String get scoringPendingDraftBody => '离开前请取消或提交当前投篮草稿。';
+
+  @override
+  String get scoringStay => '留在本场';
+
+  @override
+  String get scoringCancelLocationLeave => '取消定位并离开';
+
+  @override
+  String get scoringCancelDraftLeave => '取消草稿并离开';
+
+  @override
+  String get scoringSubmitLeave => '提交并离开';
+
+  @override
+  String get scoringDraftCreateFailed => '当前无法创建投篮草稿';
+
+  @override
+  String get scoringMissTrackingDisabled => '当前跟踪设置不记录未中投篮';
+
+  @override
+  String get scoringActionRejected => '当前操作被拒绝，请先完成落点或草稿';
+
+  @override
+  String get scoringFreeThrowTrackingDisabled => '当前跟踪设置不记录该罚球';
+
+  @override
+  String get scoringPossessionNotCommitted => '球权修改未提交';
+
+  @override
+  String get scoringNoUnlocatedShot => '暂无可定位的未标记投篮';
+
+  @override
+  String get scoringLocationCancelFailed => '当前落点无法取消';
+
+  @override
+  String get scoringUndoFailed => '撤销未提交';
+
+  @override
+  String get scoringPauseFailed => '当前无法暂停计时';
+
+  @override
+  String get scoringResumeFailed => '当前无法恢复计时';
+
+  @override
+  String get scoringDraftIncomplete => '投篮草稿尚未完成';
+
+  @override
+  String get scoringNoDraft => '当前没有可取消的草稿';
+
+  @override
+  String get scoringAddNote => '添加备注';
+
+  @override
+  String get scoringNoteHint => '例如：暂停、战术或现场情况';
+
+  @override
+  String get scoringRecordNote => '记录备注';
+
+  @override
+  String get scoringRecordCustom => '记录自定义事件';
+
+  @override
+  String get scoringEventLabel => '事件标签';
+
+  @override
+  String get scoringRecordEvent => '记录事件';
+
+  @override
+  String get scoringNoTimer => '无计时';
+
+  @override
+  String get scoringTimerNotConfigured => '计时未配置';
+
+  @override
+  String get scoringOvertime => '加时赛';
+
+  @override
+  String get scoringRegulationExpired => '常规时间结束';
+
+  @override
+  String get scoringClockPaused => '计时已暂停';
+
+  @override
+  String get scoringBackToScoringList => '返回计分列表';
+
+  @override
+  String scoringMatchTime(Object time) {
+    return '比赛时间：$time';
+  }
+
+  @override
+  String get scoringResumeClock => '恢复计时';
+
+  @override
+  String get scoringMarkShotTitle => '标记投篮位置？';
+
+  @override
+  String get scoringMarkShotBody => '可在球场上点选或拖动圆点后确认。';
+
+  @override
+  String get scoringDoNotMark => '不标记';
+
+  @override
+  String get scoringMark => '标记';
+
+  @override
+  String get scoringResolvePending => '请先确认、跳过或撤销当前落点';
+
+  @override
+  String get scoringReplay => '复盘';
+
+  @override
+  String get courtReplayLabel => '复盘球场';
+
+  @override
+  String get courtEditLabel => '篮球场落点编辑区';
+
+  @override
+  String get courtReplayHint => '查看已记录的投篮';
+
+  @override
+  String get courtEditHint => '点击球场记录或调整投篮落点';
+
+  @override
+  String get routeLoading => '正在加载';
+
+  @override
+  String get routeHomeLoadError => '无法读取进行中的比赛';
+
+  @override
+  String get routeActiveMatchCheckError => '无法确认进行中的比赛';
+
+  @override
+  String get routeActiveMatchCheckBody => '请返回主页后重试，避免在状态未确认时创建新比赛。';
+
+  @override
+  String get routeMatchLoadError => '无法读取比赛';
+
+  @override
+  String get routeMatchNotActive => '比赛未在进行中';
+
+  @override
+  String get routeMatchNotActiveBody => '请从主页继续一场活动比赛。';
+
+  @override
+  String get routeMatchRestoring => '正在恢复比赛';
+
+  @override
+  String get routeMatchRestoringBody => '已读取比赛，但计分状态还在恢复，请稍候。';
+
+  @override
+  String get routeReplayOpenError => '无法打开复盘';
+
+  @override
+  String get routeReplayOpenErrorBody => '比赛数据读取失败，请返回后重试。';
+
+  @override
+  String get routeReplayNotFound => '没有找到这场比赛';
+
+  @override
+  String get routeReplayNotFoundBody => '记录可能已被移除。';
+
+  @override
+  String get routeActiveMatchTitle => '已有进行中的比赛';
+
+  @override
+  String get routeContinueMatch => '继续比赛';
+
+  @override
+  String get routeAbandonMatch => '放弃比赛';
+
+  @override
+  String get routeActiveCheckLoading => '正在确认是否已有进行中的比赛，请稍后再试。';
+
+  @override
+  String get routeStartMatchConflict => '已有进行中的比赛，请先继续或放弃它。';
+
+  @override
+  String get routeAbandonFailed => '无法放弃比赛，请重试。';
+
+  @override
+  String get routeResumeFailed => '无法恢复比赛，请重试。';
+
+  @override
+  String get routeLeaveTitle => '离开比赛';
+
+  @override
+  String get routeLeaveBody => '可以继续计时，或先暂停再离开。';
+
+  @override
+  String get routeLeaveStay => '留在比赛';
+
+  @override
+  String get routeLeaveKeepRunning => '继续运行';
+
+  @override
+  String get routeLeavePauseAndLeave => '暂停并离开';
+
+  @override
+  String get routeClockCheckError => '无法确认计时状态，请留在比赛中重试。';
+
+  @override
+  String get routeProjectLinkError => '无法打开链接，请稍后重试。';
+
+  @override
+  String get projectTitle => '项目详情';
+
+  @override
+  String get projectTagline => '为一对一篮球而做的本地计分与复盘工具。';
+
+  @override
+  String get projectFreeForever => '永久免费';
+
+  @override
+  String get projectFreeForeverDetail => '核心计分与复盘功能不会转为付费功能。';
+
+  @override
+  String get projectOpenSource => '永久开源';
+
+  @override
+  String get projectOpenSourceDetail => '源代码持续公开，任何人都可以审阅与参与。';
+
+  @override
+  String get projectOffline => '本地离线';
+
+  @override
+  String get projectOfflineDetail => '无需账号或网络即可记录比赛。';
+
+  @override
+  String get projectPrivacy => '不会上传个人数据';
+
+  @override
+  String get projectPrivacyDetail => '球员与比赛数据只保存在你的设备上。';
+
+  @override
+  String get projectOpen => '开放项目';
+
+  @override
+  String get projectContribute => '贡献指南';
+
+  @override
+  String get projectIssue => '问题反馈';
+
+  @override
+  String get projectOpenBrowser => '在浏览器中打开';
+
+  @override
+  String get exportBackupDialogTitle => '选择 HoopTrace 备份';
+
+  @override
+  String get exportAutomaticBackupDialogTitle => '选择自动备份文件夹';
+
+  @override
+  String get exportFullBackupSubject => 'HoopTrace 完整本地备份';
+
+  @override
+  String get exportSafetyBackupSubject => 'HoopTrace 恢复前安全备份';
+
+  @override
+  String get exportCsvSubject => 'HoopTrace CSV 数据导出';
+
+  @override
+  String get exportReplaySubject => 'HoopTrace 比赛复盘';
+
+  @override
+  String get projectGitHub => 'GitHub';
+
+  @override
+  String get projectLicense => '许可证';
+
+  @override
+  String get historyImportedIncompleteTitle => '导入的未完成比赛';
+
+  @override
+  String get historyImportedIncompleteBody => '这场比赛来自备份，尚未完成；恢复后可以继续计分。';
+
+  @override
+  String get historyResumeImportedIncomplete => '恢复未完成导入';
+
+  @override
+  String get historyResumeImportedIncompleteFailed =>
+      '无法恢复导入的未完成比赛，请确认没有其他活动比赛。';
+
+  @override
+  String get historyImportedIncompleteLoadError => '无法查询导入的未完成比赛。';
+
+  @override
+  String get historyImportedIncompleteRetry => '重试';
+
+  @override
+  String get pregameTemplatesFallbackLoading => '规则模板暂时无法读取，已使用内置规则；正在加载球员档案。';
+
+  @override
+  String get pregamePlayersLoading => '正在加载球员档案；也可以先输入临时姓名。';
+
+  @override
+  String get pregameTemplatesPlayersError => '规则模板和球员档案暂时无法读取；可以使用临时姓名后重试。';
+
+  @override
+  String get pregamePlayersError => '球员档案暂时无法读取；可以使用临时姓名后重试。';
+
+  @override
+  String get pregameTemplatesFallbackNotice => '规则模板暂时无法读取，已使用内置规则。';
+
+  @override
+  String get scoringConfirmLocation => '确认落点';
+
+  @override
+  String get scoringSkipLocation => '取消定位';
+
+  @override
+  String get scoringFoul => '犯规';
 }

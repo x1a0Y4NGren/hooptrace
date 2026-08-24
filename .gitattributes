@@ -1,0 +1,5 @@
+/android/gradlew text eol=lf
+/android/gradlew.bat text eol=crlf
+/tool/release/*.sh text eol=lf
+/THIRD_PARTY_NOTICES.md whitespace=-trailing-space,-space-before-tab
+/third_party/sqlite/sqlite3.c whitespace=-trailing-space

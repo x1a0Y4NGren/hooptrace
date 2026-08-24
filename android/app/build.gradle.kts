@@ -30,8 +30,9 @@ tasks.matching { it.name == "preReleaseBuild" }.configureEach {
 
 android {
     namespace = "io.github.x1a0y4ngren.hooptrace"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    compileSdk = 36
+    buildToolsVersion = "36.1.0"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -47,7 +48,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -72,6 +73,34 @@ android {
     }
 }
 
+dependencies {
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
+}
+
 flutter {
     source = "../.."
+}
+
+tasks.register("exportReleaseRuntimeCoordinates") {
+    val output = layout.buildDirectory.file("reports/release-runtime-coordinates.txt")
+    outputs.file(output)
+    doLast {
+        val coordinates =
+            configurations
+                .getByName("releaseRuntimeClasspath")
+                .incoming
+                .resolutionResult
+                .allComponents
+                .mapNotNull { component ->
+                    val id = component.id
+                        as? org.gradle.api.artifacts.component.ModuleComponentIdentifier
+                    id?.let { "${it.group}:${it.module}:${it.version}" }
+                }
+                .filterNot { it.startsWith("io.flutter:") }
+                .distinct()
+                .sorted()
+        val file = output.get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(coordinates.joinToString(separator = "\n", postfix = "\n"))
+    }
 }

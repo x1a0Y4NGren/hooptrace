@@ -5,6 +5,10 @@ import 'package:drift/native.dart';
 
 part 'app_database.g.dart';
 
+/// Transient coordination metadata. It is intentionally omitted from backup
+/// payloads and excluded by the automatic-backup dirty triggers.
+const automaticBackupRunLeaseSettingKey = 'backup.automatic.runLease';
+
 /// Raised before Drift can run a migration when a pre-1.0 database is found.
 class LegacySchemaDetectedException implements Exception {
   const LegacySchemaDetectedException(this.version);
@@ -247,14 +251,21 @@ class AppSettings extends Table {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase(super.executor);
+  AppDatabase(super.executor, {Future<int?> Function()? legacyVersionProbe})
+    : _legacyVersionProbe = legacyVersionProbe;
+
+  final Future<int?> Function()? _legacyVersionProbe;
+
+  bool _schemaIndexesEnsured = false;
+  bool _backupDirtyTriggersEnsured = false;
 
   /// In-memory fixtures are predominantly used by Flutter tests. Closing
   /// query streams synchronously keeps provider/container rebuild assertions
   /// deterministic while production databases retain Drift's normal one-turn
   /// stream cache.
   AppDatabase.inMemory()
-    : super(
+    : _legacyVersionProbe = null,
+      super(
         DatabaseConnection(
           NativeDatabase.memory(),
           closeStreamsSynchronously: true,
@@ -263,6 +274,10 @@ class AppDatabase extends _$AppDatabase {
 
   /// Used by tests and bootstrap code to explicitly check an opened executor.
   Future<void> assertCompatible() async {
+    final probedVersion = await _legacyVersionProbe?.call();
+    if (probedVersion == firstReleaseSchemaVersion) {
+      throw LegacySchemaDetectedException(probedVersion!);
+    }
     final row = await customSelect('PRAGMA user_version').getSingle();
     final version = row.read<int>('user_version');
     if (version == firstReleaseSchemaVersion) {
@@ -278,6 +293,7 @@ class AppDatabase extends _$AppDatabase {
     onCreate: (Migrator m) async {
       await m.createAll();
       await _createSchemaIndexes();
+      _schemaIndexesEnsured = true;
       await _createShotLocationTriggers();
     },
     beforeOpen: (details) async {
@@ -327,6 +343,10 @@ class AppDatabase extends _$AppDatabase {
       'ON matches(lifecycle, ended_at, created_at)',
     );
     await customStatement(
+      'CREATE INDEX IF NOT EXISTS matches_history_played_order '
+      'ON matches(lifecycle, COALESCE(started_at, created_at), id DESC)',
+    );
+    await customStatement(
       'CREATE INDEX IF NOT EXISTS match_events_match_deleted '
       'ON match_events(match_id, is_deleted)',
     );
@@ -334,6 +354,15 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS possession_segments_match_started '
       'ON possession_segments(match_id, started_at_event_id)',
     );
+  }
+
+  /// Ensures indexes introduced after schema v2 are available to an existing
+  /// v2 file. The operation is idempotent and is intentionally lazy so Drift's
+  /// schema verifier does not treat custom runtime indexes as migration schema.
+  Future<void> ensureSchemaIndexes() async {
+    if (_schemaIndexesEnsured) return;
+    await _createSchemaIndexes();
+    _schemaIndexesEnsured = true;
   }
 
   Future<void> _createShotLocationTriggers() async {
@@ -374,6 +403,100 @@ class AppDatabase extends _$AppDatabase {
           THEN RAISE(ABORT, 'located event cannot change match') END;
       END
     ''');
+  }
+
+  /// Marks every persisted domain mutation as awaiting backup without asking
+  /// individual repositories or UI routes to remember a cross-cutting hook.
+  /// Backup metadata settings are excluded by key prefix so their own writes
+  /// do not recursively mark themselves dirty; ordinary app settings remain
+  /// part of the user data snapshot.
+  Future<void> ensureBackupDirtyTriggers() async {
+    if (_backupDirtyTriggersEnsured) return;
+    const tables = <String>[
+      'matches',
+      'match_participants',
+      'match_clocks',
+      'active_sessions',
+      'match_events',
+      'shot_locations',
+      'players',
+      'rule_templates',
+      'possession_segments',
+      'audit_logs',
+    ];
+    const operations = <String>['INSERT', 'UPDATE', 'DELETE'];
+    await transaction(() async {
+      for (final table in tables) {
+        for (final operation in operations) {
+          final suffix = operation.toLowerCase();
+          final triggerName = 'backup_dirty_${table}_$suffix';
+          await customStatement('DROP TRIGGER IF EXISTS $triggerName');
+          await customStatement('''
+            CREATE TRIGGER $triggerName
+            AFTER $operation ON $table
+            WHEN EXISTS(
+              SELECT 1 FROM app_settings
+              WHERE key = 'backup.automatic.enabled' AND value_json = 'true'
+            )
+            BEGIN
+              INSERT OR IGNORE INTO app_settings(key, value_json, updated_at)
+                VALUES('backup.automatic.dirtyRevision', '0', unixepoch());
+              INSERT OR IGNORE INTO app_settings(key, value_json, updated_at)
+                VALUES(
+                  'backup.automatic.dirtySince',
+                  json_quote(strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                  unixepoch()
+                );
+              UPDATE app_settings
+                SET value_json = CAST(CAST(value_json AS INTEGER) + 1 AS TEXT),
+                    updated_at = unixepoch()
+                WHERE key = 'backup.automatic.dirtyRevision';
+              INSERT OR REPLACE INTO app_settings(key, value_json, updated_at)
+                VALUES('backup.automatic.dirty', 'true', unixepoch());
+            END
+          ''');
+        }
+      }
+
+      for (final operation in operations) {
+        final suffix = operation.toLowerCase();
+        final triggerName = 'backup_dirty_app_settings_$suffix';
+        final keyPredicate = switch (operation) {
+          'INSERT' => "NEW.key NOT LIKE 'backup.automatic.%'",
+          'UPDATE' =>
+            "OLD.key NOT LIKE 'backup.automatic.%' OR "
+                "NEW.key NOT LIKE 'backup.automatic.%'",
+          'DELETE' => "OLD.key NOT LIKE 'backup.automatic.%'",
+          _ => throw StateError('Unsupported app setting trigger: $operation'),
+        };
+        await customStatement('DROP TRIGGER IF EXISTS $triggerName');
+        await customStatement('''
+          CREATE TRIGGER $triggerName
+          AFTER $operation ON app_settings
+          WHEN EXISTS(
+            SELECT 1 FROM app_settings
+            WHERE key = 'backup.automatic.enabled' AND value_json = 'true'
+          ) AND ($keyPredicate)
+          BEGIN
+            INSERT OR IGNORE INTO app_settings(key, value_json, updated_at)
+              VALUES('backup.automatic.dirtyRevision', '0', unixepoch());
+            INSERT OR IGNORE INTO app_settings(key, value_json, updated_at)
+              VALUES(
+                'backup.automatic.dirtySince',
+                json_quote(strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                unixepoch()
+              );
+            UPDATE app_settings
+              SET value_json = CAST(CAST(value_json AS INTEGER) + 1 AS TEXT),
+                  updated_at = unixepoch()
+              WHERE key = 'backup.automatic.dirtyRevision';
+            INSERT OR REPLACE INTO app_settings(key, value_json, updated_at)
+              VALUES('backup.automatic.dirty', 'true', unixepoch());
+          END
+        ''');
+      }
+    });
+    _backupDirtyTriggersEnsured = true;
   }
 }
 

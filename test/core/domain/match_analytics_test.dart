@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics_calculator.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/match_event.dart';
+import 'package:hooptrace/core/domain/entities/possession_segment.dart';
+import 'package:hooptrace/core/domain/entities/shot_location.dart';
+import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 void main() {
@@ -71,6 +75,10 @@ void main() {
       ]);
       expect(analytics.largestLeadSide, TeamSide.red);
       expect(analytics.largestLeadPoints, 3);
+      expect(analytics.scoringRuns.single.eventIds, [
+        'red-first',
+        'red-same-time',
+      ]);
     },
   );
 
@@ -241,6 +249,146 @@ void main() {
       );
     },
   );
+
+  test('counts legacy, field-goal, and free-throw attempts by outcome', () {
+    final start = DateTime.utc(2026);
+    final analytics = calculator.calculate([
+      _score('legacy', TeamSide.red, 2, start),
+      _fieldGoal(
+        'fg-made',
+        TeamSide.red,
+        ShotOutcome.made,
+        3,
+        start.add(const Duration(seconds: 1)),
+      ),
+      _freeThrow(
+        'ft-made',
+        TeamSide.blue,
+        ShotOutcome.made,
+        1,
+        start.add(const Duration(seconds: 2)),
+      ),
+      _miss(
+        'legacy-miss',
+        TeamSide.blue,
+        start.add(const Duration(seconds: 3)),
+      ),
+      _fieldGoal(
+        'fg-miss',
+        TeamSide.red,
+        ShotOutcome.missed,
+        0,
+        start.add(const Duration(seconds: 4)),
+      ),
+    ], trackingCoverage: TrackingCoverage.shotAttempts);
+
+    expect(analytics.madeShotCount, 3);
+    expect(analytics.missedShotCount, 2);
+    expect(analytics.shotAttemptCount, 5);
+    expect(analytics.shootingPercentage, closeTo(0.6, 0.0001));
+    expect(analytics.recordedShootingPercentage, closeTo(0.6, 0.0001));
+    expect(analytics.fieldGoalMadeCount, 2);
+    expect(analytics.fieldGoalAttemptCount, 4);
+    expect(analytics.freeThrowMadeCount, 1);
+    expect(analytics.freeThrowAttemptCount, 1);
+    expect(analytics.scoringFlow.map((entry) => entry.eventId), [
+      'legacy',
+      'fg-made',
+      'ft-made',
+    ]);
+  });
+
+  test('does not claim a perfect rate when only scores were recorded', () {
+    final analytics = calculator.calculate([
+      _score('score-only', TeamSide.red, 2, DateTime.utc(2026)),
+    ], trackingCoverage: TrackingCoverage.scoresOnly);
+
+    expect(analytics.recordedShootingPercentage, isNull);
+    expect(analytics.shootingPercentageIsTrustworthy, isFalse);
+    expect(analytics.shootingPercentage, isNot(1.0));
+  });
+
+  test('reports confirmed location coverage and zone distribution', () {
+    final start = DateTime.utc(2026);
+    final events = [
+      _score('s1', TeamSide.red, 2, start),
+      _score('s2', TeamSide.red, 2, start.add(const Duration(seconds: 1))),
+      _score('s3', TeamSide.blue, 3, start.add(const Duration(seconds: 2))),
+      _miss('m1', TeamSide.blue, start.add(const Duration(seconds: 3))),
+      _miss('m2', TeamSide.red, start.add(const Duration(seconds: 4))),
+      _freeThrow(
+        'ft1',
+        TeamSide.red,
+        ShotOutcome.missed,
+        0,
+        start.add(const Duration(seconds: 5)),
+      ),
+    ];
+    final analytics = calculator.calculate(
+      events,
+      trackingCoverage: TrackingCoverage.locations,
+      shotLocations: [
+        _location('l1', 's1', 0.5, 0.15, true),
+        _location('l2', 's2', 0.2, 0.8, true),
+        _location('l3', 's3', 0.8, 0.8, true),
+      ],
+    );
+
+    expect(analytics.confirmedLocationCount, 3);
+    expect(analytics.fieldGoalAttemptCount, 5);
+    expect(analytics.freeThrowAttemptCount, 1);
+    expect(analytics.locationCoverage, closeTo(0.6, 0.0001));
+    expect(analytics.zoneDistribution.values.reduce((a, b) => a + b), 3);
+    expect(analytics.zoneDistribution, isNotEmpty);
+  });
+
+  test('reports fouls, possession count, and completed scoring runs', () {
+    final start = DateTime.utc(2026);
+    final analytics = calculator.calculate(
+      [
+        _score('r1', TeamSide.red, 1, start),
+        _score('r2', TeamSide.red, 2, start),
+        MatchEvent(
+          id: 'f1',
+          matchId: 'm1',
+          type: MatchEventType.foul,
+          side: TeamSide.blue,
+          points: 0,
+          occurredAt: start,
+        ),
+        _score('b1', TeamSide.blue, 2, start.add(const Duration(seconds: 1))),
+        MatchEvent(
+          id: 'f2',
+          matchId: 'm1',
+          type: MatchEventType.foul,
+          side: TeamSide.red,
+          points: 0,
+          occurredAt: start.add(const Duration(seconds: 2)),
+        ),
+      ],
+      possessionSegments: [
+        const PossessionSegment(
+          id: 'p1',
+          matchId: 'm1',
+          side: TeamSide.red,
+          startedAtEventId: 'r1',
+        ),
+        const PossessionSegment(
+          id: 'p2',
+          matchId: 'm1',
+          side: TeamSide.blue,
+          startedAtEventId: 'b1',
+        ),
+      ],
+    );
+
+    expect(analytics.redFoulCount, 1);
+    expect(analytics.blueFoulCount, 1);
+    expect(analytics.foulCount, 2);
+    expect(analytics.possessionCount, 2);
+    expect(analytics.scoringRuns.single.eventCount, 2);
+    expect(analytics.scoringRuns.single.points, 3);
+  });
 }
 
 MatchEvent _score(String id, TeamSide side, int points, DateTime occurredAt) {
@@ -261,5 +409,57 @@ MatchEvent _miss(String id, TeamSide side, DateTime occurredAt) {
     side: side,
     points: 0,
     occurredAt: occurredAt,
+  );
+}
+
+MatchEvent _fieldGoal(
+  String id,
+  TeamSide side,
+  ShotOutcome outcome,
+  int points,
+  DateTime occurredAt,
+) {
+  return MatchEvent(
+    id: id,
+    matchId: 'm1',
+    type: MatchEventType.fieldGoal,
+    side: side,
+    points: points,
+    outcome: outcome,
+    occurredAt: occurredAt,
+  );
+}
+
+MatchEvent _freeThrow(
+  String id,
+  TeamSide side,
+  ShotOutcome outcome,
+  int points,
+  DateTime occurredAt,
+) {
+  return MatchEvent(
+    id: id,
+    matchId: 'm1',
+    type: MatchEventType.freeThrow,
+    side: side,
+    points: points,
+    outcome: outcome,
+    occurredAt: occurredAt,
+  );
+}
+
+ShotLocation _location(
+  String id,
+  String eventId,
+  double x,
+  double y,
+  bool isConfirmed,
+) {
+  return ShotLocation(
+    id: id,
+    matchId: 'm1',
+    eventId: eventId,
+    point: CourtPoint(x: x, y: y),
+    isConfirmed: isConfirmed,
   );
 }

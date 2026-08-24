@@ -16,10 +16,15 @@ concurrency:
 
 env:
   FLUTTER_VERSION: 3.41.9
+  FLUTTER_FRAMEWORK_REVISION: 00b0c91f06209d9e4a41f71b7a512d6eb3b9c694
+  JAVA_VERSION: 17.0.20+8
+  ANDROID_COMPILE_SDK: "36"
+  ANDROID_BUILD_TOOLS: 36.1.0
+  ANDROID_NDK: 28.2.13676358
 
 jobs:
   quality:
-    name: Format, analyze, test, and build
+    name: Format, analyze, tests, schema, and debug build
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -30,7 +35,7 @@ jobs:
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
 
       - name: Set up Flutter
@@ -40,8 +45,19 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Pin and verify Android and Flutter toolchains
+        run: bash tool/release/prepare_android_toolchain.sh
+
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
+
+      - name: Verify vendored SQLite source build input
+        run: dart --packages=.dart_tool/package_config.json tool/release/verify_sqlite_source.dart
+
+      - name: Verify Android release-runtime notices
+        run: |
+          ./android/gradlew -p android :app:exportReleaseRuntimeCoordinates
+          diff -u third_party/android_runtime/coordinates.txt build/app/reports/release-runtime-coordinates.txt
 
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .
@@ -52,13 +68,22 @@ jobs:
       - name: Run unit and widget tests
         run: flutter test --reporter expanded
 
-      - name: Remove test-only plugin registrant
-        run: rm -f android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+      - name: Run deterministic performance benchmarks
+        run: flutter test --reporter expanded test/performance/task15_query_benchmarks_test.dart
 
-      - name: Build unsigned release APK explicitly
-        env:
-          HOOPTRACE_ALLOW_UNSIGNED_RELEASE: "true"
-        run: flutter build apk --release
+      - name: Validate bilingual release metadata
+        run: dart --packages=.dart_tool/package_config.json tool/release/validate_metadata.dart
+
+      - name: Verify third-party notices are reproducible
+        run: |
+          dart --packages=.dart_tool/package_config.json tool/release/generate_third_party_notices.dart
+          git diff --exit-code -- THIRD_PARTY_NOTICES.md
+
+      - name: Verify Drift schema and migration contract
+        run: >-
+          flutter test --reporter expanded
+          test/core/data/schema_v2_test.dart
+          test/core/data/schema_v2_fix_round1_test.dart
 
       - name: Build debug APK
         run: flutter build apk --debug --no-pub
@@ -68,6 +93,50 @@ jobs:
         with:
           name: hooptrace-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  reproducible-android:
+    name: Reproduce unsigned Android release
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Java
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Pin and verify Android and Flutter toolchains
+        run: bash tool/release/prepare_android_toolchain.sh
+
+      - name: Build twice from independent source trees and compare
+        run: bash tool/release/verify_unsigned_reproducible_android.sh
+
+      - name: Upload verified unsigned release APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hooptrace-unsigned-reproducible-apk
+          path: |
+            build/reproducible/app-release.apk
+            build/reproducible/SHA256SUMS
+            build/reproducible/FLUTTER_TOOLCHAIN.json
+            build/reproducible/JAVA_TOOLCHAIN.txt
+            build/reproducible/ANDROID_TOOLCHAIN.txt
+            build/reproducible/RUNNER_IDENTITY.txt
+            build/reproducible/REPRODUCIBILITY.txt
           if-no-files-found: error
           retention-days: 14
 
@@ -84,7 +153,7 @@ jobs:
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
 
       - name: Set up Flutter
@@ -94,8 +163,11 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Pin and verify Android and Flutter toolchains
+        run: bash tool/release/prepare_android_toolchain.sh
+
       - name: Resolve dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Enable KVM
         run: |
@@ -107,11 +179,35 @@ jobs:
       - name: Run Android integration test
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
-          api-level: 35
+          api-level: 36
           arch: x86_64
           profile: pixel_6
           disable-animations: true
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -no-snapshot -noaudio
             -no-boot-anim -camera-back none
-          script: flutter test integration_test/main_loop_test.dart -d emulator-5554
+          script: |
+            flutter test integration_test/main_loop_test.dart -d emulator-5554
+            flutter test integration_test/command_performance_test.dart -d emulator-5554
+
+  ios-no-sign:
+    name: iOS no-sign compile
+    needs: quality
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve locked dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Compile iOS release without signing
+        run: flutter build ios --release --no-codesign --no-pub

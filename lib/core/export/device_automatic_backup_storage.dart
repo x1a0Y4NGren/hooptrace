@@ -1,10 +1,14 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 
 class DeviceAutomaticBackupStorage
-    implements AutomaticBackupStorage, AutomaticBackupReferencePolicy {
+    implements
+        AutomaticBackupStorage,
+        BackupRetentionStorage,
+        AutomaticBackupReferencePolicy {
   DeviceAutomaticBackupStorage({
     AutomaticBackupStorage? fallback,
     bool? useAndroidSaf,
@@ -16,6 +20,14 @@ class DeviceAutomaticBackupStorage
 
   final AutomaticBackupStorage _fallback;
   final bool _useAndroidSaf;
+
+  static Future<String> resolveBackgroundDatabasePath() async {
+    final path = await _channel.invokeMethod<String>('backgroundDatabasePath');
+    if (path == null || path.trim().isEmpty) {
+      throw MissingPluginException('Background database path unavailable.');
+    }
+    return path;
+  }
 
   @override
   bool acceptsDirectoryReference(String reference) {
@@ -30,11 +42,16 @@ class DeviceAutomaticBackupStorage
     final reference = result?['reference'];
     final displayName = result?['displayName'];
     if (reference is! String || reference.trim().isEmpty) return null;
+    final localizedFallback =
+        PlatformDispatcher.instance.locale.languageCode == 'zh'
+        ? '已授权文件夹'
+        : 'Authorized folder';
+    final nativeFallback = displayName == '已授权文件夹';
     return BackupDirectorySelection(
       reference: reference,
       displayName: displayName is String && displayName.trim().isNotEmpty
-          ? displayName
-          : reference,
+          ? (nativeFallback ? localizedFallback : displayName)
+          : localizedFallback,
     );
   }
 
@@ -54,6 +71,9 @@ class DeviceAutomaticBackupStorage
     required String fileName,
     required Uint8List bytes,
   }) async {
+    if (!_isWriteFileName(fileName)) {
+      throw const AutomaticBackupWriteException();
+    }
     if (!_useAndroidSaf) {
       return _fallback.write(
         directory: directory,
@@ -75,5 +95,71 @@ class DeviceAutomaticBackupStorage
     return destination;
   }
 
+  @override
+  Future<List<String>> listFiles({required String directory}) async {
+    if (!_useAndroidSaf) {
+      final retentionStorage = _fallback is BackupRetentionStorage
+          ? _fallback as BackupRetentionStorage
+          : null;
+      return retentionStorage?.listFiles(directory: directory) ?? const [];
+    }
+    _requireContentUri(directory);
+    final result = await _channel.invokeMethod<Object?>('listBackupFiles', {
+      'directory': directory,
+    });
+    if (result is! List) return const [];
+    return result
+        .whereType<String>()
+        .where((name) => name.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> deleteFile({
+    required String directory,
+    required String fileName,
+  }) async {
+    if (!_isAutomaticBackupFile(fileName)) return;
+    if (!_useAndroidSaf) {
+      final retentionStorage = _fallback is BackupRetentionStorage
+          ? _fallback as BackupRetentionStorage
+          : null;
+      await retentionStorage?.deleteFile(
+        directory: directory,
+        fileName: fileName,
+      );
+      return;
+    }
+    _requireContentUri(directory);
+    await _channel.invokeMethod<void>('deleteBackupFile', {
+      'directory': directory,
+      'fileName': fileName,
+    });
+  }
+
+  void _requireContentUri(String directory) {
+    if (!_isContentUri(directory)) {
+      throw BackupDirectoryUnavailableException(directory);
+    }
+  }
+
   static bool _isContentUri(String value) => value.startsWith('content://');
+
+  static bool _isAutomaticBackupFile(String fileName) {
+    if (fileName.contains('/') || fileName.contains(r'\')) return false;
+    return _automaticBackupPattern.hasMatch(fileName);
+  }
+
+  static bool _isWriteFileName(String fileName) {
+    if (fileName.isEmpty || _controlCharacterPattern.hasMatch(fileName)) {
+      return false;
+    }
+    return _writeFileNamePattern.hasMatch(fileName);
+  }
+
+  static final _controlCharacterPattern = RegExp(r'[\x00-\x1F\x7F]');
+  static final _writeFileNamePattern = RegExp(
+    r'^hooptrace-(?:auto|backup|safety-backup)-[A-Za-z0-9][A-Za-z0-9._-]*\.json$',
+  );
+  static final _automaticBackupPattern = RegExp(r'^hooptrace-auto-.+\.json$');
 }

@@ -33,27 +33,46 @@ class _HoopTraceAppView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bootstrap = ref.watch(databaseStartupProvider);
+    final themeMode = bootstrap.value?.isReady == true
+        ? ref.watch(themePreferencesControllerProvider).themeMode
+        : ThemeMode.system;
     return bootstrap.when(
-      loading: () => _buildMaterialApp(home: const _BootstrapLoadingPage()),
-      error: (error, stackTrace) =>
-          _buildMaterialApp(home: _BootstrapFailurePage(error: error)),
+      loading: () => _buildMaterialApp(
+        themeMode: themeMode,
+        home: const _BootstrapLoadingPage(),
+      ),
+      error: (error, stackTrace) => _buildMaterialApp(
+        themeMode: themeMode,
+        home: const _BootstrapFailurePage(),
+      ),
       data: (state) {
         if (!state.isReady) {
           return _buildMaterialApp(
+            themeMode: themeMode,
             home: LegacyDatabaseBootstrapPage(version: state.version),
           );
         }
-        return _buildMaterialApp(routerConfig: ref.watch(appRouterProvider));
+        return _buildMaterialApp(
+          themeMode: themeMode,
+          routerConfig: ref.watch(appRouterProvider),
+        );
       },
     );
   }
 
-  MaterialApp _buildMaterialApp({Widget? home, GoRouter? routerConfig}) {
+  MaterialApp _buildMaterialApp({
+    required ThemeMode themeMode,
+    Widget? home,
+    GoRouter? routerConfig,
+  }) {
     if (routerConfig != null) {
       return MaterialApp.router(
         title: 'HoopTrace',
+        onGenerateTitle: (context) =>
+            AppLocalizations.of(context)?.appName ?? 'HoopTrace',
         theme: buildHoopTraceTheme(),
-        locale: const Locale('zh'),
+        darkTheme: buildHoopTraceTheme(brightness: Brightness.dark),
+        themeMode: themeMode,
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -67,8 +86,11 @@ class _HoopTraceAppView extends ConsumerWidget {
     }
     return MaterialApp(
       title: 'HoopTrace',
+      onGenerateTitle: (context) =>
+          AppLocalizations.of(context)?.appName ?? 'HoopTrace',
       theme: buildHoopTraceTheme(),
-      locale: const Locale('zh'),
+      darkTheme: buildHoopTraceTheme(brightness: Brightness.dark),
+      themeMode: themeMode,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -89,32 +111,35 @@ class LegacyDatabaseBootstrapPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       key: const Key('legacy-bootstrap'),
-      appBar: AppBar(title: const Text('HoopTrace 数据兼容性检查')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.storage_outlined, size: 56),
-                const SizedBox(height: 16),
-                const Text(
-                  '无法打开 HoopTrace v0.1 数据',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '检测到不兼容的旧数据库版本${version == null ? '' : ' v$version'}。'
-                  '现有文件会保持原样；HoopTrace 不会静默迁移、删除或清空它。'
-                  '请先导出或备份旧文件，再使用当前版本创建新的本地数据。',
-                  textAlign: TextAlign.center,
-                ),
-              ],
+      appBar: AppBar(title: Text(l10n.legacyBootstrapTitle)),
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.storage_outlined, size: 56),
+                  const SizedBox(height: 16),
+                  Text(
+                    l10n.legacyBootstrapHeadline,
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    l10n.legacyBootstrapBody(
+                      version == null ? '' : ' v$version',
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -128,24 +153,24 @@ class _BootstrapLoadingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return const Scaffold(
+      body: SafeArea(child: Center(child: CircularProgressIndicator())),
+    );
   }
 }
 
 class _BootstrapFailurePage extends StatelessWidget {
-  const _BootstrapFailurePage({required this.error});
-
-  final Object error;
+  const _BootstrapFailurePage();
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            '本地数据库暂时无法打开。现有数据未被修改。\n$error',
-            textAlign: TextAlign.center,
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(l10n.bootstrapFailureBody, textAlign: TextAlign.center),
           ),
         ),
       ),

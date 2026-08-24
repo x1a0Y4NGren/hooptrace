@@ -36,7 +36,7 @@ void main() {
     expect(
       await storage.write(
         directory: selection.reference,
-        fileName: 'backup.json',
+        fileName: 'hooptrace-auto-20260824T120000Z.json',
         bytes: Uint8List.fromList([1, 2, 3]),
       ),
       'content://provider/document/backup.json',
@@ -52,6 +52,109 @@ void main() {
     );
   });
 
+  test(
+    'resolves the production database path without native plugins',
+    () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            return '/data/user/0/hooptrace/app_flutter/hooptrace.sqlite';
+          });
+
+      expect(
+        await DeviceAutomaticBackupStorage.resolveBackgroundDatabasePath(),
+        '/data/user/0/hooptrace/app_flutter/hooptrace.sqlite',
+      );
+      expect(calls.map((call) => call.method), ['backgroundDatabasePath']);
+    },
+  );
+
+  test(
+    'lists and deletes automatic backup files through the Android SAF channel',
+    () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            return switch (call.method) {
+              'listBackupFiles' => <Object?>[
+                'hooptrace-auto-20260824T120000Z.json',
+                'notes.txt',
+              ],
+              'deleteBackupFile' => null,
+              _ => throw MissingPluginException(call.method),
+            };
+          });
+      final storage = DeviceAutomaticBackupStorage(useAndroidSaf: true);
+
+      expect(
+        await storage.listFiles(
+          directory: 'content://provider/tree/HoopTraceTest',
+        ),
+        ['hooptrace-auto-20260824T120000Z.json', 'notes.txt'],
+      );
+      await storage.deleteFile(
+        directory: 'content://provider/tree/HoopTraceTest',
+        fileName: 'hooptrace-auto-20260824T120000Z.json',
+      );
+
+      expect(calls.map((call) => call.method), [
+        'listBackupFiles',
+        'deleteBackupFile',
+      ]);
+      expect(
+        (calls.first.arguments as Map<Object?, Object?>)['directory'],
+        'content://provider/tree/HoopTraceTest',
+      );
+      expect(
+        (calls.last.arguments as Map<Object?, Object?>)['fileName'],
+        'hooptrace-auto-20260824T120000Z.json',
+      );
+    },
+  );
+
+  test('skips non-automatic and path-traversal delete requests', () async {
+    final calls = <MethodCall>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+          calls.add(call);
+          return null;
+        });
+    final storage = DeviceAutomaticBackupStorage(useAndroidSaf: true);
+
+    await storage.deleteFile(
+      directory: 'content://provider/tree/HoopTraceTest',
+      fileName: 'notes.txt',
+    );
+    await storage.deleteFile(
+      directory: 'content://provider/tree/HoopTraceTest',
+      fileName: 'hooptrace-auto-good.json/../notes.txt',
+    );
+    await storage.deleteFile(
+      directory: 'content://provider/tree/HoopTraceTest',
+      fileName: r'hooptrace-auto-good.json\..\notes.txt',
+    );
+
+    expect(calls, isEmpty);
+  });
+
+  test('delegates retention operations to a non-SAF fallback', () async {
+    final fallback = _RetentionFallback();
+    final storage = DeviceAutomaticBackupStorage(
+      fallback: fallback,
+      useAndroidSaf: false,
+    );
+
+    expect(await storage.listFiles(directory: '/backups'), ['a.json']);
+    await storage.deleteFile(
+      directory: '/backups',
+      fileName: 'hooptrace-auto-a.json',
+    );
+
+    expect(fallback.deleted, ['/backups/hooptrace-auto-a.json']);
+  });
+
   test('rejects legacy Android filesystem paths', () async {
     final storage = DeviceAutomaticBackupStorage(useAndroidSaf: true);
 
@@ -62,10 +165,84 @@ void main() {
     expect(
       () => storage.write(
         directory: '/storage/emulated/0/HoopTraceTest',
-        fileName: 'backup.json',
+        fileName: 'hooptrace-backup-legacy.json',
         bytes: Uint8List(0),
       ),
       throwsA(isA<BackupDirectoryUnavailableException>()),
     );
+    expect(
+      () => storage.listFiles(directory: '/storage/emulated/0/HoopTraceTest'),
+      throwsA(isA<BackupDirectoryUnavailableException>()),
+    );
+    expect(
+      () => storage.deleteFile(
+        directory: '/storage/emulated/0/HoopTraceTest',
+        fileName: 'hooptrace-auto-backup.json',
+      ),
+      throwsA(isA<BackupDirectoryUnavailableException>()),
+    );
   });
+
+  test(
+    'rejects unsafe or non-backup Android write names before channel call',
+    () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            return 'unexpected';
+          });
+      final storage = DeviceAutomaticBackupStorage(useAndroidSaf: true);
+
+      for (final fileName in [
+        '',
+        'backup.json',
+        'hooptrace-auto-.json',
+        'hooptrace-auto-good.json/../escape.json',
+        r'hooptrace-backup-good.json\..\escape.json',
+        'hooptrace-safety-backup-good\u0000.json',
+        'hooptrace-auto-good.txt',
+      ]) {
+        await expectLater(
+          storage.write(
+            directory: 'content://provider/tree/HoopTraceTest',
+            fileName: fileName,
+            bytes: Uint8List(0),
+          ),
+          throwsA(isA<AutomaticBackupWriteException>()),
+          reason: 'unsafe filename should be rejected: $fileName',
+        );
+      }
+
+      expect(calls, isEmpty);
+    },
+  );
+}
+
+class _RetentionFallback
+    implements AutomaticBackupStorage, BackupRetentionStorage {
+  final deleted = <String>[];
+
+  @override
+  Future<bool> directoryExists(String path) async => true;
+
+  @override
+  Future<String> write({
+    required String directory,
+    required String fileName,
+    required Uint8List bytes,
+  }) async => '$directory/$fileName';
+
+  @override
+  Future<List<String>> listFiles({required String directory}) async => [
+    'a.json',
+  ];
+
+  @override
+  Future<void> deleteFile({
+    required String directory,
+    required String fileName,
+  }) async {
+    deleted.add('$directory/$fileName');
+  }
 }

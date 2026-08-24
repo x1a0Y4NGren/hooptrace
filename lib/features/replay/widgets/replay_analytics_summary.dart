@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 class ReplayAnalyticsSummary extends StatelessWidget {
@@ -17,86 +20,219 @@ class ReplayAnalyticsSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final attempts = analytics.madeShotCount + analytics.missedShotCount;
-    final percentage = (analytics.shootingPercentage * 100).round();
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final attempts = analytics.attempts;
+    final percentage = analytics.reliableShootingPercentage == null
+        ? null
+        : (analytics.reliableShootingPercentage! * 100).round();
     final largestLead = analytics.largestLeadSide == null
-        ? '无'
+        ? l10n.replayNoData
         : '${_sideName(analytics.largestLeadSide!)} '
               '+${analytics.largestLeadPoints}';
 
-    return Column(
-      key: const Key('replay-analytics-summary'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const _AnalyticsHeading(title: '比赛分析', icon: Icons.insights_outlined),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _AnalyticsMetric(
-              label: '领先变化',
-              value: '${analytics.leadChanges} 次',
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        key: const Key('replay-analytics-summary'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _AnalyticsHeading(
+            title: l10n.replayAnalyticsTitle,
+            icon: Icons.insights_outlined,
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsLeadChanges,
+                value: l10n.replayExportLeadChangesValue(analytics.leadChanges),
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsLargestLead,
+                value: largestLead,
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsShootingPercentage,
+                value: _shootingValue(
+                  analytics,
+                  attempts: attempts,
+                  percentage: percentage,
+                  l10n: l10n,
+                ),
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsKeyMoments,
+                value: l10n.replayExportKeyMomentsValue(
+                  analytics.keyPossessions.length,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _AnalyticsSubheading(title: l10n.replayAnalyticsShotRecord),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsFieldGoals,
+                value:
+                    '${analytics.fieldGoalMadeCount}/${analytics.fieldGoalAttemptCount}',
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsFreeThrows,
+                value:
+                    '${analytics.freeThrowMadeCount}/${analytics.freeThrowAttemptCount}',
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsFouls,
+                value: '${analytics.redFoulCount} · ${analytics.blueFoulCount}',
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsPossessions,
+                value:
+                    analytics.possessionCount?.toString() ?? l10n.replayNoData,
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsTrackingCoverage,
+                value: _coverageLabel(analytics.trackingCoverage, l10n),
+              ),
+              _AnalyticsMetric(
+                label: l10n.replayAnalyticsLocationCoverage,
+                value: analytics.shotAttemptCount == null
+                    ? l10n.replayNoData
+                    : '${analytics.confirmedLocationCount}/${analytics.fieldGoalAttemptCount}',
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _AnalyticsSubheading(title: l10n.replayAnalyticsScoringRun),
+          const SizedBox(height: 8),
+          if (analytics.scoringRuns.isEmpty)
+            Text(l10n.replayAnalyticsNoScoringEvents)
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: analytics.scoringRuns
+                  .map(
+                    (run) => Chip(
+                      avatar: CircleAvatar(
+                        backgroundColor: run.side == TeamSide.red
+                            ? HoopTraceColors.red
+                            : HoopTraceColors.blue,
+                      ),
+                      label: Text('${_sideName(run.side)} +${run.points}'),
+                    ),
+                  )
+                  .toList(),
             ),
-            _AnalyticsMetric(label: '最大领先', value: largestLead),
-            _AnalyticsMetric(
-              label: '投篮命中率',
-              value: attempts == 0
-                  ? '暂无出手'
-                  : '$percentage% · ${analytics.madeShotCount}/$attempts',
-            ),
-            _AnalyticsMetric(
-              label: '关键节点',
-              value: '${analytics.keyPossessions.length} 次',
+          if (analytics.zoneDistribution.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            _AnalyticsSubheading(title: l10n.replayAnalyticsShotZones),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: analytics.zoneDistribution.entries
+                  .map(
+                    (entry) => Chip(
+                      label: Text(
+                        '${_zoneLabel(entry.key, l10n)} · ${entry.value}',
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ],
-        ),
-        const SizedBox(height: 18),
-        const _AnalyticsSubheading(title: '比分流'),
-        const SizedBox(height: 8),
-        if (analytics.scoringFlow.isEmpty)
-          const Text('本场暂无得分事件')
-        else
-          SizedBox(
-            height: 72,
-            child: ListView.separated(
-              key: const Key('replay-scoring-flow'),
-              scrollDirection: Axis.horizontal,
-              itemCount: analytics.scoringFlow.length,
-              separatorBuilder: (_, _) => const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Icon(Icons.chevron_right, size: 18),
+          const SizedBox(height: 18),
+          _AnalyticsSubheading(title: l10n.replayAnalyticsScoringFlow),
+          const SizedBox(height: 8),
+          if (analytics.scoringFlow.isEmpty)
+            Text(l10n.replayAnalyticsNoScoringEvents)
+          else
+            SizedBox(
+              height: 72,
+              child: ListView.separated(
+                key: const Key('replay-scoring-flow'),
+                scrollDirection: Axis.horizontal,
+                itemCount: analytics.scoringFlow.length,
+                separatorBuilder: (_, _) => const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 6),
+                  child: Icon(Icons.chevron_right, size: 18),
+                ),
+                itemBuilder: (context, index) {
+                  final entry = analytics.scoringFlow[index];
+                  return _ScoringFlowItem(
+                    entry: entry,
+                    sideName: _sideName(entry.side),
+                    l10n: l10n,
+                  );
+                },
               ),
-              itemBuilder: (context, index) {
-                final entry = analytics.scoringFlow[index];
-                return _ScoringFlowItem(
-                  entry: entry,
-                  sideName: _sideName(entry.side),
-                );
-              },
             ),
-          ),
-        const SizedBox(height: 18),
-        const _AnalyticsSubheading(title: '关键回合'),
-        const SizedBox(height: 4),
-        if (analytics.keyPossessions.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('本场暂无关键回合'),
-          )
-        else
-          ...analytics.keyPossessions.map(
-            (possession) => _KeyPossessionRow(
-              possession: possession,
-              sideName: _sideName(possession.side),
+          const SizedBox(height: 18),
+          _AnalyticsSubheading(title: l10n.replayAnalyticsKeyPossessions),
+          const SizedBox(height: 4),
+          if (analytics.keyPossessions.isEmpty)
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(l10n.replayAnalyticsNoKeyPossessions),
+            )
+          else
+            ...analytics.keyPossessions.map(
+              (possession) => _KeyPossessionRow(
+                possession: possession,
+                sideName: _sideName(possession.side),
+                l10n: l10n,
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 
   String _sideName(TeamSide side) {
     return side == TeamSide.red ? redName : blueName;
+  }
+
+  String _shootingValue(
+    MatchAnalytics analytics, {
+    required int attempts,
+    required int? percentage,
+    required AppLocalizations l10n,
+  }) {
+    if (attempts == 0) return l10n.replayAnalyticsNoAttempts;
+    if (analytics.hasReliableShootingPercentage && percentage != null) {
+      return '$percentage% · ${analytics.madeShotCount}/$attempts';
+    }
+    return '${l10n.replayAnalyticsIncompleteShooting} · '
+        '${l10n.replayAnalyticsRecordedAttempts} · $attempts';
+  }
+
+  String _coverageLabel(TrackingCoverage coverage, AppLocalizations l10n) {
+    return switch (coverage) {
+      TrackingCoverage.none => l10n.replayAnalyticsTrackingNone,
+      TrackingCoverage.scoresOnly => l10n.replayAnalyticsTrackingScoresOnly,
+      TrackingCoverage.shotAttempts => l10n.replayAnalyticsTrackingShotAttempts,
+      TrackingCoverage.locations => l10n.replayAnalyticsTrackingLocations,
+      TrackingCoverage.full => l10n.replayAnalyticsTrackingFull,
+    };
+  }
+
+  String _zoneLabel(ShotZone zone, AppLocalizations l10n) {
+    return switch (zone) {
+      ShotZone.restrictedArea => l10n.replayAnalyticsZoneRestrictedArea,
+      ShotZone.paint => l10n.replayAnalyticsZonePaint,
+      ShotZone.midRange => l10n.replayAnalyticsZoneMidRange,
+      ShotZone.cornerThree => l10n.replayAnalyticsZoneCornerThree,
+      ShotZone.wingThree => l10n.replayAnalyticsZoneWingThree,
+      ShotZone.topThree => l10n.replayAnalyticsZoneTopThree,
+      ShotZone.unknown => l10n.replayAnalyticsZoneUnknown,
+    };
   }
 }
 
@@ -151,7 +287,7 @@ class _AnalyticsMetric extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 128, minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: HoopTraceColors.cream,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -172,10 +308,15 @@ class _AnalyticsMetric extends StatelessWidget {
 }
 
 class _ScoringFlowItem extends StatelessWidget {
-  const _ScoringFlowItem({required this.entry, required this.sideName});
+  const _ScoringFlowItem({
+    required this.entry,
+    required this.sideName,
+    required this.l10n,
+  });
 
   final ScoringFlowEntry entry;
   final String sideName;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
@@ -183,9 +324,12 @@ class _ScoringFlowItem extends StatelessWidget {
         ? HoopTraceColors.red
         : HoopTraceColors.blue;
     return Semantics(
-      label:
-          '$sideName 得 ${entry.points} 分，'
-          '${entry.redScore} 比 ${entry.blueScore}',
+      label: l10n.replayAnalyticsScoreSemantics(
+        sideName,
+        entry.points,
+        entry.redScore,
+        entry.blueScore,
+      ),
       child: Container(
         width: 80,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
@@ -216,10 +360,15 @@ class _ScoringFlowItem extends StatelessWidget {
 }
 
 class _KeyPossessionRow extends StatelessWidget {
-  const _KeyPossessionRow({required this.possession, required this.sideName});
+  const _KeyPossessionRow({
+    required this.possession,
+    required this.sideName,
+    required this.l10n,
+  });
 
   final KeyPossession possession;
   final String sideName;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
@@ -232,7 +381,9 @@ class _KeyPossessionRow extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: HoopTraceColors.ink.withValues(alpha: 0.12),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.16),
           ),
         ),
       ),
@@ -242,7 +393,7 @@ class _KeyPossessionRow extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$sideName · ${_label(possession.type)}',
+              '$sideName · ${_label(possession.type, l10n)}',
               style: Theme.of(
                 context,
               ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
@@ -254,12 +405,12 @@ class _KeyPossessionRow extends StatelessWidget {
     );
   }
 
-  String _label(KeyPossessionType type) {
+  String _label(KeyPossessionType type, AppLocalizations l10n) {
     return switch (type) {
-      KeyPossessionType.tie => '扳平比分',
-      KeyPossessionType.overtake => '完成反超',
-      KeyPossessionType.matchPoint => '到达赛点',
-      KeyPossessionType.scoringRun => '连续得分',
+      KeyPossessionType.tie => l10n.replayAnalyticsTie,
+      KeyPossessionType.overtake => l10n.replayAnalyticsOvertake,
+      KeyPossessionType.matchPoint => l10n.replayAnalyticsMatchPoint,
+      KeyPossessionType.scoringRun => l10n.replayAnalyticsScoringRun,
     };
   }
 }

@@ -9,7 +9,7 @@
 - License：MIT
 - Source：`https://github.com/x1a0Y4NGren/hooptrace`
 - Issue tracker：`https://github.com/x1a0Y4NGren/hooptrace/issues`
-- Current version：`0.1.0`，versionCode `1`
+- Source release candidate：`1.0.0`，versionCode `2`；当前公开正式版仍为 `0.1.0`，versionCode `1`
 - Platform：Flutter，Android 优先
 
 Application ID 已脱离 Flutter 模板的 `com.example` 命名，并与 GitHub Pages 命名空间对应。正式发布后不可再更改。
@@ -21,14 +21,34 @@ Application ID 已脱离 Flutter 模板的 `com.example` 命名，并与 GitHub 
 - Flutter `3.41.9` stable
 - Flutter revision `00b0c91f06209d9e4a41f71b7a512d6eb3b9c694`
 - Dart `3.11.5`
-- Java 17
-- Android minSdk 24，compile/target SDK 由该 Flutter stable 版本提供
+- Temurin Java `17.0.20+8`
+- Android compile/target SDK `36`
+- Android build-tools `36.1.0`
+- Android NDK `28.2.13676358`
+- Gradle `8.14` wrapper; verify the checked-in wrapper SHA-256 and
+  `distributionSha256Sum` in `android/gradle/wrapper/gradle-wrapper.properties`
 
 从源码构建的基本命令：
 
 ```bash
 flutter pub get
-HOOPTRACE_ALLOW_UNSIGNED_RELEASE=true flutter build apk --release --no-pub
+HOOPTRACE_ALLOW_UNSIGNED_RELEASE=true flutter build apk --release
+```
+
+For a release-verification checkout, run the pinned toolchain and source
+checks first. The dependency lock and checked-in Android runtime graph must not
+change during the build:
+
+```bash
+bash tool/release/prepare_android_toolchain.sh
+flutter pub get --enforce-lockfile
+dart --packages=.dart_tool/package_config.json tool/release/verify_sqlite_source.dart
+./android/gradlew -p android :app:exportReleaseRuntimeCoordinates
+diff -u third_party/android_runtime/coordinates.txt \
+  build/app/reports/release-runtime-coordinates.txt
+dart --packages=.dart_tool/package_config.json \
+  tool/release/generate_third_party_notices.dart
+git diff --exit-code -- THIRD_PARTY_NOTICES.md
 ```
 
 仓库不包含 keystore 或 `key.properties`。普通 Release 构建在没有正式签名配置时会失败，防止维护者误发未签名 APK；F-Droid 或可复现性验证必须通过上面的显式环境变量选择未签名构建。任何模式都不会回退到 debug key。
@@ -41,7 +61,12 @@ HOOPTRACE_ALLOW_UNSIGNED_RELEASE=true flutter build apk --release --no-pub
 - `file_picker` 用于系统文件/目录选择器。
 - `share_plus` 用于用户主动发起的系统分享。
 - `url_launcher` 只在用户点击项目外部链接时调用系统浏览器。
-- `sqlite3_flutter_libs` 和 Flutter engine 会引入预编译原生组件，提交 recipe 时需要按 F-Droid 对 Flutter SDK 和受信二进制来源的当前规则检查。
+- SQLite 通过仓库内 3.53.4 amalgamation 的 `source: source` hook 编译，不依赖
+  `sqlite3` GitHub Release 原生库；Flutter engine 及 Android toolchain 仍需按
+  F-Droid 当前对受信构建工具和二进制来源的规则检查。
+- `third_party/android_runtime/coordinates.txt` 是 Gradle release runtime
+  graph 的排序清单；CI 会重新导出并逐字节比较。每个坐标及完整 Apache-2.0
+  文本会进入 `THIRD_PARTY_NOTICES.md`，不能用删节许可证替代。
 
 提交前应在 fdroidserver 环境执行依赖扫描，并确认所有 Maven 和 pub 包来源满足 Inclusion Policy。
 
@@ -63,7 +88,7 @@ HOOPTRACE_ALLOW_UNSIGNED_RELEASE=true flutter build apk --release --no-pub
 
 - `fastlane/metadata/android/en-US/short_description.txt`
 - `fastlane/metadata/android/en-US/full_description.txt`
-- `fastlane/metadata/android/en-US/changelogs/1.txt`
+- `fastlane/metadata/android/en-US/changelogs/2.txt`
 - 对应的 `zh-CN` 文件
 - 两个 locale 的 `images/icon.png`
 - 两个 locale 的 4 张手机截图：主页、计分、复盘和历史

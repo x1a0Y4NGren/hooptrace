@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/features/rules/rule_template_editor_page.dart';
@@ -8,6 +10,36 @@ import 'package:hooptrace/features/rules/rule_template_list_page.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  testWidgets('built-in rule names follow the active locale', (tester) async {
+    final database = createTestDatabase();
+    final repository = RuleTemplateRepository(database);
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: RuleTemplateListPage(repository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Free scoring'), findsOneWidget);
+    expect(find.text('11 points (win by 2)'), findsOneWidget);
+    expect(find.text('21 points'), findsOneWidget);
+    expect(find.text('10-minute timed'), findsOneWidget);
+    expect(find.text('自由计分'), findsNothing);
+  });
+
   testWidgets('lists built-ins and persists a custom template from editor', (
     tester,
   ) async {

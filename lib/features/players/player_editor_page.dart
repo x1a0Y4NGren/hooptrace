@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -101,6 +103,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
 
   Future<void> _save() async {
     if (_saving || !_formKey.currentState!.validate()) return;
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     setState(() => _saving = true);
     final note = _noteController.text.trim();
     final player = Player(
@@ -118,24 +121,25 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
       setState(() => _saving = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('保存失败，请重试。')));
+      ).showSnackBar(SnackBar(content: Text(l10n.playerSaveFailed)));
     }
   }
 
   Future<void> _delete() async {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('删除球员？'),
-        content: const Text('只会删除此球员档案，不会删除已有比赛记录。'),
+        title: Text(l10n.playerDeleteTitle),
+        content: Text(l10n.playerDeleteBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(l10n.cancelAction),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+            child: Text(l10n.deleteAction),
           ),
         ],
       ),
@@ -148,25 +152,28 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('删除失败，请重试。')));
+      ).showSnackBar(SnackBar(content: Text(l10n.playerDeleteFailed)));
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.playerId == null ? '新建球员' : '编辑球员'),
+        title: Text(
+          widget.playerId == null ? l10n.playerNewTitle : l10n.playerEditTitle,
+        ),
         actions: [
           if (_existing != null && widget.onDeleted != null)
             IconButton(
               onPressed: _saving ? null : _delete,
-              tooltip: '删除球员',
+              tooltip: l10n.playerDeleteTooltip,
               icon: const Icon(Icons.delete_outline),
             ),
           IconButton(
             onPressed: _loading || _loadError != null || _saving ? null : _save,
-            tooltip: '保存球员',
+            tooltip: l10n.playerSaveTooltip,
             icon: _saving
                 ? const SizedBox.square(
                     dimension: 24,
@@ -182,18 +189,19 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
   }
 
   Widget _buildBody(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_loadError != null) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('无法打开球员档案'),
+            Text(l10n.playerOpenError),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _load,
               icon: const Icon(Icons.refresh),
-              label: const Text('重试'),
+              label: Text(l10n.retryAction),
             ),
           ],
         ),
@@ -210,28 +218,32 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
             autofocus: widget.playerId == null,
             textInputAction: TextInputAction.next,
             maxLength: 30,
-            decoration: const InputDecoration(
-              labelText: '昵称',
+            decoration: InputDecoration(
+              labelText: l10n.playerNicknameLabel,
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.person_outline),
             ),
-            validator: (value) =>
-                value == null || value.trim().isEmpty ? '请输入球员昵称' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? l10n.playerNicknameRequired
+                : null,
           ),
           const SizedBox(height: 16),
-          Text('偏好方', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            l10n.playerPreferredSide,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           SegmentedButton<TeamSide?>(
-            segments: const [
-              ButtonSegment(value: null, label: Text('不限')),
+            segments: [
+              ButtonSegment(value: null, label: Text(l10n.playerSideAny)),
               ButtonSegment(
                 value: TeamSide.red,
-                label: Text('红方'),
+                label: Text(l10n.playerSideRed),
                 icon: Icon(Icons.circle, color: HoopTraceColors.red),
               ),
               ButtonSegment(
                 value: TeamSide.blue,
-                label: Text('蓝方'),
+                label: Text(l10n.playerSideBlue),
                 icon: Icon(Icons.circle, color: HoopTraceColors.blue),
               ),
             ],
@@ -247,9 +259,9 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
             minLines: 3,
             maxLines: 5,
             maxLength: 200,
-            decoration: const InputDecoration(
-              labelText: '备注',
-              hintText: '打法、习惯或需要记住的信息',
+            decoration: InputDecoration(
+              labelText: l10n.playerNoteLabel,
+              hintText: l10n.playerNoteHint,
               border: OutlineInputBorder(),
               alignLabelWithHint: true,
             ),
@@ -258,7 +270,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
           FilledButton.icon(
             onPressed: _saving ? null : _save,
             icon: const Icon(Icons.save_outlined),
-            label: Text(_saving ? '保存中' : '保存球员'),
+            label: Text(_saving ? l10n.playerSaving : l10n.playerSaveTooltip),
           ),
         ],
       ),

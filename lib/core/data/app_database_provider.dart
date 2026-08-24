@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite3_lib;
 
 AppDatabase createAppDatabase(QueryExecutor executor) {
   return AppDatabase(executor);
@@ -22,17 +23,43 @@ AppDatabase openAppDatabase() {
 /// exercise the real v1 bootstrap path without replacing the compatibility
 /// probe or touching the user's application directory.
 AppDatabase openAppDatabaseAt(File file) {
-  return _openAppDatabaseAt(() async => file);
-}
-
-AppDatabase _openAppDatabaseAt(Future<File> Function() resolveFile) {
-  return AppDatabase(
-    LazyDatabase(() async => _nativeExecutor(await resolveFile())),
+  return _openAppDatabaseAt(
+    () async => file,
+    resolveTemporaryDirectory: () async => file.parent,
   );
 }
 
-/// Opens the documented native file after a raw `user_version` probe. The
-/// probe runs in NativeDatabase setup, before Drift can inspect or migrate it.
+AppDatabase _openAppDatabaseAt(
+  Future<File> Function() resolveFile, {
+  Future<Directory> Function()? resolveTemporaryDirectory,
+}) {
+  Future<File>? resolvedFile;
+  Future<File> resolveOnce() => resolvedFile ??= resolveFile();
+  return AppDatabase(
+    LazyDatabase(() async {
+      final file = await resolveOnce();
+      final temporaryDirectory =
+          await (resolveTemporaryDirectory?.call() ?? getTemporaryDirectory());
+      final temporaryPath = temporaryDirectory.path;
+      // The file is opened by Drift's worker isolate. Configure SQLite's
+      // intermediate-result directory in that isolate as well, keeping all
+      // database I/O within the application sandbox.
+      return NativeDatabase.createInBackground(
+        file,
+        isolateSetup: _sqliteIsolateSetup(temporaryPath),
+      );
+    }),
+    legacyVersionProbe: () async => _legacyVersion(await resolveOnce()),
+  );
+}
+
+void Function() _sqliteIsolateSetup(String temporaryPath) {
+  return () {
+    sqlite3_lib.sqlite3.tempDirectory = temporaryPath;
+  };
+}
+
+/// Opens the documented native file after a raw `user_version` probe.
 Future<AppDatabase> openNativeAppDatabase() async {
   final documents = await getApplicationDocumentsDirectory();
   return openNativeAppDatabaseAt(
@@ -40,26 +67,25 @@ Future<AppDatabase> openNativeAppDatabase() async {
   );
 }
 
-Future<AppDatabase> openNativeAppDatabaseAt(File file) async {
-  final database = AppDatabase(_nativeExecutor(file));
+int? _legacyVersion(File file) {
+  if (!file.existsSync()) return null;
+  final raw = sqlite3_lib.sqlite3.open(file.path);
   try {
-    await database.customSelect('PRAGMA user_version').getSingle();
+    return raw.userVersion == firstReleaseSchemaVersion
+        ? raw.userVersion
+        : null;
+  } finally {
+    raw.close();
+  }
+}
+
+Future<AppDatabase> openNativeAppDatabaseAt(File file) async {
+  final database = openAppDatabaseAt(file);
+  try {
+    await database.assertCompatible();
     return database;
   } on Object {
     await database.close();
     rethrow;
   }
-}
-
-NativeDatabase _nativeExecutor(File file) {
-  return NativeDatabase(
-    file,
-    setup: (raw) {
-      final result = raw.select('PRAGMA user_version');
-      final version = result.single.values.first as int;
-      if (version == firstReleaseSchemaVersion) {
-        throw LegacySchemaDetectedException(version);
-      }
-    },
-  );
 }

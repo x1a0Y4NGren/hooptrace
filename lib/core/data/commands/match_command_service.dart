@@ -357,6 +357,95 @@ class UndoMatchEventCommand extends MatchCommand {
   };
 }
 
+/// Restores an event which was soft-deleted during replay review. The event
+/// identity and all recorded facts are preserved; only [isDeleted] changes.
+class RestoreMatchEventCommand extends MatchCommand {
+  RestoreMatchEventCommand({
+    super.commandId,
+    required this.matchId,
+    required this.eventId,
+    this.reason,
+    String? auditId,
+  }) : auditId = auditId ?? _newUuid();
+
+  @override
+  final String matchId;
+  final String eventId;
+  final String? reason;
+  final String auditId;
+
+  @override
+  String get commandType => 'restore';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'eventId': eventId,
+    'reason': reason,
+    'auditId': auditId,
+  };
+}
+
+/// Moves the confirmed location attached to a field-goal attempt.
+///
+/// A location is corrected in place so its identity remains stable for
+/// exports and audit readers. [newPoint], [location], and raw [x]/[y] are
+/// compatibility spellings for callers that do not use the original
+/// [point] name.
+class CorrectShotLocationCommand extends MatchCommand {
+  CorrectShotLocationCommand({
+    super.commandId,
+    required this.matchId,
+    required this.eventId,
+    CourtPoint? point,
+    CourtPoint? newPoint,
+    CourtPoint? location,
+    double? x,
+    double? y,
+    String? shotLocationId,
+    String? locationId,
+    this.reason,
+    String? auditId,
+  }) : point =
+           point ??
+           newPoint ??
+           location ??
+           ((x != null && y != null)
+               ? CourtPoint(x: x, y: y)
+               : (throw ArgumentError(
+                   'A corrected shot location is required.',
+                 ))),
+       shotLocationId = shotLocationId ?? locationId,
+       auditId = auditId ?? _newUuid();
+
+  @override
+  final String matchId;
+  final String eventId;
+  final CourtPoint point;
+  final String? shotLocationId;
+  final String? reason;
+  final String auditId;
+
+  /// Alias retained for domain callers that call the row a location.
+  String? get locationId => shotLocationId;
+
+  @override
+  String get commandType => 'correctShotLocation';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'eventId': eventId,
+    'shotLocationId': shotLocationId,
+    'x': point.x,
+    'y': point.y,
+    'reason': reason,
+    'auditId': auditId,
+  };
+}
+
 class PauseMatchCommand extends MatchCommand {
   PauseMatchCommand({
     super.commandId,
@@ -542,6 +631,32 @@ class AbandonMatchCommand extends MatchCommand {
   };
 }
 
+/// Reclaims a match imported from a backup after the user explicitly chooses
+/// it from the imported-incomplete recovery surface. Imported rows are stored
+/// as abandoned until this command succeeds, so they cannot steal the active
+/// session during merge.
+class ResumeImportedIncompleteMatchCommand extends MatchCommand {
+  ResumeImportedIncompleteMatchCommand({
+    super.commandId,
+    required this.matchId,
+    DateTime? claimedAtUtc,
+  }) : claimedAtUtc = (claimedAtUtc ?? DateTime.now()).toUtc();
+
+  @override
+  final String matchId;
+  final DateTime claimedAtUtc;
+
+  @override
+  String get commandType => 'resumeImportedIncomplete';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'claimedAtUtc': claimedAtUtc.toUtc().toIso8601String(),
+  };
+}
+
 /// Links a match-only participant to a stable player profile after the match
 /// is no longer active. The participant's name snapshot is intentionally not
 /// rewritten, so historical displays remain faithful to what was recorded.
@@ -585,6 +700,13 @@ typedef CorrectCommand = CorrectMatchEventCommand;
 typedef CorrectEventCommand = CorrectMatchEventCommand;
 typedef UndoCommand = UndoMatchEventCommand;
 typedef UndoEventCommand = UndoMatchEventCommand;
+typedef RestoreCommand = RestoreMatchEventCommand;
+typedef RestoreEventCommand = RestoreMatchEventCommand;
+typedef RestoreMatchEvent = RestoreMatchEventCommand;
+typedef CorrectLocationCommand = CorrectShotLocationCommand;
+typedef CorrectFieldGoalLocationCommand = CorrectShotLocationCommand;
+typedef CorrectConfirmedShotLocationCommand = CorrectShotLocationCommand;
+typedef MoveShotLocationCommand = CorrectShotLocationCommand;
 typedef PauseCommand = PauseMatchCommand;
 typedef ResumeCommand = ResumeMatchCommand;
 typedef ContinueCommand = ContinueMatchCommand;
@@ -595,6 +717,7 @@ typedef MatchClockService = MatchCommandService;
 typedef FinishCommand = FinishMatchCommand;
 typedef SetPossession = SetPossessionCommand;
 typedef AbandonCommand = AbandonMatchCommand;
+typedef ResumeImportedCommand = ResumeImportedIncompleteMatchCommand;
 typedef LinkParticipantCommand = LinkMatchParticipantCommand;
 typedef LinkPlayerCommand = LinkMatchParticipantCommand;
 typedef MatchProjection = MatchDetail;
@@ -1044,6 +1167,7 @@ class MatchCommandService {
       return _database.transaction(() async {
         final duplicate = await _returnForDuplicate(command);
         if (duplicate != null) return duplicate;
+        await _requireReplayEditableMatch(command);
         final before = await _eventRow(command.eventId);
         if (before == null) {
           throw CommandValidationFailure(
@@ -1063,6 +1187,13 @@ class MatchCommandService {
           command.matchId,
         );
         await _guardEventMutation(command, before);
+        if (before.isDeleted) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Deleted events must be restored before correction.',
+            projectionMatchId: command.matchId,
+          );
+        }
         late final MatchEvent replacement;
         try {
           replacement = _correctedEvent(before, command);
@@ -1084,6 +1215,22 @@ class MatchCommandService {
         }
         final beforeJson = _eventJson(before);
         final afterJson = _eventJsonFromEvent(replacement);
+        final existingLocation = await _shotLocationForEvent(command.eventId);
+        if (existingLocation != null &&
+            !_eventTypeSupportsLocation(replacement.type)) {
+          await (_database.delete(
+            _database.shotLocations,
+          )..where((location) => location.id.equals(existingLocation.id))).go();
+          await _writeAudit(
+            id: '${command.auditId}:location',
+            matchId: command.matchId,
+            targetId: command.eventId,
+            action: 'locate',
+            before: _shotLocationJson(existingLocation),
+            after: const <String, Object?>{},
+            reason: command.reason,
+          );
+        }
         await (_database.update(_database.matchEvents)
               ..where((event) => event.id.equals(command.eventId)))
             .write(_eventCompanion(replacement, includeId: false));
@@ -1116,6 +1263,7 @@ class MatchCommandService {
       return _database.transaction(() async {
         final duplicate = await _returnForDuplicate(command);
         if (duplicate != null) return duplicate;
+        await _requireReplayEditableMatch(command);
         final before = await _eventRow(command.eventId);
         if (before == null) {
           throw CommandValidationFailure(
@@ -1135,6 +1283,13 @@ class MatchCommandService {
           command.matchId,
         );
         await _guardEventMutation(command, before);
+        if (before.isDeleted) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Event ${command.eventId} is already deleted.',
+            projectionMatchId: command.matchId,
+          );
+        }
         final beforeJson = _eventJson(before);
         final afterJson = <String, Object?>{...beforeJson, 'isDeleted': true};
         await (_database.update(_database.matchEvents)
@@ -1158,6 +1313,165 @@ class MatchCommandService {
         );
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
+  /// Restores a soft-deleted event and rebuilds the derived score and
+  /// possession projection in the same transaction.
+  Future<MatchDetail> restore(RestoreMatchEventCommand command) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+        await _requireReplayEditableMatch(command);
+        final before = await _eventRow(command.eventId);
+        if (before == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing event ${command.eventId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (before.matchId != command.matchId) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Event ${command.eventId} belongs to another match.',
+            projectionMatchId: before.matchId,
+          );
+        }
+        await _guardEventMutation(command, before);
+        if (!before.isDeleted) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Event ${command.eventId} is not deleted.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final beforeProjection = await _projectionInTransaction(
+          command.matchId,
+        );
+        final beforeJson = _eventJson(before);
+        await (_database.update(_database.matchEvents)
+              ..where((event) => event.id.equals(command.eventId)))
+            .write(const MatchEventsCompanion(isDeleted: Value(false)));
+        await _restoreManualPossessionSegment(before);
+        await _writeAudit(
+          id: command.auditId,
+          matchId: command.matchId,
+          targetId: command.eventId,
+          action: 'restore',
+          before: beforeJson,
+          after: <String, Object?>{...beforeJson, 'isDeleted': false},
+          reason: command.reason,
+        );
+        await _recalculatePossessionSuggestions(command.matchId);
+        final afterProjection = await _projectionInTransaction(command.matchId);
+        await _applyPostScoreRules(
+          command.matchId,
+          scoreChanged: _scoresChanged(beforeProjection, afterProjection),
+          decisionEventId: '${command.commandId}:decision',
+        );
+        await _inject(MatchCommandFailurePoint.afterEventWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
+  /// Corrects an existing confirmed field-goal location without changing its
+  /// row identity or the event's score contribution.
+  Future<MatchDetail> correctShotLocation(CorrectShotLocationCommand command) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+        await _requireReplayEditableMatch(command);
+        final event = await _eventRow(command.eventId);
+        if (event == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing event ${command.eventId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (event.matchId != command.matchId) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Event ${command.eventId} belongs to another match.',
+            projectionMatchId: event.matchId,
+          );
+        }
+        if (event.isDeleted) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Deleted events cannot receive a location correction.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (event.type != EventKind.fieldGoal.name ||
+            (event.outcome != ShotOutcome.made.name &&
+                event.outcome != ShotOutcome.missed.name)) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'Only a confirmed field-goal attempt can move its location.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final location = await _shotLocationForEvent(command.eventId);
+        if (location == null || location.matchId != command.matchId) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing shot location for event ${command.eventId}.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (!location.isConfirmed) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Only confirmed shot locations can be corrected.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (command.shotLocationId != null &&
+            command.shotLocationId != location.id) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Shot location does not belong to the event.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final before = _shotLocationJson(location);
+        final after = <String, Object?>{
+          ...before,
+          'x': command.point.x,
+          'y': command.point.y,
+        };
+        await (_database.update(
+          _database.shotLocations,
+        )..where((row) => row.id.equals(location.id))).write(
+          ShotLocationsCompanion(
+            x: Value(command.point.x),
+            y: Value(command.point.y),
+          ),
+        );
+        await _writeAudit(
+          id: command.auditId,
+          matchId: command.matchId,
+          targetId: command.eventId,
+          action: 'edit',
+          before: before,
+          after: after,
+          reason: command.reason,
+        );
+        await _inject(MatchCommandFailurePoint.afterEventWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
         await _inject(MatchCommandFailurePoint.beforeCommit);
         return result;
       });
@@ -1336,6 +1650,91 @@ class MatchCommandService {
     return _complete(command, MatchLifecycle.abandoned);
   }
 
+  /// Restores one imported unfinished graph into the live scoring boundary.
+  ///
+  /// The active-session cardinality check and lifecycle transition share one
+  /// Drift transaction. A concurrent/new active match therefore causes the
+  /// entire restore to roll back, leaving the imported record discoverable for
+  /// a later retry.
+  Future<MatchDetail> resumeImportedIncomplete(
+    ResumeImportedIncompleteMatchCommand command,
+  ) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+        final row = await _matchRow(command.matchId);
+        if (row == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing imported match ${command.matchId}.',
+          );
+        }
+        if (row.lifecycle != MatchLifecycle.abandoned.name ||
+            !_isImportedIncompleteNote(row.note)) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'Match ${command.matchId} is not an imported-incomplete record.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final active = await _activeRow();
+        if (active != null) {
+          throw ActiveMatchConflictFailure(
+            command: command,
+            projectionMatchId: active.matchId,
+          );
+        }
+
+        final before = <String, Object?>{
+          'id': row.id,
+          'lifecycle': row.lifecycle,
+          'endedAt': row.endedAt?.toUtc().toIso8601String(),
+          'note': row.note,
+        };
+        final restoredNote = _removeImportedIncompleteMarker(row.note);
+        await (_database.update(
+          _database.matches,
+        )..where((match) => match.id.equals(command.matchId))).write(
+          MatchesCompanion(
+            lifecycle: Value(MatchLifecycle.active.name),
+            endedAt: Value(null),
+            note: Value(restoredNote),
+          ),
+        );
+        await _database
+            .into(_database.activeSessions)
+            .insert(
+              ActiveSessionsCompanion.insert(
+                id: const Value('active'),
+                matchId: command.matchId,
+                claimedAtUtc: Value(command.claimedAtUtc),
+              ),
+            );
+        await _writeAudit(
+          id: '${command.commandId}:import',
+          matchId: command.matchId,
+          targetId: command.matchId,
+          action: 'restore',
+          before: before,
+          after: <String, Object?>{
+            ...before,
+            'lifecycle': MatchLifecycle.active.name,
+            'endedAt': null,
+            'note': restoredNote,
+          },
+          reason: 'resume-imported-incomplete',
+        );
+        await _inject(MatchCommandFailurePoint.afterLifecycleWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
   Future<MatchDetail> linkParticipant(LinkMatchParticipantCommand command) {
     return _execute(command, () {
       return _database.transaction(() async {
@@ -1461,6 +1860,22 @@ class MatchCommandService {
       correct(command);
 
   Future<MatchDetail> undoEvent(UndoMatchEventCommand command) => undo(command);
+
+  Future<MatchDetail> restoreEvent(RestoreMatchEventCommand command) =>
+      restore(command);
+
+  Future<MatchDetail> restoreMatchEvent(RestoreMatchEventCommand command) =>
+      restore(command);
+
+  Future<MatchDetail> correctLocation(CorrectShotLocationCommand command) =>
+      correctShotLocation(command);
+
+  Future<MatchDetail> correctFieldGoalLocation(
+    CorrectShotLocationCommand command,
+  ) => correctShotLocation(command);
+
+  Future<MatchDetail> moveShotLocation(CorrectShotLocationCommand command) =>
+      correctShotLocation(command);
 
   Future<MatchDetail> pauseMatch(PauseMatchCommand command) => pause(command);
 
@@ -1930,6 +2345,21 @@ class MatchCommandService {
     return _projection(command.matchId);
   }
 
+  static bool _isImportedIncompleteNote(String? note) {
+    final value = note?.trim();
+    return value == importedIncompleteNoteMarker ||
+        (value?.endsWith('[$importedIncompleteNoteMarker]') ?? false);
+  }
+
+  static String? _removeImportedIncompleteMarker(String? note) {
+    final value = note?.trim();
+    if (value == null || value == importedIncompleteNoteMarker) return null;
+    const suffix = '[$importedIncompleteNoteMarker]';
+    if (!value.endsWith(suffix)) return value;
+    final restored = value.substring(0, value.length - suffix.length).trim();
+    return restored.isEmpty ? null : restored;
+  }
+
   Future<MatchDetail> _writeReceipt(MatchCommand command) async {
     final projection = await _projectionInTransaction(command.matchId);
     if (projection == null) {
@@ -2009,6 +2439,30 @@ class MatchCommandService {
     }
   }
 
+  /// Replay edits use the same active-match policy as the existing correct
+  /// and undo commands, while also allowing completed matches to be edited
+  /// from finished/archived replay. Draft and abandoned matches remain
+  /// outside the correction boundary.
+  Future<void> _requireReplayEditableMatch(MatchCommand command) async {
+    final row = await _matchRow(command.matchId);
+    if (row == null) {
+      throw CommandValidationFailure(
+        command: command,
+        message: 'Missing match ${command.matchId}.',
+      );
+    }
+    final lifecycle = MatchLifecycle.values.byName(row.lifecycle);
+    if (lifecycle != MatchLifecycle.active &&
+        lifecycle != MatchLifecycle.finished &&
+        lifecycle != MatchLifecycle.archived) {
+      throw CommandValidationFailure(
+        command: command,
+        message: 'Only active, finished, or archived matches can be edited.',
+        projectionMatchId: command.matchId,
+      );
+    }
+  }
+
   Future<AuditLog?> _receipt(String commandId) async {
     final query = _database.select(_database.auditLogs)
       ..where((row) => row.id.equals(commandId));
@@ -2042,6 +2496,22 @@ class MatchCommandService {
     final query = _database.select(_database.shotLocations)
       ..where((row) => row.eventId.equals(eventId));
     return query.getSingleOrNull();
+  }
+
+  static Map<String, Object?> _shotLocationJson(ShotLocation row) =>
+      <String, Object?>{
+        'id': row.id,
+        'matchId': row.matchId,
+        'eventId': row.eventId,
+        'x': row.x,
+        'y': row.y,
+        'isConfirmed': row.isConfirmed,
+      };
+
+  static bool _eventTypeSupportsLocation(EventKind type) {
+    return type == EventKind.fieldGoal ||
+        type == EventKind.score ||
+        type == EventKind.miss;
   }
 
   Future<PlayerRow?> _playerRow(String id) {
@@ -2257,12 +2727,24 @@ class MatchCommandService {
     MatchCommand command,
     MatchEventRow event,
   ) async {
-    if (event.type == EventKind.pause.name && event.customLabel != null) {
+    if ((event.type == EventKind.pause.name ||
+            event.type == EventKind.possession.name) &&
+        event.customLabel != null) {
       throw CommandValidationFailure(
         command: command,
         message: 'System semantic events cannot be corrected or undone.',
         projectionMatchId: command.matchId,
       );
+    }
+    final match = await _matchRow(command.matchId);
+    final lifecycle = match == null
+        ? null
+        : MatchLifecycle.values.byName(match.lifecycle);
+    // Once a match is in replay, end-condition guards belong to the live
+    // scoring boundary and must not prevent a historical correction.
+    if (lifecycle == MatchLifecycle.finished ||
+        lifecycle == MatchLifecycle.archived) {
+      return;
     }
     final detail = await _projectionInTransaction(command.matchId);
     final decision = detail?.decision;
@@ -2358,6 +2840,35 @@ class MatchCommandService {
       scoreChanged: _isMadeScore(command),
       decisionEventId: '${command.commandId}:decision',
     );
+  }
+
+  Future<void> _restoreManualPossessionSegment(MatchEventRow event) async {
+    if (event.type != EventKind.possession.name ||
+        event.side == null ||
+        event.customLabel != null) {
+      return;
+    }
+    final id = '${event.id}:possession';
+    final existing = await (_database.select(
+      _database.possessionSegments,
+    )..where((segment) => segment.id.equals(id))).getSingleOrNull();
+    if (existing != null) return;
+    await _database
+        .into(_database.possessionSegments)
+        .insert(
+          PossessionSegmentsCompanion.insert(
+            id: id,
+            matchId: event.matchId,
+            side: event.side!,
+            startedAtEventId: event.id,
+            reason: Value(
+              event.note?.trim().isNotEmpty == true
+                  ? event.note!.trim()
+                  : 'manual-possession',
+            ),
+            source: Value(PossessionSource.manual.name),
+          ),
+        );
   }
 
   /// Rebuilds only derived possession suggestions after an event mutation.

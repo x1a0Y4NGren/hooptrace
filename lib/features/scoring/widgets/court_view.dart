@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
@@ -33,6 +35,7 @@ class CourtView extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
         final size = Size(constraints.maxWidth, constraints.maxHeight);
 
         void handlePosition(Offset local) {
@@ -75,8 +78,16 @@ class CourtView extends StatelessWidget {
 
         return Semantics(
           container: true,
-          label: mode == CourtViewMode.readOnly ? '复盘球场' : '篮球场落点编辑区',
-          hint: mode == CourtViewMode.readOnly ? '查看已记录的投篮' : '点击球场记录或调整投篮落点',
+          onTap: mode == CourtViewMode.editable
+              ? () => handleTap(size.center(Offset.zero))
+              : null,
+          onTapHint: mode == CourtViewMode.editable ? l10n.courtEditHint : null,
+          label: mode == CourtViewMode.readOnly
+              ? l10n.courtReplayLabel
+              : l10n.courtEditLabel,
+          hint: mode == CourtViewMode.readOnly
+              ? l10n.courtReplayHint
+              : l10n.courtEditHint,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapDown: (details) => handleTap(details.localPosition),

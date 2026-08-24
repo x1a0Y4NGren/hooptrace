@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
+import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
@@ -37,9 +39,9 @@ void main() {
         child: const HoopTraceApp(),
       ),
     );
-    await _pumpUntilFound(tester, find.text('开始计分'));
+    await _pumpUntilFound(tester, find.byKey(homeStartScoringKey));
 
-    await tester.tap(find.text('开始计分'));
+    await tester.tap(find.byKey(homeStartScoringKey));
     await _pumpUntilFound(tester, find.byType(PregamePage));
     await tester.scrollUntilVisible(
       find.byKey(const Key('pregame-recording-simple')),
@@ -48,19 +50,18 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('pregame-recording-simple')));
     await tester.scrollUntilVisible(
-      find.text(pregameStartMatchText),
+      find.byKey(const Key('pregame-start-match')),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text(pregameStartMatchText));
+    await tester.tap(find.byKey(const Key('pregame-start-match')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     final scoreButton = tester.widget<FilledButton>(
       find.byKey(const Key('red-score-2')),
     );
     scoreButton.onPressed!();
     await tester.pump();
-    expect(find.text(scoringMarkShotDialogTitle), findsNothing);
-    expect(find.text('标记投篮位置？'), findsNothing);
+    expect(find.text(_scoringMarkShotTitle(tester)), findsNothing);
 
     for (var attempt = 0; attempt < 100; attempt++) {
       await tester.runAsync(
@@ -82,6 +83,11 @@ void main() {
     expect(feedbackPlatform.hapticCalls, 1);
     expect(feedbackPlatform.eventCounts, [1]);
   });
+}
+
+String _scoringMarkShotTitle(WidgetTester tester) {
+  final context = tester.element(find.byType(ScoringPage));
+  return AppLocalizations.of(context)!.scoringMarkShotTitle;
 }
 
 class _CountingFeedbackPlatform implements ScoringFeedbackPlatform {

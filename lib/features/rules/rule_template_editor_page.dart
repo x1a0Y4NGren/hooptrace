@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 
@@ -74,8 +76,13 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
-      appBar: AppBar(title: Text(widget.template == null ? '新建规则' : '编辑规则')),
+      appBar: AppBar(
+        title: Text(
+          widget.template == null ? l10n.ruleNewTitle : l10n.ruleEditTitle,
+        ),
+      ),
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -85,52 +92,53 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
               _field(
                 key: const Key('rule-name'),
                 controller: _name,
-                label: '模板名称',
-                validator: (value) =>
-                    value == null || value.trim().isEmpty ? '请输入名称' : null,
+                label: l10n.ruleNameLabel,
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? l10n.ruleNameRequired
+                    : null,
               ),
               _field(
                 key: const Key('rule-target-score'),
                 controller: _target,
-                label: '目标分（可选）',
+                label: l10n.ruleTargetLabel,
                 numeric: true,
               ),
               _field(
                 key: const Key('rule-time-limit'),
                 controller: _timeLimit,
-                label: '时限分钟（可选）',
+                label: l10n.ruleTimeLimitLabel,
                 numeric: true,
               ),
               _field(
                 key: const Key('rule-foul-limit'),
                 controller: _foulLimit,
-                label: '犯规上限（可选）',
+                label: l10n.ruleFoulLimitLabel,
                 numeric: true,
               ),
               _field(
                 key: const Key('rule-score-buttons'),
                 controller: _scoreButtons,
-                label: '计分按钮（逗号分隔）',
+                label: l10n.ruleScoreButtonsLabel,
                 validator: _validateScoreButtons,
               ),
               _field(
                 key: const Key('rule-event-types'),
                 controller: _eventTypes,
-                label: '自定义事件类型（逗号分隔）',
+                label: l10n.ruleCustomLabelsLabel,
               ),
               SwitchListTile(
                 key: const Key('rule-win-by-two'),
                 contentPadding: EdgeInsets.zero,
                 value: _winByTwo,
-                title: const Text('领先 2 分获胜'),
+                title: Text(l10n.ruleWinByTwoTitle),
                 onChanged: (value) => setState(() => _winByTwo = value),
               ),
               SwitchListTile(
                 key: const Key('rule-possession-hint'),
                 contentPadding: EdgeInsets.zero,
                 value: _possessionHint,
-                title: const Text('得分后提示球权'),
-                subtitle: const Text('仅提示，不阻断手动计分'),
+                title: Text(l10n.rulePossessionHintTitle),
+                subtitle: Text(l10n.rulePossessionHintSubtitle),
                 onChanged: (value) => setState(() {
                   _possessionHint = value;
                   if (!value) _possessionPolicy = PossessionPolicy.manual;
@@ -139,16 +147,16 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
               DropdownButtonFormField<PossessionPolicy>(
                 key: const Key('rule-possession-policy'),
                 initialValue: _possessionPolicy,
-                decoration: const InputDecoration(
-                  labelText: '得分后球权策略',
-                  helperText: '仅在启用球权提示时可选择自动建议。',
+                decoration: InputDecoration(
+                  labelText: l10n.rulePossessionPolicyLabel,
+                  helperText: l10n.rulePossessionPolicyHelper,
                   border: OutlineInputBorder(),
                 ),
                 items: [
                   for (final policy in PossessionPolicy.values)
                     DropdownMenuItem(
                       value: policy,
-                      child: Text(_possessionPolicyLabel(policy)),
+                      child: Text(_possessionPolicyLabel(policy, l10n)),
                     ),
                 ],
                 onChanged: _possessionHint
@@ -165,7 +173,7 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
                   key: const Key('rule-save'),
                   onPressed: _save,
                   icon: const Icon(Icons.save_outlined),
-                  label: const Text('保存规则'),
+                  label: Text(l10n.ruleSaveAction),
                 ),
               ),
             ],
@@ -182,6 +190,7 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
     bool numeric = false,
     String? Function(String?)? validator,
   }) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
@@ -195,23 +204,30 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
         validator:
             validator ??
             (numeric
-                ? (value) => _validateOptionalPositive(value, label)
+                ? (value) => _validateOptionalPositive(value, label, l10n)
                 : null),
       ),
     );
   }
 
-  String? _validateOptionalPositive(String? value, String label) {
+  String? _validateOptionalPositive(
+    String? value,
+    String label,
+    AppLocalizations l10n,
+  ) {
     final text = value?.trim() ?? '';
     if (text.isEmpty) return null;
     final parsed = int.tryParse(text);
-    return parsed == null || parsed <= 0 ? '$label 必须为正整数' : null;
+    return parsed == null || parsed <= 0
+        ? l10n.rulePositiveInteger(label)
+        : null;
   }
 
   String? _validateScoreButtons(String? value) {
     final values = _parseNumbers(value ?? '');
     return values.isEmpty || values.any((item) => item <= 0)
-        ? '至少填写一个正整数'
+        ? (AppLocalizations.of(context) ?? AppLocalizationsZh())
+              .ruleAtLeastOneInteger
         : null;
   }
 
@@ -259,11 +275,14 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
       .toSet()
       .toList();
 
-  static String _possessionPolicyLabel(PossessionPolicy policy) {
+  static String _possessionPolicyLabel(
+    PossessionPolicy policy,
+    AppLocalizations l10n,
+  ) {
     return switch (policy) {
-      PossessionPolicy.manual => '手动纠正',
-      PossessionPolicy.switchAfterMade => '命中后交换',
-      PossessionPolicy.keepAfterMade => '命中后保持',
+      PossessionPolicy.manual => l10n.rulePolicyManual,
+      PossessionPolicy.switchAfterMade => l10n.rulePolicySwitchAfterMade,
+      PossessionPolicy.keepAfterMade => l10n.rulePolicyKeepAfterMade,
     };
   }
 }

@@ -68,6 +68,25 @@ void main() {
   });
 
   test(
+    'updates remain usable after backup dirty triggers are installed while disabled',
+    () async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      await database.ensureBackupDirtyTriggers();
+      final repository = ScoringFeedbackPreferencesRepository(database);
+
+      expect(
+        await repository.update(haptic: false, sound: true),
+        const ScoringFeedbackPreferences(haptic: false, sound: true),
+      );
+      expect(
+        await repository.update(haptic: true),
+        const ScoringFeedbackPreferences(haptic: true, sound: true),
+      );
+    },
+  );
+
+  test(
     'reload observes a restored AppSettings row after invalidation',
     () async {
       final database = createTestDatabase();
