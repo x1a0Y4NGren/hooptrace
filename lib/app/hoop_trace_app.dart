@@ -36,24 +36,39 @@ class _HoopTraceAppView extends ConsumerWidget {
     final themeMode = bootstrap.value?.isReady == true
         ? ref.watch(themePreferencesControllerProvider).themeMode
         : ThemeMode.system;
+    final languageController = bootstrap.value?.isReady == true
+        ? ref.watch(languagePreferencesControllerProvider)
+        : null;
+    final locale = languageController?.locale ?? const Locale('zh');
     return bootstrap.when(
       loading: () => _buildMaterialApp(
         themeMode: themeMode,
+        locale: locale,
         home: const _BootstrapLoadingPage(),
       ),
       error: (error, stackTrace) => _buildMaterialApp(
         themeMode: themeMode,
+        locale: locale,
         home: const _BootstrapFailurePage(),
       ),
       data: (state) {
         if (!state.isReady) {
           return _buildMaterialApp(
             themeMode: themeMode,
+            locale: locale,
             home: LegacyDatabaseBootstrapPage(version: state.version),
+          );
+        }
+        if (languageController?.initialized != true) {
+          return _buildMaterialApp(
+            themeMode: themeMode,
+            locale: locale,
+            home: const _BootstrapLoadingPage(),
           );
         }
         return _buildMaterialApp(
           themeMode: themeMode,
+          locale: locale,
           routerConfig: ref.watch(appRouterProvider),
         );
       },
@@ -62,6 +77,7 @@ class _HoopTraceAppView extends ConsumerWidget {
 
   MaterialApp _buildMaterialApp({
     required ThemeMode themeMode,
+    required Locale locale,
     Widget? home,
     GoRouter? routerConfig,
   }) {
@@ -73,6 +89,7 @@ class _HoopTraceAppView extends ConsumerWidget {
         theme: buildHoopTraceTheme(),
         darkTheme: buildHoopTraceTheme(brightness: Brightness.dark),
         themeMode: themeMode,
+        locale: locale,
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -91,6 +108,7 @@ class _HoopTraceAppView extends ConsumerWidget {
       theme: buildHoopTraceTheme(),
       darkTheme: buildHoopTraceTheme(brightness: Brightness.dark),
       themeMode: themeMode,
+      locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

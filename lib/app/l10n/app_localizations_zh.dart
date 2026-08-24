@@ -823,6 +823,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAppearanceSection => '外观';
 
   @override
+  String get settingsLanguageTitle => '语言';
+
+  @override
+  String get settingsLanguageSubtitle => '选择应用界面语言';
+
+  @override
+  String get settingsLanguageChinese => '中文';
+
+  @override
+  String get settingsLanguageEnglish => 'English';
+
+  @override
   String get settingsThemeTitle => '主题';
 
   @override

@@ -7,6 +7,7 @@ import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/backup_merge_service.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
+import 'package:hooptrace/core/settings/language_preferences.dart';
 import 'package:hooptrace/core/settings/theme_preferences.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 
@@ -17,6 +18,7 @@ class SettingsPage extends StatefulWidget {
     this.onOpenRules,
     this.onDataRestored,
     this.themeController,
+    this.languageController,
     super.key,
   });
 
@@ -25,6 +27,7 @@ class SettingsPage extends StatefulWidget {
   final VoidCallback? onOpenRules;
   final VoidCallback? onDataRestored;
   final ThemePreferencesController? themeController;
+  final LanguagePreferencesController? languageController;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -40,6 +43,7 @@ class _SettingsPageState extends State<SettingsPage> {
     super.initState();
     widget.controller.addListener(_refresh);
     widget.themeController?.addListener(_refresh);
+    widget.languageController?.addListener(_refresh);
     unawaited(_load());
   }
 
@@ -55,12 +59,17 @@ class _SettingsPageState extends State<SettingsPage> {
       oldWidget.themeController?.removeListener(_refresh);
       widget.themeController?.addListener(_refresh);
     }
+    if (oldWidget.languageController != widget.languageController) {
+      oldWidget.languageController?.removeListener(_refresh);
+      widget.languageController?.addListener(_refresh);
+    }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_refresh);
     widget.themeController?.removeListener(_refresh);
+    widget.languageController?.removeListener(_refresh);
     super.dispose();
   }
 
@@ -151,6 +160,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   _SettingsSection(
                     title: l10n.settingsAppearanceSection,
                     children: [
+                      if (widget.languageController != null)
+                        _LanguageSettingTile(
+                          icon: Icons.language_outlined,
+                          title: l10n.settingsLanguageTitle,
+                          subtitle: l10n.settingsLanguageSubtitle,
+                          controller: widget.languageController,
+                          l10n: l10n,
+                        ),
                       _ThemeSettingTile(
                         icon: Icons.palette_outlined,
                         title: l10n.settingsThemeTitle,
@@ -559,6 +576,66 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     return l10n.settingsErrorGeneric;
   }
+}
+
+class _LanguageSettingTile extends StatelessWidget {
+  const _LanguageSettingTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.controller,
+    required this.l10n,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final LanguagePreferencesController? controller;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final languageController = controller;
+    return ListTile(
+      key: const Key('language-preference-tile'),
+      minTileHeight: 64,
+      leading: Icon(icon),
+      title: Text(title),
+      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: languageController == null
+          ? null
+          : DropdownButtonHideUnderline(
+              child: DropdownButton<AppLanguagePreference>(
+                key: const Key('language-preference-dropdown'),
+                value: languageController.preference,
+                isDense: true,
+                items: AppLanguagePreference.values
+                    .map(
+                      (preference) => DropdownMenuItem<AppLanguagePreference>(
+                        value: preference,
+                        child: Text(_languagePreferenceLabel(preference, l10n)),
+                      ),
+                    )
+                    .toList(growable: false),
+                onChanged: (preference) {
+                  if (preference != null) {
+                    unawaited(languageController.setPreference(preference));
+                  }
+                },
+              ),
+            ),
+    );
+  }
+}
+
+String _languagePreferenceLabel(
+  AppLanguagePreference preference,
+  AppLocalizations l10n,
+) {
+  return switch (preference) {
+    AppLanguagePreference.chinese => l10n.settingsLanguageChinese,
+    AppLanguagePreference.english => l10n.settingsLanguageEnglish,
+  };
 }
 
 class _ThemeSettingTile extends StatelessWidget {

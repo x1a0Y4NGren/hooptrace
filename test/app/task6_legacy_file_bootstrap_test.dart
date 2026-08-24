@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
-import 'package:hooptrace/app/l10n/app_localizations_en.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/app_database_provider.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
 void main() {
-  final l10n = AppLocalizationsEn();
+  final l10n = AppLocalizationsZh();
 
   testWidgets('production LazyDatabase bootstrap preserves a real v1 file', (
     tester,

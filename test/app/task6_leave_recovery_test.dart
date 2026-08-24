@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
-import 'package:hooptrace/app/l10n/app_localizations_en.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -11,7 +11,7 @@ import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 void main() {
-  final l10n = AppLocalizationsEn();
+  final l10n = AppLocalizationsZh();
 
   testWidgets('running clock pause-and-leave persists paused state', (
     tester,

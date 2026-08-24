@@ -21,6 +21,7 @@ import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
 import 'package:hooptrace/core/export/device_export_gateway.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
+import 'package:hooptrace/core/settings/language_preferences.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/core/settings/theme_preferences.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
@@ -175,6 +176,20 @@ final themePreferencesControllerProvider =
     ChangeNotifierProvider<ThemePreferencesController>((ref) {
       final controller = ThemePreferencesController(
         ref.watch(themePreferencesRepositoryProvider),
+      );
+      unawaited(controller.load());
+      return controller;
+    });
+
+final languagePreferencesRepositoryProvider =
+    Provider<LanguagePreferencesRepository>((ref) {
+      return LanguagePreferencesRepository(ref.watch(appDatabaseProvider));
+    });
+
+final languagePreferencesControllerProvider =
+    ChangeNotifierProvider<LanguagePreferencesController>((ref) {
+      final controller = LanguagePreferencesController(
+        ref.watch(languagePreferencesRepositoryProvider),
       );
       unawaited(controller.load());
       return controller;

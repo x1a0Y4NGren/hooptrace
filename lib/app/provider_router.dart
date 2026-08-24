@@ -567,6 +567,7 @@ class _SettingsRoute extends ConsumerWidget {
     return SettingsPage(
       controller: ref.watch(settingsControllerProvider),
       themeController: ref.watch(themePreferencesControllerProvider),
+      languageController: ref.watch(languagePreferencesControllerProvider),
       onOpenProject: () => context.push('/project'),
       onOpenRules: () => context.push('/settings/rules'),
       onDataRestored: () => context.go('/'),

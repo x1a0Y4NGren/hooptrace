@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
-import 'package:hooptrace/app/l10n/app_localizations_en.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -13,7 +13,7 @@ import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import '../test_helpers/test_database.dart';
 
 void main() {
-  final l10n = AppLocalizationsEn();
+  final l10n = AppLocalizationsZh();
 
   test(
     'ready startup runs built-ins and automatic backup exactly once',
