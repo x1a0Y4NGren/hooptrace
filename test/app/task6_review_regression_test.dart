@@ -295,7 +295,34 @@ void main() {
     await _pumpUntilFound(tester, find.text(l10n.routeMatchNotActive));
     expect(find.text(l10n.routeMatchNotActiveBody), findsOneWidget);
     expect(find.byKey(const Key('route-message-home')), findsOneWidget);
+    expect(find.byKey(const Key('route-message-replay')), findsNothing);
     await tester.tap(find.byKey(const Key('route-message-home')));
+    await _pumpUntilFound(tester, find.byType(HomePage));
+  });
+
+  testWidgets('finished scoring deep link offers replay and home exits', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-finished-scoring-deep-link';
+    await _seedFinishedMatch(database, matchId);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerHost(database, router));
+    router.go('/scoring/$matchId');
+    await _pumpUntilFound(tester, find.text(l10n.routeMatchNotActive));
+
+    expect(find.byKey(const Key('route-message-home')), findsOneWidget);
+    expect(find.byKey(const Key('route-message-replay')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('route-message-replay')));
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+    expect(find.text(l10n.replayFinished), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
     await _pumpUntilFound(tester, find.byType(HomePage));
   });
 

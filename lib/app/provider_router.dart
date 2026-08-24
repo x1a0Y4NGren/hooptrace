@@ -339,11 +339,18 @@ class _ScoringRoute extends ConsumerWidget {
     }
     if (detail.hasValue) {
       final projection = detail.valueOrNull;
+      final canViewReplay =
+          projection != null &&
+          (projection.match.lifecycle == MatchLifecycle.finished ||
+              projection.match.lifecycle == MatchLifecycle.archived);
       if (projection == null || projection.match.lifecycle.name != 'active') {
         return _RouteMessage(
           title: l10n.routeMatchNotActive,
           message: l10n.routeMatchNotActiveBody,
           onHome: () => context.go('/'),
+          onReplay: canViewReplay
+              ? () => context.go('/matches/$matchId/replay')
+              : null,
         );
       }
       final controller = ref.watch(scoringControllerProvider(matchId));
@@ -1077,14 +1084,17 @@ class _RouteMessage extends StatelessWidget {
     required this.title,
     required this.message,
     this.onHome,
+    this.onReplay,
   });
 
   final String title;
   final String message;
   final VoidCallback? onHome;
+  final VoidCallback? onReplay;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
       appBar: AppBar(),
       body: SafeArea(
@@ -1103,15 +1113,20 @@ class _RouteMessage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(message, textAlign: TextAlign.center),
+                if (onReplay != null) ...[
+                  const SizedBox(height: 20),
+                  OutlinedButton(
+                    key: const Key('route-message-replay'),
+                    onPressed: onReplay,
+                    child: Text(l10n.replayTitle),
+                  ),
+                ],
                 if (onHome != null) ...[
                   const SizedBox(height: 20),
                   FilledButton(
                     key: const Key('route-message-home'),
                     onPressed: onHome,
-                    child: Text(
-                      (AppLocalizations.of(context) ?? AppLocalizationsZh())
-                          .historyHomeTooltip,
-                    ),
+                    child: Text(l10n.historyHomeTooltip),
                   ),
                 ],
               ],
