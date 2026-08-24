@@ -1085,6 +1085,96 @@ void main() {
       });
     },
   );
+
+  test(
+    'local court-first undo removes the event and location atomically',
+    () async {
+      final controller = ScoringController(
+        matchId: 'task8-local-court-first-undo',
+      );
+      expect(
+        controller.beginOrMoveCourtFirstShot(
+          CourtPoint(x: 0.2, y: 0.8),
+          side: TeamSide.red,
+        ),
+        isTrue,
+      );
+      controller.updateCourtFirstShot(outcome: ShotOutcome.made, points: 2);
+      expect(await controller.commitCourtFirstShot(), isTrue);
+      expect(controller.state.shotLocations, hasLength(1));
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(
+        controller.state.events.where((event) => !event.isDeleted),
+        isEmpty,
+      );
+      expect(controller.state.shotLocations, isEmpty);
+      expect(controller.state.score.redScore, 0);
+    },
+  );
+
+  test('local score-first location undo remains a two-step action', () async {
+    final controller = ScoringController(
+      matchId: 'task8-local-score-first-undo',
+    );
+    expect(controller.addScore(side: TeamSide.red, points: 2), isTrue);
+    await controller.confirmPendingLocation(CourtPoint(x: 0.4, y: 0.6));
+    expect(controller.state.shotLocations, hasLength(1));
+    expect(await controller.undoLastScoringActionCommitted(), isTrue);
+    expect(
+      controller.state.events.where((event) => !event.isDeleted),
+      hasLength(1),
+    );
+    expect(controller.state.shotLocations, isEmpty);
+    expect(await controller.undoLastScoringActionCommitted(), isTrue);
+    expect(controller.state.events.where((event) => !event.isDeleted), isEmpty);
+    expect(controller.state.score.redScore, 0);
+  });
+
+  test(
+    'controller rebuild chooses the durable newest supplement owner for out-of-order timestamps',
+    () async {
+      await withTestDatabase((database) async {
+        final openedAt = DateTime.now().toUtc();
+        final service = MatchCommandService(database, now: () => openedAt);
+        final started = await service.start(
+          _startCommand(matchId: 'task8-durable-owner'),
+        );
+        final first = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-durable-owner-first',
+            matchId: started.match.id,
+            eventId: 'task8-durable-owner-first-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: openedAt.subtract(const Duration(seconds: 5)),
+          ),
+        );
+        final second = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-durable-owner-second',
+            matchId: started.match.id,
+            eventId: 'task8-durable-owner-second-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.blue,
+            points: 1,
+            outcome: ShotOutcome.made,
+            occurredAt: openedAt.subtract(const Duration(seconds: 6)),
+          ),
+        );
+        expect(first.events, isNotEmpty);
+        final controller = ScoringController.fromCommittedProjection(
+          second,
+          service,
+        );
+        expect(
+          controller.locationSupplementWindow?.eventId,
+          'task8-durable-owner-second-event',
+        );
+      });
+    },
+  );
 }
 
 StartMatchCommand _startCommand({

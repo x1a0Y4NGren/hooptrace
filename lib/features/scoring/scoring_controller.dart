@@ -274,6 +274,7 @@ class ScoringController extends ChangeNotifier {
   MatchScoringState _state;
   final Queue<_QueuedScoringCommand> _commandQueue =
       Queue<_QueuedScoringCommand>();
+  final Set<String> _localAtomicScoringEventIds = <String>{};
   bool _drainingQueue = false;
   bool _exclusiveBusy = false;
   bool _disposed = false;
@@ -352,7 +353,8 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: points,
         outcome: ShotOutcome.made,
-        occurredAt: (occurredAt ?? DateTime.now()).toUtc(),
+        occurredAt: (occurredAt ?? _state.clock?.nowUtc ?? DateTime.now())
+            .toUtc(),
       ),
     );
   }
@@ -376,7 +378,8 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: points,
         outcome: outcome,
-        occurredAt: (occurredAt ?? DateTime.now()).toUtc(),
+        occurredAt: (occurredAt ?? _state.clock?.nowUtc ?? DateTime.now())
+            .toUtc(),
         shotLocation: location == null
             ? null
             : MatchShotLocationInput(x: location.x, y: location.y),
@@ -546,11 +549,34 @@ class ScoringController extends ChangeNotifier {
     final locationIndex = _state.shotLocations.lastIndexWhere(
       (location) => location.eventId == event!.id && location.isLocked,
     );
-    if (locationIndex >= 0) {
+    final atomic = _localAtomicScoringEventIds.remove(event.id);
+    if (atomic) {
+      final locations = _state.shotLocations
+          .where((location) => location.eventId != event!.id)
+          .toList(growable: false);
+      _state = _state.copyWith(shotLocations: locations);
+    }
+    if (locationIndex >= 0 && !atomic) {
       final locations = [..._state.shotLocations]..removeAt(locationIndex);
+      final canRestoreWindow =
+          event.side != null &&
+          (event.type == EventKind.score ||
+              event.type == EventKind.fieldGoal ||
+              event.type == EventKind.miss) &&
+          DateTime.now().toUtc().isBefore(
+            event.occurredAt.toUtc().add(locationSupplementWindowDuration),
+          );
       _state = _state.copyWith(
         shotLocations: locations,
-        clearLocationSupplementWindow: true,
+        locationSupplementWindow: canRestoreWindow
+            ? LocationSupplementWindow(
+                eventId: event.id,
+                side: event.side!,
+                points: event.points,
+                openedAtUtc: event.occurredAt.toUtc(),
+              )
+            : null,
+        clearLocationSupplementWindow: !canRestoreWindow,
       );
       notifyListeners();
       return true;
@@ -659,7 +685,7 @@ class ScoringController extends ChangeNotifier {
         matchId: _state.matchId,
         eventId: pending.eventId,
         point: confirmedPoint,
-        requestedAtUtc: DateTime.now().toUtc(),
+        requestedAtUtc: (_state.clock?.nowUtc ?? DateTime.now()).toUtc(),
       );
       await _runExclusive(command, () => service.confirmShotLocation(command));
       return;
@@ -783,10 +809,12 @@ class ScoringController extends ChangeNotifier {
     String? eventId,
   }) async {
     if (_disposed || _exclusiveBusy) return false;
+    final requested = (requestedAtUtc ?? _state.clock?.nowUtc ?? DateTime.now())
+        .toUtc();
     final window = _state.locationSupplementWindow;
     if (window == null ||
         (eventId != null && eventId != window.eventId) ||
-        !window.contains(requestedAtUtc ?? DateTime.now())) {
+        !window.contains(requested)) {
       return false;
     }
     final service = _commandService;
@@ -794,7 +822,6 @@ class ScoringController extends ChangeNotifier {
         .where((item) => item.id == window.eventId && !item.isDeleted)
         .firstOrNull;
     if (event == null) return false;
-    final requested = (requestedAtUtc ?? DateTime.now()).toUtc();
     if (service == null) {
       final marker = ScoringShotLocation(
         id: '${_state.matchId}-shot-${_state.shotLocations.length + 1}',
@@ -1087,7 +1114,7 @@ class ScoringController extends ChangeNotifier {
         .map((location) => location.eventId)
         .toSet();
     LocationSupplementWindow? supplement;
-    final nowUtc = DateTime.now().toUtc();
+    final nowUtc = (projection.clock?.nowUtc ?? DateTime.now()).toUtc();
     MatchEvent? latestScoringEvent;
     for (final event in events.reversed) {
       if (!event.isDeleted && _isScoringEvent(event)) {
@@ -1335,6 +1362,7 @@ class ScoringController extends ChangeNotifier {
           isLocked: true,
         ),
       );
+      _localAtomicScoringEventIds.add(event.id);
     }
     _state = _state.copyWith(
       events: List.unmodifiable(events),
@@ -1377,7 +1405,7 @@ class ScoringController extends ChangeNotifier {
 
   MatchEvent? get _latestUnlocatedShot {
     final locatedIds = _state.shotLocations.map((item) => item.eventId).toSet();
-    final nowUtc = DateTime.now().toUtc();
+    final nowUtc = (_state.clock?.nowUtc ?? DateTime.now()).toUtc();
     for (final event in _state.events.reversed) {
       if (event.isDeleted || !_isScoringEvent(event)) {
         continue;

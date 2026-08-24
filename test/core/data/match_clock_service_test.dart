@@ -1778,6 +1778,246 @@ void main() {
       expect(undone.decision, isNull);
     },
   );
+
+  test(
+    'scoring undo removes a future-timestamp terminal decision and resumes the clock',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          timerEnabled: true,
+          ruleTemplate: const RuleTemplate(
+            id: 'future-target',
+            name: 'Target',
+            scoreButtons: [1, 2, 3],
+            targetScore: 1,
+          ),
+        ),
+      );
+      final future = _anchor.add(const Duration(seconds: 30));
+      final scored = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'future-terminal-score',
+          matchId: 'match-clock',
+          eventId: 'future-terminal-event',
+          side: TeamSide.red,
+          points: 1,
+          occurredAt: future,
+        ),
+      );
+      expect(scored.decision, isNotNull);
+
+      final undone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'future-terminal-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(undone.decision, isNull);
+      expect(undone.clock?.state.runningSinceUtc, isNotNull);
+      final continued = await service.record(
+        _score(
+          commandId: 'future-terminal-next',
+          eventId: 'future-terminal-next-event',
+        ),
+      );
+      expect(continued.redScore, 1);
+    },
+  );
+
+  test(
+    'undoing a later terminal score retains the earlier decision audit row',
+    () async {
+      final database = createTestDatabase();
+      var now = _anchor;
+      final service = MatchCommandService(database, now: () => now);
+      await service.start(
+        _start(
+          ruleTemplate: const RuleTemplate(
+            id: 'decision-history',
+            name: 'Target',
+            scoreButtons: [1, 2, 3],
+            targetScore: 1,
+          ),
+        ),
+      );
+      await service.record(
+        _score(commandId: 'decision-first', eventId: 'decision-first-event'),
+      );
+      final firstDecision = (await database.select(database.matchEvents).get())
+          .lastWhere(
+            (event) => event.customLabel?.startsWith('decision:') == true,
+          );
+      await service.continueMatch(
+        ContinueMatchCommand(
+          commandId: 'decision-continue',
+          matchId: 'match-clock',
+          occurredAt: _anchor,
+        ),
+      );
+      now = _anchor.add(const Duration(seconds: 1));
+      final second = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'decision-second',
+          matchId: 'match-clock',
+          eventId: 'decision-second-event',
+          side: TeamSide.red,
+          points: 1,
+          occurredAt: _anchor.add(const Duration(seconds: 30)),
+        ),
+      );
+      final secondDecision = second.events.lastWhere(
+        (event) => event.customLabel?.startsWith('decision:') == true,
+      );
+      await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'decision-second-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      final rows = await database.select(database.matchEvents).get();
+      expect(
+        rows.singleWhere((event) => event.id == firstDecision.id).isDeleted,
+        isFalse,
+      );
+      expect(
+        rows.singleWhere((event) => event.id == secondDecision.id).isDeleted,
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'newest supplement ownership follows commit order for out-of-order timestamps',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'ownership-first',
+          matchId: 'match-clock',
+          eventId: 'ownership-first-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor.subtract(const Duration(seconds: 5)),
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'ownership-second',
+          matchId: 'match-clock',
+          eventId: 'ownership-second-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.blue,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor.subtract(const Duration(seconds: 6)),
+        ),
+      );
+      final failure = await _captureFailure(
+        () => service.confirmShotLocation(
+          ConfirmShotLocationCommand(
+            commandId: 'ownership-stale-confirm',
+            matchId: 'match-clock',
+            eventId: 'ownership-first-event',
+            point: CourtPoint(x: 0.2, y: 0.3),
+            requestedAtUtc: _anchor.subtract(const Duration(seconds: 4)),
+          ),
+        ),
+      );
+      expect(failure, isA<CommandValidationFailure>());
+    },
+  );
+
+  test(
+    'confirm location rejects a future event even inside its requested window',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      final future = _anchor.add(const Duration(seconds: 5));
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'future-location-score',
+          matchId: 'match-clock',
+          eventId: 'future-location-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: future,
+        ),
+      );
+      final failure = await _captureFailure(
+        () => service.confirmShotLocation(
+          ConfirmShotLocationCommand(
+            commandId: 'future-location-confirm',
+            matchId: 'match-clock',
+            eventId: 'future-location-event',
+            point: CourtPoint(x: 0.2, y: 0.3),
+            requestedAtUtc: future.add(const Duration(seconds: 1)),
+          ),
+        ),
+      );
+      expect(failure, isA<CommandValidationFailure>());
+    },
+  );
+
+  test(
+    'location confirmation supports legacy miss and score event kinds',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'legacy-miss-record',
+          matchId: 'match-clock',
+          eventId: 'legacy-miss-event',
+          type: EventKind.miss,
+          side: TeamSide.red,
+          points: 0,
+          occurredAt: _anchor.subtract(const Duration(seconds: 1)),
+        ),
+      );
+      final miss = await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'legacy-miss-locate',
+          matchId: 'match-clock',
+          eventId: 'legacy-miss-event',
+          point: CourtPoint(x: 0.2, y: 0.3),
+          requestedAtUtc: _anchor,
+        ),
+      );
+      expect(miss.locatedShotCount, 1);
+
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'legacy-score-record',
+          matchId: 'match-clock',
+          eventId: 'legacy-score-event',
+          type: EventKind.score,
+          side: TeamSide.blue,
+          points: 1,
+          occurredAt: _anchor,
+        ),
+      );
+      final score = await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'legacy-score-locate',
+          matchId: 'match-clock',
+          eventId: 'legacy-score-event',
+          point: CourtPoint(x: 0.8, y: 0.7),
+          requestedAtUtc: _anchor.add(const Duration(seconds: 1)),
+        ),
+      );
+      expect(score.locatedShotCount, 2);
+    },
+  );
 }
 
 Future<MatchCommandFailure> _captureFailure(

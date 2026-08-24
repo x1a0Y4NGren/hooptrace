@@ -1178,14 +1178,21 @@ class MatchCommandService {
             projectionMatchId: command.matchId,
           );
         }
+        final supportsLocation =
+            event.type == EventKind.fieldGoal.name ||
+            event.type == EventKind.score.name ||
+            event.type == EventKind.miss.name;
         if (event.isDeleted ||
-            event.type != EventKind.fieldGoal.name ||
-            (event.outcome != ShotOutcome.made.name &&
-                event.outcome != ShotOutcome.missed.name)) {
+            !supportsLocation ||
+            (event.type == EventKind.fieldGoal.name &&
+                event.outcome != ShotOutcome.made.name &&
+                event.outcome != ShotOutcome.missed.name) ||
+            (event.type == EventKind.score.name && event.points <= 0) ||
+            (event.type == EventKind.miss.name && event.points != 0)) {
           throw CommandValidationFailure(
             command: command,
             message:
-                'Only a committed field-goal attempt can receive a location.',
+                'Only a committed field-goal, score, or miss can receive a location.',
             projectionMatchId: command.matchId,
           );
         }
@@ -1200,9 +1207,11 @@ class MatchCommandService {
         }
         final openedAtUtc = event.occurredAt.toUtc();
         final deadline = openedAtUtc.add(locationSupplementWindowDuration);
-        if (command.requestedAtUtc.isBefore(openedAtUtc) ||
+        final serverNowUtc = _now().toUtc();
+        if (event.occurredAt.toUtc().isAfter(serverNowUtc) ||
+            command.requestedAtUtc.isBefore(openedAtUtc) ||
             !command.requestedAtUtc.isBefore(deadline) ||
-            !_now().toUtc().isBefore(deadline)) {
+            !serverNowUtc.isBefore(deadline)) {
           throw CommandValidationFailure(
             command: command,
             message:
@@ -1368,6 +1377,7 @@ class MatchCommandService {
             command.matchId,
             scoreChanged: _scoresChanged(beforeProjection, afterProjection),
             decisionEventId: '${command.commandId}:decision',
+            scoringEventId: event.id,
           );
         }
 
@@ -1471,6 +1481,7 @@ class MatchCommandService {
           command.matchId,
           scoreChanged: _scoresChanged(beforeProjection, afterProjection),
           decisionEventId: '${command.commandId}:decision',
+          scoringEventId: command.eventId,
         );
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         final result = await _writeReceipt(command);
@@ -1532,6 +1543,7 @@ class MatchCommandService {
           command.matchId,
           scoreChanged: _scoresChanged(beforeProjection, afterProjection),
           decisionEventId: '${command.commandId}:decision',
+          scoringEventId: command.eventId,
         );
         await _inject(MatchCommandFailurePoint.afterAuditWritten);
         final result = await _writeReceipt(command);
@@ -1595,6 +1607,7 @@ class MatchCommandService {
           command.matchId,
           scoreChanged: _scoresChanged(beforeProjection, afterProjection),
           decisionEventId: '${command.commandId}:decision',
+          scoringEventId: command.eventId,
         );
         await _inject(MatchCommandFailurePoint.afterEventWritten);
         final result = await _writeReceipt(command);
@@ -1605,8 +1618,8 @@ class MatchCommandService {
     });
   }
 
-  /// Corrects an existing confirmed field-goal location without changing its
-  /// row identity or the event's score contribution.
+  /// Corrects an existing confirmed scoring location without changing its row
+  /// identity or the event's score contribution.
   Future<MatchDetail> correctShotLocation(CorrectShotLocationCommand command) {
     return _execute(command, () {
       return _database.transaction(() async {
@@ -1635,13 +1648,17 @@ class MatchCommandService {
             projectionMatchId: command.matchId,
           );
         }
-        if (event.type != EventKind.fieldGoal.name ||
-            (event.outcome != ShotOutcome.made.name &&
-                event.outcome != ShotOutcome.missed.name)) {
+        final eventType = EventKind.values.byName(event.type);
+        if (!_eventTypeSupportsLocation(eventType) ||
+            (eventType == EventKind.fieldGoal &&
+                event.outcome != ShotOutcome.made.name &&
+                event.outcome != ShotOutcome.missed.name) ||
+            (eventType == EventKind.score && event.points <= 0) ||
+            (eventType == EventKind.miss && event.points != 0)) {
           throw CommandValidationFailure(
             command: command,
             message:
-                'Only a confirmed field-goal attempt can move its location.',
+                'Only a confirmed field-goal, score, or miss can move its location.',
             projectionMatchId: command.matchId,
           );
         }
@@ -2723,7 +2740,7 @@ class MatchCommandService {
     return query.getSingleOrNull();
   }
 
-  /// Returns the newest scoring event in projection order. Every scoring
+  /// Returns the newest scoring event in durable commit order. Every scoring
   /// event participates in ownership, including free throws: a newly
   /// committed free throw therefore closes the previous field-goal window.
   Future<MatchEventRow?> _latestScoringEvent(String matchId) async {
@@ -2741,10 +2758,31 @@ class MatchCommandService {
                     ]),
               )
               ..orderBy([
-                (event) => OrderingTerm.desc(event.occurredAt),
                 (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
               ]))
             .get();
+    final eventById = <String, MatchEventRow>{
+      for (final event in rows) event.id: event,
+    };
+    final audits =
+        await (_database.select(_database.auditLogs)
+              ..where(
+                (audit) =>
+                    audit.matchId.equals(matchId) &
+                    audit.action.equals('create'),
+              )
+              ..orderBy([
+                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    MatchEventRow? latest;
+    for (final audit in audits) {
+      final event = eventById[audit.targetId];
+      if (event != null) latest = event;
+    }
+    if (latest != null) return latest;
+    // Imported rows from pre-audit backups still need a deterministic
+    // fallback; newly committed events always have a create audit above.
     return rows.isEmpty ? null : rows.first;
   }
 
@@ -2783,7 +2821,6 @@ class MatchCommandService {
                     audit.action.isIn(['create', 'locate']),
               )
               ..orderBy([
-                (audit) => OrderingTerm.asc(audit.createdAt),
                 (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
               ]))
             .get();
@@ -2855,7 +2892,6 @@ class MatchCommandService {
         await (_database.select(_database.matchEvents)
               ..where((event) => event.matchId.equals(matchId))
               ..orderBy([
-                (event) => OrderingTerm.asc(event.occurredAt),
                 (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
               ]))
             .get();
@@ -3046,12 +3082,36 @@ class MatchCommandService {
     // state undoing a later score must not erase the earlier acknowledgement.
     if (await _latestDecisionLabel(command.matchId) == null) return;
     final decision = await _latestDecisionEvent(command.matchId);
-    if (decision == null ||
-        decision.occurredAt.toUtc().isBefore(
-          selectedEvent.occurredAt.toUtc(),
-        )) {
+    if (decision == null) {
       return;
     }
+    final clockRow = await _clockRow(command.matchId);
+    if (clockRow == null) return;
+    // The decision pause is derived from the scoring transaction. Its audit
+    // row carries the source event identity, so undo never compares client
+    // supplied occurredAt values (which may be future or out of order).
+    final decisionClockAudits =
+        await (_database.select(_database.auditLogs)
+              ..where(
+                (audit) =>
+                    audit.matchId.equals(command.matchId) &
+                    audit.targetId.equals(clockRow.id) &
+                    audit.action.equals('edit') &
+                    audit.reason.equals('decision-clock'),
+              )
+              ..orderBy([
+                (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    AuditLog? decisionClockAudit;
+    for (final audit in decisionClockAudits) {
+      final after = _decodeObject(audit.afterJson);
+      if (after['scoringEventId'] == selectedEvent.id) {
+        decisionClockAudit = audit;
+        break;
+      }
+    }
+    if (decisionClockAudit == null) return;
     await (_database.update(_database.matchEvents)
           ..where((row) => row.id.equals(decision.id)))
         .write(const MatchEventsCompanion(isDeleted: Value(true)));
@@ -3064,24 +3124,6 @@ class MatchCommandService {
       after: <String, Object?>{..._eventJson(decision), 'isDeleted': true},
       reason: 'undo-decision',
     );
-
-    final clockRow = await _clockRow(command.matchId);
-    if (clockRow == null) return;
-    final decisionClockAudit =
-        await (_database.select(_database.auditLogs)
-              ..where(
-                (audit) =>
-                    audit.matchId.equals(command.matchId) &
-                    audit.targetId.equals(clockRow.id) &
-                    audit.action.equals('edit') &
-                    audit.reason.equals('decision-clock'),
-              )
-              ..orderBy([
-                (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
-              ])
-              ..limit(1))
-            .getSingleOrNull();
-    if (decisionClockAudit == null) return;
 
     final restored = _clockStateFromJson(
       _decodeObject(decisionClockAudit.beforeJson),
@@ -3236,6 +3278,7 @@ class MatchCommandService {
       command.matchId,
       scoreChanged: _isMadeScore(command),
       decisionEventId: '${command.commandId}:decision',
+      scoringEventId: command.eventId,
     );
   }
 
@@ -3593,6 +3636,7 @@ class MatchCommandService {
     String matchId, {
     required bool scoreChanged,
     required String decisionEventId,
+    String? scoringEventId,
   }) async {
     final detail = await _projectionInTransaction(matchId);
     if (detail == null) return;
@@ -3637,7 +3681,10 @@ class MatchCommandService {
       targetId: row.id,
       action: 'edit',
       before: _clockJson(beforeClock),
-      after: _clockJson(nextClock),
+      after: <String, Object?>{
+        ..._clockJson(nextClock),
+        'scoringEventId': scoringEventId,
+      },
       reason: 'decision-clock',
     );
     await _database
