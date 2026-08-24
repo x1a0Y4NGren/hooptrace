@@ -36,8 +36,6 @@ void main() {
     await _selectProfile(tester, 'pregame-blue-profile', redProfile.nickname);
     expect(find.text('该球员档案已用于另一方，请选择其他档案。'), findsOneWidget);
 
-    await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
     await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
     await tester.tap(find.byKey(const Key('pregame-start-match')));
 
@@ -80,8 +78,6 @@ void main() {
           .value,
       '__temporary_profile__',
     );
-    await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
     await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
     await tester.tap(find.byKey(const Key('pregame-start-match')));
 
@@ -129,8 +125,6 @@ void main() {
 
     await tester.enterText(find.byKey(const Key('pregame-red-name')), 'Alex');
     await tester.enterText(find.byKey(const Key('pregame-blue-name')), 'Alex');
-    await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
     await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
     await tester.tap(find.byKey(const Key('pregame-start-match')));
 
@@ -140,7 +134,7 @@ void main() {
     expect(setup?.bluePlayerProfileId, isNull);
   });
 
-  testWidgets('start is blocked with a readable error until mode is selected', (
+  testWidgets('start works without recording mode or coverage choices', (
     tester,
   ) async {
     var startCount = 0;
@@ -151,10 +145,7 @@ void main() {
     await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
     await tester.tap(find.byKey(const Key('pregame-start-match')));
 
-    expect(startCount, 0);
-    await _scrollTo(tester, find.byKey(const Key('pregame-validation')));
-    expect(find.text('请选择记录模式后再开始比赛。'), findsOneWidget);
-    expect(find.text('recordingModeRequired'), findsNothing);
+    expect(startCount, 1);
   });
 
   testWidgets('timer controls expose count-up and valid countdown settings', (
@@ -178,8 +169,6 @@ void main() {
       find.byKey(const Key('pregame-countdown-minutes')),
       '15',
     );
-    await _scrollTo(tester, find.byKey(const Key('pregame-recording-simple')));
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
     await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
     await tester.tap(find.byKey(const Key('pregame-start-match')));
 
@@ -188,7 +177,7 @@ void main() {
     expect(setup?.timeLimitMinutes, 15);
   });
 
-  testWidgets('tracking coverage is carried into the final setup', (
+  testWidgets('new setup uses score-only tracking compatibility default', (
     tester,
   ) async {
     MatchSetup? setup;
@@ -196,20 +185,11 @@ void main() {
       MaterialApp(home: PregamePage(onStartMatch: (value) => setup = value)),
     );
 
-    await _scrollTo(tester, find.byKey(const Key('pregame-tracking-coverage')));
-    await tester.tap(find.byKey(const Key('pregame-tracking-coverage')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('投篮出手').last);
-    await _scrollTo(
-      tester,
-      find.byKey(const Key('pregame-recording-detailed')),
-    );
-    await tester.tap(find.byKey(const Key('pregame-recording-detailed')));
     await _scrollTo(tester, find.byKey(const Key('pregame-start-match')));
     await tester.tap(find.byKey(const Key('pregame-start-match')));
 
-    expect(setup?.recordingMode, RecordingMode.detailed);
-    expect(setup?.trackingCoverage, TrackingCoverage.shotAttempts);
+    expect(setup?.recordingMode, RecordingMode.simple);
+    expect(setup?.trackingCoverage, TrackingCoverage.scoresOnly);
   });
 
   testWidgets('profile stream updates do not reset an in-progress name edit', (

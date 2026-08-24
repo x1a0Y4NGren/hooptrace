@@ -60,7 +60,7 @@ class MatchSetup {
     this.customEventTypes = const [],
     this.redPlayerProfileId,
     this.bluePlayerProfileId,
-    this.recordingMode,
+    this.recordingMode = RecordingMode.simple,
     this.trackingCoverage = TrackingCoverage.scoresOnly,
     this.clockMode = ClockMode.countUp,
   });
@@ -101,7 +101,7 @@ class PregameState {
     this.countdownMinutesText = '10',
     this.countdownDurationInputInvalid = false,
     this.winByTwo = false,
-    this.recordingMode,
+    this.recordingMode = RecordingMode.simple,
     this.trackingCoverage = TrackingCoverage.scoresOnly,
     this.advancedExpanded = false,
   });
@@ -338,9 +338,6 @@ class PregameController {
         _findPlayer(_state.bluePlayerProfileId!) == null) {
       errors.add(PregameValidationError.bluePlayerProfileMissing);
     }
-    if (_state.recordingMode == null) {
-      errors.add(PregameValidationError.recordingModeRequired);
-    }
     if (_state.clockMode == ClockMode.countdown) {
       if (!_state.timerEnabled) {
         errors.add(PregameValidationError.countdownTimerRequired);
@@ -380,7 +377,7 @@ class PregameController {
       possessionHintEnabled: selected?.possessionHintEnabled ?? false,
       possessionPolicy: selected?.possessionPolicy ?? PossessionPolicy.manual,
       customEventTypes: selected?.customEventTypes ?? const [],
-      recordingMode: _state.recordingMode,
+      recordingMode: _state.recordingMode ?? RecordingMode.simple,
       trackingCoverage: _state.trackingCoverage,
       clockMode: _state.clockMode,
     );

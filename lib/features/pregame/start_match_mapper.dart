@@ -15,8 +15,9 @@ class PregameSetupValidationException implements Exception {
 }
 
 /// Validates and maps the complete pre-game state before the start command is
-/// handed to the transactional kernel. This pure boundary keeps the route
-/// from silently filling in a recording mode or changing clock semantics.
+/// handed to the transactional kernel. Recording metadata is retained for
+/// compatibility, but new matches use the historical simple score-only
+/// defaults without exposing those implementation details in the start UI.
 StartMatchCommand buildStartMatchCommand(MatchSetup setup, {DateTime? now}) {
   final result = validateMatchSetup(setup);
   if (!result.isValid) {
@@ -32,7 +33,7 @@ StartMatchCommand buildStartMatchCommand(MatchSetup setup, {DateTime? now}) {
     blueName: setup.blueName.trim(),
     redPlayerProfileId: setup.redPlayerProfileId,
     bluePlayerProfileId: setup.bluePlayerProfileId,
-    recordingMode: setup.recordingMode!,
+    recordingMode: setup.recordingMode ?? RecordingMode.simple,
     trackingCoverage: setup.trackingCoverage,
     clockMode: setup.clockMode,
     regulationSeconds: regulationSeconds,
@@ -65,9 +66,6 @@ PregameValidationResult validateMatchSetup(MatchSetup setup) {
   if (setup.redPlayerProfileId != null &&
       setup.redPlayerProfileId == setup.bluePlayerProfileId) {
     errors.add(PregameValidationError.duplicatePlayerProfile);
-  }
-  if (setup.recordingMode == null) {
-    errors.add(PregameValidationError.recordingModeRequired);
   }
   if (setup.clockMode == ClockMode.countdown) {
     if (!setup.timerEnabled) {

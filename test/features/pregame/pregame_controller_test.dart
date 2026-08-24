@@ -15,6 +15,15 @@ void main() {
     expect(controller.state.timerEnabled, isFalse);
   });
 
+  test('new matches default to simple score-only recording metadata', () {
+    final controller = PregameController();
+
+    expect(controller.validate().isValid, isTrue);
+    final setup = controller.createMatchSetup();
+    expect(setup.recordingMode, RecordingMode.simple);
+    expect(setup.trackingCoverage, TrackingCoverage.scoresOnly);
+  });
+
   test('pre-game controller creates an in-memory match setup', () {
     final controller = PregameController()
       ..setRedName('A Li')
@@ -96,21 +105,6 @@ void main() {
     expect(result.isValid, isTrue);
     expect(controller.createMatchSetup().redPlayerProfileId, isNull);
     expect(controller.createMatchSetup().bluePlayerProfileId, isNull);
-  });
-
-  test('every match requires an explicit recording mode', () {
-    final controller = PregameController();
-
-    expect(
-      controller.validate().errors,
-      contains(PregameValidationError.recordingModeRequired),
-    );
-
-    controller.setRecordingMode(RecordingMode.detailed);
-    expect(
-      controller.validate().errors,
-      isNot(contains(PregameValidationError.recordingModeRequired)),
-    );
   });
 
   test('countdown requires a positive duration within the supported range', () {

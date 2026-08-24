@@ -88,7 +88,7 @@ void main() {
     expect(command.regulationSeconds, isNull);
   });
 
-  test('mode selection is required before mapping a start command', () {
+  test('omitted recording metadata maps to compatibility defaults', () {
     final setup = const MatchSetup(
       matchId: 'match-no-mode',
       redName: 'Red',
@@ -100,16 +100,10 @@ void main() {
       winByTwo: false,
     );
 
-    expect(
-      () => buildStartMatchCommand(setup),
-      throwsA(
-        isA<PregameSetupValidationException>().having(
-          (error) => error.result.errors,
-          'errors',
-          contains(PregameValidationError.recordingModeRequired),
-        ),
-      ),
-    );
+    final command = buildStartMatchCommand(setup);
+
+    expect(command.recordingMode, RecordingMode.simple);
+    expect(command.trackingCoverage, TrackingCoverage.scoresOnly);
   });
 
   test('countdown must be enabled with a valid duration', () {

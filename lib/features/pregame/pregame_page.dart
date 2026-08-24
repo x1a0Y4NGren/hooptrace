@@ -228,53 +228,6 @@ class _PregamePageState extends State<PregamePage> {
                     ),
                   ),
                 const SizedBox(height: 8),
-                _SectionLabel(text: l10n.pregameRecordingMode),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _SelectionButton<RecordingMode>(
-                      key: const Key('pregame-recording-simple'),
-                      label: l10n.pregameSimpleMode,
-                      selected: state.recordingMode == RecordingMode.simple,
-                      onPressed: () =>
-                          _selectRecordingMode(RecordingMode.simple),
-                    ),
-                    _SelectionButton<RecordingMode>(
-                      key: const Key('pregame-recording-detailed'),
-                      label: l10n.pregameDetailedMode,
-                      selected: state.recordingMode == RecordingMode.detailed,
-                      onPressed: () =>
-                          _selectRecordingMode(RecordingMode.detailed),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<TrackingCoverage>(
-                  key: const Key('pregame-tracking-coverage'),
-                  initialValue: state.trackingCoverage,
-                  decoration: InputDecoration(
-                    labelText: l10n.pregameTrackingCoverage,
-                    helperText: l10n.pregameTrackingHelper,
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    for (final coverage in TrackingCoverage.values)
-                      DropdownMenuItem(
-                        value: coverage,
-                        child: Text(_trackingCoverageLabel(coverage, l10n)),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() {
-                      _controller.setTrackingCoverage(value);
-                      _clearValidation();
-                    });
-                  },
-                ),
-                const SizedBox(height: 8),
                 SwitchListTile(
                   key: const Key('pregame-timer'),
                   contentPadding: EdgeInsets.zero,
@@ -446,13 +399,6 @@ class _PregamePageState extends State<PregamePage> {
     }
   }
 
-  void _selectRecordingMode(RecordingMode mode) {
-    setState(() {
-      _controller.setRecordingMode(mode);
-      _clearValidation();
-    });
-  }
-
   void _selectClockMode(ClockMode mode) {
     setState(() {
       _controller.setClockMode(mode);
@@ -513,19 +459,6 @@ class _PregamePageState extends State<PregamePage> {
       'twenty_one' => l10n.pregameTwentyOnePoint,
       'timed_ten' => l10n.ruleBuiltInTimedTen,
       _ => localizedRuleTemplateName(template, l10n),
-    };
-  }
-
-  static String _trackingCoverageLabel(
-    TrackingCoverage coverage,
-    AppLocalizations l10n,
-  ) {
-    return switch (coverage) {
-      TrackingCoverage.none => l10n.pregameTrackingNone,
-      TrackingCoverage.scoresOnly => l10n.pregameTrackingScoresOnly,
-      TrackingCoverage.shotAttempts => l10n.pregameTrackingShotAttempts,
-      TrackingCoverage.locations => l10n.pregameTrackingLocations,
-      TrackingCoverage.full => l10n.pregameTrackingFull,
     };
   }
 }

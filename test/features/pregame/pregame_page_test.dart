@@ -57,12 +57,6 @@ void main() {
       'Blue B',
     );
     await tester.scrollUntilVisible(
-      find.byKey(const Key('pregame-recording-simple')),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-    await tester.scrollUntilVisible(
       find.text('开始比赛'),
       300,
       scrollable: find.byType(Scrollable).first,
@@ -71,6 +65,18 @@ void main() {
 
     expect(startedRedName, 'Red A');
     expect(startedBlueName, 'Blue B');
+  });
+
+  testWidgets('pre-game page hides recording mode and coverage choices', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+
+    expect(find.byKey(const Key('pregame-recording-simple')), findsNothing);
+    expect(find.byKey(const Key('pregame-recording-detailed')), findsNothing);
+    expect(find.byKey(const Key('pregame-tracking-coverage')), findsNothing);
+    expect(find.text('记录模式（必选）'), findsNothing);
+    expect(find.text('失误追踪范围'), findsNothing);
   });
 
   testWidgets('pre-game page exposes Chinese rule template options', (
@@ -94,12 +100,6 @@ void main() {
     );
 
     await tester.enterText(find.byKey(const Key('pregame-red-name')), '');
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('pregame-recording-simple')),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
     await tester.scrollUntilVisible(
       find.text('开始比赛'),
       300,
@@ -140,12 +140,6 @@ void main() {
       );
     }
     await tester.scrollUntilVisible(
-      find.byKey(const Key('pregame-recording-simple')),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-    await tester.scrollUntilVisible(
       find.text('开始比赛'),
       300,
       scrollable: find.byType(Scrollable).first,
@@ -157,23 +151,29 @@ void main() {
     expect(find.text('请输入 1 到 180 之间的整数分钟。'), findsOneWidget);
   });
 
-  testWidgets(
-    'recording and clock selection buttons expose selected semantics',
-    (tester) async {
-      await tester.pumpWidget(const MaterialApp(home: PregamePage()));
-      final semantics = tester.getSemantics(
-        find.byKey(const Key('pregame-recording-simple')),
-      );
-      expect(semantics.flagsCollection.isButton, isTrue);
-      expect(semantics.flagsCollection.isSelected, ui.Tristate.isFalse);
+  testWidgets('clock selection buttons expose selected semantics', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+    await tester.tap(find.byKey(const Key('pregame-timer')));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('pregame-clock-countdown')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    final semantics = tester.getSemantics(
+      find.byKey(const Key('pregame-clock-countdown')),
+    );
+    expect(semantics.flagsCollection.isButton, isTrue);
+    expect(semantics.flagsCollection.isSelected, ui.Tristate.isFalse);
 
-      await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-      await tester.pump();
-      final selectedSemantics = tester.getSemantics(
-        find.byKey(const Key('pregame-recording-simple')),
-      );
-      expect(selectedSemantics.flagsCollection.isButton, isTrue);
-      expect(selectedSemantics.flagsCollection.isSelected, ui.Tristate.isTrue);
-    },
-  );
+    await tester.tap(find.byKey(const Key('pregame-clock-countdown')));
+    await tester.pump();
+    final selectedSemantics = tester.getSemantics(
+      find.byKey(const Key('pregame-clock-countdown')),
+    );
+    expect(selectedSemantics.flagsCollection.isButton, isTrue);
+    expect(selectedSemantics.flagsCollection.isSelected, ui.Tristate.isTrue);
+  });
 }
