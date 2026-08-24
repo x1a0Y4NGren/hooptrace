@@ -19,6 +19,7 @@ import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 class ReplayPage extends StatefulWidget {
   const ReplayPage({
     required this.controller,
+    this.onExit,
     this.onFinishMatch,
     this.onShareSummary,
     this.captureBoundary,
@@ -26,6 +27,7 @@ class ReplayPage extends StatefulWidget {
   });
 
   final ReplayController controller;
+  final VoidCallback? onExit;
   final FutureOr<void> Function(int redScore, int blueScore)? onFinishMatch;
   final Future<void> Function(Uint8List bytes, String matchId)? onShareSummary;
   final Future<Uint8List> Function(GlobalKey boundaryKey)? captureBoundary;
@@ -260,8 +262,16 @@ class _ReplayPageState extends State<ReplayPage> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final l10n = _localizations(context);
-    return Scaffold(
+    final page = Scaffold(
       appBar: AppBar(
+        leading: widget.onExit == null
+            ? null
+            : IconButton(
+                key: const Key('replay-exit'),
+                tooltip: l10n.historyHomeTooltip,
+                onPressed: widget.onExit,
+                icon: const Icon(Icons.arrow_back),
+              ),
         title: Text(l10n.replayTitle),
         actions: _appBarActions(context, controller),
       ),
@@ -325,6 +335,15 @@ class _ReplayPageState extends State<ReplayPage> {
           ],
         ),
       ),
+    );
+    final onExit = widget.onExit;
+    if (onExit == null) return page;
+    return PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) onExit();
+      },
+      child: page,
     );
   }
 }

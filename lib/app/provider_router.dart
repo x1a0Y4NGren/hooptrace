@@ -334,6 +334,7 @@ class _ScoringRoute extends ConsumerWidget {
       return _RouteMessage(
         title: l10n.routeMatchLoadError,
         message: l10n.actionFailedRetry,
+        onHome: () => context.go('/'),
       );
     }
     if (detail.hasValue) {
@@ -342,6 +343,7 @@ class _ScoringRoute extends ConsumerWidget {
         return _RouteMessage(
           title: l10n.routeMatchNotActive,
           message: l10n.routeMatchNotActiveBody,
+          onHome: () => context.go('/'),
         );
       }
       final controller = ref.watch(scoringControllerProvider(matchId));
@@ -349,6 +351,7 @@ class _ScoringRoute extends ConsumerWidget {
         return _RouteMessage(
           title: l10n.routeMatchRestoring,
           message: l10n.routeMatchRestoringBody,
+          onHome: () => context.go('/'),
         );
       }
       final canResumeClock =
@@ -736,6 +739,14 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
         }
         return ReplayPage(
           controller: controller,
+          onExit: () {
+            final router = GoRouter.of(context);
+            if (router.canPop()) {
+              router.pop();
+            } else {
+              router.go('/');
+            }
+          },
           onShareSummary: (bytes, matchId) => ref
               .read(exportCoordinatorProvider)
               .shareReplayImage(
@@ -745,6 +756,7 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
               ),
           onFinishMatch: active
               ? (redScore, blueScore) async {
+                  final router = GoRouter.of(context);
                   try {
                     await ref
                         .read(matchCommandServiceProvider)
@@ -761,13 +773,8 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
                     await _refreshController();
                     rethrow;
                   }
-                  try {
-                    await ref
-                        .read(automaticBackupServiceProvider)
-                        .runAfterMatchFinish();
-                  } on Object {
-                    // A moved backup folder does not undo a successful finish.
-                  }
+                  router.go('/matches/${widget.matchId}/replay');
+                  unawaited(_runAutomaticBackup(ref));
                   await _refreshController();
                 }
               : null,
@@ -935,6 +942,7 @@ Future<void> _finishScoringDecision(
   int redScore,
   int blueScore,
 ) async {
+  final router = GoRouter.of(context);
   await ref
       .read(matchCommandServiceProvider)
       .finish(
@@ -946,12 +954,16 @@ Future<void> _finishScoringDecision(
           expectedBlueScore: blueScore,
         ),
       );
+  router.go('/matches/$matchId/replay');
+  unawaited(_runAutomaticBackup(ref));
+}
+
+Future<void> _runAutomaticBackup(WidgetRef ref) async {
   try {
     await ref.read(automaticBackupServiceProvider).runAfterMatchFinish();
   } on Object {
     // Backup failure must not undo a committed match finish.
   }
-  if (context.mounted) context.go('/matches/$matchId/replay');
 }
 
 Future<void> _leaveScoring(
@@ -1061,10 +1073,15 @@ class _RouteLoading extends StatelessWidget {
 }
 
 class _RouteMessage extends StatelessWidget {
-  const _RouteMessage({required this.title, required this.message});
+  const _RouteMessage({
+    required this.title,
+    required this.message,
+    this.onHome,
+  });
 
   final String title;
   final String message;
+  final VoidCallback? onHome;
 
   @override
   Widget build(BuildContext context) {
@@ -1086,6 +1103,17 @@ class _RouteMessage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(message, textAlign: TextAlign.center),
+                if (onHome != null) ...[
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    key: const Key('route-message-home'),
+                    onPressed: onHome,
+                    child: Text(
+                      (AppLocalizations.of(context) ?? AppLocalizationsZh())
+                          .historyHomeTooltip,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

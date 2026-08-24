@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:go_router/go_router.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/app_theme.dart';
@@ -14,6 +15,10 @@ import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/features/history/history_page.dart';
+import 'package:hooptrace/features/home/home_page.dart';
+import 'package:hooptrace/features/replay/replay_page.dart';
+import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -289,7 +294,162 @@ void main() {
     router.go('/scoring/not-a-match');
     await _pumpUntilFound(tester, find.text(l10n.routeMatchNotActive));
     expect(find.text(l10n.routeMatchNotActiveBody), findsOneWidget);
+    expect(find.byKey(const Key('route-message-home')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('route-message-home')));
+    await _pumpUntilFound(tester, find.byType(HomePage));
   });
+
+  testWidgets('active replay has an explicit exit back to scoring', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-active-replay-exit';
+    final now = DateTime.utc(2026, 8, 23, 12);
+    await MatchCommandService(database).start(
+      StartMatchCommand(
+        commandId: '$matchId-start',
+        matchId: matchId,
+        redName: '红队',
+        blueName: '蓝队',
+        ruleTemplate: const RuleTemplate(
+          id: 'free',
+          name: '自由计分',
+          scoreButtons: [1, 2, 3],
+        ),
+        recordingMode: RecordingMode.simple,
+        trackingCoverage: TrackingCoverage.scoresOnly,
+        createdAt: now,
+        startedAt: now,
+      ),
+    );
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerHost(database, router));
+    router.go('/scoring/$matchId');
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    router.push('/matches/$matchId/replay');
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+
+    await tester.tap(find.byKey(const Key('replay-exit')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+
+    router.push('/matches/$matchId/replay');
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await tester.binding.handlePopRoute();
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+  });
+
+  testWidgets('canonical finished replay exits to home', (tester) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-canonical-replay-exit';
+    await _seedFinishedMatch(database, matchId);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerHost(database, router));
+    router.go('/matches/$matchId/replay');
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+
+    await tester.tap(find.byKey(const Key('replay-exit')));
+    await _pumpUntilFound(tester, find.byType(HomePage));
+  });
+
+  testWidgets('canonical finished replay system back exits to home', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-canonical-replay-system-back';
+    await _seedFinishedMatch(database, matchId);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerHost(database, router));
+    router.go('/matches/$matchId/replay');
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+
+    await tester.binding.handlePopRoute();
+    await _pumpUntilFound(tester, find.byType(HomePage));
+  });
+
+  testWidgets('history-pushed finished replay exits back to history', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-history-replay-exit';
+    await _seedFinishedMatch(database, matchId);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerHost(database, router));
+    router.go('/history');
+    await _pumpUntilFound(tester, find.byKey(Key('history-match-$matchId')));
+    await tester.tap(find.byKey(Key('history-match-$matchId')));
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+
+    await tester.tap(find.byKey(const Key('replay-exit')));
+    await _pumpUntilFound(tester, find.byType(HistoryPage));
+  });
+}
+
+Widget _routerHost(AppDatabase database, GoRouter router) {
+  return ProviderScope(
+    overrides: [appDatabaseProvider.overrideWithValue(database)],
+    child: MaterialApp.router(
+      theme: buildHoopTraceTheme(),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      routerConfig: router,
+    ),
+  );
+}
+
+Future<void> _seedFinishedMatch(AppDatabase database, String matchId) async {
+  final service = MatchCommandService(database);
+  final now = DateTime.utc(2026, 8, 23, 12);
+  await service.start(
+    StartMatchCommand(
+      commandId: '$matchId-start',
+      matchId: matchId,
+      redName: '红队',
+      blueName: '蓝队',
+      ruleTemplate: const RuleTemplate(
+        id: 'free',
+        name: '自由计分',
+        scoreButtons: [1, 2, 3],
+      ),
+      recordingMode: RecordingMode.simple,
+      trackingCoverage: TrackingCoverage.scoresOnly,
+      createdAt: now,
+      startedAt: now,
+    ),
+  );
+  await service.finish(
+    FinishMatchCommand(
+      matchId: matchId,
+      endedAt: now.add(const Duration(minutes: 5)),
+      confirmFinalScore: true,
+      expectedRedScore: 0,
+      expectedBlueScore: 0,
+    ),
+  );
 }
 
 Future<void> _eventually(bool Function() predicate) async {
