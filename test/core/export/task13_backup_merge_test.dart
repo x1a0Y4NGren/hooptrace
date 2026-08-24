@@ -200,6 +200,7 @@ void main() {
           auditBeforeJson: jsonEncode({
             'matchId': 'match-1',
             'eventId': 'event-1',
+            'scoringEventId': 'event-1',
             'locationId': 'location-1',
             'participantId': 'participant-red',
             'clockId': 'clock-1',
@@ -226,6 +227,7 @@ void main() {
           auditAfterJson: jsonEncode({
             'matchId': 'match-1',
             'eventId': 'event-1',
+            'scoringEventId': 'event-1',
             'locationId': 'location-1',
             'participantId': 'participant-red',
             'clockId': 'clock-1',
@@ -286,6 +288,10 @@ void main() {
           result.idMap['shotLocations']!['location-1'],
         );
         expect(after['matchId'], result.idMap['matches']!['match-1']);
+        expect(
+          after['scoringEventId'],
+          result.idMap['matchEvents']!['event-1'],
+        );
 
         final countsAfterFirst = await _counts(destination);
         final second = await BackupMergeService(
@@ -295,6 +301,59 @@ void main() {
         expect(second.changed, isFalse);
         expect(second.idMap, result.idMap);
         expect(await _counts(destination), countsAfterFirst);
+      },
+    );
+
+    test(
+      'remapped scoringEventId remains usable by scoring undo after resuming an import',
+      () async {
+        final source = await _exportLibrary(
+          matchId: 'merge-undo',
+          lifecycle: 'active',
+          activeSession: true,
+          auditAfterJson: jsonEncode({'scoringEventId': 'event-1'}),
+        );
+        final destination = createTestDatabase();
+        await _seedLibrary(destination);
+
+        final result = await BackupMergeService(
+          destination,
+          JsonBackupCodec(destination, appVersion: '1.0.0'),
+        ).merge(source);
+        final importedEventId = result.idMap['matchEvents']!['event-1']!;
+        expect(importedEventId, isNot('event-1'));
+        final importedMatchId = result.idMap['matches']!['merge-undo']!;
+        final auditId = result.idMap['auditLogs']!['audit-1']!;
+        final importedAudit =
+            (await destination.select(destination.auditLogs).get()).singleWhere(
+              (row) => row.id == auditId,
+            );
+        expect(
+          (jsonDecode(importedAudit.afterJson)
+              as Map<String, dynamic>)['scoringEventId'],
+          importedEventId,
+        );
+
+        await MatchCommandService(destination).resumeImportedIncomplete(
+          ResumeImportedIncompleteMatchCommand(
+            commandId: 'merge-undo-resume',
+            matchId: importedMatchId,
+            claimedAtUtc: DateTime.utc(2026, 8, 24, 12),
+          ),
+        );
+        final undone = await MatchCommandService(destination)
+            .undoLastScoringAction(
+              UndoLastScoringActionCommand(
+                commandId: 'merge-undo-score',
+                matchId: importedMatchId,
+              ),
+            );
+        expect(
+          undone.events
+              .singleWhere((event) => event.id == importedEventId)
+              .isDeleted,
+          isTrue,
+        );
       },
     );
 

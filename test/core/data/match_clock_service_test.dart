@@ -1450,6 +1450,62 @@ void main() {
     },
   );
 
+  test(
+    'undoing a legacy decision-clock audit without scoringEventId restores its terminal score',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          timerEnabled: true,
+          ruleTemplate: const RuleTemplate(
+            id: 'legacy-undo-target',
+            name: 'Target',
+            scoreButtons: [1],
+            targetScore: 1,
+          ),
+        ),
+      );
+      final reached = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'legacy-undo-score',
+          matchId: 'match-clock',
+          eventId: 'legacy-undo-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      expect(reached.decision, isNotNull);
+
+      final decisionClock = (await database.select(database.auditLogs).get())
+          .singleWhere((row) => row.reason == 'decision-clock');
+      final legacyAfter =
+          jsonDecode(decisionClock.afterJson) as Map<String, Object?>;
+      legacyAfter.remove('scoringEventId');
+      await database.customUpdate(
+        'UPDATE audit_logs SET after_json = ? WHERE id = ?',
+        variables: [
+          Variable.withString(jsonEncode(legacyAfter)),
+          Variable.withString(decisionClock.id),
+        ],
+        updates: {database.auditLogs},
+      );
+
+      final undone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'legacy-undo-action',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(undone.redScore, 0);
+      expect(undone.decision, isNull);
+      expect(undone.clock?.state.runningSinceUtc, isNotNull);
+    },
+  );
+
   test('free throws participate in scoring undo chronology', () async {
     final database = createTestDatabase();
     final service = MatchCommandService(database, now: () => _anchor);
@@ -1494,6 +1550,79 @@ void main() {
       isTrue,
     );
   });
+
+  test(
+    'mixed legacy event rows keep the newest row as supplement owner and undo target',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'mixed-legacy-old',
+          matchId: 'match-clock',
+          eventId: 'mixed-legacy-old-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'mixed-legacy-new',
+          matchId: 'match-clock',
+          eventId: 'mixed-legacy-new-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.blue,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      await (database.delete(database.auditLogs)..where(
+            (row) =>
+                row.targetId.equals('mixed-legacy-new-event') &
+                row.action.equals('create'),
+          ))
+          .go();
+
+      await expectLater(
+        service.confirmShotLocation(
+          ConfirmShotLocationCommand(
+            commandId: 'mixed-legacy-stale-location',
+            matchId: 'match-clock',
+            eventId: 'mixed-legacy-old-event',
+            point: CourtPoint(x: 0.2, y: 0.3),
+            requestedAtUtc: _anchor.add(const Duration(seconds: 1)),
+          ),
+        ),
+        throwsA(isA<CommandValidationFailure>()),
+      );
+
+      final undone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'mixed-legacy-new-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(undone.redScore, 2);
+      expect(undone.blueScore, 0);
+      expect(
+        undone.events
+            .singleWhere((event) => event.id == 'mixed-legacy-new-event')
+            .isDeleted,
+        isTrue,
+      );
+      expect(
+        undone.events
+            .singleWhere((event) => event.id == 'mixed-legacy-old-event')
+            .isDeleted,
+        isFalse,
+      );
+    },
+  );
 
   test(
     'mixed score and free-throw audit chronology undoes the free throw first',
@@ -1869,6 +1998,25 @@ void main() {
       );
       final secondDecision = second.events.lastWhere(
         (event) => event.customLabel?.startsWith('decision:') == true,
+      );
+      final secondDecisionClock =
+          (await database.select(database.auditLogs).get()).reversed.firstWhere(
+            (row) {
+              if (row.reason != 'decision-clock') return false;
+              final after = jsonDecode(row.afterJson) as Map<String, Object?>;
+              return after['scoringEventId'] == 'decision-second-event';
+            },
+          );
+      final legacyAfter =
+          jsonDecode(secondDecisionClock.afterJson) as Map<String, Object?>;
+      legacyAfter.remove('scoringEventId');
+      await database.customUpdate(
+        'UPDATE audit_logs SET after_json = ? WHERE id = ?',
+        variables: [
+          Variable.withString(jsonEncode(legacyAfter)),
+          Variable.withString(secondDecisionClock.id),
+        ],
+        updates: {database.auditLogs},
       );
       await service.undoLastScoringAction(
         UndoLastScoringActionCommand(

@@ -363,7 +363,6 @@ class MatchRepository {
     final query = _database.select(_database.matchEvents)
       ..where((event) => event.matchId.equals(matchId))
       ..orderBy([
-        (event) => OrderingTerm.asc(event.occurredAt),
         (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
       ]);
 
@@ -384,7 +383,6 @@ class MatchRepository {
       final eventQuery = _database.select(_database.matchEvents)
         ..where((event) => event.matchId.equals(matchId))
         ..orderBy([
-          (event) => OrderingTerm.asc(event.occurredAt),
           (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
         ]);
       final locationQuery = _database.select(_database.shotLocations)

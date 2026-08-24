@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
@@ -1171,6 +1172,91 @@ void main() {
         expect(
           controller.locationSupplementWindow?.eventId,
           'task8-durable-owner-second-event',
+        );
+      });
+    },
+  );
+
+  test(
+    'controller uses current injected time after creation instead of the projection clock',
+    () async {
+      await withTestDatabase((database) async {
+        final openedAt = DateTime.utc(2026, 8, 23, 9);
+        var now = openedAt;
+        final service = MatchCommandService(database, now: () => now);
+        final started = await service.start(
+          _startCommand(matchId: 'task8-live-clock'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+
+        now = openedAt.add(const Duration(seconds: 11));
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.red, points: 2),
+          isTrue,
+        );
+        expect(controller.locationSupplementWindow?.openedAt, now);
+
+        now = now.add(const Duration(seconds: 1));
+        expect(
+          await controller.attachSupplementLocation(
+            CourtPoint(x: 0.2, y: 0.8),
+            requestedAtUtc: now,
+          ),
+          isTrue,
+        );
+      });
+    },
+  );
+
+  test(
+    'repository reload and controller rebuild share durable newest ownership',
+    () async {
+      await withTestDatabase((database) async {
+        final openedAt = DateTime.utc(2026, 8, 23, 9);
+        final service = MatchCommandService(database, now: () => openedAt);
+        final started = await service.start(
+          _startCommand(matchId: 'task8-reload-owner'),
+        );
+        await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-reload-owner-a',
+            matchId: started.match.id,
+            eventId: 'task8-reload-owner-a-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: openedAt.add(const Duration(seconds: 5)),
+          ),
+        );
+        await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-reload-owner-b',
+            matchId: started.match.id,
+            eventId: 'task8-reload-owner-b-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.blue,
+            points: 1,
+            outcome: ShotOutcome.made,
+            occurredAt: openedAt.add(const Duration(seconds: 1)),
+          ),
+        );
+
+        final reloaded = await MatchRepository(
+          database,
+        ).getMatchDetail(started.match.id);
+        final rebuilt = ScoringController.fromCommittedProjection(
+          reloaded!,
+          service,
+          nowUtc: () => openedAt.add(const Duration(seconds: 2)),
+        );
+        expect(
+          rebuilt.locationSupplementWindow?.eventId,
+          'task8-reload-owner-b-event',
         );
       });
     },

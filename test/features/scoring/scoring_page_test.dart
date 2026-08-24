@@ -1345,6 +1345,7 @@ void main() {
       final controller = ScoringController.fromCommittedProjection(
         start,
         service,
+        nowUtc: () => anchor,
       );
       await controller.recordScoreCommitted(side: TeamSide.blue, points: 2);
       armed = true;

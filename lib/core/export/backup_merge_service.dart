@@ -839,7 +839,10 @@ class _AuditMappings {
     if (value is String) {
       final map = switch (key) {
         'matchId' => matches,
-        'eventId' || 'startedAtEventId' || 'endedAtEventId' => events,
+        'eventId' ||
+        'scoringEventId' ||
+        'startedAtEventId' ||
+        'endedAtEventId' => events,
         'locationId' || 'shotLocationId' => locations,
         'participantId' || 'matchParticipantId' => participants,
         'clockId' || 'matchClockId' => clocks,

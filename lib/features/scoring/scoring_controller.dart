@@ -14,6 +14,8 @@ import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
+DateTime _defaultScoringControllerNowUtc() => DateTime.now().toUtc();
+
 class PendingShotLocation {
   const PendingShotLocation({
     required this.eventId,
@@ -241,7 +243,9 @@ class ScoringController extends ChangeNotifier {
     MatchSetup? setup,
     MatchCommandService? commandService,
     MatchDetail? committedProjection,
+    DateTime Function()? nowUtc,
   }) : _commandService = commandService,
+       _nowUtc = nowUtc ?? _defaultScoringControllerNowUtc,
        _state = committedProjection == null
            ? MatchScoringState(
                matchId: setup?.matchId ?? matchId ?? 'match-local',
@@ -256,19 +260,25 @@ class ScoringController extends ChangeNotifier {
                    setup?.trackingCoverage ?? TrackingCoverage.scoresOnly,
                timerEnabled: setup?.timerEnabled ?? false,
              )
-           : _stateFromProjection(committedProjection);
+           : _stateFromProjection(
+               committedProjection,
+               nowUtc: nowUtc ?? _defaultScoringControllerNowUtc,
+             );
 
   factory ScoringController.fromCommittedProjection(
     MatchDetail projection,
-    MatchCommandService commandService,
-  ) {
+    MatchCommandService commandService, {
+    DateTime Function()? nowUtc,
+  }) {
     return ScoringController(
       commandService: commandService,
       committedProjection: projection,
+      nowUtc: nowUtc,
     );
   }
 
   final MatchCommandService? _commandService;
+  final DateTime Function() _nowUtc;
   final ScoringReducer _reducer = ScoringReducer();
   final RuleEngine _ruleEngine = RuleEngine();
   MatchScoringState _state;
@@ -353,8 +363,7 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: points,
         outcome: ShotOutcome.made,
-        occurredAt: (occurredAt ?? _state.clock?.nowUtc ?? DateTime.now())
-            .toUtc(),
+        occurredAt: (occurredAt ?? _nowUtc()).toUtc(),
       ),
     );
   }
@@ -378,8 +387,7 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: points,
         outcome: outcome,
-        occurredAt: (occurredAt ?? _state.clock?.nowUtc ?? DateTime.now())
-            .toUtc(),
+        occurredAt: (occurredAt ?? _nowUtc()).toUtc(),
         shotLocation: location == null
             ? null
             : MatchShotLocationInput(x: location.x, y: location.y),
@@ -412,7 +420,7 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: resolvedPoints,
         outcome: made ? ShotOutcome.made : ShotOutcome.missed,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: _nowUtc().toUtc(),
       ),
     );
   }
@@ -425,7 +433,7 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: 0,
         note: reason,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: _nowUtc().toUtc(),
       ),
     );
   }
@@ -439,7 +447,7 @@ class ScoringController extends ChangeNotifier {
         side: null,
         points: 0,
         note: note,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: _nowUtc().toUtc(),
       ),
     );
   }
@@ -457,7 +465,7 @@ class ScoringController extends ChangeNotifier {
         side: side,
         points: points,
         customLabel: label,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: _nowUtc().toUtc(),
       ),
     );
   }
@@ -475,7 +483,7 @@ class ScoringController extends ChangeNotifier {
         type: EventKind.foul,
         side: side,
         points: 0,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: _nowUtc().toUtc(),
       ),
     );
   }
@@ -563,7 +571,7 @@ class ScoringController extends ChangeNotifier {
           (event.type == EventKind.score ||
               event.type == EventKind.fieldGoal ||
               event.type == EventKind.miss) &&
-          DateTime.now().toUtc().isBefore(
+          _nowUtc().toUtc().isBefore(
             event.occurredAt.toUtc().add(locationSupplementWindowDuration),
           );
       _state = _state.copyWith(
@@ -632,7 +640,7 @@ class ScoringController extends ChangeNotifier {
       matchId: _state.matchId,
       side: side,
       points: points,
-      occurredAt: DateTime.now(),
+      occurredAt: _nowUtc().toUtc(),
     );
     final events = [..._state.events, event];
     _state = _state.copyWith(
@@ -685,7 +693,7 @@ class ScoringController extends ChangeNotifier {
         matchId: _state.matchId,
         eventId: pending.eventId,
         point: confirmedPoint,
-        requestedAtUtc: (_state.clock?.nowUtc ?? DateTime.now()).toUtc(),
+        requestedAtUtc: _nowUtc().toUtc(),
       );
       await _runExclusive(command, () => service.confirmShotLocation(command));
       return;
@@ -790,7 +798,7 @@ class ScoringController extends ChangeNotifier {
   bool expireSupplementWindow({DateTime? atUtc}) {
     final window = _state.locationSupplementWindow;
     if (_disposed || window == null) return false;
-    final at = (atUtc ?? DateTime.now()).toUtc();
+    final at = (atUtc ?? _nowUtc()).toUtc();
     if (at.isBefore(window.expiresAtUtc)) return false;
     _state = _state.copyWith(
       clearLocationSupplementWindow: true,
@@ -809,8 +817,7 @@ class ScoringController extends ChangeNotifier {
     String? eventId,
   }) async {
     if (_disposed || _exclusiveBusy) return false;
-    final requested = (requestedAtUtc ?? _state.clock?.nowUtc ?? DateTime.now())
-        .toUtc();
+    final requested = (requestedAtUtc ?? _nowUtc()).toUtc();
     final window = _state.locationSupplementWindow;
     if (window == null ||
         (eventId != null && eventId != window.eventId) ||
@@ -923,7 +930,7 @@ class ScoringController extends ChangeNotifier {
           side: draft.side,
           points: draft.outcome == ShotOutcome.missed ? 0 : draft.points,
           outcome: draft.outcome,
-          occurredAt: DateTime.now().toUtc(),
+          occurredAt: _nowUtc().toUtc(),
           shotLocation: MatchShotLocationInput(
             x: draft.point.x,
             y: draft.point.y,
@@ -945,7 +952,7 @@ class ScoringController extends ChangeNotifier {
       side: draft.side,
       points: draft.outcome == ShotOutcome.missed ? 0 : draft.points,
       outcome: draft.outcome,
-      occurredAt: DateTime.now().toUtc(),
+      occurredAt: _nowUtc().toUtc(),
       shotLocation: MatchShotLocationInput(x: draft.point.x, y: draft.point.y),
     );
     final accepted = await _runExclusive(
@@ -982,7 +989,7 @@ class ScoringController extends ChangeNotifier {
     }
     final command = PauseMatchCommand(
       matchId: _state.matchId,
-      occurredAt: DateTime.now().toUtc(),
+      occurredAt: _nowUtc().toUtc(),
     );
     return _runExclusive(command, () => service.pause(command));
   }
@@ -999,7 +1006,7 @@ class ScoringController extends ChangeNotifier {
     }
     final command = ResumeMatchCommand(
       matchId: _state.matchId,
-      occurredAt: DateTime.now().toUtc(),
+      occurredAt: _nowUtc().toUtc(),
     );
     return _runExclusive(command, () => service.resume(command));
   }
@@ -1055,7 +1062,7 @@ class ScoringController extends ChangeNotifier {
       type: MatchEventType.foul,
       side: side,
       points: 0,
-      occurredAt: DateTime.now(),
+      occurredAt: _nowUtc().toUtc(),
     );
     final events = [..._state.events, event];
     final fouls = _countFouls(events);
@@ -1090,7 +1097,10 @@ class ScoringController extends ChangeNotifier {
     );
   }
 
-  static MatchScoringState _stateFromProjection(MatchDetail projection) {
+  static MatchScoringState _stateFromProjection(
+    MatchDetail projection, {
+    required DateTime Function() nowUtc,
+  }) {
     final events = List<MatchEvent>.unmodifiable(projection.events);
     final locations = <ScoringShotLocation>[];
     for (final location in projection.shotLocations) {
@@ -1114,7 +1124,7 @@ class ScoringController extends ChangeNotifier {
         .map((location) => location.eventId)
         .toSet();
     LocationSupplementWindow? supplement;
-    final nowUtc = (projection.clock?.nowUtc ?? DateTime.now()).toUtc();
+    final projectedNowUtc = nowUtc().toUtc();
     MatchEvent? latestScoringEvent;
     for (final event in events.reversed) {
       if (!event.isDeleted && _isScoringEvent(event)) {
@@ -1129,7 +1139,7 @@ class ScoringController extends ChangeNotifier {
             event.type == EventKind.fieldGoal ||
             event.type == EventKind.miss) &&
         !locationEventIds.contains(event.id) &&
-        nowUtc.isBefore(
+        projectedNowUtc.isBefore(
           event.occurredAt.toUtc().add(locationSupplementWindowDuration),
         )) {
       supplement = LocationSupplementWindow(
@@ -1231,7 +1241,7 @@ class ScoringController extends ChangeNotifier {
     if (_disposed) return;
     final previousDraft = _state.detailedShotDraft;
     final previousPending = _state.pendingLocation;
-    _state = _stateFromProjection(projection);
+    _state = _stateFromProjection(projection, nowUtc: _nowUtc);
     final pending = pendingLocation ?? previousPending;
     if (pending != null &&
         pending.eventId == _state.locationSupplementWindow?.eventId &&
@@ -1395,7 +1405,7 @@ class ScoringController extends ChangeNotifier {
         side: null,
         points: 0,
         customLabel: label,
-        occurredAt: DateTime.now().toUtc(),
+        occurredAt: _nowUtc().toUtc(),
       ),
     );
   }
@@ -1405,7 +1415,7 @@ class ScoringController extends ChangeNotifier {
 
   MatchEvent? get _latestUnlocatedShot {
     final locatedIds = _state.shotLocations.map((item) => item.eventId).toSet();
-    final nowUtc = (_state.clock?.nowUtc ?? DateTime.now()).toUtc();
+    final nowUtc = _nowUtc().toUtc();
     for (final event in _state.events.reversed) {
       if (event.isDeleted || !_isScoringEvent(event)) {
         continue;

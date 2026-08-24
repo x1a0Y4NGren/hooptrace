@@ -2780,6 +2780,13 @@ class MatchCommandService {
       final event = eventById[audit.targetId];
       if (event != null) latest = event;
     }
+    // A row without a create audit may be a legacy/imported event committed
+    // after an audited event. The durable event row order is authoritative in
+    // that case; do not let an older audit claim ownership of its window.
+    if (rows.isNotEmpty &&
+        !audits.any((audit) => audit.targetId == rows.first.id)) {
+      return rows.first;
+    }
     if (latest != null) return latest;
     // Imported rows from pre-audit backups still need a deterministic
     // fallback; newly committed events always have a create audit above.
@@ -2788,17 +2795,21 @@ class MatchCommandService {
 
   Future<_UndoableScoringAction?> _latestScoringAction(String matchId) async {
     final events =
-        await (_database.select(_database.matchEvents)..where(
-              (event) =>
-                  event.matchId.equals(matchId) &
-                  event.isDeleted.equals(false) &
-                  event.type.isIn([
-                    EventKind.score.name,
-                    EventKind.fieldGoal.name,
-                    EventKind.miss.name,
-                    EventKind.freeThrow.name,
-                  ]),
-            ))
+        await (_database.select(_database.matchEvents)
+              ..where(
+                (event) =>
+                    event.matchId.equals(matchId) &
+                    event.isDeleted.equals(false) &
+                    event.type.isIn([
+                      EventKind.score.name,
+                      EventKind.fieldGoal.name,
+                      EventKind.miss.name,
+                      EventKind.freeThrow.name,
+                    ]),
+              )
+              ..orderBy([
+                (_) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
+              ]))
             .get();
     final eventById = <String, MatchEventRow>{
       for (final event in events) event.id: event,
@@ -2844,6 +2855,14 @@ class MatchCommandService {
         event: event,
         atomicLocation: location != null && after['shotLocation'] is Map,
       );
+    }
+    // Legacy/imported event rows may have no create audit. If the newest
+    // durable row is one of those events, it is still the next undoable
+    // action. New records use audit chronology whenever it exists.
+    if (events.isNotEmpty &&
+        !audits.any((audit) => audit.targetId == events.first.id)) {
+      final event = events.first;
+      return _UndoableScoringAction.event(event: event, atomicLocation: false);
     }
     return latest;
   }
@@ -3109,6 +3128,48 @@ class MatchCommandService {
       if (after['scoringEventId'] == selectedEvent.id) {
         decisionClockAudit = audit;
         break;
+      }
+    }
+    if (decisionClockAudit == null) {
+      // Very early databases recorded the decision-clock mutation without a
+      // source event ID. Reconstruct that relation from the durable audit
+      // adjacency used by the transaction: a scoring create audit followed by
+      // its decision-clock audit. This is deliberately stricter than matching
+      // occurredAt, which is client supplied and may be out of order.
+      final allAudits =
+          await (_database.select(_database.auditLogs)
+                ..where((audit) => audit.matchId.equals(command.matchId))
+                ..orderBy([
+                  (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+                ]))
+              .get();
+      String? latestScoringCreateId;
+      final scoringEventIds = <String>{
+        for (final event in await (_database.select(
+          _database.matchEvents,
+        )..where((event) => event.matchId.equals(command.matchId))).get())
+          if (event.type == EventKind.score.name ||
+              event.type == EventKind.fieldGoal.name ||
+              event.type == EventKind.miss.name ||
+              event.type == EventKind.freeThrow.name)
+            event.id,
+      };
+      for (final audit in allAudits) {
+        if (audit.action == 'create' &&
+            scoringEventIds.contains(audit.targetId)) {
+          latestScoringCreateId = audit.targetId;
+          continue;
+        }
+        if (audit.targetId != clockRow.id ||
+            audit.action != 'edit' ||
+            audit.reason != 'decision-clock') {
+          continue;
+        }
+        final after = _decodeObject(audit.afterJson);
+        if (after['scoringEventId'] == null &&
+            latestScoringCreateId == selectedEvent.id) {
+          decisionClockAudit = audit;
+        }
       }
     }
     if (decisionClockAudit == null) return;
