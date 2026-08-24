@@ -614,6 +614,17 @@ class ScoringController extends ChangeNotifier {
       score: _reducer.reduce(events),
       clearLocationSupplementWindow: true,
     );
+    final replacement = _latestUnlocatedShot;
+    if (replacement != null && replacement.side != null) {
+      _state = _state.copyWith(
+        locationSupplementWindow: LocationSupplementWindow(
+          eventId: replacement.id,
+          side: replacement.side!,
+          points: replacement.points,
+          openedAtUtc: replacement.occurredAt.toUtc(),
+        ),
+      );
+    }
     notifyListeners();
     return true;
   }
@@ -1359,10 +1370,11 @@ class ScoringController extends ChangeNotifier {
     );
     final events = [..._state.events, event];
     final locations = [..._state.shotLocations];
-    final isScoringEvent =
+    final opensSupplementWindow =
         event.type == EventKind.score ||
         event.type == EventKind.fieldGoal ||
         event.type == EventKind.miss;
+    final closesSupplementWindow = event.type == EventKind.freeThrow;
     if (command.shotLocation != null && command.type == EventKind.fieldGoal) {
       locations.add(
         ScoringShotLocation(
@@ -1383,7 +1395,8 @@ class ScoringController extends ChangeNotifier {
       events: List.unmodifiable(events),
       score: _reducer.reduce(events),
       shotLocations: List.unmodifiable(locations),
-      locationSupplementWindow: command.shotLocation == null && isScoringEvent
+      locationSupplementWindow:
+          command.shotLocation == null && opensSupplementWindow
           ? (event.side == null
                 ? null
                 : LocationSupplementWindow(
@@ -1393,7 +1406,8 @@ class ScoringController extends ChangeNotifier {
                     openedAtUtc: event.occurredAt.toUtc(),
                   ))
           : null,
-      clearLocationSupplementWindow: command.shotLocation != null,
+      clearLocationSupplementWindow:
+          command.shotLocation != null || closesSupplementWindow,
       currentPossession: _latestPossession(events),
       redFouls: _countFouls(events).red,
       blueFouls: _countFouls(events).blue,

@@ -92,6 +92,128 @@ void main() {
     },
   );
 
+  test('local free throw closes an earlier score supplement window', () async {
+    var now = DateTime.utc(2026, 8, 25, 12);
+    final controller = ScoringController(
+      matchId: 'match-free-throw-window',
+      nowUtc: () => now,
+    );
+
+    await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+    expect(controller.locationSupplementWindow, isNotNull);
+    now = now.add(const Duration(seconds: 1));
+    expect(
+      await controller.recordFreeThrowCommitted(side: TeamSide.red, made: true),
+      isTrue,
+    );
+    expect(controller.locationSupplementWindow, isNull);
+    expect(
+      await controller.attachSupplementLocation(
+        CourtPoint(x: 0.3, y: 0.7),
+        eventId: 'match-free-throw-window-event-1',
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+    'local undo of an unlocated newer score restores an active older window',
+    () async {
+      var now = DateTime.utc(2026, 8, 25, 12);
+      final controller = ScoringController(
+        matchId: 'match-local-window-restore',
+        nowUtc: () => now,
+      );
+
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      now = now.add(const Duration(seconds: 1));
+      await controller.recordScoreCommitted(side: TeamSide.blue, points: 1);
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(
+        controller.locationSupplementWindow?.eventId,
+        'match-local-window-restore-event-1',
+      );
+      expect(controller.state.score.redScore, 2);
+    },
+  );
+
+  test(
+    'local undo withdraws newer location then score and restores older window',
+    () async {
+      var now = DateTime.utc(2026, 8, 25, 12);
+      final controller = ScoringController(
+        matchId: 'match-local-window-location',
+        nowUtc: () => now,
+      );
+
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      now = now.add(const Duration(seconds: 1));
+      await controller.recordScoreCommitted(side: TeamSide.blue, points: 1);
+      expect(
+        await controller.attachSupplementLocation(CourtPoint(x: 0.3, y: 0.7)),
+        isTrue,
+      );
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.state.score.blueScore, 1);
+      expect(controller.state.shotLocations, isEmpty);
+      expect(
+        controller.locationSupplementWindow?.eventId,
+        'match-local-window-location-event-2',
+      );
+
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(
+        controller.locationSupplementWindow?.eventId,
+        'match-local-window-location-event-1',
+      );
+      expect(controller.state.score.redScore, 2);
+    },
+  );
+
+  test(
+    'local undo does not restore an expired or located older window',
+    () async {
+      var now = DateTime.utc(2026, 8, 25, 12);
+      final expired = ScoringController(
+        matchId: 'match-local-window-expired',
+        nowUtc: () => now,
+      );
+      await expired.recordScoreCommitted(side: TeamSide.red, points: 2);
+      now = now.add(const Duration(seconds: 1));
+      await expired.recordScoreCommitted(side: TeamSide.blue, points: 1);
+      now = now.add(const Duration(seconds: 10));
+      expect(await expired.undoLastScoringActionCommitted(), isTrue);
+      expect(expired.locationSupplementWindow, isNull);
+
+      now = DateTime.utc(2026, 8, 25, 12);
+      final located = ScoringController(
+        matchId: 'match-local-window-located',
+        nowUtc: () => now,
+      );
+      await located.recordScoreCommitted(side: TeamSide.red, points: 2);
+      expect(
+        await located.attachSupplementLocation(CourtPoint(x: 0.2, y: 0.8)),
+        isTrue,
+      );
+      now = now.add(const Duration(seconds: 1));
+      await located.recordScoreCommitted(side: TeamSide.blue, points: 1);
+      expect(await located.undoLastScoringActionCommitted(), isTrue);
+      expect(located.locationSupplementWindow, isNull);
+
+      now = DateTime.utc(2026, 8, 25, 12);
+      final deleted = ScoringController(
+        matchId: 'match-local-window-deleted',
+        nowUtc: () => now,
+      );
+      await deleted.recordScoreCommitted(side: TeamSide.red, points: 2);
+      deleted.undoLastEvent();
+      now = now.add(const Duration(seconds: 1));
+      await deleted.recordScoreCommitted(side: TeamSide.blue, points: 1);
+      expect(await deleted.undoLastScoringActionCommitted(), isTrue);
+      expect(deleted.locationSupplementWindow, isNull);
+    },
+  );
+
   test(
     'local court-first draft blocks ordinary actions and undoes atomically',
     () async {
