@@ -111,12 +111,6 @@ AppLocalizations _l10n(WidgetTester tester) {
 
 Future<void> _selectSimpleAndStart(WidgetTester tester) async {
   await tester.scrollUntilVisible(
-    find.byKey(const Key('pregame-recording-simple')),
-    300,
-    scrollable: find.byType(Scrollable).first,
-  );
-  await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-  await tester.scrollUntilVisible(
     find.byKey(const Key('pregame-start-match')),
     300,
     scrollable: find.byType(Scrollable).first,

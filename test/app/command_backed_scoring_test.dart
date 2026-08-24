@@ -44,12 +44,6 @@ void main() {
     await tester.tap(find.byKey(homeStartScoringKey));
     await _pumpUntilFound(tester, find.byType(PregamePage));
     await tester.scrollUntilVisible(
-      find.byKey(const Key('pregame-recording-simple')),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
-    await tester.scrollUntilVisible(
       find.byKey(const Key('pregame-start-match')),
       300,
       scrollable: find.byType(Scrollable).first,

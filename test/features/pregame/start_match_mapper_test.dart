@@ -98,10 +98,23 @@ void main() {
       timerEnabled: false,
       timeLimitMinutes: 10,
       winByTwo: false,
+      recordingMode: null,
     );
 
     final command = buildStartMatchCommand(setup);
 
+    expect(command.recordingMode, RecordingMode.simple);
+    expect(command.trackingCoverage, TrackingCoverage.scoresOnly);
+  });
+
+  test('clearing legacy recording mode still maps compatibility defaults', () {
+    final controller = PregameController()..clearRecordingMode();
+
+    expect(controller.state.recordingMode, isNull);
+    final setup = controller.createMatchSetup();
+    expect(setup.recordingMode, RecordingMode.simple);
+
+    final command = buildStartMatchCommand(setup);
     expect(command.recordingMode, RecordingMode.simple);
     expect(command.trackingCoverage, TrackingCoverage.scoresOnly);
   });
