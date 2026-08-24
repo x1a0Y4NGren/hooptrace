@@ -98,36 +98,123 @@ void main() {
   });
 
   testWidgets(
-    'unresolved score-first location disables unrelated More actions',
+    'score-first location window allows a foul and keeps its window',
     (tester) async {
-      final controller = ScoringController(matchId: 'unified-window-actions');
+      await withTestDatabase((database) async {
+        final anchor = DateTime.utc(2026, 8, 23, 9);
+        final service = MatchCommandService(database, now: () => anchor);
+        final start = await service.start(
+          _startPageCommand('score-first-foul-window'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+          nowUtc: () => anchor,
+        );
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+        final windowEventId = controller.locationSupplementWindow!.eventId;
+
+        await tester.pumpWidget(
+          MaterialApp(home: ScoringPage(controller: controller)),
+        );
+        expect(
+          tester
+              .widget<OutlinedButton>(find.byKey(const Key('red-foul')))
+              .onPressed,
+          isNotNull,
+        );
+
+        await tester.tap(find.byKey(const Key('red-foul')));
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)),
+        );
+        await tester.pump();
+
+        expect(controller.state.redFouls, 1);
+        expect(controller.locationSupplementWindow?.eventId, windowEventId);
+        expect(await database.select(database.matchEvents).get(), hasLength(2));
+      });
+    },
+  );
+
+  testWidgets('score-first location window allows More actions', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final start = await service.start(
+        _startPageCommand('score-first-more-window'),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      await controller.recordScoreCommitted(side: TeamSide.blue, points: 1);
+
       await tester.pumpWidget(
         MaterialApp(home: ScoringPage(controller: controller)),
       );
-
-      await tester.tap(find.byKey(const Key('blue-score-2')));
-      await tester.pump();
       await tester.tap(find.byKey(const Key('scoring-more')));
       await tester.pumpAndSettle();
 
-      expect(
-        tester.widget<ListTile>(find.byKey(const Key('more-blue-miss'))).onTap,
-        isNull,
+      final possession = tester.widget<ListTile>(
+        find.byKey(const Key('more-possession-blue')),
       );
-      expect(
-        tester
-            .widget<ListTile>(
-              find.byKey(const Key('more-blue-free-throw-made')),
-            )
-            .onTap,
-        isNull,
+      expect(possession.onTap, isNotNull);
+      await tester.tap(find.byKey(const Key('more-possession-blue')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
       );
-      expect(
-        tester
-            .widget<ListTile>(find.byKey(const Key('more-possession-blue')))
-            .onTap,
-        isNull,
-      );
+      await tester.pump();
+
+      expect(controller.state.currentPossession, TeamSide.blue);
+      expect(controller.locationSupplementWindow, isNotNull);
+      expect(await database.select(database.matchEvents).get(), hasLength(2));
+    });
+  });
+
+  testWidgets(
+    'next score closes the old supplement window and binds the latest score',
+    (tester) async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = await service.start(
+          _startPageCommand('score-first-next-score-window'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+        );
+        await tester.pumpWidget(
+          MaterialApp(home: ScoringPage(controller: controller)),
+        );
+        await tester.tap(find.byKey(const Key('blue-score-1')));
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)),
+        );
+        await tester.pump();
+        final firstWindowEventId = controller.locationSupplementWindow!.eventId;
+
+        await tester.tap(find.byKey(const Key('red-score-2')));
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)),
+        );
+        await tester.pump();
+
+        final latestEventId = controller.state.events.last.id;
+        expect(controller.state.score.redScore, 2);
+        expect(controller.locationSupplementWindow, isNotNull);
+        expect(controller.locationSupplementWindow!.eventId, latestEventId);
+        expect(
+          controller.locationSupplementWindow!.eventId,
+          isNot(firstWindowEventId),
+        );
+        expect(await database.select(database.matchEvents).get(), hasLength(2));
+      });
     },
   );
 
@@ -474,34 +561,58 @@ void main() {
     });
   });
 
-  testWidgets('team score buttons use explicit high-contrast foregrounds', (
+  testWidgets('team score buttons meet contrast in light and dark themes', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildHoopTraceTheme(brightness: Brightness.dark),
-        home: SizedBox(
-          width: 180,
-          height: 500,
-          child: ScoreSidePanel(
-            side: TeamSide.blue,
-            name: 'Blue',
-            score: 0,
-            fouls: 0,
-            onScore: (_) {},
-            onFoul: () {},
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(brightness: brightness),
+          home: SizedBox(
+            width: 400,
+            height: 500,
+            child: Row(
+              children: [
+                for (final side in TeamSide.values)
+                  Expanded(
+                    child: ScoreSidePanel(
+                      side: side,
+                      name: side.name,
+                      score: 0,
+                      fouls: 0,
+                      onScore: (_) {},
+                      onFoul: () {},
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
-      ),
-    );
-    final score = tester.widget<FilledButton>(
-      find.byKey(const Key('blue-score-1')),
-    );
-    expect(score.style?.foregroundColor?.resolve(const {}), Colors.white);
-    expect(
-      score.style?.foregroundColor?.resolve({WidgetState.disabled}),
-      isNot(Colors.black),
-    );
+      );
+      await tester.pump();
+
+      for (final side in TeamSide.values) {
+        final score = tester.widget<FilledButton>(
+          find.byKey(Key('${side.name}-score-1')),
+        );
+        final background = score.style?.backgroundColor?.resolve(const {});
+        final foreground = score.style?.foregroundColor?.resolve(const {});
+        final disabledForeground = score.style?.foregroundColor?.resolve(const {
+          WidgetState.disabled,
+        });
+        expect(background, isNotNull);
+        expect(foreground, isNotNull);
+        expect(disabledForeground, isNotNull);
+        expect(
+          _contrastRatio(foreground!, background!),
+          greaterThanOrEqualTo(4.5),
+        );
+        expect(
+          _contrastRatio(disabledForeground!, background),
+          greaterThanOrEqualTo(4.5),
+        );
+      }
+    }
   });
 
   testWidgets('scoring page shows court-first landscape controls', (
@@ -1359,43 +1470,6 @@ void main() {
     expect(tester.getSize(scoreboard).height, greaterThanOrEqualTo(48));
   });
 
-  testWidgets('dark unified score action uses explicit team contrast', (
-    tester,
-  ) async {
-    final controller = ScoringController(
-      setup: const MatchSetup(
-        matchId: 'dark-detailed-dock',
-        redName: 'Red',
-        blueName: 'Blue',
-        ruleTemplateId: 'free',
-        targetScore: null,
-        timerEnabled: false,
-        timeLimitMinutes: 10,
-        winByTwo: false,
-        recordingMode: RecordingMode.detailed,
-        trackingCoverage: TrackingCoverage.locations,
-      ),
-    );
-    final darkTheme = buildHoopTraceTheme(brightness: Brightness.dark);
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: darkTheme,
-        home: ScoringPage(controller: controller),
-      ),
-    );
-    await tester.tap(find.byKey(const Key('scoring-court')));
-    await tester.pump();
-
-    final score = tester.widget<FilledButton>(
-      find.byKey(const Key('blue-score-2')),
-    );
-    expect(score.style?.foregroundColor?.resolve(const {}), Colors.white);
-    expect(
-      score.style?.backgroundColor?.resolve(const {}),
-      isNot(Colors.black),
-    );
-  });
-
   testWidgets('compact scoring keeps primary controls within safe insets', (
     tester,
   ) async {
@@ -1520,16 +1594,24 @@ void main() {
         continued,
         service,
       );
-      await tester.pumpWidget(
-        MaterialApp(
-          home: ScoringPage(
-            controller: controller,
-            clockNowUtc: () => anchor.add(const Duration(seconds: 12)),
+      for (final locale in const [Locale('zh'), Locale('en')]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: locale,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: ScoringPage(
+              controller: controller,
+              clockNowUtc: () => anchor.add(const Duration(seconds: 12)),
+            ),
           ),
-        ),
-      );
-
-      expect(find.textContaining('00:00'), findsOneWidget);
+        );
+        await tester.pump();
+        final expected = locale.languageCode == 'zh'
+            ? '加时赛 00:00'
+            : 'Overtime 00:00';
+        expect(find.text(expected), findsOneWidget);
+      }
     });
   });
 
@@ -1713,52 +1795,6 @@ void main() {
     });
   });
 
-  testWidgets(
-    'foul stays disabled while a score-first location is unresolved',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1920, 1080));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      await withTestDatabase((database) async {
-        final service = MatchCommandService(
-          database,
-          now: () => DateTime.utc(2026, 8, 23, 9),
-        );
-        final start = await service.start(
-          StartMatchCommand(
-            commandId: 'page-foul-start-command',
-            matchId: 'page-foul-match',
-            redName: 'Red',
-            blueName: 'Blue',
-            ruleTemplate: const RuleTemplate(
-              id: 'free',
-              name: 'Free',
-              scoreButtons: [1, 2, 3],
-            ),
-            recordingMode: RecordingMode.simple,
-            createdAt: DateTime.utc(2026, 8, 23, 9),
-            startedAt: DateTime.utc(2026, 8, 23, 9),
-          ),
-        );
-        final controller = ScoringController.fromCommittedProjection(
-          start,
-          service,
-        );
-        await tester.pumpWidget(
-          MaterialApp(home: ScoringPage(controller: controller)),
-        );
-        await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
-        await tester.pump();
-
-        final foul = tester.widget<OutlinedButton>(
-          find.byKey(const Key('red-foul')),
-        );
-        expect(foul.onPressed, isNull);
-        expect(await database.select(database.matchEvents).get(), hasLength(1));
-      });
-    },
-  );
-
   testWidgets('leave is guarded while a local pending location exists', (
     tester,
   ) async {
@@ -1887,6 +1923,16 @@ class _RecordingFeedbackPlatform implements ScoringFeedbackPlatform {
 
   @override
   Future<void> click() async {}
+}
+
+double _contrastRatio(Color foreground, Color background) {
+  final lighter = foreground.computeLuminance() > background.computeLuminance()
+      ? foreground.computeLuminance()
+      : background.computeLuminance();
+  final darker = foreground.computeLuminance() > background.computeLuminance()
+      ? background.computeLuminance()
+      : foreground.computeLuminance();
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 StartMatchCommand _startPageCommand(

@@ -284,10 +284,7 @@ class _ScoringPageState extends State<ScoringPage> {
       scoreButtons: const [1, 2, 3],
       scoreEnabled: true,
       missEnabled: false,
-      foulEnabled:
-          draft == null &&
-          state.pendingLocation == null &&
-          state.locationSupplementWindow == null,
+      foulEnabled: draft == null && state.pendingLocation == null,
       locationPoints: activeLocation ? window.points : null,
       locationRemainingSeconds: activeLocation ? remaining : null,
       locationPulse: activeLocation && _pulseOn,
@@ -507,8 +504,7 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _recordFoul(TeamSide side) async {
     final labels = _labels(context);
     if (_controller.courtFirstShotDraft != null ||
-        _controller.state.pendingLocation != null ||
-        _controller.state.locationSupplementWindow != null) {
+        _controller.state.pendingLocation != null) {
       _showActionRejected(labels.actionRejected);
       return;
     }
@@ -684,9 +680,7 @@ class _ScoringPageState extends State<ScoringPage> {
                           label: labels.missed(TeamSide.blue),
                           enabled:
                               _controller.courtFirstShotDraft != null ||
-                              (_controller.state.pendingLocation == null &&
-                                  _controller.state.locationSupplementWindow ==
-                                      null),
+                              _controller.state.pendingLocation == null,
                           onTap: () => runMore(
                             () => _recordMiss(
                               TeamSide.blue,
@@ -700,9 +694,7 @@ class _ScoringPageState extends State<ScoringPage> {
                           label: labels.missed(TeamSide.red),
                           enabled:
                               _controller.courtFirstShotDraft != null ||
-                              (_controller.state.pendingLocation == null &&
-                                  _controller.state.locationSupplementWindow ==
-                                      null),
+                              _controller.state.pendingLocation == null,
                           onTap: () => runMore(
                             () =>
                                 _recordMiss(TeamSide.red, rethrowFailure: true),
@@ -857,8 +849,7 @@ class _ScoringPageState extends State<ScoringPage> {
 
   bool get _ordinaryActionsEnabled =>
       _controller.state.pendingLocation == null &&
-      _controller.state.courtFirstShotDraft == null &&
-      _controller.state.locationSupplementWindow == null;
+      _controller.state.courtFirstShotDraft == null;
 
   Widget _moreHeading(String text) => Padding(
     padding: const EdgeInsets.only(top: 8, bottom: 2),

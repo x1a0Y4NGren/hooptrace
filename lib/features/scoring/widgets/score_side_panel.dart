@@ -312,6 +312,7 @@ class _ScoreAction extends StatelessWidget {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final team = teamLabel;
     final remaining = locationRemainingSeconds;
+    final foreground = _teamForegroundColor(color);
     final semantic = locationActive && remaining != null
         ? l10n.scoringLocationPendingSemantics(points, remaining, team)
         : l10n.scoringScoreSemantics(points, team);
@@ -342,8 +343,8 @@ class _ScoreAction extends StatelessWidget {
           key: Key('${side.name}-score-$points'),
           style: FilledButton.styleFrom(
             backgroundColor: color,
-            foregroundColor: Colors.white,
-            disabledForegroundColor: Colors.white54,
+            foregroundColor: foreground,
+            disabledForegroundColor: foreground,
             minimumSize: Size(48, height),
             padding: compact ? EdgeInsets.zero : null,
             side: locationActive && reduceMotion
@@ -366,6 +367,13 @@ class _ScoreAction extends StatelessWidget {
       child: button,
     );
   }
+}
+
+Color _teamForegroundColor(Color background) {
+  final luminance = background.computeLuminance();
+  final blackContrast = (luminance + 0.05) / 0.05;
+  final whiteContrast = 1.05 / (luminance + 0.05);
+  return blackContrast >= whiteContrast ? Colors.black : Colors.white;
 }
 
 class _CompactActionLabel extends StatelessWidget {
