@@ -3041,6 +3041,10 @@ class MatchCommandService {
     UndoLastScoringActionCommand command, {
     required MatchEventRow selectedEvent,
   }) async {
+    // A continued target decision remains in the event table for history, but
+    // the latest semantic event is no longer the decision pause. In that
+    // state undoing a later score must not erase the earlier acknowledgement.
+    if (await _latestDecisionLabel(command.matchId) == null) return;
     final decision = await _latestDecisionEvent(command.matchId);
     if (decision == null ||
         decision.occurredAt.toUtc().isBefore(
@@ -3051,6 +3055,15 @@ class MatchCommandService {
     await (_database.update(_database.matchEvents)
           ..where((row) => row.id.equals(decision.id)))
         .write(const MatchEventsCompanion(isDeleted: Value(true)));
+    await _writeAudit(
+      id: '${command.auditId}:decision',
+      matchId: command.matchId,
+      targetId: decision.id,
+      action: 'undo',
+      before: _eventJson(decision),
+      after: <String, Object?>{..._eventJson(decision), 'isDeleted': true},
+      reason: 'undo-decision',
+    );
 
     final clockRow = await _clockRow(command.matchId);
     if (clockRow == null) return;

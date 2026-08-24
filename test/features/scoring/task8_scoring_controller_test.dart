@@ -128,6 +128,76 @@ void main() {
   );
 
   test(
+    'undoing the newest score restores the remaining supplement window',
+    () async {
+      await withTestDatabase((database) async {
+        final openedAt = DateTime.now().toUtc();
+        final secondAt = openedAt.add(const Duration(seconds: 1));
+        var now = openedAt;
+        final service = MatchCommandService(database, now: () => now);
+        final started = await service.start(
+          _startCommand(matchId: 'task8-undo-restores-window'),
+        );
+        final first = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-undo-restores-first',
+            matchId: started.match.id,
+            eventId: 'task8-undo-restores-first-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: openedAt,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          first,
+          service,
+        );
+        now = secondAt;
+        final second = await service.record(
+          RecordMatchEventCommand(
+            commandId: 'task8-undo-restores-second',
+            matchId: started.match.id,
+            eventId: 'task8-undo-restores-second-event',
+            type: EventKind.fieldGoal,
+            side: TeamSide.blue,
+            points: 1,
+            outcome: ShotOutcome.made,
+            occurredAt: secondAt,
+          ),
+        );
+        controller.replaceCommittedProjection(second);
+        expect(
+          controller.locationSupplementWindow?.eventId,
+          'task8-undo-restores-second-event',
+        );
+
+        final undone = await service.undoLastScoringAction(
+          UndoLastScoringActionCommand(
+            commandId: 'task8-undo-restores-second-action',
+            matchId: started.match.id,
+          ),
+        );
+        controller.replaceCommittedProjection(undone);
+        expect(
+          controller.locationSupplementWindow?.eventId,
+          'task8-undo-restores-first-event',
+        );
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
+        expect(
+          await controller.attachSupplementLocation(
+            CourtPoint(x: 0.2, y: 0.3),
+            requestedAtUtc: openedAt.add(const Duration(seconds: 2)),
+          ),
+          isTrue,
+        );
+        expect(undone.redScore, 2);
+      });
+    },
+  );
+
+  test(
     'projection rebuild drops pending location when a newer score owns the window',
     () async {
       await withTestDatabase((database) async {
