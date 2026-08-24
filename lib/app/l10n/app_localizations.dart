@@ -3677,6 +3677,76 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'犯规'**
   String get scoringFoul;
+
+  /// No description provided for @scoringMore.
+  ///
+  /// In zh, this message translates to:
+  /// **'更多'**
+  String get scoringMore;
+
+  /// No description provided for @scoringShotsGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'投篮'**
+  String get scoringShotsGroup;
+
+  /// No description provided for @scoringFreeThrowsGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'罚球'**
+  String get scoringFreeThrowsGroup;
+
+  /// No description provided for @scoringMatchStatusGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'比赛状态'**
+  String get scoringMatchStatusGroup;
+
+  /// No description provided for @scoringRecordsGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'记录'**
+  String get scoringRecordsGroup;
+
+  /// No description provided for @scoringMatchGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'比赛'**
+  String get scoringMatchGroup;
+
+  /// No description provided for @scoringChooseScoringSide.
+  ///
+  /// In zh, this message translates to:
+  /// **'请选择蓝方或红方得分'**
+  String get scoringChooseScoringSide;
+
+  /// No description provided for @scoringSupplementPrompt.
+  ///
+  /// In zh, this message translates to:
+  /// **'补充{side} +{points} 落点 · {seconds}秒'**
+  String scoringSupplementPrompt(Object points, Object seconds, Object side);
+
+  /// No description provided for @scoringSupplementExpired.
+  ///
+  /// In zh, this message translates to:
+  /// **'落点补充已过期'**
+  String get scoringSupplementExpired;
+
+  /// No description provided for @scoringScoreSemantics.
+  ///
+  /// In zh, this message translates to:
+  /// **'{side} +{points} 分'**
+  String scoringScoreSemantics(Object points, Object side);
+
+  /// No description provided for @scoringLocationPendingSemantics.
+  ///
+  /// In zh, this message translates to:
+  /// **'{side} +{points}，待补落点 {seconds} 秒'**
+  String scoringLocationPendingSemantics(
+    Object points,
+    Object seconds,
+    Object side,
+  );
 }
 
 class _AppLocalizationsDelegate

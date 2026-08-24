@@ -278,12 +278,16 @@ class _ScoringPageState extends State<ScoringPage> {
       key: Key('${side.name}-side-panel'),
       side: side,
       name: isBlue ? state.blueName : state.redName,
+      teamLabel: _labels(context).sideName(side),
       score: isBlue ? state.score.blueScore : state.score.redScore,
       fouls: isBlue ? state.blueFouls : state.redFouls,
       scoreButtons: const [1, 2, 3],
       scoreEnabled: true,
       missEnabled: false,
-      foulEnabled: draft == null && state.pendingLocation == null,
+      foulEnabled:
+          draft == null &&
+          state.pendingLocation == null &&
+          state.locationSupplementWindow == null,
       locationPoints: activeLocation ? window.points : null,
       locationRemainingSeconds: activeLocation ? remaining : null,
       locationPulse: activeLocation && _pulseOn,
@@ -383,11 +387,15 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   Future<void> _attachSupplement(CourtPoint point) async {
-    final accepted = await _controller.attachSupplementLocation(point);
-    if (accepted) {
-      _notifyCommitted();
-    } else if (mounted) {
-      _showActionRejected(_labels(context).supplementExpired);
+    try {
+      final accepted = await _controller.attachSupplementLocation(point);
+      if (accepted) {
+        _notifyCommitted();
+      } else if (mounted) {
+        _showActionRejected(_labels(context).supplementExpired);
+      }
+    } on MatchCommandFailure catch (failure) {
+      _showCommandFailure(failure);
     }
   }
 
@@ -401,11 +409,15 @@ class _ScoringPageState extends State<ScoringPage> {
         outcome: ShotOutcome.made,
         points: points,
       );
-      final accepted = await _controller.commitCourtFirstShot();
-      if (accepted) {
-        _notifyCommitted();
-      } else {
-        _showActionRejected(labels.actionRejected);
+      try {
+        final accepted = await _controller.commitCourtFirstShot();
+        if (accepted) {
+          _notifyCommitted();
+        } else {
+          _showActionRejected(labels.actionRejected);
+        }
+      } on MatchCommandFailure catch (failure) {
+        _showCommandFailure(failure);
       }
       return;
     }
@@ -424,7 +436,7 @@ class _ScoringPageState extends State<ScoringPage> {
     }
   }
 
-  Future<bool> _recordMiss(TeamSide side) async {
+  Future<bool> _recordMiss(TeamSide side, {bool rethrowFailure = false}) async {
     final l10n = _localizations(context);
     final draft = _controller.courtFirstShotDraft;
     if (draft != null) {
@@ -433,9 +445,15 @@ class _ScoringPageState extends State<ScoringPage> {
         outcome: ShotOutcome.missed,
         points: 0,
       );
-      final accepted = await _controller.commitCourtFirstShot();
-      if (accepted) _notifyCommitted();
-      return accepted;
+      try {
+        final accepted = await _controller.commitCourtFirstShot();
+        if (accepted) _notifyCommitted();
+        return accepted;
+      } on MatchCommandFailure catch (failure) {
+        if (rethrowFailure) throw _moreFailure(failure);
+        _showCommandFailure(failure);
+        return false;
+      }
     }
     try {
       final accepted = await _controller.recordMissCommitted(side: side);
@@ -446,12 +464,17 @@ class _ScoringPageState extends State<ScoringPage> {
       }
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
     }
   }
 
-  Future<bool> _recordFreeThrow(TeamSide side, bool made) async {
+  Future<bool> _recordFreeThrow(
+    TeamSide side,
+    bool made, {
+    bool rethrowFailure = false,
+  }) async {
     try {
       final accepted = await _controller.recordFreeThrowCommitted(
         side: side,
@@ -460,17 +483,22 @@ class _ScoringPageState extends State<ScoringPage> {
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
     }
   }
 
-  Future<bool> _recordPossession(TeamSide side) async {
+  Future<bool> _recordPossession(
+    TeamSide side, {
+    bool rethrowFailure = false,
+  }) async {
     try {
       final accepted = await _controller.recordPossessionCommitted(side);
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
     }
@@ -479,7 +507,8 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _recordFoul(TeamSide side) async {
     final labels = _labels(context);
     if (_controller.courtFirstShotDraft != null ||
-        _controller.state.pendingLocation != null) {
+        _controller.state.pendingLocation != null ||
+        _controller.state.locationSupplementWindow != null) {
       _showActionRejected(labels.actionRejected);
       return;
     }
@@ -548,7 +577,7 @@ class _ScoringPageState extends State<ScoringPage> {
                 final cancelled = state.pendingLocation != null
                     ? _controller.cancelLocateLastUnlocatedShot()
                     : _controller.cancelCourtFirstShot();
-                Navigator.of(dialogContext).pop(cancelled);
+                if (cancelled) Navigator.of(dialogContext).pop(true);
               },
               child: Text(labels.cancelAndLeave),
             ),
@@ -571,165 +600,265 @@ class _ScoringPageState extends State<ScoringPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Material(
-          key: const Key('scoring-more-sheet'),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 620),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        labels.more,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      IconButton(
-                        key: const Key('more-close'),
-                        tooltip: labels.cancel,
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        constraints: const BoxConstraints(
-                          minWidth: 48,
-                          minHeight: 48,
+      builder: (sheetContext) {
+        String? inlineFailure;
+        Future<bool> Function()? inlineRetry;
+
+        return StatefulBuilder(
+          builder: (sheetBuilderContext, setSheetState) {
+            Future<bool> runMore(Future<bool> Function() action) async {
+              try {
+                final accepted = await action();
+                if (accepted && mounted) {
+                  Navigator.of(context).pop();
+                }
+                return accepted;
+              } on _MoreActionFailure catch (failure) {
+                setSheetState(() {
+                  inlineFailure = failure.message;
+                  inlineRetry = failure.retry;
+                });
+                return false;
+              }
+            }
+
+            return SafeArea(
+              child: Material(
+                key: const Key('scoring-more-sheet'),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 620),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              labels.more,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            IconButton(
+                              key: const Key('more-close'),
+                              tooltip: labels.cancel,
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              constraints: const BoxConstraints(
+                                minWidth: 48,
+                                minHeight: 48,
+                              ),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  _moreHeading(labels.shots),
-                  _moreAction(
-                    key: const Key('more-blue-miss'),
-                    icon: Icons.close,
-                    label: labels.missed(TeamSide.blue),
-                    enabled:
-                        _controller.courtFirstShotDraft != null ||
-                        _controller.state.pendingLocation == null,
-                    onTap: () => _runMore(() => _recordMiss(TeamSide.blue)),
-                  ),
-                  _moreAction(
-                    key: const Key('more-red-miss'),
-                    icon: Icons.close,
-                    label: labels.missed(TeamSide.red),
-                    enabled:
-                        _controller.courtFirstShotDraft != null ||
-                        _controller.state.pendingLocation == null,
-                    onTap: () => _runMore(() => _recordMiss(TeamSide.red)),
-                  ),
-                  _moreHeading(labels.freeThrows),
-                  _moreAction(
-                    key: const Key('more-blue-free-throw-made'),
-                    icon: Icons.check,
-                    label: labels.freeThrow(TeamSide.blue, true),
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () =>
-                        _runMore(() => _recordFreeThrow(TeamSide.blue, true)),
-                  ),
-                  _moreAction(
-                    key: const Key('more-blue-free-throw-miss'),
-                    icon: Icons.close,
-                    label: labels.freeThrow(TeamSide.blue, false),
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () =>
-                        _runMore(() => _recordFreeThrow(TeamSide.blue, false)),
-                  ),
-                  _moreAction(
-                    key: const Key('more-red-free-throw-made'),
-                    icon: Icons.check,
-                    label: labels.freeThrow(TeamSide.red, true),
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () =>
-                        _runMore(() => _recordFreeThrow(TeamSide.red, true)),
-                  ),
-                  _moreAction(
-                    key: const Key('more-red-free-throw-miss'),
-                    icon: Icons.close,
-                    label: labels.freeThrow(TeamSide.red, false),
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () =>
-                        _runMore(() => _recordFreeThrow(TeamSide.red, false)),
-                  ),
-                  _moreHeading(labels.matchStatus),
-                  _moreAction(
-                    key: const Key('more-possession-blue'),
-                    icon: Icons.swap_horiz,
-                    label: labels.possession(TeamSide.blue),
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () =>
-                        _runMore(() => _recordPossession(TeamSide.blue)),
-                  ),
-                  _moreAction(
-                    key: const Key('more-possession-red'),
-                    icon: Icons.swap_horiz,
-                    label: labels.possession(TeamSide.red),
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () =>
-                        _runMore(() => _recordPossession(TeamSide.red)),
-                  ),
-                  if (_controller.timerEnabled) ...[
-                    _moreAction(
-                      key: const Key('more-pause'),
-                      icon: Icons.pause,
-                      label: labels.pause,
-                      enabled: _ordinaryActionsEnabled,
-                      onTap: () => _runMore(_pause),
+                        if (inlineFailure != null)
+                          Container(
+                            key: const Key('more-inline-error'),
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(
+                                sheetBuilderContext,
+                              ).colorScheme.errorContainer,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(child: Text(inlineFailure!)),
+                                OutlinedButton(
+                                  key: const Key('more-inline-retry'),
+                                  onPressed: inlineRetry == null
+                                      ? null
+                                      : () => unawaited(runMore(inlineRetry!)),
+                                  child: Text(labels.retry),
+                                ),
+                              ],
+                            ),
+                          ),
+                        _moreHeading(labels.shots),
+                        _moreAction(
+                          key: const Key('more-blue-miss'),
+                          icon: Icons.close,
+                          label: labels.missed(TeamSide.blue),
+                          enabled:
+                              _controller.courtFirstShotDraft != null ||
+                              (_controller.state.pendingLocation == null &&
+                                  _controller.state.locationSupplementWindow ==
+                                      null),
+                          onTap: () => runMore(
+                            () => _recordMiss(
+                              TeamSide.blue,
+                              rethrowFailure: true,
+                            ),
+                          ),
+                        ),
+                        _moreAction(
+                          key: const Key('more-red-miss'),
+                          icon: Icons.close,
+                          label: labels.missed(TeamSide.red),
+                          enabled:
+                              _controller.courtFirstShotDraft != null ||
+                              (_controller.state.pendingLocation == null &&
+                                  _controller.state.locationSupplementWindow ==
+                                      null),
+                          onTap: () => runMore(
+                            () =>
+                                _recordMiss(TeamSide.red, rethrowFailure: true),
+                          ),
+                        ),
+                        _moreHeading(labels.freeThrows),
+                        _moreAction(
+                          key: const Key('more-blue-free-throw-made'),
+                          icon: Icons.check,
+                          label: labels.freeThrow(TeamSide.blue, true),
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () => runMore(
+                            () => _recordFreeThrow(
+                              TeamSide.blue,
+                              true,
+                              rethrowFailure: true,
+                            ),
+                          ),
+                        ),
+                        _moreAction(
+                          key: const Key('more-blue-free-throw-miss'),
+                          icon: Icons.close,
+                          label: labels.freeThrow(TeamSide.blue, false),
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () => runMore(
+                            () => _recordFreeThrow(
+                              TeamSide.blue,
+                              false,
+                              rethrowFailure: true,
+                            ),
+                          ),
+                        ),
+                        _moreAction(
+                          key: const Key('more-red-free-throw-made'),
+                          icon: Icons.check,
+                          label: labels.freeThrow(TeamSide.red, true),
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () => runMore(
+                            () => _recordFreeThrow(
+                              TeamSide.red,
+                              true,
+                              rethrowFailure: true,
+                            ),
+                          ),
+                        ),
+                        _moreAction(
+                          key: const Key('more-red-free-throw-miss'),
+                          icon: Icons.close,
+                          label: labels.freeThrow(TeamSide.red, false),
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () => runMore(
+                            () => _recordFreeThrow(
+                              TeamSide.red,
+                              false,
+                              rethrowFailure: true,
+                            ),
+                          ),
+                        ),
+                        _moreHeading(labels.matchStatus),
+                        _moreAction(
+                          key: const Key('more-possession-blue'),
+                          icon: Icons.swap_horiz,
+                          label: labels.possession(TeamSide.blue),
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () => runMore(
+                            () => _recordPossession(
+                              TeamSide.blue,
+                              rethrowFailure: true,
+                            ),
+                          ),
+                        ),
+                        _moreAction(
+                          key: const Key('more-possession-red'),
+                          icon: Icons.swap_horiz,
+                          label: labels.possession(TeamSide.red),
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () => runMore(
+                            () => _recordPossession(
+                              TeamSide.red,
+                              rethrowFailure: true,
+                            ),
+                          ),
+                        ),
+                        if (_controller.timerEnabled) ...[
+                          _moreAction(
+                            key: const Key('more-pause'),
+                            icon: Icons.pause,
+                            label: labels.pause,
+                            enabled: _ordinaryActionsEnabled,
+                            onTap: () =>
+                                runMore(() => _pause(rethrowFailure: true)),
+                          ),
+                          _moreAction(
+                            key: const Key('more-resume'),
+                            icon: Icons.play_arrow,
+                            label: labels.resume,
+                            enabled: _ordinaryActionsEnabled,
+                            onTap: () =>
+                                runMore(() => _resume(rethrowFailure: true)),
+                          ),
+                        ],
+                        _moreHeading(labels.records),
+                        _moreAction(
+                          key: const Key('more-note'),
+                          icon: Icons.notes,
+                          label: labels.note,
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () =>
+                              runMore(() => _enterNote(rethrowFailure: true)),
+                        ),
+                        _moreAction(
+                          key: const Key('more-custom'),
+                          icon: Icons.add_circle_outline,
+                          label: labels.custom,
+                          enabled: _ordinaryActionsEnabled,
+                          onTap: () =>
+                              runMore(() => _enterCustom(rethrowFailure: true)),
+                        ),
+                        _moreHeading(labels.match),
+                        _moreAction(
+                          key: const Key('more-replay'),
+                          icon: Icons.query_stats,
+                          label: labels.replay,
+                          enabled:
+                              widget.onOpenReplay != null &&
+                              _ordinaryActionsEnabled,
+                          onTap: () => runMore(() async => _openReplay()),
+                        ),
+                        _moreAction(
+                          key: const Key('more-finish'),
+                          icon: Icons.flag,
+                          label: labels.finish,
+                          enabled:
+                              widget.onFinishDecision != null &&
+                              _controller.state.decision?.canFinish == true &&
+                              _ordinaryActionsEnabled,
+                          onTap: () => runMore(
+                            () => _confirmFinishDecision(rethrowFailure: true),
+                          ),
+                        ),
+                      ],
                     ),
-                    _moreAction(
-                      key: const Key('more-resume'),
-                      icon: Icons.play_arrow,
-                      label: labels.resume,
-                      enabled: _ordinaryActionsEnabled,
-                      onTap: () => _runMore(_resume),
-                    ),
-                  ],
-                  _moreHeading(labels.records),
-                  _moreAction(
-                    key: const Key('more-note'),
-                    icon: Icons.notes,
-                    label: labels.note,
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () => _runMore(_enterNote),
                   ),
-                  _moreAction(
-                    key: const Key('more-custom'),
-                    icon: Icons.add_circle_outline,
-                    label: labels.custom,
-                    enabled: _ordinaryActionsEnabled,
-                    onTap: () => _runMore(_enterCustom),
-                  ),
-                  _moreHeading(labels.match),
-                  _moreAction(
-                    key: const Key('more-replay'),
-                    icon: Icons.query_stats,
-                    label: labels.replay,
-                    enabled:
-                        widget.onOpenReplay != null && _ordinaryActionsEnabled,
-                    onTap: () => _runMore(() async => _openReplay()),
-                  ),
-                  _moreAction(
-                    key: const Key('more-finish'),
-                    icon: Icons.flag,
-                    label: labels.finish,
-                    enabled:
-                        widget.onFinishDecision != null &&
-                        _controller.state.decision?.canFinish == true &&
-                        _ordinaryActionsEnabled,
-                    onTap: () => _runMore(_confirmFinishDecision),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
   bool get _ordinaryActionsEnabled =>
       _controller.state.pendingLocation == null &&
-      _controller.state.courtFirstShotDraft == null;
+      _controller.state.courtFirstShotDraft == null &&
+      _controller.state.locationSupplementWindow == null;
 
   Widget _moreHeading(String text) => Padding(
     padding: const EdgeInsets.only(top: 8, bottom: 2),
@@ -753,35 +882,31 @@ class _ScoringPageState extends State<ScoringPage> {
     );
   }
 
-  Future<bool> _runMore(Future<bool> Function() action) async {
-    final accepted = await action();
-    if (accepted && mounted) Navigator.of(context).pop();
-    return accepted;
-  }
-
-  Future<bool> _pause() async {
+  Future<bool> _pause({bool rethrowFailure = false}) async {
     try {
       final accepted = await _controller.pauseCommitted();
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
     }
   }
 
-  Future<bool> _resume() async {
+  Future<bool> _resume({bool rethrowFailure = false}) async {
     try {
       final accepted = await _controller.resumeCommitted();
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
     }
   }
 
-  Future<bool> _enterNote() async {
+  Future<bool> _enterNote({bool rethrowFailure = false}) async {
     final labels = _labels(context);
     final note = await _showTextEntry(
       title: labels.note,
@@ -794,12 +919,13 @@ class _ScoringPageState extends State<ScoringPage> {
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
     }
   }
 
-  Future<bool> _enterCustom() async {
+  Future<bool> _enterCustom({bool rethrowFailure = false}) async {
     final labels = _labels(context);
     final label = await _showTextEntry(
       title: labels.custom,
@@ -812,6 +938,7 @@ class _ScoringPageState extends State<ScoringPage> {
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
     }
@@ -845,7 +972,7 @@ class _ScoringPageState extends State<ScoringPage> {
     }
   }
 
-  Future<bool> _confirmFinishDecision() async {
+  Future<bool> _confirmFinishDecision({bool rethrowFailure = false}) async {
     final finish = widget.onFinishDecision;
     final decision = _controller.state.decision;
     if (finish == null ||
@@ -890,6 +1017,45 @@ class _ScoringPageState extends State<ScoringPage> {
       _notifyCommitted();
       return true;
     } on Object {
+      if (rethrowFailure) {
+        throw _MoreActionFailure(
+          message: failureMessage,
+          retry: () => _finishDecisionWithoutConfirmation(
+            finish: finish,
+            decision: decision,
+            rethrowFailure: true,
+          ),
+        );
+      }
+      _showActionRejected(failureMessage);
+      return false;
+    } finally {
+      if (mounted) setState(() => _decisionBusy = false);
+    }
+  }
+
+  Future<bool> _finishDecisionWithoutConfirmation({
+    required Future<void> Function(int redScore, int blueScore) finish,
+    required MatchDecision decision,
+    required bool rethrowFailure,
+  }) async {
+    final failureMessage = _labels(context).failureRetry;
+    setState(() => _decisionBusy = true);
+    try {
+      await finish(decision.redScore, decision.blueScore);
+      _notifyCommitted();
+      return true;
+    } on Object {
+      if (rethrowFailure) {
+        throw _MoreActionFailure(
+          message: failureMessage,
+          retry: () => _finishDecisionWithoutConfirmation(
+            finish: finish,
+            decision: decision,
+            rethrowFailure: true,
+          ),
+        );
+      }
       _showActionRejected(failureMessage);
       return false;
     } finally {
@@ -899,7 +1065,8 @@ class _ScoringPageState extends State<ScoringPage> {
 
   bool _openReplay() {
     if (_controller.state.pendingLocation != null ||
-        _controller.state.courtFirstShotDraft != null) {
+        _controller.state.courtFirstShotDraft != null ||
+        _controller.state.locationSupplementWindow != null) {
       _showActionRejected(_localizations(context).scoringResolvePending);
       return false;
     }
@@ -928,11 +1095,7 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   String _localizedSide(AppLocalizations l10n, TeamSide side) {
-    final chinese = l10n.localeName.toLowerCase().startsWith('zh');
-    return switch (side) {
-      TeamSide.red => chinese ? '红方' : 'Red',
-      TeamSide.blue => chinese ? '蓝方' : 'Blue',
-    };
+    return side == TeamSide.blue ? l10n.pregameBlue : l10n.pregameRed;
   }
 
   void _showActionRejected(String message) {
@@ -965,14 +1128,47 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _retryCommand(MatchCommandFailure failure) async {
     try {
       final accepted = await _controller.retryCommand(failure);
-      if (accepted) _notifyCommitted();
+      if (accepted) {
+        if (_controller.courtFirstShotDraft != null) {
+          _controller.cancelCourtFirstShot();
+        }
+        _notifyCommitted();
+      }
     } on MatchCommandFailure catch (nextFailure) {
       _showCommandFailure(nextFailure);
     }
   }
 
+  _MoreActionFailure _moreFailure(MatchCommandFailure failure) =>
+      _MoreActionFailure(
+        message: _labels(context).failureRetry,
+        retry: () => _retryMoreCommand(failure),
+      );
+
+  Future<bool> _retryMoreCommand(MatchCommandFailure failure) async {
+    try {
+      final accepted = await _controller.retryCommand(failure);
+      if (accepted) {
+        if (_controller.courtFirstShotDraft != null) {
+          _controller.cancelCourtFirstShot();
+        }
+        _notifyCommitted();
+      }
+      return accepted;
+    } on MatchCommandFailure catch (nextFailure) {
+      throw _moreFailure(nextFailure);
+    }
+  }
+
   _ScoringLabels _labels(BuildContext context) =>
-      _ScoringLabels(_localizations(context).localeName);
+      _ScoringLabels(_localizations(context));
+}
+
+class _MoreActionFailure implements Exception {
+  const _MoreActionFailure({required this.message, required this.retry});
+
+  final String message;
+  final Future<bool> Function() retry;
 }
 
 class _Scoreboard extends StatelessWidget {
@@ -1008,7 +1204,7 @@ class _Scoreboard extends StatelessWidget {
     final compact = MediaQuery.sizeOf(context).width < 600;
     final clockLabel = clock == null
         ? labels.noTimer
-        : '${clock!.phase == ClockPhase.overtime ? 'OT ' : ''}${_formatSeconds(clock!.displaySeconds)}';
+        : '${clock!.phase == ClockPhase.overtime ? '${labels.l10n.scoringOvertime} ' : ''}${_formatSeconds(clock!.displaySeconds)}';
     final status = clock == null
         ? labels.timerNotConfigured
         : clock!.isRegulationExpired
@@ -1053,30 +1249,43 @@ class _Scoreboard extends StatelessWidget {
                 alignment: Alignment.centerLeft,
               ),
             ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: compact ? 4 : 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    clockLabel,
-                    maxLines: 1,
-                    semanticsLabel: labels.matchTime(clockLabel),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: compact ? 88 : 180),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 12),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          clockLabel,
+                          maxLines: 1,
+                          semanticsLabel: labels.matchTime(clockLabel),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
+                        ),
+                      ),
+                      if (!compact)
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            status,
+                            maxLines: 1,
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(color: Colors.white70),
+                          ),
+                        ),
+                    ],
                   ),
-                  if (!compact)
-                    Text(
-                      status,
-                      maxLines: 1,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.labelSmall?.copyWith(color: Colors.white70),
-                    ),
-                ],
+                ),
               ),
             ),
             Expanded(
@@ -1127,13 +1336,16 @@ class _ScoreLabel extends StatelessWidget {
       label: label,
       child: Align(
         alignment: alignment,
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w900,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ),
@@ -1200,60 +1412,60 @@ class _TextEntryDialogState extends State<_TextEntryDialog> {
 }
 
 class _ScoringLabels {
-  _ScoringLabels(String locale)
-    : chinese = locale.toLowerCase().startsWith('zh');
-  final bool chinese;
-  String get back => chinese ? '返回' : 'Back';
-  String get undo => chinese ? '撤回' : 'Undo';
-  String get more => chinese ? '更多' : 'More';
-  String get noTimer => chinese ? '无计时' : 'No timer';
-  String get timerNotConfigured => chinese ? '未配置计时' : 'Timer not configured';
-  String get clockRunning => chinese ? '计时进行中' : 'Clock running';
-  String get clockPaused => chinese ? '计时已暂停' : 'Clock paused';
-  String get regulationExpired => chinese ? '常规时间结束' : 'Regulation expired';
-  String get shots => chinese ? '投篮' : 'Shots';
-  String get freeThrows => chinese ? '罚球' : 'Free throws';
-  String get matchStatus => chinese ? '比赛状态' : 'Match status';
-  String get records => chinese ? '记录' : 'Records';
-  String get match => chinese ? '比赛' : 'Match';
-  String get note => chinese ? '备注' : 'Note';
-  String get custom => chinese ? '自定义事件' : 'Custom event';
-  String get pause => chinese ? '暂停' : 'Pause';
-  String get resume => chinese ? '继续' : 'Resume';
-  String get replay => chinese ? '回放' : 'Replay';
-  String get finish => chinese ? '结束比赛' : 'Finish match';
-  String get chooseScoringSide =>
-      chinese ? '请选择蓝方或红方得分' : 'Choose Blue or Red to score';
-  String get supplementExpired =>
-      chinese ? '落点补充已过期' : 'Location supplement expired';
-  String get actionRejected => chinese ? '当前操作不可用' : 'Action unavailable';
-  String get failureRetry => chinese ? '操作失败，请重试。' : 'Action failed. Retry.';
-  String get retry => chinese ? '重试' : 'Retry';
-  String get cancel => chinese ? '取消' : 'Cancel';
-  String get stay => chinese ? '留下' : 'Stay';
-  String get cancelAndLeave => chinese ? '取消并离开' : 'Cancel and leave';
-  String get pendingTitle => chinese ? '有未完成操作' : 'Unfinished action';
-  String get pendingBody => chinese
-      ? '请完成或取消当前落点后再离开。'
-      : 'Complete or cancel the current location before leaving.';
-  String get noteHint => chinese ? '输入备注' : 'Enter a note';
-  String get recordNote => chinese ? '记录备注' : 'Record note';
-  String get eventLabel => chinese ? '输入事件名称' : 'Event name';
-  String get recordEvent => chinese ? '记录事件' : 'Record event';
-  String missed(TeamSide side) => chinese
-      ? '${side == TeamSide.blue ? '蓝方' : '红方'}未中'
-      : '${side == TeamSide.blue ? 'Blue' : 'Red'} missed';
-  String freeThrow(TeamSide side, bool made) => chinese
-      ? '${side == TeamSide.blue ? '蓝方' : '红方'}${made ? '罚球命中' : '罚球未中'}'
-      : '${side == TeamSide.blue ? 'Blue' : 'Red'} free throw ${made ? 'made' : 'missed'}';
-  String possession(TeamSide side) => chinese
-      ? '球权${side == TeamSide.blue ? '蓝' : '红'}'
-      : '${side == TeamSide.blue ? 'Blue' : 'Red'} possession';
-  String supplementPrompt(String side, int points, int seconds) => chinese
-      ? '补充$side +$points 落点 · $seconds 秒'
-      : 'Add $side +$points location · $seconds s';
-  String matchTime(String value) =>
-      chinese ? '比赛时间 $value' : 'Match time $value';
+  _ScoringLabels(this.l10n);
+
+  final AppLocalizations l10n;
+  String get back => l10n.scoringBackToScoringList;
+  String get undo => l10n.scoringUndo;
+  String get more => l10n.scoringMore;
+  String get noTimer => l10n.scoringNoTimer;
+  String get timerNotConfigured => l10n.scoringTimerNotConfigured;
+  String get clockRunning => l10n.scoringClockRunning;
+  String get clockPaused => l10n.scoringClockPaused;
+  String get regulationExpired => l10n.scoringRegulationExpired;
+  String get shots => l10n.scoringShotsGroup;
+  String get freeThrows => l10n.scoringFreeThrowsGroup;
+  String get matchStatus => l10n.scoringMatchStatusGroup;
+  String get records => l10n.scoringRecordsGroup;
+  String get match => l10n.scoringMatchGroup;
+  String get note => l10n.scoringNote;
+  String get custom => l10n.scoringCustom;
+  String get pause => l10n.scoringPause;
+  String get resume => l10n.scoringResume;
+  String get replay => l10n.scoringReplay;
+  String get finish => l10n.finishMatch;
+  String get chooseScoringSide => l10n.scoringChooseScoringSide;
+  String get supplementExpired => l10n.scoringSupplementExpired;
+  String get actionRejected => l10n.scoringActionRejected;
+  String get failureRetry => l10n.actionFailedRetry;
+  String get retry => l10n.historyRetry;
+  String get cancel => l10n.cancelAction;
+  String get stay => l10n.scoringStay;
+  String get cancelAndLeave => l10n.scoringCancelLocationLeave;
+  String get pendingTitle => l10n.scoringPendingLocationTitle;
+  String get pendingBody => l10n.scoringPendingLocationBody;
+  String get noteHint => l10n.scoringNoteHint;
+  String get recordNote => l10n.scoringRecordNote;
+  String get eventLabel => l10n.scoringEventLabel;
+  String get recordEvent => l10n.scoringRecordEvent;
+  String sideName(TeamSide side) =>
+      side == TeamSide.blue ? l10n.pregameBlue : l10n.pregameRed;
+  String missed(TeamSide side) => '${sideName(side)} ${l10n.scoringMissed}';
+  String freeThrow(TeamSide side, bool made) {
+    return switch ((side, made)) {
+      (TeamSide.blue, true) => l10n.scoringBlueFreeThrowMade,
+      (TeamSide.blue, false) => l10n.scoringBlueFreeThrowMissed,
+      (TeamSide.red, true) => l10n.scoringRedFreeThrowMade,
+      (TeamSide.red, false) => l10n.scoringRedFreeThrowMissed,
+    };
+  }
+
+  String possession(TeamSide side) => side == TeamSide.blue
+      ? l10n.scoringPossessionBlue
+      : l10n.scoringPossessionRed;
+  String supplementPrompt(String side, int points, int seconds) =>
+      l10n.scoringSupplementPrompt(points, seconds, side);
+  String matchTime(String value) => l10n.scoringMatchTime(value);
 }
 
 String _formatSeconds(int seconds) {

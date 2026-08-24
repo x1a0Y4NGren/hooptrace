@@ -9,7 +9,6 @@ import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
-import 'package:hooptrace/features/scoring/widgets/pending_location_bar.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 void main() {
@@ -54,16 +53,16 @@ void main() {
     expect(point.y, 0);
   });
 
-  testWidgets('pending location bar wraps in narrow layouts', (tester) async {
+  testWidgets('court prompt remains usable in narrow layouts', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
           body: SizedBox(
             width: 180,
-            child: PendingLocationBar(
-              onConfirm: () {},
-              onSkip: () {},
-              onUndo: () {},
+            height: 260,
+            child: CourtView(
+              shotLocations: const [],
+              locationPrompt: '补充红方 +2 落点 · 8 秒',
             ),
           ),
         ),
@@ -71,9 +70,8 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('confirm-location')), findsOneWidget);
-    expect(find.byKey(const Key('cancel-location')), findsOneWidget);
-    expect(find.byKey(const Key('pending-location-undo')), findsOneWidget);
+    expect(find.text('补充红方 +2 落点 · 8 秒'), findsOneWidget);
+    expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
   });
 
   testWidgets('editable court exposes an accessible center-point tap', (

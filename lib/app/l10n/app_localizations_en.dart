@@ -1945,4 +1945,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scoringFoul => 'Foul';
+
+  @override
+  String get scoringMore => 'More';
+
+  @override
+  String get scoringShotsGroup => 'Shots';
+
+  @override
+  String get scoringFreeThrowsGroup => 'Free throws';
+
+  @override
+  String get scoringMatchStatusGroup => 'Match status';
+
+  @override
+  String get scoringRecordsGroup => 'Records';
+
+  @override
+  String get scoringMatchGroup => 'Match';
+
+  @override
+  String get scoringChooseScoringSide => 'Choose Blue or Red to score';
+
+  @override
+  String scoringSupplementPrompt(Object points, Object seconds, Object side) {
+    return 'Add $side +$points location · ${seconds}s';
+  }
+
+  @override
+  String get scoringSupplementExpired => 'Location supplement expired';
+
+  @override
+  String scoringScoreSemantics(Object points, Object side) {
+    return '$side +$points points';
+  }
+
+  @override
+  String scoringLocationPendingSemantics(
+    Object points,
+    Object seconds,
+    Object side,
+  ) {
+    return '$side +$points, location pending $seconds seconds';
+  }
 }

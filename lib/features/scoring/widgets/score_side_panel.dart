@@ -8,6 +8,7 @@ class ScoreSidePanel extends StatelessWidget {
   const ScoreSidePanel({
     required this.side,
     required this.name,
+    this.teamLabel,
     required this.score,
     required this.fouls,
     required this.onScore,
@@ -26,6 +27,7 @@ class ScoreSidePanel extends StatelessWidget {
 
   final TeamSide side;
   final String name;
+  final String? teamLabel;
   final int score;
   final int fouls;
   final ValueChanged<int> onScore;
@@ -67,6 +69,7 @@ class ScoreSidePanel extends StatelessWidget {
               for (final points in scoreButtons)
                 _ScoreAction(
                   side: side,
+                  teamLabel: teamLabel ?? name,
                   points: points,
                   width: actionWidth,
                   height: buttonHeight,
@@ -221,6 +224,7 @@ class ScoreSidePanel extends StatelessWidget {
                         for (final points in scoreButtons) ...[
                           _ScoreAction(
                             side: side,
+                            teamLabel: teamLabel ?? name,
                             points: points,
                             width: double.infinity,
                             height: buttonHeight,
@@ -275,6 +279,7 @@ class ScoreSidePanel extends StatelessWidget {
 class _ScoreAction extends StatelessWidget {
   const _ScoreAction({
     required this.side,
+    required this.teamLabel,
     required this.points,
     required this.width,
     required this.height,
@@ -289,6 +294,7 @@ class _ScoreAction extends StatelessWidget {
   });
 
   final TeamSide side;
+  final String teamLabel;
   final int points;
   final double width;
   final double height;
@@ -304,13 +310,11 @@ class _ScoreAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    final team = side == TeamSide.blue
-        ? (l10n.localeName.startsWith('zh') ? '蓝方' : 'Blue')
-        : (l10n.localeName.startsWith('zh') ? '红方' : 'Red');
+    final team = teamLabel;
     final remaining = locationRemainingSeconds;
     final semantic = locationActive && remaining != null
-        ? '$team +$points ${l10n.localeName.startsWith('zh') ? '待补落点 $remaining 秒' : 'location pending $remaining seconds'}'
-        : '$team +$points';
+        ? l10n.scoringLocationPendingSemantics(points, remaining, team)
+        : l10n.scoringScoreSemantics(points, team);
     final label = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
@@ -338,6 +342,8 @@ class _ScoreAction extends StatelessWidget {
           key: Key('${side.name}-score-$points'),
           style: FilledButton.styleFrom(
             backgroundColor: color,
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white54,
             minimumSize: Size(48, height),
             padding: compact ? EdgeInsets.zero : null,
             side: locationActive && reduceMotion

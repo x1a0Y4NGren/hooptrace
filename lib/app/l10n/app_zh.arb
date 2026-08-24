@@ -594,5 +594,16 @@
   "pregameTemplatesFallbackNotice": "规则模板暂时无法读取，已使用内置规则。",
   "scoringConfirmLocation": "确认落点",
   "scoringSkipLocation": "取消定位",
-  "scoringFoul": "犯规"
+  "scoringFoul": "犯规",
+  "scoringMore": "更多",
+  "scoringShotsGroup": "投篮",
+  "scoringFreeThrowsGroup": "罚球",
+  "scoringMatchStatusGroup": "比赛状态",
+  "scoringRecordsGroup": "记录",
+  "scoringMatchGroup": "比赛",
+  "scoringChooseScoringSide": "请选择蓝方或红方得分",
+  "scoringSupplementPrompt": "补充{side} +{points} 落点 · {seconds}秒",
+  "scoringSupplementExpired": "落点补充已过期",
+  "scoringScoreSemantics": "{side} +{points} 分",
+  "scoringLocationPendingSemantics": "{side} +{points}，待补落点 {seconds} 秒"
 }

@@ -594,5 +594,16 @@
   "pregameTemplatesFallbackNotice": "Rule templates are unavailable; built-in rules are shown.",
   "scoringConfirmLocation": "Confirm location",
   "scoringSkipLocation": "Cancel location",
-  "scoringFoul": "Foul"
+  "scoringFoul": "Foul",
+  "scoringMore": "More",
+  "scoringShotsGroup": "Shots",
+  "scoringFreeThrowsGroup": "Free throws",
+  "scoringMatchStatusGroup": "Match status",
+  "scoringRecordsGroup": "Records",
+  "scoringMatchGroup": "Match",
+  "scoringChooseScoringSide": "Choose Blue or Red to score",
+  "scoringSupplementPrompt": "Add {side} +{points} location · {seconds}s",
+  "scoringSupplementExpired": "Location supplement expired",
+  "scoringScoreSemantics": "{side} +{points} points",
+  "scoringLocationPendingSemantics": "{side} +{points}, location pending {seconds} seconds"
 }

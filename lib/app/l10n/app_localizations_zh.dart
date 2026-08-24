@@ -1852,4 +1852,47 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scoringFoul => '犯规';
+
+  @override
+  String get scoringMore => '更多';
+
+  @override
+  String get scoringShotsGroup => '投篮';
+
+  @override
+  String get scoringFreeThrowsGroup => '罚球';
+
+  @override
+  String get scoringMatchStatusGroup => '比赛状态';
+
+  @override
+  String get scoringRecordsGroup => '记录';
+
+  @override
+  String get scoringMatchGroup => '比赛';
+
+  @override
+  String get scoringChooseScoringSide => '请选择蓝方或红方得分';
+
+  @override
+  String scoringSupplementPrompt(Object points, Object seconds, Object side) {
+    return '补充$side +$points 落点 · $seconds秒';
+  }
+
+  @override
+  String get scoringSupplementExpired => '落点补充已过期';
+
+  @override
+  String scoringScoreSemantics(Object points, Object side) {
+    return '$side +$points 分';
+  }
+
+  @override
+  String scoringLocationPendingSemantics(
+    Object points,
+    Object seconds,
+    Object side,
+  ) {
+    return '$side +$points，待补落点 $seconds 秒';
+  }
 }
