@@ -849,6 +849,66 @@ void main() {
     });
   });
 
+  testWidgets('failed decision continue shows retry and keeps the decision', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      await service.start(
+        _startPageCommand('decision-continue-retry', targetScore: 2),
+      );
+      final projection = await service.record(
+        RecordMatchEventCommand(
+          commandId: 'decision-continue-retry-score',
+          matchId: 'decision-continue-retry',
+          eventId: 'decision-continue-retry-score-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: DateTime.utc(2026, 8, 23, 9, 1),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        projection,
+        service,
+      );
+      final command = ContinueMatchCommand(
+        commandId: 'decision-continue-retry-command',
+        matchId: 'decision-continue-retry',
+        occurredAt: DateTime.utc(2026, 8, 23, 9, 2),
+      );
+      var attempts = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            onContinueDecision: () async {
+              attempts++;
+              if (attempts == 1) throw StateError('offline');
+              await service.continueMatch(command);
+            },
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('scoring-decision-continue')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
+      expect(find.byType(SnackBarAction), findsOneWidget);
+      tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+
+      expect(attempts, 2);
+      expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
+    });
+  });
+
   testWidgets('committed scoring feedback runs after the event is persisted', (
     tester,
   ) async {

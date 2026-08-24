@@ -13,6 +13,7 @@ import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/history/history_page.dart';
@@ -370,6 +371,103 @@ void main() {
     await _pumpUntilFound(tester, find.byType(ScoringPage));
   });
 
+  testWidgets(
+    'cold-start active replay deep link stays finishable and exits to scoring',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      const matchId = 'task6-cold-start-active-replay';
+      final now = DateTime.utc(2026, 8, 23, 12);
+      await MatchCommandService(database).start(
+        StartMatchCommand(
+          commandId: '$matchId-start',
+          matchId: matchId,
+          redName: '红队',
+          blueName: '蓝队',
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: '自由计分',
+            scoreButtons: [1, 2, 3],
+          ),
+          recordingMode: RecordingMode.simple,
+          trackingCoverage: TrackingCoverage.scoresOnly,
+          createdAt: now,
+          startedAt: now,
+        ),
+      );
+      final router = buildProviderAppRouter();
+      addTearDown(router.dispose);
+      router.go('/matches/$matchId/replay');
+
+      await tester.pumpWidget(_routerHost(database, router));
+      await _pumpUntilFound(tester, find.byType(ReplayPage));
+
+      expect(find.text(l10n.replayInProgress), findsOneWidget);
+      expect(find.byKey(const Key('replay-finish-match')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('replay-exit')));
+      await _pumpUntilFound(tester, find.byType(ScoringPage));
+    },
+  );
+
+  testWidgets(
+    'replay not-found fallback has home and retry and reloads successfully',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      const matchId = 'task6-replay-retry-not-found';
+      final router = buildProviderAppRouter();
+      addTearDown(router.dispose);
+      await tester.pumpWidget(_routerHost(database, router));
+      router.go('/matches/$matchId/replay');
+      await _pumpUntilFound(tester, find.text(l10n.routeReplayNotFound));
+
+      expect(find.byKey(const Key('route-message-home')), findsOneWidget);
+      expect(find.byKey(const Key('route-message-retry')), findsOneWidget);
+
+      await _seedFinishedMatch(database, matchId);
+      await tester.tap(find.byKey(const Key('route-message-retry')));
+      await _pumpUntilFound(tester, find.byType(ReplayPage));
+      expect(find.text(l10n.replayFinished), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'replay load error fallback can retry after repository recovers',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      const matchId = 'task6-replay-retry-error';
+      await _seedFinishedMatch(database, matchId);
+      final repository = MatchRepository(database);
+      final detail = await repository.getMatchDetail(matchId);
+      final flaky = _FlakyReplayRepository(database, [
+        StateError('offline'),
+        detail,
+      ]);
+      final router = buildProviderAppRouter();
+      addTearDown(router.dispose);
+      await tester.pumpWidget(_routerHost(database, router, repository: flaky));
+      router.go('/matches/$matchId/replay');
+      await _pumpUntilFound(tester, find.text(l10n.routeReplayOpenError));
+
+      expect(find.byKey(const Key('route-message-home')), findsOneWidget);
+      expect(find.byKey(const Key('route-message-retry')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('route-message-retry')));
+      await _pumpUntilFound(tester, find.byType(ReplayPage));
+      expect(find.text(l10n.replayFinished), findsOneWidget);
+    },
+  );
+
   testWidgets('canonical finished replay exits to home', (tester) async {
     final database = createTestDatabase();
     addTearDown(() async {
@@ -431,9 +529,17 @@ void main() {
   });
 }
 
-Widget _routerHost(AppDatabase database, GoRouter router) {
+Widget _routerHost(
+  AppDatabase database,
+  GoRouter router, {
+  MatchRepository? repository,
+}) {
   return ProviderScope(
-    overrides: [appDatabaseProvider.overrideWithValue(database)],
+    overrides: [
+      appDatabaseProvider.overrideWithValue(database),
+      if (repository != null)
+        matchRepositoryProvider.overrideWithValue(repository),
+    ],
     child: MaterialApp.router(
       theme: buildHoopTraceTheme(),
       localizationsDelegates: const [
@@ -446,6 +552,23 @@ Widget _routerHost(AppDatabase database, GoRouter router) {
       routerConfig: router,
     ),
   );
+}
+
+class _FlakyReplayRepository extends MatchRepository {
+  _FlakyReplayRepository(this.database, this.responses) : super(database);
+
+  final AppDatabase database;
+  final List<Object?> responses;
+  var _index = 0;
+
+  @override
+  Future<MatchDetail?> getMatchDetail(String matchId) async {
+    final response = responses[_index++];
+    if (response is Object && response is! MatchDetail) {
+      throw response;
+    }
+    return response as MatchDetail?;
+  }
 }
 
 Future<void> _seedFinishedMatch(AppDatabase database, String matchId) async {

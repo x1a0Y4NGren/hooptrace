@@ -597,6 +597,7 @@ class _ReplayRoute extends ConsumerStatefulWidget {
 class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
   late Future<ReplayController?> _future;
   ReplayController? _controller;
+  MatchLifecycle? _lifecycle;
 
   @override
   void initState() {
@@ -608,6 +609,7 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
     final repository = ref.read(matchRepositoryProvider);
     final detail = await repository.getMatchDetail(widget.matchId);
     if (detail == null) return null;
+    _lifecycle = detail.match.lifecycle;
     final replayEditable =
         detail.match.lifecycle == MatchLifecycle.finished ||
         detail.match.lifecycle == MatchLifecycle.archived;
@@ -710,8 +712,19 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
         .getMatchDetail(widget.matchId);
     final controller = _controller;
     if (refreshed != null && controller != null) {
+      _lifecycle = refreshed.match.lifecycle;
       controller.replaceData(replayDataFromDetail(refreshed));
+      if (mounted) setState(() {});
     }
+  }
+
+  void _retryLoad() {
+    _controller?.dispose();
+    _controller = null;
+    _lifecycle = null;
+    setState(() {
+      _future = _load();
+    });
   }
 
   @override
@@ -723,8 +736,6 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    final active =
-        ref.watch(activeMatchProvider).valueOrNull?.match.id == widget.matchId;
     return FutureBuilder<ReplayController?>(
       future: _future,
       builder: (context, snapshot) {
@@ -732,6 +743,8 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
           return _RouteMessage(
             title: l10n.routeReplayOpenError,
             message: l10n.routeReplayOpenErrorBody,
+            onHome: () => context.go('/'),
+            onRetry: _retryLoad,
           );
         }
         if (snapshot.connectionState != ConnectionState.done) {
@@ -742,13 +755,25 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
           return _RouteMessage(
             title: l10n.routeReplayNotFound,
             message: l10n.routeReplayNotFoundBody,
+            onHome: () => context.go('/'),
+            onRetry: _retryLoad,
           );
         }
+        // The replay detail is the settled source of truth for this route.
+        // The active-match stream may still be loading during a cold-start
+        // deep link, so valueOrNull would incorrectly make an active replay
+        // read-only and send its exit back to Home.
+        final active = _lifecycle == MatchLifecycle.active;
         return ReplayPage(
           controller: controller,
           onExit: () {
             final router = GoRouter.of(context);
-            if (router.canPop()) {
+            if (active) {
+              // An active replay is always an auxiliary view of the live
+              // scoring route. Going there explicitly also handles a cold
+              // start deep link, whose router stack may still contain Home.
+              router.go('/scoring/${widget.matchId}');
+            } else if (router.canPop()) {
               router.pop();
             } else {
               router.go('/');
@@ -1085,12 +1110,14 @@ class _RouteMessage extends StatelessWidget {
     required this.message,
     this.onHome,
     this.onReplay,
+    this.onRetry,
   });
 
   final String title;
   final String message;
   final VoidCallback? onHome;
   final VoidCallback? onReplay;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -1119,6 +1146,14 @@ class _RouteMessage extends StatelessWidget {
                     key: const Key('route-message-replay'),
                     onPressed: onReplay,
                     child: Text(l10n.replayTitle),
+                  ),
+                ],
+                if (onRetry != null) ...[
+                  const SizedBox(height: 20),
+                  OutlinedButton(
+                    key: const Key('route-message-retry'),
+                    onPressed: onRetry,
+                    child: Text(l10n.retryAction),
                   ),
                 ],
                 if (onHome != null) ...[

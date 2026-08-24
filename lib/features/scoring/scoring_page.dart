@@ -958,13 +958,51 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _continueDecision() async {
     final action = widget.onContinueDecision;
     if (action == null || _decisionBusy) return;
+    await _attemptContinueDecision(action, retryAction: action);
+  }
+
+  Future<void> _attemptContinueDecision(
+    Future<void> Function() action, {
+    required Future<void> Function() retryAction,
+  }) async {
+    if (!mounted) return;
     setState(() => _decisionBusy = true);
     try {
       await action();
       _notifyCommitted();
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      }
+    } on MatchCommandFailure catch (failure) {
+      final retry = failure.canRetry
+          ? () async {
+              await failure.retry();
+            }
+          : retryAction;
+      _showContinueFailure(retry);
+    } on Object {
+      _showContinueFailure(retryAction);
     } finally {
       if (mounted) setState(() => _decisionBusy = false);
     }
+  }
+
+  void _showContinueFailure(Future<void> Function() retry) {
+    if (!mounted) return;
+    final labels = _labels(context);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('scoring-decision-failure'),
+          content: Text(labels.failureRetry),
+          action: SnackBarAction(
+            label: labels.retry,
+            onPressed: () =>
+                unawaited(_attemptContinueDecision(retry, retryAction: retry)),
+          ),
+        ),
+      );
   }
 
   Future<bool> _confirmFinishDecision({bool rethrowFailure = false}) async {

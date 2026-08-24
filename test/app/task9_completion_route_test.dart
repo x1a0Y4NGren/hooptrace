@@ -96,6 +96,63 @@ void main() {
   });
 
   testWidgets(
+    'production decision continue failure stays visible and retries',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(3000, 1080));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump(const Duration(milliseconds: 200));
+      });
+      await _seedDecision(database, 'route-continue-retry');
+      var failNext = true;
+      final service = MatchCommandService(
+        database,
+        failureInjector: (point) {
+          if (failNext && point == MatchCommandFailurePoint.beforeCommit) {
+            failNext = false;
+            throw StateError('continue failed once');
+          }
+        },
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(database),
+            matchCommandServiceProvider.overrideWithValue(service),
+          ],
+          child: const HoopTraceApp(),
+        ),
+      );
+      await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+      await _tapVisible(tester, find.byKey(const Key('home-resume')));
+      await _pumpUntilFound(tester, find.byType(ScoringPage));
+      await tester.ensureVisible(
+        find.byKey(const Key('scoring-decision-continue')),
+      );
+      await _tapVisible(
+        tester,
+        find.byKey(const Key('scoring-decision-continue')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
+      expect(find.byType(SnackBarAction), findsOneWidget);
+      tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+      await tester.pump();
+      await _pumpUntilMissing(
+        tester,
+        find.byKey(const Key('scoring-decision-dock')),
+      );
+
+      final match = await database.select(database.matches).getSingle();
+      expect(match.lifecycle, MatchLifecycle.active.name);
+    },
+  );
+
+  testWidgets(
     'replay refreshes a stale confirmed score before retrying finish',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(3000, 1080));
