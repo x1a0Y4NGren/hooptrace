@@ -2745,6 +2745,49 @@ class MatchCommandService {
     return query.getSingleOrNull();
   }
 
+  /// Returns event rows in durable commit chronology.
+  ///
+  /// A command writes its event and its `create` audit in one transaction.
+  /// When every event has that audit, the audit row order is the ownership
+  /// chronology used by scoring undo. Legacy/imported rows can be missing a
+  /// create audit; in that case the event row order is the only durable
+  /// chronology and remains the authoritative fallback for the whole replay.
+  Future<List<MatchEventRow>> _durableEventChronology(String matchId) async {
+    final rows =
+        await (_database.select(_database.matchEvents)
+              ..where((event) => event.matchId.equals(matchId))
+              ..orderBy([
+                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    if (rows.isEmpty) return const <MatchEventRow>[];
+
+    final audits =
+        await (_database.select(_database.auditLogs)
+              ..where(
+                (audit) =>
+                    audit.matchId.equals(matchId) &
+                    audit.action.equals('create'),
+              )
+              ..orderBy([
+                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
+              ]))
+            .get();
+    final eventById = <String, MatchEventRow>{
+      for (final event in rows) event.id: event,
+    };
+    final auditedIds = <String>{};
+    final auditedRows = <MatchEventRow>[];
+    for (final audit in audits) {
+      final event = eventById[audit.targetId];
+      if (event != null && auditedIds.add(event.id)) {
+        auditedRows.add(event);
+      }
+    }
+    if (auditedRows.length != rows.length) return rows;
+    return auditedRows;
+  }
+
   Future<ShotLocation?> _shotLocationForEvent(String eventId) {
     final query = _database.select(_database.shotLocations)
       ..where((row) => row.eventId.equals(eventId));
@@ -3431,14 +3474,7 @@ class MatchCommandService {
     final suggestedRows = segmentRows
         .where((row) => row.source == PossessionSource.suggested.name)
         .toList(growable: false);
-    final events =
-        await (_database.select(_database.matchEvents)
-              ..where((event) => event.matchId.equals(matchId))
-              ..orderBy([
-                (event) => OrderingTerm.asc(event.occurredAt),
-                (_) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
-              ]))
-            .get();
+    final events = await _durableEventChronology(matchId);
 
     final activeManualEventsById = <String, MatchEventRow>{
       for (final event in events)

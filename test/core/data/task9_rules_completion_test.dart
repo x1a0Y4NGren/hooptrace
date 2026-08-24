@@ -3,6 +3,7 @@ import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/rules/rule_engine.dart';
 import 'package:hooptrace/core/domain/scoring/score_state.dart';
@@ -492,6 +493,178 @@ void main() {
           ],
         );
         expect(projection.currentPossession, TeamSide.red);
+
+        final undone = await service.undo(
+          UndoMatchEventCommand(
+            commandId: 'possession-stable-order-undo',
+            matchId: start.matchId,
+            eventId: 'possession-stable-order-red-event',
+            reason: 'tie-order replay',
+          ),
+        );
+        expect(undone.currentPossession, TeamSide.red);
+        expect(
+          undone.possessionSegments.map((segment) => segment.startedAtEventId),
+          <String>['possession-stable-order-blue-event'],
+        );
+      });
+    },
+  );
+
+  test(
+    'possession replay follows durable order after out-of-order correction and undo',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = _start(
+          'possession-durable-order',
+          PossessionPolicy.switchAfterMade,
+        );
+        await service.start(start);
+
+        await service.record(
+          _fieldGoal(
+            'possession-durable-order-a',
+            start.matchId,
+            'possession-durable-order-a-event',
+            TeamSide.red,
+            occurredAt: DateTime.utc(2026, 8, 23, 10, 1),
+          ),
+        );
+        await service.record(
+          _fieldGoal(
+            'possession-durable-order-b',
+            start.matchId,
+            'possession-durable-order-b-event',
+            TeamSide.blue,
+            occurredAt: DateTime.utc(2026, 8, 23, 10, 3),
+          ),
+        );
+        await service.record(
+          _fieldGoal(
+            'possession-durable-order-c',
+            start.matchId,
+            'possession-durable-order-c-event',
+            TeamSide.red,
+            occurredAt: DateTime.utc(2026, 8, 23, 10, 2),
+          ),
+        );
+
+        final corrected = await service.correct(
+          CorrectMatchEventCommand(
+            commandId: 'possession-durable-order-correct',
+            matchId: start.matchId,
+            eventId: 'possession-durable-order-a-event',
+            points: 0,
+            outcome: ShotOutcome.missed,
+            reason: 'correct earliest durable event',
+          ),
+        );
+        expect(corrected.currentPossession, TeamSide.blue);
+        expect(
+          corrected.possessionSegments.map(
+            (segment) => segment.startedAtEventId,
+          ),
+          <String>[
+            'possession-durable-order-b-event',
+            'possession-durable-order-c-event',
+          ],
+        );
+
+        final undone = await service.undo(
+          UndoMatchEventCommand(
+            commandId: 'possession-durable-order-undo',
+            matchId: start.matchId,
+            eventId: 'possession-durable-order-a-event',
+            reason: 'remove earliest durable event',
+          ),
+        );
+
+        expect(
+          (await (database.select(database.matchEvents)..where(
+                    (event) =>
+                        event.id.equals('possession-durable-order-a-event'),
+                  ))
+                  .getSingle())
+              .isDeleted,
+          isTrue,
+        );
+        expect(undone.currentPossession, TeamSide.blue);
+        expect(
+          undone.possessionSegments.map((segment) => segment.startedAtEventId),
+          <String>[
+            'possession-durable-order-b-event',
+            'possession-durable-order-c-event',
+          ],
+        );
+        expect(
+          undone.possessionSegments.map((segment) => segment.endedAtEventId),
+          <String?>['possession-durable-order-c-event', null],
+        );
+      });
+    },
+  );
+
+  test(
+    'legacy imported possession replay falls back to event row chronology',
+    () async {
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database);
+        final start = _start(
+          'possession-legacy-order',
+          PossessionPolicy.switchAfterMade,
+        );
+        await service.start(start);
+        final repository = MatchRepository(database);
+        for (final event in [
+          MatchEvent(
+            id: 'possession-legacy-order-a-event',
+            matchId: start.matchId,
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: DateTime.utc(2026, 8, 23, 10, 1),
+          ),
+          MatchEvent(
+            id: 'possession-legacy-order-b-event',
+            matchId: start.matchId,
+            type: EventKind.fieldGoal,
+            side: TeamSide.blue,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: DateTime.utc(2026, 8, 23, 10, 3),
+          ),
+          MatchEvent(
+            id: 'possession-legacy-order-c-event',
+            matchId: start.matchId,
+            type: EventKind.fieldGoal,
+            side: TeamSide.red,
+            points: 2,
+            outcome: ShotOutcome.made,
+            occurredAt: DateTime.utc(2026, 8, 23, 10, 2),
+          ),
+        ]) {
+          await repository.saveEvent(event);
+        }
+
+        final undone = await service.undo(
+          UndoMatchEventCommand(
+            commandId: 'possession-legacy-order-undo',
+            matchId: start.matchId,
+            eventId: 'possession-legacy-order-a-event',
+            reason: 'remove imported event',
+          ),
+        );
+
+        expect(undone.currentPossession, TeamSide.blue);
+        expect(
+          undone.possessionSegments.map((segment) => segment.startedAtEventId),
+          <String>[
+            'possession-legacy-order-b-event',
+            'possession-legacy-order-c-event',
+          ],
+        );
       });
     },
   );
