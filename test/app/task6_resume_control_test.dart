@@ -26,6 +26,7 @@ void main() {
     await _enterScoring(tester, database);
     await _openMore(tester);
     expect(find.byKey(const Key('more-resume')), findsOneWidget);
+    expect(find.byKey(const Key('more-pause')), findsNothing);
 
     await tester.ensureVisible(find.byKey(const Key('more-resume')));
     await tester.tap(find.byKey(const Key('more-resume')));
@@ -177,7 +178,7 @@ void main() {
     await _enterScoring(tester, runningDatabase);
     await _openMore(tester);
     expect(find.byKey(const Key('more-pause')), findsOneWidget);
-    expect(find.byKey(const Key('more-resume')), findsOneWidget);
+    expect(find.byKey(const Key('more-resume')), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await runningDatabase.close();

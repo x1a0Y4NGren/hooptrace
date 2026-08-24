@@ -592,6 +592,7 @@ class _ScoringPageState extends State<ScoringPage> {
 
   Future<void> _showMore() async {
     final labels = _labels(context);
+    final clock = _displayClock();
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -778,24 +779,25 @@ class _ScoringPageState extends State<ScoringPage> {
                             ),
                           ),
                         ),
-                        if (_controller.timerEnabled) ...[
-                          _moreAction(
-                            key: const Key('more-pause'),
-                            icon: Icons.pause,
-                            label: labels.pause,
-                            enabled: _ordinaryActionsEnabled,
-                            onTap: () =>
-                                runMore(() => _pause(rethrowFailure: true)),
-                          ),
-                          _moreAction(
-                            key: const Key('more-resume'),
-                            icon: Icons.play_arrow,
-                            label: labels.resume,
-                            enabled: _ordinaryActionsEnabled,
-                            onTap: () =>
-                                runMore(() => _resume(rethrowFailure: true)),
-                          ),
-                        ],
+                        if (_controller.timerEnabled && clock != null)
+                          if (clock.isRunning)
+                            _moreAction(
+                              key: const Key('more-pause'),
+                              icon: Icons.pause,
+                              label: labels.pause,
+                              enabled: _ordinaryActionsEnabled,
+                              onTap: () =>
+                                  runMore(() => _pause(rethrowFailure: true)),
+                            )
+                          else
+                            _moreAction(
+                              key: const Key('more-resume'),
+                              icon: Icons.play_arrow,
+                              label: labels.resume,
+                              enabled: _ordinaryActionsEnabled,
+                              onTap: () =>
+                                  runMore(() => _resume(rethrowFailure: true)),
+                            ),
                         _moreHeading(labels.records),
                         _moreAction(
                           key: const Key('more-note'),

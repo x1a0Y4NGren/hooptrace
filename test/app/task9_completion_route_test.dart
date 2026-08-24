@@ -36,16 +36,17 @@ void main() {
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
-    await tester.tap(find.byKey(const Key('home-resume')));
+    await _tapVisible(tester, find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
 
-    tester
-        .widget<FilledButton>(find.byKey(const Key('scoring-decision-finish')))
-        .onPressed!();
+    await tester.ensureVisible(
+      find.byKey(const Key('scoring-decision-finish')),
+    );
+    await _tapVisible(tester, find.byKey(const Key('scoring-decision-finish')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Red 1 : 0 Blue'), findsWidgets);
-    await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
+    await _tapVisible(tester, find.byKey(const Key('scoring-finish-confirm')));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
     await _pumpUntilFound(tester, find.text(l10n.replayFinished));
     expect(find.byKey(const Key('replay-finish-match')), findsNothing);
@@ -74,13 +75,15 @@ void main() {
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
-    await tester.tap(find.byKey(const Key('home-resume')));
+    await _tapVisible(tester, find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
-    tester
-        .widget<OutlinedButton>(
-          find.byKey(const Key('scoring-decision-continue')),
-        )
-        .onPressed!();
+    await tester.ensureVisible(
+      find.byKey(const Key('scoring-decision-continue')),
+    );
+    await _tapVisible(
+      tester,
+      find.byKey(const Key('scoring-decision-continue')),
+    );
     await _pumpUntilMissing(
       tester,
       find.byKey(const Key('scoring-decision-dock')),
@@ -112,16 +115,32 @@ void main() {
         ),
       );
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
-      await tester.tap(find.byKey(const Key('home-resume')));
+      await _tapVisible(tester, find.byKey(const Key('home-resume')));
       await _pumpUntilFound(tester, find.byType(ScoringPage));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('scoring-more')));
+      await _tapVisible(tester, find.byKey(const Key('scoring-more')));
       await tester.pumpAndSettle();
-      tester.widget<ListTile>(find.byKey(const Key('more-replay'))).onTap!();
+      await tester.ensureVisible(find.byKey(const Key('more-replay')));
+      final sheetScrollable = find.descendant(
+        of: find.byKey(const Key('scoring-more-sheet')),
+        matching: find.byType(Scrollable),
+      );
+      final viewport = tester.binding.renderViews.first.size;
+      await tester.dragFrom(
+        Offset(viewport.width / 2, viewport.height / 2),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('more-replay')),
+        500,
+        scrollable: sheetScrollable,
+      );
+      await _tapVisible(tester, find.byKey(const Key('more-replay')));
       await _pumpUntilFound(tester, find.byType(ReplayPage));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('replay-finish-match')));
+      await _tapVisible(tester, find.byKey(const Key('replay-finish-match')));
       await tester.pumpAndSettle();
       expect(find.textContaining('Red 1 : 0 Blue'), findsOneWidget);
 
@@ -137,15 +156,15 @@ void main() {
           occurredAt: DateTime.utc(2026, 8, 23, 9, 2),
         ),
       );
-      await tester.tap(find.byKey(const Key('replay-finish-confirm')));
+      await _tapVisible(tester, find.byKey(const Key('replay-finish-confirm')));
       await tester.pumpAndSettle();
       expect(find.text(l10n.actionFailedRetry), findsOneWidget);
       expect(find.byKey(const Key('replay-finish-match')), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('replay-finish-match')));
+      await _tapVisible(tester, find.byKey(const Key('replay-finish-match')));
       await tester.pumpAndSettle();
       expect(find.textContaining('Red 2 : 0 Blue'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('replay-finish-confirm')));
+      await _tapVisible(tester, find.byKey(const Key('replay-finish-confirm')));
       await _pumpUntilFound(tester, find.text(l10n.replayFinished));
 
       final match = await database.select(database.matches).getSingle();
@@ -240,4 +259,11 @@ Future<void> _pumpUntilMissing(WidgetTester tester, Finder finder) async {
     );
   }
   fail('Timed out waiting for $finder to disappear');
+}
+
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+  await tester.pump();
 }

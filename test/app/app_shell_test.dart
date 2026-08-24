@@ -39,7 +39,7 @@ void main() {
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(homeStartScoringKey));
+    await _tapVisible(tester, find.byKey(homeStartScoringKey));
     await tester.pumpAndSettle();
     expect(find.byType(PregamePage), findsOneWidget);
 
@@ -62,31 +62,47 @@ void main() {
     await tester.pumpWidget(HoopTraceApp(database: database));
     await _pumpUntilFound(tester, find.byKey(homeStartScoringKey));
 
-    await tester.tap(find.byKey(homeStartScoringKey));
+    await _tapVisible(tester, find.byKey(homeStartScoringKey));
     await _pumpUntilFound(tester, find.byType(PregamePage));
     await _selectSimpleAndStart(tester);
     await _pumpUntilFound(tester, find.byType(ScoringPage));
-    await tester.tap(find.byKey(const Key('red-score-2')));
+    await _tapVisible(tester, find.byKey(const Key('red-score-2')));
     await tester.pump();
     await tester.tapAt(
       tester.getCenter(find.byKey(const Key('scoring-court'))),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('scoring-more')));
+    await _tapVisible(tester, find.byKey(const Key('scoring-more')));
     await tester.pumpAndSettle();
-    tester.widget<ListTile>(find.byKey(const Key('more-replay'))).onTap!();
+    await tester.ensureVisible(find.byKey(const Key('more-replay')));
+    final sheetScrollable = find.descendant(
+      of: find.byKey(const Key('scoring-more-sheet')),
+      matching: find.byType(Scrollable),
+    );
+    final viewport = tester.binding.renderViews.first.size;
+    await tester.dragFrom(
+      Offset(viewport.width / 2, viewport.height / 2),
+      const Offset(0, -400),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('more-replay')),
+      500,
+      scrollable: sheetScrollable,
+    );
+    await _tapVisible(tester, find.byKey(const Key('more-replay')));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
 
     expect(find.byType(ReplayPage), findsOneWidget);
     expect(find.text(_l10n(tester).replayInProgress), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('replay-finish-match')));
+    await _tapVisible(tester, find.byKey(const Key('replay-finish-match')));
     await _pumpUntilFound(
       tester,
       find.byKey(const Key('replay-finish-confirm')),
     );
     expect(find.textContaining('2'), findsWidgets);
-    await tester.tap(find.byKey(const Key('replay-finish-confirm')));
+    await _tapVisible(tester, find.byKey(const Key('replay-finish-confirm')));
     await _pumpUntilFound(tester, find.text(_l10n(tester).replayFinished));
     expect(find.byType(ReplayPage), findsOneWidget);
     expect(find.text(_l10n(tester).replayFinished), findsOneWidget);
@@ -121,5 +137,12 @@ Future<void> _selectSimpleAndStart(WidgetTester tester) async {
     300,
     scrollable: find.byType(Scrollable).first,
   );
-  await tester.tap(find.byKey(const Key('pregame-start-match')));
+  await _tapVisible(tester, find.byKey(const Key('pregame-start-match')));
+}
+
+Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+  await tester.pump();
 }
