@@ -144,12 +144,15 @@ class JsonBackupCodec {
         'matchParticipants': await _rows(database.matchParticipants),
         'matchClocks': await _rows(database.matchClocks),
         'activeSessions': await _rows(database.activeSessions),
-        'matchEvents': await _rows(database.matchEvents),
+        // Event and audit row order is the only durable chronology available
+        // to pre-audit imports. Preserve SQLite insertion order in backups so
+        // a round trip retains that deterministic legacy fallback.
+        'matchEvents': await _rows(database.matchEvents, sortByKey: false),
         'shotLocations': await _rows(database.shotLocations),
         'players': await _rows(database.players),
         'ruleTemplates': await _rows(database.ruleTemplates),
         'possessionSegments': await _rows(database.possessionSegments),
-        'auditLogs': await _rows(database.auditLogs),
+        'auditLogs': await _rows(database.auditLogs, sortByKey: false),
         'appSettings': await _rows(
           database.appSettings,
           key: 'key',
@@ -839,6 +842,7 @@ class JsonBackupCodec {
   Future<List<Map<String, dynamic>>> _rows<T extends DataClass>(
     TableInfo<Table, T> table, {
     String key = 'id',
+    bool sortByKey = true,
     bool Function(Map<String, dynamic> row)? include,
   }) async {
     final rows = await database.select(table).get();
@@ -846,10 +850,12 @@ class JsonBackupCodec {
         .map((row) => row.toJson())
         .where((row) => include == null || include(row))
         .toList();
-    json.sort(
-      (first, second) =>
-          (first[key] as String).compareTo(second[key] as String),
-    );
+    if (sortByKey) {
+      json.sort(
+        (first, second) =>
+            (first[key] as String).compareTo(second[key] as String),
+      );
+    }
     return json;
   }
 

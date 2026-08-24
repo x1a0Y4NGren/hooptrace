@@ -6,6 +6,53 @@ import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 
 void main() {
+  test('replay timeline sorts by occurredAt with stable input tie-breaks', () {
+    final late = DateTime.utc(2026, 8, 25, 12, 0, 5);
+    final early = DateTime.utc(2026, 8, 25, 12, 0, 1);
+    final controller = ReplayController(
+      data: ReplayMatchData(
+        matchId: 'timeline-order',
+        redName: 'Red',
+        blueName: 'Blue',
+        redScore: 4,
+        blueScore: 0,
+        duration: const Duration(seconds: 5),
+        events: [
+          ReplayEventData(
+            id: 'late',
+            kind: ReplayEventKind.score,
+            side: TeamSide.red,
+            points: 2,
+            elapsed: const Duration(seconds: 5),
+            occurredAt: late,
+          ),
+          ReplayEventData(
+            id: 'tie-first',
+            kind: ReplayEventKind.score,
+            side: TeamSide.red,
+            points: 1,
+            elapsed: const Duration(seconds: 1),
+            occurredAt: early,
+          ),
+          ReplayEventData(
+            id: 'tie-second',
+            kind: ReplayEventKind.score,
+            side: TeamSide.red,
+            points: 1,
+            elapsed: const Duration(seconds: 1),
+            occurredAt: early,
+          ),
+        ],
+      ),
+    );
+
+    expect(controller.visibleEvents.map((event) => event.id).toList(), [
+      'tie-first',
+      'tie-second',
+      'late',
+    ]);
+  });
+
   testWidgets('replay surfaces analytics summary, flow, and key possessions', (
     tester,
   ) async {

@@ -1345,16 +1345,27 @@ class MatchCommandService {
           await (_database.update(_database.matchEvents)
                 ..where((row) => row.id.equals(event.id)))
               .write(const MatchEventsCompanion(isDeleted: Value(true)));
-          final location = await _shotLocationForEvent(event.id);
-          if (location != null && selected.atomicLocation) {
-            final locationBefore = _shotLocationJson(location);
+          final locations = await (_database.select(
+            _database.shotLocations,
+          )..where((row) => row.eventId.equals(event.id))).get();
+          final confirmedLocations = locations
+              .where((location) => location.isConfirmed)
+              .toList(growable: false);
+          if (confirmedLocations.isNotEmpty) {
             await (_database.update(_database.shotLocations)
-                  ..where((row) => row.id.equals(location.id)))
+                  ..where((row) => row.eventId.equals(event.id)))
                 .write(const ShotLocationsCompanion(isConfirmed: Value(false)));
-            after['shotLocation'] = <String, Object?>{
-              ...locationBefore,
-              'isConfirmed': false,
-            };
+            after['shotLocations'] = [
+              for (final location in confirmedLocations)
+                <String, Object?>{
+                  ..._shotLocationJson(location),
+                  'isConfirmed': false,
+                },
+            ];
+            if (confirmedLocations.length == 1) {
+              after['shotLocation'] =
+                  (after['shotLocations'] as List<Object?>).first;
+            }
           }
           await _writeAudit(
             id: command.auditId,
@@ -2859,8 +2870,12 @@ class MatchCommandService {
     // Legacy/imported event rows may have no create audit. If the newest
     // durable row is one of those events, it is still the next undoable
     // action. New records use audit chronology whenever it exists.
-    if (events.isNotEmpty &&
-        !audits.any((audit) => audit.targetId == events.first.id)) {
+    final createAuditEventIds = <String>{
+      for (final audit in audits)
+        if (audit.action == 'create') audit.targetId,
+    };
+    if (events.isNotEmpty && !createAuditEventIds.contains(events.first.id)) {
+      if (latest?.event?.id == events.first.id) return latest;
       final event = events.first;
       return _UndoableScoringAction.event(event: event, atomicLocation: false);
     }
@@ -3105,7 +3120,14 @@ class MatchCommandService {
       return;
     }
     final clockRow = await _clockRow(command.matchId);
-    if (clockRow == null) return;
+    if (clockRow == null) {
+      throw CommandValidationFailure(
+        command: command,
+        message:
+            'Cannot safely associate the active scoring decision with a clock state.',
+        projectionMatchId: command.matchId,
+      );
+    }
     // The decision pause is derived from the scoring transaction. Its audit
     // row carries the source event identity, so undo never compares client
     // supplied occurredAt values (which may be future or out of order).
@@ -3172,7 +3194,17 @@ class MatchCommandService {
         }
       }
     }
-    if (decisionClockAudit == null) return;
+    if (decisionClockAudit == null) {
+      // This method runs inside the undo transaction, so rejecting here rolls
+      // back the score tombstone, its audit, locations, and any clock writes.
+      // A decision with no durable source relation is unsafe to remove.
+      throw CommandValidationFailure(
+        command: command,
+        message:
+            'Cannot safely associate the active scoring decision with the selected score.',
+        projectionMatchId: command.matchId,
+      );
+    }
     await (_database.update(_database.matchEvents)
           ..where((row) => row.id.equals(decision.id)))
         .write(const MatchEventsCompanion(isDeleted: Value(true)));

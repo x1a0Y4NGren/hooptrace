@@ -225,12 +225,32 @@ class ReplayController extends ChangeNotifier {
   }
 
   UnmodifiableListView<ReplayEventData> get visibleEvents {
+    final indexed =
+        data.events
+            .asMap()
+            .entries
+            .where(
+              (entry) =>
+                  _eventFilter.matches(entry.value) &&
+                  _matchesFilters(entry.value),
+            )
+            .toList()
+          ..sort((first, second) {
+            final firstAt = first.value.occurredAt;
+            final secondAt = second.value.occurredAt;
+            if (firstAt == null || secondAt == null) {
+              if (firstAt == null && secondAt == null) {
+                return first.key.compareTo(second.key);
+              }
+              return firstAt == null ? 1 : -1;
+            }
+            final comparison = firstAt.compareTo(secondAt);
+            return comparison == 0
+                ? first.key.compareTo(second.key)
+                : comparison;
+          });
     return UnmodifiableListView(
-      data.events
-          .where(
-            (event) => _eventFilter.matches(event) && _matchesFilters(event),
-          )
-          .toList(growable: false),
+      indexed.map((entry) => entry.value).toList(growable: false),
     );
   }
 

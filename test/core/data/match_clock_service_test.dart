@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart' hide isNotNull, isNull;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/clock_state.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/core/export/backup_merge_service.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 
 import '../../test_helpers/test_database.dart';
@@ -2164,6 +2166,260 @@ void main() {
         ),
       );
       expect(score.locatedShotCount, 2);
+    },
+  );
+
+  test(
+    'legacy locate audit without create audit undoes location then newest event',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'legacy-locate-only-score',
+          matchId: 'match-clock',
+          eventId: 'legacy-locate-only-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      await service.confirmShotLocation(
+        ConfirmShotLocationCommand(
+          commandId: 'legacy-locate-only-location',
+          matchId: 'match-clock',
+          eventId: 'legacy-locate-only-event',
+          point: CourtPoint(x: 0.3, y: 0.7),
+          requestedAtUtc: _anchor.add(const Duration(seconds: 1)),
+        ),
+      );
+      await (database.delete(database.auditLogs)..where(
+            (row) =>
+                row.targetId.equals('legacy-locate-only-event') &
+                row.action.equals('create'),
+          ))
+          .go();
+
+      final locationUndo = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'legacy-locate-only-location-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(locationUndo.redScore, 2);
+      expect(locationUndo.events.single.isDeleted, isFalse);
+      expect(locationUndo.locatedShotCount, 0);
+
+      final scoreUndo = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'legacy-locate-only-score-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(scoreUndo.redScore, 0);
+      expect(scoreUndo.events.single.isDeleted, isTrue);
+      expect(
+        (await database.select(database.shotLocations).getSingle()).isConfirmed,
+        isFalse,
+      );
+    },
+  );
+
+  test(
+    'undoing an imported confirmed location clears it even with only non-scoring audit',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(_start());
+      await service.record(
+        RecordMatchEventCommand(
+          commandId: 'imported-location-score',
+          matchId: 'match-clock',
+          eventId: 'imported-location-event',
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 2,
+          outcome: ShotOutcome.made,
+          occurredAt: _anchor,
+        ),
+      );
+      await database
+          .into(database.shotLocations)
+          .insert(
+            ShotLocationsCompanion.insert(
+              id: 'imported-location-row',
+              matchId: 'match-clock',
+              eventId: 'imported-location-event',
+              x: 0.2,
+              y: 0.8,
+              isConfirmed: const Value(true),
+            ),
+          );
+      await database
+          .into(database.auditLogs)
+          .insert(
+            AuditLogsCompanion.insert(
+              id: 'imported-location-edit-audit',
+              matchId: 'match-clock',
+              targetId: 'imported-location-event',
+              action: 'edit',
+              beforeJson: '{}',
+              afterJson: '{}',
+              reason: const Value('imported'),
+              createdAt: _anchor,
+            ),
+          );
+
+      final undone = await service.undoLastScoringAction(
+        UndoLastScoringActionCommand(
+          commandId: 'imported-location-score-undo',
+          matchId: 'match-clock',
+        ),
+      );
+      expect(undone.redScore, 0);
+      final location = await database
+          .select(database.shotLocations)
+          .getSingle();
+      expect(location.isConfirmed, isFalse);
+      expect(undone.shotLocations, isEmpty);
+    },
+  );
+
+  test(
+    'ambiguous legacy decision adjacency rejects undo without partial mutation',
+    () async {
+      final database = createTestDatabase();
+      final service = MatchCommandService(database, now: () => _anchor);
+      await service.start(
+        _start(
+          timerEnabled: true,
+          ruleTemplate: const RuleTemplate(
+            id: 'ambiguous-legacy-target',
+            name: 'Target',
+            scoreButtons: [1],
+            targetScore: 1,
+          ),
+        ),
+      );
+      final reached = await service.record(
+        _score(
+          commandId: 'ambiguous-legacy-score',
+          eventId: 'ambiguous-legacy-event',
+        ),
+      );
+      expect(reached.decision, isNotNull);
+      final decisionClock = (await database.select(database.auditLogs).get())
+          .singleWhere((row) => row.reason == 'decision-clock');
+      final legacyAfter =
+          jsonDecode(decisionClock.afterJson) as Map<String, Object?>;
+      legacyAfter.remove('scoringEventId');
+      await database.customUpdate(
+        'UPDATE audit_logs SET after_json = ? WHERE id = ?',
+        variables: [
+          Variable.withString(jsonEncode(legacyAfter)),
+          Variable.withString(decisionClock.id),
+        ],
+        updates: {database.auditLogs},
+      );
+      await (database.delete(database.auditLogs)..where(
+            (row) =>
+                row.targetId.equals('ambiguous-legacy-event') &
+                row.action.equals('create'),
+          ))
+          .go();
+
+      final failure = await _captureFailure(
+        () => service.undoLastScoringAction(
+          UndoLastScoringActionCommand(
+            commandId: 'ambiguous-legacy-undo',
+            matchId: 'match-clock',
+          ),
+        ),
+      );
+      expect(failure, isA<CommandValidationFailure>());
+      final event = (await database.select(database.matchEvents).get())
+          .singleWhere((row) => row.id == 'ambiguous-legacy-event');
+      expect(event.isDeleted, isFalse);
+      final decision = (await database.select(database.matchEvents).get())
+          .singleWhere(
+            (row) => row.customLabel?.startsWith('decision:') == true,
+          );
+      expect(decision.isDeleted, isFalse);
+      final clock = await database.select(database.matchClocks).getSingle();
+      expect(clock.runningSinceUtc, isNull);
+    },
+  );
+
+  test(
+    'backup roundtrip preserves durable order for legacy unaudited scoring rows',
+    () async {
+      final source = createTestDatabase();
+      final sourceService = MatchCommandService(source, now: () => _anchor);
+      await sourceService.start(_start());
+      await sourceService.record(
+        _score(commandId: 'legacy-backup-a', eventId: 'legacy-backup-a-event'),
+      );
+      await sourceService.record(
+        _score(commandId: 'legacy-backup-b', eventId: 'legacy-backup-b-event'),
+      );
+      await (source.delete(source.auditLogs)..where(
+            (row) =>
+                row.action.equals('create') &
+                row.targetId.isIn([
+                  'legacy-backup-a-event',
+                  'legacy-backup-b-event',
+                ]),
+          ))
+          .go();
+      final backup = await JsonBackupCodec(
+        source,
+        appVersion: '0.1.0+1',
+        now: () => _anchor,
+      ).export();
+
+      final restored = createTestDatabase();
+      await JsonBackupCodec(restored, appVersion: '0.1.0+1').restore(backup);
+      final restoredEvents = await restored.select(restored.matchEvents).get();
+      final scoringIds = restoredEvents
+          .where(
+            (row) =>
+                row.type == EventKind.fieldGoal.name ||
+                row.type == EventKind.score.name,
+          )
+          .map((row) => row.id)
+          .toList();
+      expect(scoringIds, ['legacy-backup-a-event', 'legacy-backup-b-event']);
+      final undone = await MatchCommandService(restored, now: () => _anchor)
+          .undoLastScoringAction(
+            UndoLastScoringActionCommand(
+              commandId: 'legacy-backup-undo',
+              matchId: 'match-clock',
+            ),
+          );
+      expect(undone.redScore, 1);
+      expect(
+        undone.events
+            .singleWhere((event) => event.id == 'legacy-backup-b-event')
+            .isDeleted,
+        isTrue,
+      );
+
+      final merged = createTestDatabase();
+      await BackupMergeService(merged).merge(backup);
+      final mergedEvents = await merged.select(merged.matchEvents).get();
+      expect(
+        mergedEvents
+            .where(
+              (row) =>
+                  row.type == EventKind.fieldGoal.name ||
+                  row.type == EventKind.score.name,
+            )
+            .map((row) => row.id),
+        ['legacy-backup-a-event', 'legacy-backup-b-event'],
+      );
     },
   );
 }
