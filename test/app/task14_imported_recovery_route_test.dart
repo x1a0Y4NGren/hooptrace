@@ -13,6 +13,7 @@ import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -40,9 +41,9 @@ void main() {
     await tester.tap(
       find.byKey(const Key('history-resume-imported-imported-route')),
     );
-    await _pumpUntil(tester, find.byKey(const Key('scoring-command-dock')));
+    await _pumpUntil(tester, find.byType(ScoringPage));
 
-    expect(find.byKey(const Key('scoring-command-dock')), findsOneWidget);
+    expect(find.byType(ScoringPage), findsOneWidget);
     expect(
       (await database.select(database.activeSessions).get()).single.matchId,
       'imported-route',

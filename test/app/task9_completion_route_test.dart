@@ -115,7 +115,9 @@ void main() {
       await tester.tap(find.byKey(const Key('home-resume')));
       await _pumpUntilFound(tester, find.byType(ScoringPage));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('scoring-replay')));
+      await tester.tap(find.byKey(const Key('scoring-more')));
+      await tester.pumpAndSettle();
+      tester.widget<ListTile>(find.byKey(const Key('more-replay'))).onTap!();
       await _pumpUntilFound(tester, find.byType(ReplayPage));
       await tester.pumpAndSettle();
 

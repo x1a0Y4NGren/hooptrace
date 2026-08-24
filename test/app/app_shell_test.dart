@@ -68,7 +68,13 @@ void main() {
     await _pumpUntilFound(tester, find.byType(ScoringPage));
     await tester.tap(find.byKey(const Key('red-score-2')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('scoring-replay')));
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scoring-more')));
+    await tester.pumpAndSettle();
+    tester.widget<ListTile>(find.byKey(const Key('more-replay'))).onTap!();
     await _pumpUntilFound(tester, find.byType(ReplayPage));
 
     expect(find.byType(ReplayPage), findsOneWidget);

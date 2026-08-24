@@ -24,12 +24,14 @@ void main() {
     );
 
     await _enterScoring(tester, database);
-    expect(find.byKey(const Key('scoring-resume-clock')), findsOneWidget);
+    await _openMore(tester);
+    expect(find.byKey(const Key('more-resume')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('scoring-resume-clock')));
+    await tester.ensureVisible(find.byKey(const Key('more-resume')));
+    await tester.tap(find.byKey(const Key('more-resume')));
     await tester.pump(const Duration(milliseconds: 100));
     expect((await service.readClock(matchId))?.isRunning, isTrue);
-    await _pumpUntilGone(tester, find.byKey(const Key('scoring-resume-clock')));
+    await _pumpUntilGone(tester, find.byKey(const Key('scoring-more-sheet')));
     expect(find.byType(ScoringPage), findsOneWidget);
   });
 
@@ -65,13 +67,15 @@ void main() {
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
     await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
-    expect(find.byKey(const Key('scoring-resume-clock')), findsOneWidget);
+    await _openMore(tester);
+    expect(find.byKey(const Key('more-resume')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('scoring-resume-clock')));
+    await tester.ensureVisible(find.byKey(const Key('more-resume')));
+    await tester.tap(find.byKey(const Key('more-resume')));
     await tester.pump();
     expect(find.byType(ScoringPage), findsOneWidget);
-    expect(find.byKey(const Key('scoring-resume-clock')), findsOneWidget);
-    expect(find.byType(SnackBar), findsAtLeastNWidgets(1));
+    expect(find.byKey(const Key('more-inline-error')), findsOneWidget);
+    expect(find.byKey(const Key('more-resume')), findsOneWidget);
   });
 
   testWidgets(
@@ -103,11 +107,10 @@ void main() {
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
       await tester.tap(find.byKey(const Key('home-resume')));
       await _pumpUntilFound(tester, find.byType(ScoringPage));
-      await tester.tap(find.byKey(const Key('scoring-resume-clock')));
-      await _pumpUntilGone(
-        tester,
-        find.byKey(const Key('scoring-resume-clock')),
-      );
+      await _openMore(tester);
+      await tester.ensureVisible(find.byKey(const Key('more-resume')));
+      await tester.tap(find.byKey(const Key('more-resume')));
+      await _pumpUntilGone(tester, find.byKey(const Key('scoring-more-sheet')));
 
       expect(platform.hapticCalls, 1);
       expect(platform.eventCounts, [greaterThanOrEqualTo(2)]);
@@ -152,10 +155,12 @@ void main() {
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
     await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
-    await tester.tap(find.byKey(const Key('scoring-resume-clock')));
+    await _openMore(tester);
+    await tester.ensureVisible(find.byKey(const Key('more-resume')));
+    await tester.tap(find.byKey(const Key('more-resume')));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.byKey(const Key('scoring-resume-clock')), findsOneWidget);
+    expect(find.byKey(const Key('more-inline-error')), findsOneWidget);
     expect(platform.hapticCalls, 0);
   });
 
@@ -170,7 +175,9 @@ void main() {
       timerEnabled: true,
     );
     await _enterScoring(tester, runningDatabase);
-    expect(find.byKey(const Key('scoring-resume-clock')), findsNothing);
+    await _openMore(tester);
+    expect(find.byKey(const Key('more-pause')), findsOneWidget);
+    expect(find.byKey(const Key('more-resume')), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await runningDatabase.close();
@@ -185,7 +192,9 @@ void main() {
       timerEnabled: false,
     );
     await _enterScoring(tester, noTimerDatabase);
-    expect(find.byKey(const Key('scoring-resume-clock')), findsNothing);
+    await _openMore(tester);
+    expect(find.byKey(const Key('more-pause')), findsNothing);
+    expect(find.byKey(const Key('more-resume')), findsNothing);
   });
 }
 
@@ -258,6 +267,12 @@ Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
     );
   }
   fail('Timed out waiting for $finder');
+}
+
+Future<void> _openMore(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('scoring-more')));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const Key('scoring-more-sheet')), findsOneWidget);
 }
 
 Future<void> _pumpUntilGone(WidgetTester tester, Finder finder) async {
