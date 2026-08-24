@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -162,7 +163,7 @@ void main() {
       );
       activeEvents = await _activeEvents(database);
       expect(activeEvents, isEmpty);
-      final deletedEvents = await database.select(database.matchEvents).get();
+      final deletedEvents = await _matchEventsInRowOrder(database);
       expect(deletedEvents.single.isDeleted, isTrue);
       locations = await database.select(database.shotLocations).get();
       expect(locations.single.isConfirmed, isFalse);
@@ -425,8 +426,16 @@ Future<int> _activeScoringEventCount(dynamic database) async {
 }
 
 Future<List<dynamic>> _activeEvents(dynamic database) async {
-  final rows = await database.select(database.matchEvents).get();
+  final rows = await _matchEventsInRowOrder(database);
   return rows.where((row) => row.isDeleted == false).toList();
+}
+
+Future<List<dynamic>> _matchEventsInRowOrder(dynamic database) async {
+  final query = database.select(database.matchEvents);
+  query.orderBy([
+    (_) => OrderingTerm(expression: const CustomExpression<int>('rowid')),
+  ]);
+  return query.get();
 }
 
 Future<int> _score(dynamic database, TeamSide side) async {

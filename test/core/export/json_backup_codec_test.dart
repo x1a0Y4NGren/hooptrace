@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
@@ -110,6 +111,135 @@ void main() {
       );
 
       expect(await codec.export(), await codec.export());
+    });
+
+    test(
+      'keeps legacy event and audit insertion order when SQLite reverses unordered scans',
+      () async {
+        final database = createTestDatabase();
+        addTearDown(database.close);
+        await _seedCompleteBackup(database);
+        final createdAt = DateTime.utc(2026, 7, 18, 8);
+        await database
+            .into(database.matchEvents)
+            .insert(
+              MatchEventRow(
+                id: 'event-2',
+                matchId: 'match-1',
+                type: 'foul',
+                side: 'blue',
+                points: 0,
+                occurredAt: createdAt.add(const Duration(seconds: 30)),
+                note: null,
+                outcome: null,
+                matchClockPositionSeconds: null,
+                customLabel: null,
+                isDeleted: false,
+              ),
+            );
+        await database
+            .into(database.auditLogs)
+            .insert(
+              AuditLog(
+                id: 'audit-2',
+                matchId: 'match-1',
+                targetId: 'event-2',
+                action: 'create',
+                beforeJson: '{}',
+                afterJson: '{}',
+                reason: null,
+                createdAt: createdAt.add(const Duration(minutes: 2)),
+              ),
+            );
+        await database.customStatement('PRAGMA reverse_unordered_selects = ON');
+
+        final document =
+            jsonDecode(
+                  await JsonBackupCodec(
+                    database,
+                    appVersion: '1.0.0',
+                    now: () => DateTime.utc(2026, 7, 18),
+                  ).export(),
+                )
+                as Map<String, dynamic>;
+        final data = document['data'] as Map<String, dynamic>;
+        expect(
+          (data['matchEvents'] as List<dynamic>).map(
+            (row) => (row as Map<String, dynamic>)['id'],
+          ),
+          ['event-1', 'event-2'],
+        );
+        expect(
+          (data['auditLogs'] as List<dynamic>).map(
+            (row) => (row as Map<String, dynamic>)['id'],
+          ),
+          ['audit-1', 'audit-2'],
+        );
+      },
+    );
+
+    test('round-trips legacy event and audit insertion order', () async {
+      final source = createTestDatabase();
+      addTearDown(source.close);
+      await _seedCompleteBackup(source);
+      final createdAt = DateTime.utc(2026, 7, 18, 8);
+      await source
+          .into(source.matchEvents)
+          .insert(
+            MatchEventRow(
+              id: 'event-2',
+              matchId: 'match-1',
+              type: 'foul',
+              side: 'blue',
+              points: 0,
+              occurredAt: createdAt.add(const Duration(seconds: 30)),
+              note: null,
+              outcome: null,
+              matchClockPositionSeconds: null,
+              customLabel: null,
+              isDeleted: false,
+            ),
+          );
+      await source
+          .into(source.auditLogs)
+          .insert(
+            AuditLog(
+              id: 'audit-2',
+              matchId: 'match-1',
+              targetId: 'event-2',
+              action: 'create',
+              beforeJson: '{}',
+              afterJson: '{}',
+              reason: null,
+              createdAt: createdAt.add(const Duration(minutes: 2)),
+            ),
+          );
+      await source.customStatement('PRAGMA reverse_unordered_selects = ON');
+      final exported = await JsonBackupCodec(
+        source,
+        appVersion: '1.0.0',
+        now: () => DateTime.utc(2026, 7, 18),
+      ).export();
+
+      final restored = createTestDatabase();
+      addTearDown(restored.close);
+      await JsonBackupCodec(restored, appVersion: '1.0.0').restore(exported);
+      final eventsQuery = restored.select(restored.matchEvents)
+        ..orderBy([
+          (_) => OrderingTerm(expression: const CustomExpression<int>('rowid')),
+        ]);
+      final auditsQuery = restored.select(restored.auditLogs)
+        ..orderBy([
+          (_) => OrderingTerm(expression: const CustomExpression<int>('rowid')),
+        ]);
+      expect((await eventsQuery.get()).map((row) => row.id), [
+        'event-1',
+        'event-2',
+      ]);
+      expect((await auditsQuery.get()).map((row) => row.id), [
+        'audit-1',
+        'audit-2',
+      ]);
     });
 
     test('restores a running backed-up clock in a paused state', () async {

@@ -845,7 +845,15 @@ class JsonBackupCodec {
     bool sortByKey = true,
     bool Function(Map<String, dynamic> row)? include,
   }) async {
-    final rows = await database.select(table).get();
+    final query = database.select(table);
+    if (!sortByKey) {
+      // Legacy chronology is represented by SQLite insertion order. Keep the
+      // ordering in SQL because a SELECT without ORDER BY is not deterministic.
+      query.orderBy([
+        (_) => OrderingTerm(expression: const CustomExpression<int>('rowid')),
+      ]);
+    }
+    final rows = await query.get();
     final json = rows
         .map((row) => row.toJson())
         .where((row) => include == null || include(row))

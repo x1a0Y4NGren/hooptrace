@@ -358,6 +358,101 @@ void main() {
     );
 
     test(
+      'legacy event and audit insertion order survives merge for scoring undo',
+      () async {
+        final sourceDatabase = createTestDatabase();
+        addTearDown(sourceDatabase.close);
+        await _seedLibrary(
+          sourceDatabase,
+          matchId: 'merge-legacy-order',
+          lifecycle: 'active',
+          activeSession: true,
+        );
+        await (sourceDatabase.update(sourceDatabase.auditLogs)
+              ..where((row) => row.id.equals('audit-1')))
+            .write(const AuditLogsCompanion(action: Value('create')));
+        await sourceDatabase
+            .into(sourceDatabase.matchEvents)
+            .insert(
+              MatchEventRow(
+                id: 'event-2',
+                matchId: 'merge-legacy-order',
+                type: 'score',
+                side: 'red',
+                points: 3,
+                outcome: 'made',
+                matchClockPositionSeconds: null,
+                occurredAt: DateTime.utc(2026, 8, 24, 9, 1),
+                note: null,
+                customLabel: null,
+                isDeleted: false,
+              ),
+            );
+        await sourceDatabase
+            .into(sourceDatabase.auditLogs)
+            .insert(
+              AuditLog(
+                id: 'audit-2',
+                matchId: 'merge-legacy-order',
+                targetId: 'event-2',
+                action: 'create',
+                beforeJson: '{}',
+                afterJson: '{}',
+                reason: null,
+                createdAt: DateTime.utc(2026, 8, 24, 9, 2),
+              ),
+            );
+        await sourceDatabase.customStatement(
+          'PRAGMA reverse_unordered_selects = ON',
+        );
+        final source = await JsonBackupCodec(
+          sourceDatabase,
+          appVersion: '1.0.0',
+          now: () => DateTime.utc(2026, 8, 24, 10),
+        ).export();
+
+        final destination = createTestDatabase();
+        addTearDown(destination.close);
+        await _seedLibrary(destination);
+        final result = await BackupMergeService(
+          destination,
+          JsonBackupCodec(destination, appVersion: '1.0.0'),
+        ).merge(source);
+        final importedMatchId = result.idMap['matches']!['merge-legacy-order']!;
+        final importedEvent1 = result.idMap['matchEvents']!['event-1']!;
+        final importedEvent2 = result.idMap['matchEvents']!['event-2']!;
+
+        await MatchCommandService(destination).resumeImportedIncomplete(
+          ResumeImportedIncompleteMatchCommand(
+            commandId: 'merge-legacy-order-resume',
+            matchId: importedMatchId,
+            claimedAtUtc: DateTime.utc(2026, 8, 24, 12),
+          ),
+        );
+        final undone = await MatchCommandService(destination)
+            .undoLastScoringAction(
+              UndoLastScoringActionCommand(
+                commandId: 'merge-legacy-order-undo',
+                matchId: importedMatchId,
+              ),
+            );
+
+        expect(
+          undone.events
+              .singleWhere((event) => event.id == importedEvent2)
+              .isDeleted,
+          isTrue,
+        );
+        expect(
+          undone.events
+              .singleWhere((event) => event.id == importedEvent1)
+              .isDeleted,
+          isFalse,
+        );
+      },
+    );
+
+    test(
       'imported-incomplete records are queryable and resume atomically with one active slot',
       () async {
         final source = await _exportLibrary(
