@@ -24,6 +24,7 @@ class ScoreSidePanel extends StatelessWidget {
     this.reduceMotion = false,
     this.scoreButtonKeys,
     this.foulStamp = false,
+    this.foulStampVersion = 0,
     super.key,
   });
 
@@ -48,6 +49,7 @@ class ScoreSidePanel extends StatelessWidget {
   /// ValueKeys remain on the actual buttons and are never replaced.
   final Map<int, GlobalKey>? scoreButtonKeys;
   final bool foulStamp;
+  final int foulStampVersion;
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +108,11 @@ class ScoreSidePanel extends StatelessWidget {
                         child: _CompactActionLabel(l10n.scoringFoul),
                       ),
                     ),
-                    if (foulStamp) const _FoulStamp(),
+                    if (foulStamp)
+                      _FoulStamp(
+                        key: ValueKey('foul-stamp-$foulStampVersion'),
+                        reduceMotion: reduceMotion,
+                      ),
                   ],
                 ),
               ),
@@ -302,7 +308,11 @@ class ScoreSidePanel extends StatelessWidget {
                                   label: Text(l10n.scoringFoul),
                                 ),
                               ),
-                              if (foulStamp) const _FoulStamp(),
+                              if (foulStamp)
+                                _FoulStamp(
+                                  key: ValueKey('foul-stamp-$foulStampVersion'),
+                                  reduceMotion: reduceMotion,
+                                ),
                             ],
                           ),
                         ),
@@ -466,11 +476,33 @@ class _CompactActionLabel extends StatelessWidget {
 }
 
 class _FoulStamp extends StatelessWidget {
-  const _FoulStamp();
+  const _FoulStamp({required this.reduceMotion, super.key});
+
+  final bool reduceMotion;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final stamp = DecoratedBox(
+      key: const Key('scoring-foul-stamp'),
+      decoration: BoxDecoration(
+        color: HoopTraceColors.orange.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        child: Text(
+          l10n.scoringFoul,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.6,
+          ),
+        ),
+      ),
+    );
+    if (reduceMotion) return IgnorePointer(child: stamp);
     return IgnorePointer(
       child: TweenAnimationBuilder<double>(
         duration:
@@ -482,24 +514,7 @@ class _FoulStamp extends StatelessWidget {
           alignment: Alignment.topRight,
           child: child,
         ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: HoopTraceColors.orange.withValues(alpha: 0.94),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-            child: Text(
-              l10n.scoringFoul,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ),
-        ),
+        child: stamp,
       ),
     );
   }

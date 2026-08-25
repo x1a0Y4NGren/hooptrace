@@ -97,11 +97,13 @@ class EraserShotMarker {
   const EraserShotMarker({
     required this.id,
     required this.point,
+    required this.side,
     required this.progress,
   });
 
   final String id;
   final CourtPoint point;
+  final TeamSide side;
   final double progress;
 }
 
@@ -350,12 +352,17 @@ class CourtPainter extends CustomPainter {
     }
     for (final marker in eraserMarkers) {
       final center = HalfCourtGeometry.pointToOffset(marker.point, size);
-      final opacity = (1 - marker.progress.clamp(0.0, 1.0)) * 0.75;
+      final progress = marker.progress.clamp(0.0, 1.0);
+      final opacity = (1 - progress).toDouble();
+      final shotPaint = Paint()
+        ..color = _sideColor(marker.side).withValues(alpha: opacity)
+        ..style = PaintingStyle.fill;
+      canvas.drawCircle(center, 6 * (1 - progress).clamp(0.35, 1), shotPaint);
       final paint = Paint()
-        ..color = Colors.white.withValues(alpha: opacity)
+        ..color = Colors.white.withValues(alpha: opacity * 0.75)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4;
-      canvas.drawCircle(center, 12 + marker.progress * 8, paint);
+      canvas.drawCircle(center, 8 + progress * 12, paint);
     }
   }
 

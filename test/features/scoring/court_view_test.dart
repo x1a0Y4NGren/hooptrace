@@ -57,6 +57,7 @@ void main() {
         EraserShotMarker(
           id: 'erased-shot',
           point: CourtPoint(x: 0.35, y: 0.45),
+          side: TeamSide.blue,
           progress: 0.5,
         ),
       ],

@@ -15,6 +15,24 @@ import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  test('retryCommand rejects a failure from another match', () async {
+    final controller = ScoringController(matchId: 'current-match');
+    final command = RecordMatchEventCommand(
+      matchId: 'other-match',
+      side: TeamSide.red,
+      points: 1,
+      occurredAt: DateTime.utc(2026, 8, 25, 12),
+    );
+    final failure = MatchCommandFailure(
+      command: command,
+      message: 'stale match failure',
+      canRetry: true,
+    );
+
+    expect(await controller.retryCommand(failure), isFalse);
+    expect(controller.state.events, isEmpty);
+  });
+
   test('local score opens a supplement window without blocking actions', () {
     final now = DateTime.utc(2026, 8, 25, 12);
     final controller = ScoringController(matchId: 'match-1', nowUtc: () => now);

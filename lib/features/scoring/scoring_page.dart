@@ -100,6 +100,7 @@ class _ScoringPageState extends State<ScoringPage>
       <String, AnimationController>{};
   Timer? _foulStampTimer;
   TeamSide? _foulStampSide;
+  int _foulStampVersion = 0;
   bool _disposed = false;
   int _actionGeneration = 0;
 
@@ -276,6 +277,7 @@ class _ScoringPageState extends State<ScoringPage>
     _eraserMarkers[id] = EraserShotMarker(
       id: id,
       point: location.point,
+      side: location.side,
       progress: 0,
     );
     animation.addListener(() {
@@ -283,6 +285,7 @@ class _ScoringPageState extends State<ScoringPage>
       _eraserMarkers[id] = EraserShotMarker(
         id: id,
         point: location.point,
+        side: location.side,
         progress: animation.value,
       );
       setState(() {});
@@ -540,6 +543,7 @@ class _ScoringPageState extends State<ScoringPage>
       reduceMotion: reduceMotion,
       scoreButtonKeys: _scoreButtonKeys[side],
       foulStamp: _foulStampSide == side,
+      foulStampVersion: _foulStampVersion,
       onScore: (points) => unawaited(_recordScore(side, points)),
       onFoul: () => unawaited(_recordFoul(side)),
     );
@@ -869,13 +873,17 @@ class _ScoringPageState extends State<ScoringPage>
     }
     final generation = _actionGeneration;
     final controller = _controller;
+    final foulStampDuration =
+        Theme.of(context).extension<HoopTraceMotionTheme>()?.foulStamp ??
+        const Duration(milliseconds: 240);
     try {
       final accepted = await controller.recordFoulCommitted(side);
       if (!_isCurrentAction(generation, controller)) return;
       if (accepted) {
         _foulStampTimer?.cancel();
+        _foulStampVersion++;
         if (mounted) setState(() => _foulStampSide = side);
-        _foulStampTimer = Timer(const Duration(milliseconds: 240), () {
+        _foulStampTimer = Timer(foulStampDuration, () {
           if (mounted && !_disposed) setState(() => _foulStampSide = null);
         });
         _notifyCommitted();
@@ -929,6 +937,8 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<void> _requestLeave() async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     final onRequestLeave = widget.onRequestLeave;
     if (onRequestLeave == null) {
       _cancelAllMotions();
@@ -936,7 +946,7 @@ class _ScoringPageState extends State<ScoringPage>
       return;
     }
     if (_leaveBusy) return;
-    final state = _controller.state;
+    final state = controller.state;
     if (state.pendingLocation != null || state.courtFirstShotDraft != null) {
       final labels = _labels(context);
       final leave = await showDialog<bool>(
@@ -954,23 +964,29 @@ class _ScoringPageState extends State<ScoringPage>
               key: const Key('leave-cancel-pending'),
               onPressed: () {
                 final cancelled = state.pendingLocation != null
-                    ? _controller.cancelLocateLastUnlocatedShot()
-                    : _controller.cancelCourtFirstShot();
-                if (cancelled) Navigator.of(dialogContext).pop(true);
+                    ? controller.cancelLocateLastUnlocatedShot()
+                    : controller.cancelCourtFirstShot();
+                if (cancelled && dialogContext.mounted) {
+                  Navigator.of(dialogContext).pop(true);
+                }
               },
               child: Text(labels.cancelAndLeave),
             ),
           ],
         ),
       );
-      if (leave != true || !mounted) return;
+      if (leave != true || !_isCurrentAction(generation, controller)) return;
     }
     _cancelAllMotions();
+    final leaveGeneration = _actionGeneration;
+    final leaveController = _controller;
     _leaveBusy = true;
     try {
       await onRequestLeave();
     } finally {
-      if (mounted) setState(() => _leaveBusy = false);
+      if (_isCurrentAction(leaveGeneration, leaveController)) {
+        setState(() => _leaveBusy = false);
+      }
     }
   }
 
@@ -988,17 +1004,31 @@ class _ScoringPageState extends State<ScoringPage>
       builder: (sheetContext) {
         String? inlineFailure;
         Future<bool> Function()? inlineRetry;
+        final ownerGeneration = _actionGeneration;
+        final ownerController = _controller;
 
         return StatefulBuilder(
           builder: (sheetBuilderContext, setSheetState) {
             Future<bool> runMore(Future<bool> Function() action) async {
+              if (!_isCurrentAction(ownerGeneration, ownerController) ||
+                  !sheetBuilderContext.mounted) {
+                return false;
+              }
               try {
                 final accepted = await action();
-                if (accepted && mounted) {
-                  Navigator.of(context).pop();
+                if (!_isCurrentAction(ownerGeneration, ownerController) ||
+                    !sheetBuilderContext.mounted) {
+                  return false;
+                }
+                if (accepted) {
+                  Navigator.of(sheetBuilderContext).pop();
                 }
                 return accepted;
               } on _MoreActionFailure catch (failure) {
+                if (!_isCurrentAction(ownerGeneration, ownerController) ||
+                    !sheetBuilderContext.mounted) {
+                  return false;
+                }
                 setSheetState(() {
                   inlineFailure = failure.message;
                   inlineRetry = failure.retry;
@@ -1287,11 +1317,15 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<bool> _pause({bool rethrowFailure = false}) async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     try {
-      final accepted = await _controller.pauseCommitted();
+      final accepted = await controller.pauseCommitted();
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
@@ -1299,11 +1333,15 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<bool> _resume({bool rethrowFailure = false}) async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     try {
-      final accepted = await _controller.resumeCommitted();
+      final accepted = await controller.resumeCommitted();
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
@@ -1311,18 +1349,22 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<bool> _enterNote({bool rethrowFailure = false}) async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     final labels = _labels(context);
     final note = await _showTextEntry(
       title: labels.note,
       hint: labels.noteHint,
       confirm: labels.recordNote,
     );
-    if (note == null) return false;
+    if (note == null || !_isCurrentAction(generation, controller)) return false;
     try {
-      final accepted = await _controller.recordNoteCommitted(note);
+      final accepted = await controller.recordNoteCommitted(note);
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
@@ -1330,18 +1372,24 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<bool> _enterCustom({bool rethrowFailure = false}) async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     final labels = _labels(context);
     final label = await _showTextEntry(
       title: labels.custom,
       hint: labels.eventLabel,
       confirm: labels.recordEvent,
     );
-    if (label == null) return false;
+    if (label == null || !_isCurrentAction(generation, controller)) {
+      return false;
+    }
     try {
-      final accepted = await _controller.recordCustomCommitted(label: label);
+      final accepted = await controller.recordCustomCommitted(label: label);
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
@@ -1367,37 +1415,60 @@ class _ScoringPageState extends State<ScoringPage>
   Future<void> _continueDecision() async {
     final action = widget.onContinueDecision;
     if (action == null || _decisionBusy) return;
-    await _attemptContinueDecision(action, retryAction: action);
+    await _attemptContinueDecision(
+      action,
+      retryAction: action,
+      generation: _actionGeneration,
+      controller: _controller,
+    );
   }
 
   Future<void> _attemptContinueDecision(
     Future<void> Function() action, {
     required Future<void> Function() retryAction,
+    required int generation,
+    required ScoringController controller,
   }) async {
-    if (!mounted) return;
+    if (!_isCurrentAction(generation, controller)) return;
     setState(() => _decisionBusy = true);
     try {
       await action();
+      if (!_isCurrentAction(generation, controller)) return;
       _notifyCommitted();
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return;
       final retry = failure.canRetry
           ? () async {
               await failure.retry();
             }
           : retryAction;
-      _showContinueFailure(retry);
+      _showContinueFailure(
+        retry,
+        generation: generation,
+        controller: controller,
+      );
     } on Object {
-      _showContinueFailure(retryAction);
+      if (!_isCurrentAction(generation, controller)) return;
+      _showContinueFailure(
+        retryAction,
+        generation: generation,
+        controller: controller,
+      );
     } finally {
-      if (mounted) setState(() => _decisionBusy = false);
+      if (_isCurrentAction(generation, controller)) {
+        setState(() => _decisionBusy = false);
+      }
     }
   }
 
-  void _showContinueFailure(Future<void> Function() retry) {
-    if (!mounted) return;
+  void _showContinueFailure(
+    Future<void> Function() retry, {
+    required int generation,
+    required ScoringController controller,
+  }) {
+    if (!_isCurrentAction(generation, controller)) return;
     final labels = _labels(context);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -1407,16 +1478,24 @@ class _ScoringPageState extends State<ScoringPage>
           content: Text(labels.failureRetry),
           action: SnackBarAction(
             label: labels.retry,
-            onPressed: () =>
-                unawaited(_attemptContinueDecision(retry, retryAction: retry)),
+            onPressed: () => unawaited(
+              _attemptContinueDecision(
+                retry,
+                retryAction: retry,
+                generation: generation,
+                controller: controller,
+              ),
+            ),
           ),
         ),
       );
   }
 
   Future<bool> _confirmFinishDecision({bool rethrowFailure = false}) async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     final finish = widget.onFinishDecision;
-    final decision = _controller.state.decision;
+    final decision = controller.state.decision;
     if (finish == null ||
         decision == null ||
         !decision.canFinish ||
@@ -1452,13 +1531,17 @@ class _ScoringPageState extends State<ScoringPage>
         ],
       ),
     );
-    if (confirmed != true || !mounted) return false;
+    if (confirmed != true || !_isCurrentAction(generation, controller)) {
+      return false;
+    }
     setState(() => _decisionBusy = true);
     try {
       await finish(decision.redScore, decision.blueScore);
+      if (!_isCurrentAction(generation, controller)) return false;
       _notifyCommitted();
       return true;
     } on Object {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) {
         throw _MoreActionFailure(
           message: failureMessage,
@@ -1466,13 +1549,17 @@ class _ScoringPageState extends State<ScoringPage>
             finish: finish,
             decision: decision,
             rethrowFailure: true,
+            generation: generation,
+            controller: controller,
           ),
         );
       }
       _showActionRejected(failureMessage);
       return false;
     } finally {
-      if (mounted) setState(() => _decisionBusy = false);
+      if (_isCurrentAction(generation, controller)) {
+        setState(() => _decisionBusy = false);
+      }
     }
   }
 
@@ -1480,14 +1567,19 @@ class _ScoringPageState extends State<ScoringPage>
     required Future<void> Function(int redScore, int blueScore) finish,
     required MatchDecision decision,
     required bool rethrowFailure,
+    required int generation,
+    required ScoringController controller,
   }) async {
+    if (!_isCurrentAction(generation, controller)) return false;
     final failureMessage = _labels(context).failureRetry;
     setState(() => _decisionBusy = true);
     try {
       await finish(decision.redScore, decision.blueScore);
+      if (!_isCurrentAction(generation, controller)) return false;
       _notifyCommitted();
       return true;
     } on Object {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) {
         throw _MoreActionFailure(
           message: failureMessage,
@@ -1495,13 +1587,17 @@ class _ScoringPageState extends State<ScoringPage>
             finish: finish,
             decision: decision,
             rethrowFailure: true,
+            generation: generation,
+            controller: controller,
           ),
         );
       }
       _showActionRejected(failureMessage);
       return false;
     } finally {
-      if (mounted) setState(() => _decisionBusy = false);
+      if (_isCurrentAction(generation, controller)) {
+        setState(() => _decisionBusy = false);
+      }
     }
   }
 
@@ -1552,6 +1648,8 @@ class _ScoringPageState extends State<ScoringPage>
 
   void _showCommandFailure(MatchCommandFailure failure) {
     if (!mounted) return;
+    final generation = _actionGeneration;
+    final controller = _controller;
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -1560,44 +1658,71 @@ class _ScoringPageState extends State<ScoringPage>
           action: failure.canRetry
               ? SnackBarAction(
                   label: _labels(context).retry,
-                  onPressed: () => unawaited(_retryCommand(failure)),
+                  onPressed: () => unawaited(
+                    _retryCommand(
+                      failure,
+                      generation: generation,
+                      controller: controller,
+                    ),
+                  ),
                 )
               : null,
         ),
       );
   }
 
-  Future<void> _retryCommand(MatchCommandFailure failure) async {
+  Future<void> _retryCommand(
+    MatchCommandFailure failure, {
+    required int generation,
+    required ScoringController controller,
+  }) async {
+    if (!_isCurrentAction(generation, controller)) return;
     try {
-      final accepted = await _controller.retryCommand(failure);
+      final accepted = await controller.retryCommand(failure);
+      if (!_isCurrentAction(generation, controller)) return;
       if (accepted) {
-        if (_controller.courtFirstShotDraft != null) {
-          _controller.cancelCourtFirstShot();
+        if (controller.courtFirstShotDraft != null) {
+          controller.cancelCourtFirstShot();
         }
         _notifyCommitted();
       }
     } on MatchCommandFailure catch (nextFailure) {
+      if (!_isCurrentAction(generation, controller)) return;
       _showCommandFailure(nextFailure);
     }
   }
 
-  _MoreActionFailure _moreFailure(MatchCommandFailure failure) =>
-      _MoreActionFailure(
-        message: _labels(context).failureRetry,
-        retry: () => _retryMoreCommand(failure),
-      );
+  _MoreActionFailure _moreFailure(MatchCommandFailure failure) {
+    final generation = _actionGeneration;
+    final controller = _controller;
+    return _MoreActionFailure(
+      message: _labels(context).failureRetry,
+      retry: () => _retryMoreCommand(
+        failure,
+        generation: generation,
+        controller: controller,
+      ),
+    );
+  }
 
-  Future<bool> _retryMoreCommand(MatchCommandFailure failure) async {
+  Future<bool> _retryMoreCommand(
+    MatchCommandFailure failure, {
+    required int generation,
+    required ScoringController controller,
+  }) async {
+    if (!_isCurrentAction(generation, controller)) return false;
     try {
-      final accepted = await _controller.retryCommand(failure);
+      final accepted = await controller.retryCommand(failure);
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) {
-        if (_controller.courtFirstShotDraft != null) {
-          _controller.cancelCourtFirstShot();
+        if (controller.courtFirstShotDraft != null) {
+          controller.cancelCourtFirstShot();
         }
         _notifyCommitted();
       }
       return accepted;
     } on MatchCommandFailure catch (nextFailure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       throw _moreFailure(nextFailure);
     }
   }
@@ -1828,6 +1953,39 @@ class _ScoreLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = side == TeamSide.blue ? '$name $score' : '$score $name';
+    final scoreText = AnimatedSwitcher(
+      duration:
+          Theme.of(
+            context,
+          ).extension<HoopTraceMotionTheme>()?.scoreTransition ??
+          const Duration(milliseconds: 180),
+      transitionBuilder: (child, animation) => SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.65),
+          end: Offset.zero,
+        ).animate(animation),
+        child: child,
+      ),
+      child: Text(
+        '$score',
+        key: ValueKey(score),
+        maxLines: 1,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+    final nameText = RichText(
+      text: TextSpan(
+        text: name,
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      maxLines: 1,
+    );
     return Semantics(
       label: label,
       child: Align(
@@ -1835,28 +1993,35 @@ class _ScoreLabel extends StatelessWidget {
         child: FittedBox(
           fit: BoxFit.scaleDown,
           alignment: alignment,
-          child: AnimatedSwitcher(
-            duration:
-                Theme.of(
-                  context,
-                ).extension<HoopTraceMotionTheme>()?.scoreTransition ??
-                const Duration(milliseconds: 180),
-            transitionBuilder: (child, animation) => SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.65),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            ),
-            child: Text(
-              label,
-              key: ValueKey(label),
-              maxLines: 1,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w900,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IgnorePointer(
+                child: ExcludeSemantics(
+                  child: Opacity(
+                    opacity: 0,
+                    child: Text(
+                      label,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
+              Positioned.fill(
+                child: Align(
+                  alignment: alignment,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: side == TeamSide.blue
+                        ? [nameText, const SizedBox(width: 4), scoreText]
+                        : [scoreText, const SizedBox(width: 4), nameText],
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -754,7 +754,8 @@ class ScoringController extends ChangeNotifier {
     if (_disposed ||
         _exclusiveBusy ||
         _drainingQueue ||
-        _commandQueue.isNotEmpty) {
+        _commandQueue.isNotEmpty ||
+        failure.command.matchId != _state.matchId) {
       return false;
     }
     return _runExclusive(failure.command, failure.retry);
