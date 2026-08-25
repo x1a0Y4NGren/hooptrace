@@ -68,10 +68,11 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     key: ValueKey('player-row-${player.id}'),
                     minTileHeight: 64,
                     leading: CircleAvatar(
+                      key: ValueKey('player-avatar-${player.id}'),
                       backgroundColor: _sideColor(player.preferredSide),
-                      foregroundColor: player.preferredSide == null
-                          ? HoopTraceColors.charcoal
-                          : Colors.white,
+                      foregroundColor: accessibleForegroundFor(
+                        _sideColor(player.preferredSide),
+                      ),
                       child: Text(player.nickname.characters.first),
                     ),
                     title: Text(player.nickname),

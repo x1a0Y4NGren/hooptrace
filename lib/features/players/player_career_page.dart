@@ -105,12 +105,11 @@ class _PlayerHeader extends StatelessWidget {
     return Row(
       children: [
         CircleAvatar(
+          key: ValueKey('career-avatar-${player.id}'),
           radius: 24,
           backgroundColor: HoopTraceColors.orange,
-          child: Text(
-            player.nickname.characters.first,
-            style: const TextStyle(color: Colors.white),
-          ),
+          foregroundColor: accessibleForegroundFor(HoopTraceColors.orange),
+          child: Text(player.nickname.characters.first),
         ),
         const SizedBox(width: 12),
         Expanded(

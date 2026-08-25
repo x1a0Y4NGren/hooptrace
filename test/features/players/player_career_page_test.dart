@@ -11,6 +11,41 @@ import 'package:hooptrace/features/players/player_career_page.dart';
 import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 void main() {
+  testWidgets('career avatar foreground meets normal-text contrast', (
+    tester,
+  ) async {
+    final controller = PlayerCareerController(
+      playerId: 'career-contrast',
+      loader: (_) =>
+          Stream.value(const PlayerCareerAggregate.empty('career-contrast')),
+    );
+    addTearDown(controller.dispose);
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(brightness: brightness),
+          home: PlayerCareerPage(
+            controller: controller,
+            player: Player(
+              id: 'career-contrast',
+              nickname: 'Orange',
+              createdAt: DateTime.utc(2026, 1, 1),
+            ),
+            opponents: const [],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final avatar = tester.widget<CircleAvatar>(
+        find.byKey(const Key('career-avatar-career-contrast')),
+      );
+      expect(
+        _contrastRatio(avatar.foregroundColor!, avatar.backgroundColor!),
+        greaterThanOrEqualTo(4.5),
+        reason: '$brightness career avatar contrast',
+      );
+    }
+  });
   testWidgets('career analytics stays usable across visual matrix', (
     tester,
   ) async {
@@ -356,4 +391,16 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+}
+
+double _contrastRatio(Color foreground, Color background) {
+  final foregroundLuminance = foreground.computeLuminance();
+  final backgroundLuminance = background.computeLuminance();
+  final lighter = foregroundLuminance > backgroundLuminance
+      ? foregroundLuminance
+      : backgroundLuminance;
+  final darker = foregroundLuminance > backgroundLuminance
+      ? backgroundLuminance
+      : foregroundLuminance;
+  return (lighter + 0.05) / (darker + 0.05);
 }

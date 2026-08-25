@@ -308,6 +308,27 @@ Color teamColorForScheme(
       : HoopTraceColors.blueAccessible;
 }
 
+/// Returns a foreground that keeps avatar labels readable on a solid color.
+///
+/// The palette includes both light and dark team accents, so a fixed white
+/// avatar label is not sufficient for every surface. The first candidate that
+/// meets the normal-text contrast threshold is selected deterministically.
+Color accessibleForegroundFor(Color background) {
+  const candidates = [Colors.black, Colors.white];
+  final backgroundLuminance = background.computeLuminance();
+  for (final candidate in candidates) {
+    final foregroundLuminance = candidate.computeLuminance();
+    final lighter = foregroundLuminance > backgroundLuminance
+        ? foregroundLuminance
+        : backgroundLuminance;
+    final darker = foregroundLuminance > backgroundLuminance
+        ? backgroundLuminance
+        : foregroundLuminance;
+    if ((lighter + 0.05) / (darker + 0.05) >= 4.5) return candidate;
+  }
+  return Colors.black;
+}
+
 ThemeData buildHoopTraceTheme({Brightness brightness = Brightness.light}) {
   final isDark = brightness == Brightness.dark;
   final colorScheme =

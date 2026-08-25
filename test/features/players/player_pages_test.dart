@@ -8,6 +8,7 @@ import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
+import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/players/player_editor_page.dart';
 import 'package:hooptrace/features/players/player_list_page.dart';
 import 'package:hooptrace/app/widgets/doodle_components.dart';
@@ -162,13 +163,21 @@ void main() {
     final database = createTestDatabase();
     addTearDown(database.close);
     final repository = PlayerRepository(database);
-    await repository.save(
-      Player(
-        id: 'contrast-player',
-        nickname: 'Orange',
-        createdAt: DateTime.utc(2026, 7, 10),
-      ),
-    );
+    final variants = <String, TeamSide?>{
+      'red': TeamSide.red,
+      'blue': TeamSide.blue,
+      'neutral': null,
+    };
+    for (final entry in variants.entries) {
+      await repository.save(
+        Player(
+          id: 'contrast-${entry.key}',
+          nickname: entry.key,
+          createdAt: DateTime.utc(2026, 7, 10),
+          preferredSide: entry.value,
+        ),
+      );
+    }
     for (final brightness in Brightness.values) {
       await tester.pumpWidget(
         MaterialApp(
@@ -181,11 +190,16 @@ void main() {
         ),
       );
       await _pumpDatabase(tester);
-      final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
-      expect(
-        _contrastRatio(avatar.foregroundColor!, avatar.backgroundColor!),
-        greaterThanOrEqualTo(4.5),
-      );
+      for (final id in variants.keys) {
+        final avatar = tester.widget<CircleAvatar>(
+          find.byKey(ValueKey('player-avatar-contrast-$id')),
+        );
+        expect(
+          _contrastRatio(avatar.foregroundColor!, avatar.backgroundColor!),
+          greaterThanOrEqualTo(4.5),
+          reason: '$brightness $id avatar contrast',
+        );
+      }
     }
   });
 
