@@ -138,8 +138,10 @@ class DoodlePress extends StatefulWidget {
 class _DoodlePressState extends State<DoodlePress> {
   bool _pressed = false;
 
+  bool get _isEnabled => widget.enabled && widget.onPressed != null;
+
   void _setPressed(bool value) {
-    if (!widget.enabled || _pressed == value || !mounted) return;
+    if (!_isEnabled || _pressed == value || !mounted) return;
     setState(() => _pressed = value);
   }
 
@@ -147,23 +149,24 @@ class _DoodlePressState extends State<DoodlePress> {
   Widget build(BuildContext context) {
     final visual = Theme.of(context).extension<HoopTraceVisualTheme>();
     final motion = Theme.of(context).extension<HoopTraceMotionTheme>();
+    final isEnabled = _isEnabled;
     final content = ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1,
-        duration: motion?.press ?? const Duration(milliseconds: 90),
-        curve: Curves.easeOut,
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: widget.enabled ? widget.onPressed : null,
-            onTapDown: (_) => _setPressed(true),
-            onTapUp: (_) => _setPressed(false),
-            onTapCancel: () => _setPressed(false),
-            borderRadius: BorderRadius.circular(HoopTraceRadii.control),
-            splashColor: (visual?.accent ?? HoopTraceColors.orange).withValues(
-              alpha: 0.12,
-            ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: isEnabled ? widget.onPressed : null,
+          onTapDown: (_) => _setPressed(true),
+          onTapUp: (_) => _setPressed(false),
+          onTapCancel: () => _setPressed(false),
+          borderRadius: BorderRadius.circular(HoopTraceRadii.control),
+          splashColor: (visual?.accent ?? HoopTraceColors.orange).withValues(
+            alpha: 0.12,
+          ),
+          child: AnimatedScale(
+            scale: _pressed ? 0.97 : 1,
+            duration: motion?.press ?? const Duration(milliseconds: 90),
+            curve: Curves.easeOut,
             child: widget.child,
           ),
         ),
@@ -171,7 +174,7 @@ class _DoodlePressState extends State<DoodlePress> {
     );
     final semantics = Semantics(
       button: true,
-      enabled: widget.enabled,
+      enabled: isEnabled,
       label: widget.label,
       child: content,
     );

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show SemanticsFlag;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -59,6 +60,7 @@ void main() {
   testWidgets('doodle press has a 48dp hit target and pressed visual state', (
     tester,
   ) async {
+    final semanticsHandle = tester.ensureSemantics();
     var presses = 0;
     await tester.pumpWidget(
       MaterialApp(
@@ -87,9 +89,75 @@ void main() {
       find.descendant(of: button, matching: find.byType(AnimatedScale)),
     );
     expect(during.scale, lessThan(1));
+    expect(tester.getSemantics(button).rect.width, greaterThanOrEqualTo(48));
+    expect(tester.getSemantics(button).rect.height, greaterThanOrEqualTo(48));
+    expect(
+      tester.getSemantics(find.byType(InkWell)).rect.width,
+      greaterThanOrEqualTo(48),
+    );
     await gesture.up();
     await tester.pumpAndSettle();
     expect(presses, 1);
+    semanticsHandle.dispose();
+
+    var calls = 0;
+    final disabledHandle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: Scaffold(
+          body: DoodlePress(
+            label: 'Disabled',
+            enabled: false,
+            onPressed: () => calls++,
+            child: const Text('Disabled'),
+          ),
+        ),
+      ),
+    );
+    final disabledButton = find.byType(DoodlePress);
+    expect(
+      tester.getSemantics(disabledButton).hasFlag(SemanticsFlag.isEnabled),
+      isFalse,
+    );
+    await tester.tap(disabledButton);
+    expect(calls, 0);
+    disabledHandle.dispose();
+  });
+
+  testWidgets('doodle press is disabled when no callback is supplied', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: Scaffold(
+          body: DoodlePress(
+            label: 'Unavailable',
+            onPressed: null,
+            child: const Text('Unavailable'),
+          ),
+        ),
+      ),
+    );
+
+    final button = find.byType(DoodlePress);
+    expect(
+      tester.getSemantics(button).hasFlag(SemanticsFlag.isEnabled),
+      isFalse,
+    );
+    await tester.tap(button);
+    await tester.pump();
+    expect(
+      tester
+          .widget<AnimatedScale>(
+            find.descendant(of: button, matching: find.byType(AnimatedScale)),
+          )
+          .scale,
+      1,
+    );
+    semanticsHandle.dispose();
   });
 
   test(
@@ -108,10 +176,33 @@ void main() {
         final names = layers.map((layer) => layer['nm']).whereType<String>();
         expect(names, contains('teamFill'));
         expect(names, contains('inkFill'));
+        final teamLayer = layers.firstWhere(
+          (layer) => layer['nm'] == 'teamFill',
+        );
+        final nestedTeamNames = _nestedNames(teamLayer['shapes']);
+        expect(nestedTeamNames, contains('teamFill'));
+        final inkLayer = layers.firstWhere((layer) => layer['nm'] == 'inkFill');
+        expect(_nestedNames(inkLayer['shapes']), contains('inkFill'));
         final composition = await LottieComposition.fromByteData(bytes);
         expect(composition, isNotNull);
         expect(composition!.duration, greaterThan(Duration.zero));
       }
     },
   );
+}
+
+Set<String> _nestedNames(Object? value) {
+  final names = <String>{};
+  if (value is List) {
+    for (final item in value) {
+      names.addAll(_nestedNames(item));
+    }
+  } else if (value is Map) {
+    final name = value['nm'];
+    if (name is String) names.add(name);
+    for (final child in value.values) {
+      names.addAll(_nestedNames(child));
+    }
+  }
+  return names;
 }
