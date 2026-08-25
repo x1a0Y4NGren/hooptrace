@@ -231,6 +231,7 @@ class _HomeRoute extends ConsumerWidget {
             : () => _abandon(context, ref, detail.match.id),
         onOpenHistory: () => context.push('/history'),
         onOpenPlayers: () => context.push('/players'),
+        onOpenRules: () => context.push('/settings/rules'),
         onOpenSettings: () => context.push('/settings'),
         onOpenProject: () => context.push('/project'),
       ),

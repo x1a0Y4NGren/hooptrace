@@ -147,6 +147,7 @@ Widget _fixture({
         onAbandon: _noopAsync,
         onOpenHistory: _noop,
         onOpenPlayers: _noop,
+        onOpenRules: _noop,
         onOpenSettings: _noop,
         onOpenProject: _noop,
       ),
