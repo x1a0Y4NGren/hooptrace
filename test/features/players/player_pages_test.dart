@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
@@ -23,7 +24,12 @@ void main() {
     addTearDown(database.close);
     final repository = PlayerRepository(database);
     const locales = [Locale('zh'), Locale('en')];
-    const sizes = [Size(390, 844), Size(731, 411)];
+    const sizes = [
+      Size(390, 844),
+      Size(731, 411),
+      Size(1095, 616),
+      Size(1920, 1080),
+    ];
     for (final brightness in Brightness.values) {
       for (final locale in locales) {
         for (final size in sizes) {
@@ -48,6 +54,7 @@ void main() {
             ),
           );
           await tester.pumpWidget(mediaQuery);
+          expect(tester.takeException(), isNull);
           await _pumpDatabase(tester);
           expect(tester.takeException(), isNull);
           expect(find.byType(DoodleTitle), findsOneWidget);
@@ -73,6 +80,7 @@ void main() {
               ),
             ),
           );
+          expect(tester.takeException(), isNull);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           expect(
@@ -112,13 +120,7 @@ void main() {
 
     final row = find.byKey(const ValueKey('player-row-semantic-player'));
     expect(row, findsOneWidget);
-    expect(
-      tester
-          .getSemantics(row)
-          .getSemanticsData()
-          .hasAction(ui.SemanticsAction.tap),
-      isTrue,
-    );
+    _expectSingleTapOwner(tester, row);
     await tester.tap(row);
     expect(edits, 1);
     semanticsHandle.dispose();
@@ -143,13 +145,7 @@ void main() {
     await tester.pumpAndSettle();
     final save = find.byKey(const Key('player-save'));
     expect(save, findsOneWidget);
-    expect(
-      tester
-          .getSemantics(save)
-          .getSemanticsData()
-          .hasAction(ui.SemanticsAction.tap),
-      isTrue,
-    );
+    _expectSingleTapOwner(tester, save);
     await tester.enterText(find.byKey(const Key('player-nickname')), '小北');
     await tester.tap(save);
     await _pumpDatabase(tester);
@@ -189,7 +185,9 @@ void main() {
           ),
         ),
       );
+      expect(tester.takeException(), isNull);
       await _pumpDatabase(tester);
+      expect(tester.takeException(), isNull);
       for (final id in variants.keys) {
         final avatar = tester.widget<CircleAvatar>(
           find.byKey(ValueKey('player-avatar-contrast-$id')),
@@ -331,4 +329,23 @@ double _contrastRatio(Color foreground, Color background) {
       ? backgroundLuminance
       : foregroundLuminance;
   return (lighter + 0.05) / (darker + 0.05);
+}
+
+void _expectSingleTapOwner(WidgetTester tester, Finder target) {
+  final targetNode = tester.getSemantics(target);
+  final tapNodes = <SemanticsNode>[];
+
+  void visit(SemanticsNode node) {
+    if (node.getSemanticsData().hasAction(ui.SemanticsAction.tap)) {
+      tapNodes.add(node);
+    }
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(targetNode);
+  expect(tapNodes, hasLength(1));
+  expect(tapNodes.single, same(targetNode));
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
@@ -21,7 +22,12 @@ void main() {
     final repository = RuleTemplateRepository(database);
     await repository.ensureBuiltIns();
     const locales = [Locale('zh'), Locale('en')];
-    const sizes = [Size(390, 844), Size(731, 411)];
+    const sizes = [
+      Size(390, 844),
+      Size(731, 411),
+      Size(1095, 616),
+      Size(1920, 1080),
+    ];
     for (final brightness in Brightness.values) {
       for (final locale in locales) {
         for (final size in sizes) {
@@ -43,6 +49,7 @@ void main() {
               ),
             ),
           );
+          expect(tester.takeException(), isNull);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           expect(find.byType(DoodleTitle), findsOneWidget);
@@ -68,6 +75,7 @@ void main() {
               ),
             ),
           );
+          expect(tester.takeException(), isNull);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           expect(
@@ -102,13 +110,7 @@ void main() {
     await tester.pumpAndSettle();
     final row = find.byKey(const ValueKey('rule-template-custom-semantic'));
     expect(row, findsOneWidget);
-    expect(
-      tester
-          .getSemantics(row)
-          .getSemanticsData()
-          .hasAction(ui.SemanticsAction.tap),
-      isTrue,
-    );
+    _expectSingleTapOwner(tester, row);
     await tester.tap(row);
     await tester.pumpAndSettle();
     expect(find.byType(RuleTemplateEditorPage), findsOneWidget);
@@ -135,13 +137,7 @@ void main() {
     );
     final save = find.byKey(const Key('rule-save'));
     expect(save, findsOneWidget);
-    expect(
-      tester
-          .getSemantics(save)
-          .getSemanticsData()
-          .hasAction(ui.SemanticsAction.tap),
-      isTrue,
-    );
+    _expectSingleTapOwner(tester, save);
     await tester.scrollUntilVisible(
       find.byKey(const Key('rule-name')),
       -300,
@@ -339,4 +335,23 @@ void main() {
       expect(saved.possessionPolicy, PossessionPolicy.switchAfterMade);
     },
   );
+}
+
+void _expectSingleTapOwner(WidgetTester tester, Finder target) {
+  final targetNode = tester.getSemantics(target);
+  final tapNodes = <SemanticsNode>[];
+
+  void visit(SemanticsNode node) {
+    if (node.getSemanticsData().hasAction(ui.SemanticsAction.tap)) {
+      tapNodes.add(node);
+    }
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(targetNode);
+  expect(tapNodes, hasLength(1));
+  expect(tapNodes.single, same(targetNode));
 }

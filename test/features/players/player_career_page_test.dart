@@ -35,7 +35,9 @@ void main() {
           ),
         ),
       );
+      expect(tester.takeException(), isNull);
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
       final avatar = tester.widget<CircleAvatar>(
         find.byKey(const Key('career-avatar-career-contrast')),
       );
@@ -56,7 +58,12 @@ void main() {
     );
     addTearDown(controller.dispose);
     const locales = [Locale('zh'), Locale('en')];
-    const sizes = [Size(390, 844), Size(731, 411)];
+    const sizes = [
+      Size(390, 844),
+      Size(731, 411),
+      Size(1095, 616),
+      Size(1920, 1080),
+    ];
     for (final brightness in Brightness.values) {
       for (final locale in locales) {
         for (final size in sizes) {
@@ -86,6 +93,7 @@ void main() {
               ),
             ),
           );
+          expect(tester.takeException(), isNull);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           expect(find.byType(DoodleTitle), findsAtLeastNWidgets(2));
