@@ -6,6 +6,7 @@ import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/features/players/player_editor_page.dart';
 import 'package:hooptrace/features/players/player_list_page.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 import '../../test_helpers/test_database.dart';
 
@@ -29,6 +30,9 @@ void main() {
     );
     await _pumpDatabase(tester);
     expect(find.text('还没有保存的球员'), findsOneWidget);
+    expect(find.byType(DoodleTitle), findsOneWidget);
+    expect(find.byType(DoodleSurface), findsOneWidget);
+    expect(find.byType(DoodlePress), findsOneWidget);
 
     await tester.tap(find.byTooltip('新建球员'));
     expect(created, isTrue);
@@ -70,6 +74,9 @@ void main() {
     await tester.enterText(find.byKey(const Key('player-nickname')), '飞鱼');
     await tester.tap(find.text('蓝方'));
     await tester.enterText(find.byKey(const Key('player-note')), '惯用左手');
+    expect(find.byType(DoodleSurface), findsOneWidget);
+    expect(find.byType(DoodleDivider), findsOneWidget);
+    expect(find.byType(DoodlePress), findsOneWidget);
     await tester.tap(find.byTooltip('保存球员'));
     await _pumpDatabase(tester);
 

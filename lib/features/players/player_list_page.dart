@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -31,7 +32,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.playersTitle)),
+      appBar: AppBar(title: DoodleTitle(l10n.playersTitle, icon: Icons.groups)),
       floatingActionButton: FloatingActionButton(
         onPressed: widget.onCreate,
         tooltip: l10n.playersCreate,
@@ -60,33 +61,39 @@ class _PlayerListPageState extends State<PlayerListPage> {
               separatorBuilder: (_, _) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final player = players[index];
-                return Card(
-                  margin: EdgeInsets.zero,
-                  child: Semantics(
-                    button: true,
-                    label:
-                        '${player.nickname}, ${_playerSummary(player, l10n)}',
-                    child: ListTile(
-                      minTileHeight: 64,
-                      leading: CircleAvatar(
-                        backgroundColor: _sideColor(player.preferredSide),
-                        foregroundColor: Colors.white,
-                        child: Text(player.nickname.characters.first),
+                return DoodlePress(
+                  onPressed: () => widget.onEdit(player),
+                  label: '${player.nickname}, ${_playerSummary(player, l10n)}',
+                  child: DoodleSurface(
+                    padding: EdgeInsets.zero,
+                    margin: EdgeInsets.zero,
+                    child: Semantics(
+                      button: true,
+                      label:
+                          '${player.nickname}, ${_playerSummary(player, l10n)}',
+                      child: ListTile(
+                        minTileHeight: 64,
+                        leading: CircleAvatar(
+                          backgroundColor: _sideColor(player.preferredSide),
+                          foregroundColor: Colors.white,
+                          child: Text(player.nickname.characters.first),
+                        ),
+                        title: Text(player.nickname),
+                        subtitle: Text(_playerSummary(player, l10n)),
+                        trailing: widget.onViewAnalytics == null
+                            ? Tooltip(
+                                message: l10n.playersEdit,
+                                child: Icon(Icons.chevron_right),
+                              )
+                            : IconButton(
+                                key: ValueKey('player-analytics-${player.id}'),
+                                tooltip: l10n.playerAnalyticsTooltip,
+                                icon: const Icon(Icons.insights_outlined),
+                                onPressed: () =>
+                                    widget.onViewAnalytics!(player),
+                              ),
+                        onTap: () => widget.onEdit(player),
                       ),
-                      title: Text(player.nickname),
-                      subtitle: Text(_playerSummary(player, l10n)),
-                      trailing: widget.onViewAnalytics == null
-                          ? Tooltip(
-                              message: l10n.playersEdit,
-                              child: Icon(Icons.chevron_right),
-                            )
-                          : IconButton(
-                              key: ValueKey('player-analytics-${player.id}'),
-                              tooltip: l10n.playerAnalyticsTooltip,
-                              icon: const Icon(Icons.insights_outlined),
-                              onPressed: () => widget.onViewAnalytics!(player),
-                            ),
-                      onTap: () => widget.onEdit(player),
                     ),
                   ),
                 );
@@ -110,24 +117,31 @@ class _PlayerEmptyState extends StatelessWidget {
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.people_outline, size: 56),
-            const SizedBox(height: 16),
-            Text(
-              l10n.playersEmptyTitle,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(l10n.playersEmptyBody),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.add),
-              label: Text(l10n.playersCreate),
-            ),
-          ],
+        child: DoodleSurface(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.people_outline, size: 56),
+              const SizedBox(height: 16),
+              Text(
+                l10n.playersEmptyTitle,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(l10n.playersEmptyBody),
+              const SizedBox(height: 24),
+              DoodlePress(
+                onPressed: onCreate,
+                label: l10n.playersCreate,
+                child: FilledButton.icon(
+                  onPressed: onCreate,
+                  icon: const Icon(Icons.add),
+                  label: Text(l10n.playersCreate),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

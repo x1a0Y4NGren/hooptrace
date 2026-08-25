@@ -7,6 +7,7 @@ import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/features/players/player_career_controller.dart';
 import 'package:hooptrace/features/players/player_career_page.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 void main() {
   testWidgets(
@@ -74,6 +75,9 @@ void main() {
       expect(find.text('对手'), findsOneWidget);
       expect(find.textContaining('油漆区'), findsOneWidget);
       expect(find.text('飞鱼'), findsWidgets);
+      expect(find.byType(DoodleTitle), findsAtLeastNWidgets(2));
+      expect(find.byType(DoodleSurface), findsAtLeastNWidgets(3));
+      expect(find.byType(DoodleDivider), findsAtLeastNWidgets(1));
 
       await tester.tap(find.text('近 7 天'));
       await tester.pump();

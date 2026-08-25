@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/l10n/rule_template_localizations.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/rules/rule_template_editor_page.dart';
@@ -26,7 +27,7 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.rulesTitle)),
+      appBar: AppBar(title: DoodleTitle(l10n.rulesTitle, icon: Icons.rule)),
       floatingActionButton: FloatingActionButton.extended(
         key: const Key('rule-add-custom'),
         onPressed: () => _openEditor(context),
@@ -53,15 +54,28 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
                 final builtIn = RuleTemplateRepository.builtIns.any(
                   (item) => item.id == template.id,
                 );
-                return ListTile(
-                  minTileHeight: 64,
-                  leading: Icon(builtIn ? Icons.verified_outlined : Icons.tune),
-                  title: Text(localizedRuleTemplateName(template, l10n)),
-                  subtitle: Text(_summary(template, l10n)),
-                  trailing: builtIn
-                      ? Text(l10n.rulesBuiltIn)
-                      : const Icon(Icons.edit_outlined),
-                  onTap: builtIn ? null : () => _openEditor(context, template),
+                return DoodlePress(
+                  onPressed: builtIn
+                      ? null
+                      : () => _openEditor(context, template),
+                  label: localizedRuleTemplateName(template, l10n),
+                  child: DoodleSurface(
+                    padding: EdgeInsets.zero,
+                    child: ListTile(
+                      minTileHeight: 64,
+                      leading: Icon(
+                        builtIn ? Icons.verified_outlined : Icons.tune,
+                      ),
+                      title: Text(localizedRuleTemplateName(template, l10n)),
+                      subtitle: Text(_summary(template, l10n)),
+                      trailing: builtIn
+                          ? Text(l10n.rulesBuiltIn)
+                          : const Icon(Icons.edit_outlined),
+                      onTap: builtIn
+                          ? null
+                          : () => _openEditor(context, template),
+                    ),
+                  ),
                 );
               },
             );

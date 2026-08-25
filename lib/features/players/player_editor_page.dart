@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -161,8 +162,9 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: DoodleTitle(
           widget.playerId == null ? l10n.playerNewTitle : l10n.playerEditTitle,
+          icon: Icons.person_outline,
         ),
         actions: [
           if (_existing != null && widget.onDeleted != null)
@@ -209,70 +211,81 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
     }
     return Form(
       key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        children: [
-          TextFormField(
-            key: const Key('player-nickname'),
-            controller: _nicknameController,
-            autofocus: widget.playerId == null,
-            textInputAction: TextInputAction.next,
-            maxLength: 30,
-            decoration: InputDecoration(
-              labelText: l10n.playerNicknameLabel,
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            validator: (value) => value == null || value.trim().isEmpty
-                ? l10n.playerNicknameRequired
-                : null,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            l10n.playerPreferredSide,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          SegmentedButton<TeamSide?>(
-            segments: [
-              ButtonSegment(value: null, label: Text(l10n.playerSideAny)),
-              ButtonSegment(
-                value: TeamSide.red,
-                label: Text(l10n.playerSideRed),
-                icon: Icon(Icons.circle, color: HoopTraceColors.red),
+      child: DoodleSurface(
+        margin: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          children: [
+            TextFormField(
+              key: const Key('player-nickname'),
+              controller: _nicknameController,
+              autofocus: widget.playerId == null,
+              textInputAction: TextInputAction.next,
+              maxLength: 30,
+              decoration: InputDecoration(
+                labelText: l10n.playerNicknameLabel,
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline),
               ),
-              ButtonSegment(
-                value: TeamSide.blue,
-                label: Text(l10n.playerSideBlue),
-                icon: Icon(Icons.circle, color: HoopTraceColors.blue),
-              ),
-            ],
-            selected: {_preferredSide},
-            onSelectionChanged: (selection) {
-              setState(() => _preferredSide = selection.single);
-            },
-          ),
-          const SizedBox(height: 24),
-          TextFormField(
-            key: const Key('player-note'),
-            controller: _noteController,
-            minLines: 3,
-            maxLines: 5,
-            maxLength: 200,
-            decoration: InputDecoration(
-              labelText: l10n.playerNoteLabel,
-              hintText: l10n.playerNoteHint,
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? l10n.playerNicknameRequired
+                  : null,
             ),
-          ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: const Icon(Icons.save_outlined),
-            label: Text(_saving ? l10n.playerSaving : l10n.playerSaveTooltip),
-          ),
-        ],
+            const SizedBox(height: 16),
+            Text(
+              l10n.playerPreferredSide,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<TeamSide?>(
+              segments: [
+                ButtonSegment(value: null, label: Text(l10n.playerSideAny)),
+                ButtonSegment(
+                  value: TeamSide.red,
+                  label: Text(l10n.playerSideRed),
+                  icon: Icon(Icons.circle, color: HoopTraceColors.red),
+                ),
+                ButtonSegment(
+                  value: TeamSide.blue,
+                  label: Text(l10n.playerSideBlue),
+                  icon: Icon(Icons.circle, color: HoopTraceColors.blue),
+                ),
+              ],
+              selected: {_preferredSide},
+              onSelectionChanged: (selection) {
+                setState(() => _preferredSide = selection.single);
+              },
+            ),
+            const SizedBox(height: 24),
+            TextFormField(
+              key: const Key('player-note'),
+              controller: _noteController,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 200,
+              decoration: InputDecoration(
+                labelText: l10n.playerNoteLabel,
+                hintText: l10n.playerNoteHint,
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const DoodleDivider(),
+            DoodlePress(
+              onPressed: _saving ? null : _save,
+              label: _saving ? l10n.playerSaving : l10n.playerSaveTooltip,
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: const Icon(Icons.save_outlined),
+                label: Text(
+                  _saving ? l10n.playerSaving : l10n.playerSaveTooltip,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 
@@ -79,8 +80,9 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: DoodleTitle(
           widget.template == null ? l10n.ruleNewTitle : l10n.ruleEditTitle,
+          icon: Icons.rule,
         ),
       ),
       body: SafeArea(
@@ -166,14 +168,22 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
                       }
                     : null,
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 52,
-                child: FilledButton.icon(
-                  key: const Key('rule-save'),
-                  onPressed: _save,
-                  icon: const Icon(Icons.save_outlined),
-                  label: Text(l10n.ruleSaveAction),
+              DoodleSurface(
+                padding: EdgeInsets.zero,
+                child: const DoodleDivider(),
+              ),
+              const SizedBox(height: 8),
+              DoodlePress(
+                onPressed: _save,
+                label: l10n.ruleSaveAction,
+                child: SizedBox(
+                  height: 52,
+                  child: FilledButton.icon(
+                    key: const Key('rule-save'),
+                    onPressed: _save,
+                    icon: const Icon(Icons.save_outlined),
+                    label: Text(l10n.ruleSaveAction),
+                  ),
                 ),
               ),
             ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/features/project/external_link_launcher.dart';
 
 const hoopTraceRepositoryUrl = 'https://github.com/x1a0Y4NGren/hooptrace';
@@ -35,20 +36,26 @@ class ProjectDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.projectTitle)),
+      appBar: AppBar(
+        title: DoodleTitle(l10n.projectTitle, icon: Icons.info_outline),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
           children: [
-            Text(
-              'HoopTrace',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+            DoodleSurface(
+              padding: const EdgeInsets.all(16),
+              child: DoodleTitle(
+                'HoopTrace',
+                icon: Icons.sports_basketball,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             Text(l10n.projectTagline),
-            const SizedBox(height: 24),
+            const DoodleDivider(),
             _PromiseTile(
               icon: Icons.all_inclusive,
               title: l10n.projectFreeForever,
@@ -69,13 +76,8 @@ class ProjectDetailsPage extends StatelessWidget {
               title: l10n.projectPrivacy,
               detail: l10n.projectPrivacyDetail,
             ),
-            const SizedBox(height: 24),
-            Text(
-              l10n.projectOpen,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
+            const DoodleDivider(),
+            DoodleTitle(l10n.projectOpen, icon: Icons.link),
             const SizedBox(height: 8),
             _ProjectLink(
               icon: Icons.code,
@@ -117,8 +119,9 @@ class _PromiseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    return DoodleSurface(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -156,17 +159,24 @@ class _ProjectLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      minTileHeight: 56,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon),
-      title: Text(label),
-      trailing: Tooltip(
-        message: (AppLocalizations.of(context) ?? AppLocalizationsZh())
-            .projectOpenBrowser,
-        child: Icon(Icons.open_in_new),
+    return DoodlePress(
+      onPressed: onTap,
+      label: label,
+      child: DoodleSurface(
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          minTileHeight: 56,
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(icon),
+          title: Text(label),
+          trailing: Tooltip(
+            message: (AppLocalizations.of(context) ?? AppLocalizationsZh())
+                .projectOpenBrowser,
+            child: Icon(Icons.open_in_new),
+          ),
+          onTap: onTap,
+        ),
       ),
-      onTap: onTap,
     );
   }
 }

@@ -6,6 +6,7 @@ import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/features/rules/rule_template_editor_page.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 import '../../test_helpers/test_database.dart';
 
@@ -34,6 +35,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Free scoring'), findsOneWidget);
+    expect(find.byType(DoodleTitle), findsOneWidget);
+    expect(find.byType(DoodleSurface), findsAtLeastNWidgets(4));
     expect(find.text('11 points (win by 2)'), findsOneWidget);
     expect(find.text('21 points'), findsOneWidget);
     expect(find.text('10-minute timed'), findsOneWidget);
@@ -72,6 +75,8 @@ void main() {
     await tester.tap(find.byKey(const Key('rule-possession-hint')));
     await tester.fling(find.byType(ListView), const Offset(0, -800), 1000);
     await tester.pumpAndSettle();
+    expect(find.byType(DoodleDivider), findsOneWidget);
+    expect(find.byType(DoodlePress), findsOneWidget);
     await tester.tap(find.byKey(const Key('rule-save')));
     await tester.pumpAndSettle();
 

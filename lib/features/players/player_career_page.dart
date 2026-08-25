@@ -6,6 +6,7 @@ import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
 import 'package:hooptrace/core/domain/analytics/player_career_aggregate.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/features/players/player_career_controller.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 class PlayerCareerPage extends StatelessWidget {
   const PlayerCareerPage({
@@ -22,7 +23,12 @@ class PlayerCareerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_l10n(context).playerAnalyticsTitle)),
+      appBar: AppBar(
+        title: DoodleTitle(
+          _l10n(context).playerAnalyticsTitle,
+          icon: Icons.insights_outlined,
+        ),
+      ),
       body: SafeArea(
         child: ListenableBuilder(
           listenable: controller,
@@ -66,8 +72,11 @@ class _CareerBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _PlayerHeader(player: player),
-        const SizedBox(height: 16),
+        DoodleSurface(
+          padding: const EdgeInsets.all(16),
+          child: _PlayerHeader(player: player),
+        ),
+        const DoodleDivider(),
         _FilterCard(controller: controller, opponents: opponents),
         const SizedBox(height: 20),
         if (controller.isLoading)
@@ -105,10 +114,8 @@ class _PlayerHeader extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
+          child: DoodleTitle(
             player.nickname,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: Theme.of(
               context,
             ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
@@ -128,7 +135,7 @@ class _FilterCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _l10n(context);
-    return Card(
+    return DoodleSurface(
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -202,7 +209,7 @@ class _AggregateContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (aggregate.matches == 0) {
-      return Card(
+      return DoodleSurface(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -267,7 +274,7 @@ class _GrowthCard extends StatelessWidget {
     final pointsDelta = change.pointsDelta;
     final marginDelta = change.marginDelta;
     final hasChange = pointsDelta != null || marginDelta != null;
-    return Card(
+    return DoodleSurface(
       color: Theme.of(context).colorScheme.surfaceContainer,
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -303,14 +310,14 @@ class _TrendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (aggregate.shootingTrend.isEmpty) {
-      return Card(
+      return DoodleSurface(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Text(l10n.playerAnalyticsNoTrend),
         ),
       );
     }
-    return Card(
+    return DoodleSurface(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Wrap(
@@ -383,7 +390,7 @@ class _ZoneCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (aggregate.zoneHeatmap.isEmpty) {
-      return Card(
+      return DoodleSurface(
         key: const Key('player-analytics-zone-empty'),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -391,7 +398,7 @@ class _ZoneCard extends StatelessWidget {
         ),
       );
     }
-    return Card(
+    return DoodleSurface(
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Wrap(
@@ -475,7 +482,7 @@ class _SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
+    return DoodleTitle(
       title,
       style: Theme.of(
         context,
@@ -491,7 +498,7 @@ class _ErrorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return DoodleSurface(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
