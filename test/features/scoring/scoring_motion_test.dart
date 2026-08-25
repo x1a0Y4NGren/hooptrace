@@ -5,6 +5,7 @@ import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/motion/scoring_motion.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
+import 'package:lottie/lottie.dart';
 
 ShotLocationCommitReceipt receipt(String id, {double x = .5, double y = .5}) {
   return ShotLocationCommitReceipt(
@@ -74,6 +75,30 @@ void main() {
     expect(sample.tangent.vector.distance.isFinite, isTrue);
   });
 
+  test('geometry midpoint is deterministic for top and side arcs', () {
+    final top = ScoringMotionPath.build(
+      source: const Offset(100, 300),
+      destination: const Offset(300, 100),
+      safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+    );
+    expect(top.control1.dx, 100);
+    expect(top.control1.dy, closeTo(237.77460, .00001));
+    expect(top.control2.dx, 300);
+    expect(top.control2.dy, closeTo(37.77460, .00001));
+    expect(top.sample(.5).position.dx, closeTo(182.73, .01));
+    expect(top.sample(.5).position.dy, closeTo(171.23, .01));
+
+    final side = ScoringMotionPath.build(
+      source: const Offset(20, 100),
+      destination: const Offset(100, 120),
+      safeWorkspace: const Rect.fromLTWH(0, 80, 120, 120),
+    );
+    expect(side.control1, const Offset(76, 100));
+    expect(side.control2, const Offset(120, 120));
+    expect(side.sample(.5).position.dx, closeTo(66.88, .01));
+    expect(side.sample(.5).position.dy, closeTo(104.54, .01));
+  });
+
   test(
     'coordinator preserves FIFO order and accelerates after backlog three',
     () {
@@ -110,9 +135,70 @@ void main() {
       );
       coordinator.advance(const Duration(milliseconds: 440));
       expect(completed, ['event-0', 'event-1']);
+      coordinator.advance(const Duration(seconds: 10));
+      expect(completed, [
+        'event-0',
+        'event-1',
+        'event-2',
+        'event-3',
+        'event-4',
+      ]);
       coordinator.dispose();
     },
   );
+
+  test('completion callback submission preserves an existing FIFO queue', () {
+    final completed = <String>[];
+    late ScoringMotionCoordinator coordinator;
+    coordinator = ScoringMotionCoordinator(
+      onComplete: (event) {
+        completed.add(event.id);
+        if (event.id == 'event-0') {
+          coordinator.submit(
+            ScoringMotionEvent(
+              receipt: receipt('reentrant'),
+              sourceButton: const Offset(20, 20),
+              courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+              safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+            ),
+          );
+        }
+      },
+    );
+    for (var i = 0; i < 3; i++) {
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('$i'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
+    }
+    coordinator.advance(const Duration(seconds: 10));
+    expect(completed, ['event-0', 'event-1', 'event-2', 'event-reentrant']);
+    coordinator.dispose();
+  });
+
+  test('completion callback may dispose without restarting or notifying', () {
+    late ScoringMotionCoordinator coordinator;
+    coordinator = ScoringMotionCoordinator(
+      onComplete: (_) => coordinator.dispose(),
+    );
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('dispose-callback'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+      ),
+    );
+    expect(
+      () => coordinator.advance(const Duration(seconds: 2)),
+      returnsNormally,
+    );
+    expect(coordinator.pendingCount, 0);
+  });
 
   test('cancels active and queued events and dispose clears safely', () {
     final completed = <String>[];
@@ -138,29 +224,161 @@ void main() {
     expect(coordinator.pendingCount, 0);
   });
 
-  test('reduced and disabled modes reveal immediately without travel', () {
-    for (final mode in [
-      ScoringMotionMode.reduced,
-      ScoringMotionMode.disabled,
-    ]) {
-      final completed = <String>[];
-      final coordinator = ScoringMotionCoordinator(
-        mode: mode,
-        onComplete: (event) => completed.add(event.id),
+  test(
+    'reduced mode performs a bounded color reveal while disabled is immediate',
+    () {
+      final reducedCompleted = <String>[];
+      final reduced = ScoringMotionCoordinator(
+        mode: ScoringMotionMode.reduced,
+        onComplete: (event) => reducedCompleted.add(event.id),
       );
-      coordinator.submit(
+      reduced.submit(
         ScoringMotionEvent(
-          receipt: receipt('instant-$mode'),
+          receipt: receipt('reduced'),
           sourceButton: const Offset(20, 20),
           courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
           safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
         ),
       );
-      expect(completed, ['event-instant-$mode']);
-      expect(coordinator.active, isNull);
-      expect(coordinator.pendingCount, 0);
-      coordinator.dispose();
+      expect(reduced.active, isNotNull);
+      expect(reduced.active!.isColorReveal, isTrue);
+      expect(reduced.active!.travelEnabled, isFalse);
+      expect(reduced.active!.trailEnabled, isFalse);
+      expect(reduced.active!.colorRevealProgress, 0);
+      reduced.advance(const Duration(milliseconds: 99));
+      expect(reduced.active, isNotNull);
+      expect(reduced.active!.colorRevealProgress, closeTo(.99, .001));
+      expect(reducedCompleted, isEmpty);
+      reduced.advance(const Duration(milliseconds: 1));
+      expect(reducedCompleted, ['event-reduced']);
+      reduced.dispose();
+
+      final disabledCompleted = <String>[];
+      final disabled = ScoringMotionCoordinator(
+        mode: ScoringMotionMode.disabled,
+        onComplete: (event) => disabledCompleted.add(event.id),
+      );
+      disabled.submit(
+        ScoringMotionEvent(
+          receipt: receipt('disabled'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
+      expect(disabledCompleted, ['event-disabled']);
+      expect(disabled.active, isNull);
+      disabled.dispose();
+    },
+  );
+
+  test('queued location cancellation removes its event timing entry', () {
+    final coordinator = ScoringMotionCoordinator();
+    for (var i = 0; i < 4; i++) {
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('$i'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
     }
+    expect(coordinator.cancelByLocationId('location-2'), isTrue);
+    coordinator.advance(const Duration(milliseconds: 760));
+    expect(coordinator.active!.event.id, 'event-1');
+    coordinator.advance(const Duration(milliseconds: 440));
+    expect(coordinator.active!.event.id, 'event-3');
+    expect(
+      coordinator.active!.timing.flight,
+      const Duration(milliseconds: 300),
+    );
+    coordinator.dispose();
+  });
+
+  test('runtime asset failure reveals and advances the queued motion', () {
+    final completed = <String>[];
+    final fallback = <String>[];
+    final coordinator = ScoringMotionCoordinator(
+      onComplete: (event) => completed.add(event.id),
+      onFallback: (event) => fallback.add(event.id),
+    );
+    for (var i = 0; i < 2; i++) {
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('runtime-$i'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
+    }
+    expect(coordinator.fail('event-runtime-0'), isTrue);
+    expect(fallback, ['event-runtime-0']);
+    expect(completed, ['event-runtime-0']);
+    expect(coordinator.active!.event.id, 'event-runtime-1');
+    coordinator.dispose();
+  });
+
+  testWidgets('overlay requests team-colored ball and splash assets by phase', (
+    tester,
+  ) async {
+    final assets = <String>[];
+    final colors = <Color>[];
+    final coordinator = ScoringMotionCoordinator();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: ScoringMotionOverlay(
+          coordinator: coordinator,
+          assetBuilder: (context, active, color) {
+            assets.add(active.assetName);
+            colors.add(color);
+            return ColoredBox(color: color);
+          },
+        ),
+      ),
+    );
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('assets'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+      ),
+    );
+    await tester.pump();
+    expect(assets.last, 'assets/animations/paint_ball.json');
+    expect(
+      colors.last,
+      teamColorForScheme(TeamSide.blue, buildHoopTraceTheme().colorScheme),
+    );
+    coordinator.advance(const Duration(milliseconds: 520));
+    await tester.pump();
+    expect(assets.last, 'assets/animations/paint_splash.json');
+    expect(
+      colors.last,
+      teamColorForScheme(TeamSide.blue, buildHoopTraceTheme().colorScheme),
+    );
+    coordinator.dispose();
+  });
+
+  testWidgets('default overlay uses offline Lottie assets', (tester) async {
+    final coordinator = ScoringMotionCoordinator();
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringMotionOverlay(coordinator: coordinator)),
+    );
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('default-assets'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+      ),
+    );
+    await tester.pump();
+    expect(find.byType(LottieBuilder), findsOneWidget);
+    coordinator.dispose();
   });
 
   test(

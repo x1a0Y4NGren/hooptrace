@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
+import 'package:lottie/lottie.dart';
 
 /// Presentation policy for a scoring hero. It intentionally has no persistence
 /// or controller dependency, so a dropped frame cannot affect a score commit.
@@ -177,11 +178,29 @@ class ScoringMotionTiming {
 }
 
 class ScoringActiveMotion {
-  ScoringActiveMotion({required this.event, required this.timing});
+  ScoringActiveMotion({
+    required this.event,
+    required this.timing,
+    this.mode = ScoringMotionMode.standard,
+  });
 
   final ScoringMotionEvent event;
   final ScoringMotionTiming timing;
+  final ScoringMotionMode mode;
   Duration elapsed = Duration.zero;
+
+  bool get isColorReveal => mode == ScoringMotionMode.reduced;
+  bool get travelEnabled => mode == ScoringMotionMode.standard;
+  bool get trailEnabled => travelEnabled && !inImpact;
+  bool get particlesEnabled => travelEnabled && inImpact;
+  double get colorRevealProgress => isColorReveal
+      ? (elapsed.inMicroseconds / timing.total.inMicroseconds)
+            .clamp(0.0, 1.0)
+            .toDouble()
+      : 1;
+  String get assetName => inImpact
+      ? 'assets/animations/paint_splash.json'
+      : 'assets/animations/paint_ball.json';
 
   double get progress => timing.flight == Duration.zero
       ? 1
@@ -190,10 +209,17 @@ class ScoringActiveMotion {
             .toDouble();
 
   bool get inImpact => elapsed >= timing.flight;
-  ScoringMotionSample get sample => event.path.sample(progress);
+  ScoringMotionSample get sample =>
+      event.path.sample(travelEnabled ? progress : 1);
 }
 
 typedef ScoringMotionCallback = void Function(ScoringMotionEvent event);
+typedef ScoringMotionAssetBuilder =
+    Widget Function(
+      BuildContext context,
+      ScoringActiveMotion active,
+      Color teamColor,
+    );
 
 class ScoringMotionCoordinator extends ChangeNotifier {
   ScoringMotionCoordinator({
@@ -210,6 +236,7 @@ class ScoringMotionCoordinator extends ChangeNotifier {
   final List<ScoringMotionEvent> _queue = <ScoringMotionEvent>[];
   ScoringActiveMotion? _active;
   bool _disposed = false;
+  bool _completionDispatching = false;
 
   ScoringActiveMotion? get active => _active;
   List<ScoringMotionEvent> get queuedEvents => List.unmodifiable(_queue);
@@ -217,16 +244,35 @@ class ScoringMotionCoordinator extends ChangeNotifier {
 
   bool submit(ScoringMotionEvent event) {
     if (_disposed) return false;
-    if (mode != ScoringMotionMode.standard ||
-        !event.geometryAvailable ||
-        !event.assetAvailable) {
-      onFallback?.call(event);
-      onComplete?.call(event);
+    if (!event.geometryAvailable || !event.assetAvailable) {
+      _finishImmediately(event, fallback: true);
+      return true;
+    }
+    if (mode == ScoringMotionMode.disabled) {
+      _finishImmediately(event, fallback: false);
+      return true;
+    }
+    if (_active?.event.id == event.id ||
+        _queue.any((queued) => queued.id == event.id)) {
+      return false;
+    }
+    if (mode == ScoringMotionMode.reduced) {
+      final timing = ScoringMotionTiming(
+        flight: motionTheme.reducedReveal,
+        impact: Duration.zero,
+      );
+      if (_active == null && !_completionDispatching) {
+        _active = ScoringActiveMotion(event: event, mode: mode, timing: timing);
+      } else {
+        _queue.add(event);
+        _timings[event.id] = timing;
+      }
+      notifyListeners();
       return true;
     }
     final accelerate = pendingCount + 1 > 3;
     final timing = _timing(accelerated: accelerate);
-    // Once the visual backlog crosses three, all already-queued (not the
+    // Once the visual backlog crosses four, all already-queued (not the
     // currently flying) items use the same accelerated policy. This makes the
     // policy deterministic and guarantees a five-shot burst drains promptly.
     if (accelerate) {
@@ -234,7 +280,7 @@ class ScoringMotionCoordinator extends ChangeNotifier {
         _timings[queued.id] = _timing(accelerated: true);
       }
     }
-    if (_active == null) {
+    if (_active == null && !_completionDispatching) {
       _active = ScoringActiveMotion(event: event, timing: timing);
     } else {
       _queue.add(event);
@@ -242,6 +288,33 @@ class ScoringMotionCoordinator extends ChangeNotifier {
     }
     notifyListeners();
     return true;
+  }
+
+  void _finishImmediately(ScoringMotionEvent event, {required bool fallback}) {
+    if (fallback) {
+      _dispatchFallback(event);
+    } else {
+      _dispatchComplete(event);
+    }
+    if (!_disposed && _active == null) _startNext();
+    if (!_disposed) notifyListeners();
+  }
+
+  void _dispatchComplete(ScoringMotionEvent event) {
+    _completionDispatching = true;
+    onComplete?.call(event);
+    _completionDispatching = false;
+  }
+
+  /*
+   * Presentation failure is distinct from system-disabled motion: the former
+   * tells the integration that it should use its explicit reveal fallback.
+   */
+  void _dispatchFallback(ScoringMotionEvent event) {
+    _completionDispatching = true;
+    onFallback?.call(event);
+    onComplete?.call(event);
+    _completionDispatching = false;
   }
 
   final Map<String, ScoringMotionTiming> _timings = {};
@@ -259,7 +332,7 @@ class ScoringMotionCoordinator extends ChangeNotifier {
   void advance(Duration elapsed) {
     if (_disposed || elapsed <= Duration.zero) return;
     var remaining = elapsed;
-    while (_active != null && remaining > Duration.zero) {
+    while (!_disposed && _active != null && remaining > Duration.zero) {
       final current = _active!;
       final left = current.timing.total - current.elapsed;
       if (remaining < left) {
@@ -269,17 +342,45 @@ class ScoringMotionCoordinator extends ChangeNotifier {
         remaining -= left;
         final finished = current.event;
         _active = null;
+        _completionDispatching = true;
         onComplete?.call(finished);
-        _startNext();
+        _completionDispatching = false;
+        if (_disposed) return;
+        // Completion callbacks may submit more work. Submit queues reentrant
+        // events, keeping the already-queued FIFO entries in front.
+        if (_active == null) _startNext();
       }
     }
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   bool cancelByEventId(String eventId) => _cancel(eventId, byLocation: false);
 
   bool cancelByLocationId(String locationId) =>
       _cancel(locationId, byLocation: true);
+
+  /// Completes a motion after a runtime asset/geometry failure. This is also
+  /// useful to an overlay's asset errorBuilder: the score has already been
+  /// committed, so presentation can reveal immediately and drain the queue.
+  bool fail(String eventId) {
+    if (_disposed) return false;
+    if (_active?.event.id == eventId) {
+      final failed = _active!.event;
+      _active = null;
+      _dispatchFallback(failed);
+      if (_disposed) return true;
+      if (_active == null) _startNext();
+      if (!_disposed) notifyListeners();
+      return true;
+    }
+    final index = _queue.indexWhere((event) => event.id == eventId);
+    if (index < 0) return false;
+    final failed = _queue.removeAt(index);
+    _timings.remove(failed.id);
+    _dispatchFallback(failed);
+    if (!_disposed) notifyListeners();
+    return true;
+  }
 
   bool _cancel(String identifier, {required bool byLocation}) {
     if (_disposed) return false;
@@ -291,12 +392,19 @@ class ScoringMotionCoordinator extends ChangeNotifier {
       notifyListeners();
       return true;
     }
+    final removed = _queue
+        .where(
+          (event) => (byLocation ? event.locationId : event.id) == identifier,
+        )
+        .toList();
     final before = _queue.length;
     _queue.removeWhere(
       (event) => (byLocation ? event.locationId : event.id) == identifier,
     );
     if (_queue.length != before) {
-      _timings.remove(identifier);
+      for (final event in removed) {
+        _timings.remove(event.id);
+      }
       notifyListeners();
       return true;
     }
@@ -312,7 +420,7 @@ class ScoringMotionCoordinator extends ChangeNotifier {
           flight: motionTheme.scoreFlight,
           impact: motionTheme.impact,
         );
-    _active = ScoringActiveMotion(event: event, timing: timing);
+    _active = ScoringActiveMotion(event: event, mode: mode, timing: timing);
   }
 
   @override
@@ -326,40 +434,111 @@ class ScoringMotionCoordinator extends ChangeNotifier {
 }
 
 class ScoringMotionOverlay extends StatelessWidget {
-  const ScoringMotionOverlay({required this.coordinator, super.key});
+  const ScoringMotionOverlay({
+    required this.coordinator,
+    this.assetBuilder,
+    super.key,
+  });
 
   final ScoringMotionCoordinator coordinator;
+  final ScoringMotionAssetBuilder? assetBuilder;
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: CustomPaint(
-        painter: ScoringMotionPainter(coordinator),
-        size: Size.infinite,
+      child: AnimatedBuilder(
+        animation: coordinator,
+        builder: (context, child) {
+          final active = coordinator.active;
+          final color = active == null
+              ? Colors.transparent
+              : teamColorForScheme(
+                  active.event.receipt.side,
+                  Theme.of(context).colorScheme,
+                );
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              CustomPaint(
+                painter: ScoringMotionPainter(coordinator, ballColor: color),
+              ),
+              if (active != null && active.travelEnabled)
+                _assetWidget(context, active, color),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _assetWidget(
+    BuildContext context,
+    ScoringActiveMotion active,
+    Color color,
+  ) {
+    if (assetBuilder != null) return assetBuilder!(context, active, color);
+    return Positioned(
+      left: active.sample.position.dx - (active.inImpact ? 45 : 30),
+      top: active.sample.position.dy - (active.inImpact ? 45 : 30),
+      width: active.inImpact ? 90 : 60,
+      height: active.inImpact ? 90 : 60,
+      child: Lottie.asset(
+        active.assetName,
+        key: ValueKey('${active.event.id}-${active.assetName}'),
+        animate: true,
+        repeat: false,
+        delegates: LottieDelegates(
+          values: [
+            ValueDelegate.color(['**', 'teamFill', 'teamFill'], value: color),
+          ],
+        ),
+        errorBuilder: (context, error, stackTrace) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            coordinator.fail(active.event.id);
+          });
+          return const SizedBox.shrink();
+        },
       ),
     );
   }
 }
 
 class ScoringMotionPainter extends CustomPainter {
-  ScoringMotionPainter(this.coordinator) : super(repaint: coordinator);
+  ScoringMotionPainter(this.coordinator, {this.ballColor = Colors.white})
+    : super(repaint: coordinator);
 
   final ScoringMotionCoordinator coordinator;
+  final Color ballColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final active = coordinator.active;
-    if (active == null) return;
+    if (active == null || !active.travelEnabled) return;
     final sample = active.sample;
-    final paint = Paint()..color = Colors.white;
-    for (final node in sample.trail) {
-      canvas.drawCircle(
-        node.position,
-        5,
-        paint..color = Colors.white.withValues(alpha: node.opacity),
-      );
+    final paint = Paint()..color = ballColor;
+    if (active.trailEnabled) {
+      for (final node in sample.trail) {
+        canvas.drawCircle(
+          node.position,
+          5,
+          paint..color = ballColor.withValues(alpha: node.opacity),
+        );
+      }
     }
-    canvas.drawCircle(sample.position, 8, paint..color = Colors.white);
+    if (active.inImpact) {
+      canvas.drawCircle(
+        sample.position,
+        18,
+        paint..color = ballColor.withValues(alpha: .26),
+      );
+      canvas.drawCircle(
+        sample.position,
+        11,
+        paint..color = ballColor.withValues(alpha: .72),
+      );
+      return;
+    }
+    canvas.drawCircle(sample.position, 8, paint..color = ballColor);
   }
 
   @override

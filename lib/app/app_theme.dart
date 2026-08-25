@@ -170,6 +170,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     required this.impact,
     required this.acceleratedScoreFlight,
     required this.acceleratedImpact,
+    required this.reducedReveal,
     required this.press,
     required this.scoreTransition,
     required this.foulStamp,
@@ -182,6 +183,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
         impact: const Duration(milliseconds: 240),
         acceleratedScoreFlight: const Duration(milliseconds: 300),
         acceleratedImpact: const Duration(milliseconds: 140),
+        reducedReveal: const Duration(milliseconds: 100),
         press: const Duration(milliseconds: 90),
         scoreTransition: const Duration(milliseconds: 180),
         foulStamp: const Duration(milliseconds: 240),
@@ -194,6 +196,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
   final Duration impact;
   final Duration acceleratedScoreFlight;
   final Duration acceleratedImpact;
+  final Duration reducedReveal;
   final Duration press;
   final Duration scoreTransition;
   final Duration foulStamp;
@@ -205,6 +208,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     Duration? impact,
     Duration? acceleratedScoreFlight,
     Duration? acceleratedImpact,
+    Duration? reducedReveal,
     Duration? press,
     Duration? scoreTransition,
     Duration? foulStamp,
@@ -216,6 +220,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
       acceleratedScoreFlight:
           acceleratedScoreFlight ?? this.acceleratedScoreFlight,
       acceleratedImpact: acceleratedImpact ?? this.acceleratedImpact,
+      reducedReveal: reducedReveal ?? this.reducedReveal,
       press: press ?? this.press,
       scoreTransition: scoreTransition ?? this.scoreTransition,
       foulStamp: foulStamp ?? this.foulStamp,
@@ -243,6 +248,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
         other.acceleratedScoreFlight,
       ),
       acceleratedImpact: blend(acceleratedImpact, other.acceleratedImpact),
+      reducedReveal: blend(reducedReveal, other.reducedReveal),
       press: blend(press, other.press),
       scoreTransition: blend(scoreTransition, other.scoreTransition),
       foulStamp: blend(foulStamp, other.foulStamp),
@@ -257,6 +263,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
       other.impact == impact &&
       other.acceleratedScoreFlight == acceleratedScoreFlight &&
       other.acceleratedImpact == acceleratedImpact &&
+      other.reducedReveal == reducedReveal &&
       other.press == press &&
       other.scoreTransition == scoreTransition &&
       other.foulStamp == foulStamp &&
@@ -268,6 +275,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     impact,
     acceleratedScoreFlight,
     acceleratedImpact,
+    reducedReveal,
     press,
     scoreTransition,
     foulStamp,
