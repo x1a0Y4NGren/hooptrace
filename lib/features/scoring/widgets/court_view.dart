@@ -5,7 +5,7 @@ import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 
-export 'court_painter.dart' show TransientShotMarker;
+export 'court_painter.dart' show EraserShotMarker, TransientShotMarker;
 
 enum CourtViewMode { readOnly, editable }
 
@@ -25,6 +25,7 @@ class CourtView extends StatelessWidget {
     this.geometryKey,
     this.hiddenShotLocationIds = const <String>{},
     this.transientMarkers = const <TransientShotMarker>[],
+    this.eraserMarkers = const <EraserShotMarker>[],
     this.mode = CourtViewMode.editable,
     super.key,
   });
@@ -39,6 +40,7 @@ class CourtView extends StatelessWidget {
   final GlobalKey? geometryKey;
   final Set<String> hiddenShotLocationIds;
   final List<TransientShotMarker> transientMarkers;
+  final List<EraserShotMarker> eraserMarkers;
   final CourtViewMode mode;
 
   @override
@@ -120,6 +122,7 @@ class CourtView extends StatelessWidget {
                     detailedShotDraft: detailedShotDraft,
                     hiddenShotLocationIds: hiddenShotLocationIds,
                     transientMarkers: transientMarkers,
+                    eraserMarkers: eraserMarkers,
                   ),
                   child: const SizedBox.expand(),
                 ),

@@ -93,6 +93,18 @@ class TransientShotMarker {
 
 typedef CourtTransientMarker = TransientShotMarker;
 
+class EraserShotMarker {
+  const EraserShotMarker({
+    required this.id,
+    required this.point,
+    required this.progress,
+  });
+
+  final String id;
+  final CourtPoint point;
+  final double progress;
+}
+
 class CourtPainter extends CustomPainter {
   const CourtPainter({
     this.shotLocations = const [],
@@ -100,6 +112,7 @@ class CourtPainter extends CustomPainter {
     this.detailedShotDraft,
     this.hiddenShotLocationIds = const <String>{},
     this.transientMarkers = const <TransientShotMarker>[],
+    this.eraserMarkers = const <EraserShotMarker>[],
   });
 
   final List<ScoringShotLocation> shotLocations;
@@ -107,6 +120,7 @@ class CourtPainter extends CustomPainter {
   final DetailedShotDraft? detailedShotDraft;
   final Set<String> hiddenShotLocationIds;
   final List<TransientShotMarker> transientMarkers;
+  final List<EraserShotMarker> eraserMarkers;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -334,6 +348,15 @@ class CourtPainter extends CustomPainter {
         isPending: true,
       );
     }
+    for (final marker in eraserMarkers) {
+      final center = HalfCourtGeometry.pointToOffset(marker.point, size);
+      final opacity = (1 - marker.progress.clamp(0.0, 1.0)) * 0.75;
+      final paint = Paint()
+        ..color = Colors.white.withValues(alpha: opacity)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4;
+      canvas.drawCircle(center, 12 + marker.progress * 8, paint);
+    }
   }
 
   void _paintMarker(
@@ -367,6 +390,7 @@ class CourtPainter extends CustomPainter {
         oldDelegate.pendingLocation != pendingLocation ||
         oldDelegate.detailedShotDraft != detailedShotDraft ||
         oldDelegate.hiddenShotLocationIds != hiddenShotLocationIds ||
-        oldDelegate.transientMarkers != transientMarkers;
+        oldDelegate.transientMarkers != transientMarkers ||
+        oldDelegate.eraserMarkers != eraserMarkers;
   }
 }

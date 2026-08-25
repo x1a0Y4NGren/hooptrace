@@ -188,6 +188,7 @@ class ScoringActiveMotion {
   final ScoringMotionTiming timing;
   final ScoringMotionMode mode;
   Duration elapsed = Duration.zero;
+  bool impactDispatched = false;
 
   bool get isColorReveal => mode == ScoringMotionMode.reduced;
   bool get travelEnabled => mode == ScoringMotionMode.standard;
@@ -226,12 +227,14 @@ class ScoringMotionCoordinator extends ChangeNotifier {
     this.motionTheme = const HoopTraceMotionTheme.light(),
     this.mode = ScoringMotionMode.standard,
     this.onComplete,
+    this.onImpact,
     this.onFallback,
   });
 
   final HoopTraceMotionTheme motionTheme;
   final ScoringMotionMode mode;
   final ScoringMotionCallback? onComplete;
+  final ScoringMotionCallback? onImpact;
   final ScoringMotionCallback? onFallback;
   final List<ScoringMotionEvent> _queue = <ScoringMotionEvent>[];
   final Set<String> _seenEventIds = <String>{};
@@ -350,6 +353,22 @@ class ScoringMotionCoordinator extends ChangeNotifier {
     var remaining = elapsed;
     while (!_disposed && _active != null && remaining > Duration.zero) {
       final current = _active!;
+      if (!current.impactDispatched &&
+          current.timing.flight <= current.elapsed + remaining) {
+        remaining -= current.timing.flight - current.elapsed;
+        current.elapsed = current.timing.flight;
+        current.impactDispatched = true;
+        _dispatchImpact(current.event);
+        if (_disposed) return;
+        final impactLeft = current.timing.total - current.elapsed;
+        if (remaining < impactLeft) {
+          current.elapsed += remaining;
+          remaining = Duration.zero;
+          continue;
+        }
+        remaining -= impactLeft;
+        current.elapsed = current.timing.total;
+      }
       final left = current.timing.total - current.elapsed;
       if (remaining < left) {
         current.elapsed += remaining;
@@ -375,6 +394,19 @@ class ScoringMotionCoordinator extends ChangeNotifier {
       }
     }
     if (!_disposed) notifyListeners();
+  }
+
+  void _dispatchImpact(ScoringMotionEvent event) {
+    _completionDispatching = true;
+    try {
+      if (!_disposed) onImpact?.call(event);
+    } catch (error, stack) {
+      _completionDispatching = false;
+      _recoverAfterDispatch();
+      Error.throwWithStackTrace(error, stack);
+    } finally {
+      _completionDispatching = false;
+    }
   }
 
   bool cancelByEventId(String eventId) => _cancel(eventId, byLocation: false);

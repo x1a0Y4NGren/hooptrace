@@ -47,6 +47,26 @@ void main() {
     expect(court.hiddenShotLocationIds, contains('shot-1'));
     expect(court.transientMarkers.single.id, 'shot-1');
   });
+
+  test('court painter renders an eraser presentation marker', () {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = Size(320, 280);
+    final painter = CourtPainter(
+      eraserMarkers: [
+        EraserShotMarker(
+          id: 'erased-shot',
+          point: CourtPoint(x: 0.35, y: 0.45),
+          progress: 0.5,
+        ),
+      ],
+    );
+
+    painter.paint(canvas, size);
+    final picture = recorder.endRecording();
+    expect(picture, isNotNull);
+    picture.dispose();
+  });
   testWidgets('court prompt is announced while a score location is available', (
     tester,
   ) async {

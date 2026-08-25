@@ -94,9 +94,14 @@ class _ScoringPageState extends State<ScoringPage>
   final Set<String> _hiddenShotLocationIds = <String>{};
   final Map<String, TransientShotMarker> _transientMarkers =
       <String, TransientShotMarker>{};
+  final Map<String, EraserShotMarker> _eraserMarkers =
+      <String, EraserShotMarker>{};
+  final Map<String, AnimationController> _eraserControllers =
+      <String, AnimationController>{};
   Timer? _foulStampTimer;
   TeamSide? _foulStampSide;
   bool _disposed = false;
+  int _actionGeneration = 0;
 
   @override
   void initState() {
@@ -109,7 +114,7 @@ class _ScoringPageState extends State<ScoringPage>
     if (loader != null) {
       unawaited(
         loader().then<void>((preference) {
-          if (!mounted) return;
+          if (!mounted || _disposed) return;
           _motionPreference = preference;
           _updateMotionMode();
           setState(() {});
@@ -126,6 +131,7 @@ class _ScoringPageState extends State<ScoringPage>
         oldWidget.matchId != widget.matchId ||
         oldWidget.setup != widget.setup;
     if (controllerChanged) {
+      _actionGeneration++;
       _cancelAllMotions();
       _detachController();
       _attachController();
@@ -149,6 +155,7 @@ class _ScoringPageState extends State<ScoringPage>
     _cancelAllMotions();
     _motionCoordinator.dispose();
     _motionTicker?.dispose();
+    _disposeErasers();
     _foulStampTimer?.cancel();
     _clockTicker?.cancel();
     _supplementTicker?.cancel();
@@ -172,6 +179,7 @@ class _ScoringPageState extends State<ScoringPage>
   ScoringMotionCoordinator _createMotionCoordinator() {
     return ScoringMotionCoordinator(
       mode: _motionMode,
+      onImpact: _revealMotion,
       onComplete: _completeMotion,
       onFallback: _reconcileMotion,
     )..addListener(_handleMotionChanged);
@@ -230,6 +238,7 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   void _cancelAllMotions() {
+    _actionGeneration++;
     _motionTicker?.stop();
     _motionElapsed = Duration.zero;
     for (final event in [
@@ -240,10 +249,62 @@ class _ScoringPageState extends State<ScoringPage>
     }
     _hiddenShotLocationIds.clear();
     _transientMarkers.clear();
+    _foulStampTimer?.cancel();
+    _foulStampTimer = null;
+    _foulStampSide = null;
+    _disposeErasers();
     if (mounted && !_disposed) setState(() {});
   }
 
+  void _disposeErasers() {
+    for (final controller in _eraserControllers.values) {
+      controller.dispose();
+    }
+    _eraserControllers.clear();
+    _eraserMarkers.clear();
+  }
+
+  void _startEraser(ScoringShotLocation location, int generation) {
+    if (!_isCurrentAction(generation, _controller)) return;
+    final id = location.id;
+    _eraserControllers[id]?.dispose();
+    final animation = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+    _eraserControllers[id] = animation;
+    _eraserMarkers[id] = EraserShotMarker(
+      id: id,
+      point: location.point,
+      progress: 0,
+    );
+    animation.addListener(() {
+      if (!mounted || _disposed || !_eraserControllers.containsKey(id)) return;
+      _eraserMarkers[id] = EraserShotMarker(
+        id: id,
+        point: location.point,
+        progress: animation.value,
+      );
+      setState(() {});
+    });
+    animation.addStatusListener((status) {
+      if (status != AnimationStatus.completed || !mounted || _disposed) return;
+      animation.dispose();
+      _eraserControllers.remove(id);
+      _eraserMarkers.remove(id);
+      if (mounted && !_disposed) setState(() {});
+    });
+    if (mounted && !_disposed) setState(() {});
+    animation.forward();
+  }
+
   void _reconcileMotion(ScoringMotionEvent event) {
+    _hiddenShotLocationIds.remove(event.locationId);
+    _transientMarkers.remove(event.locationId);
+    if (mounted && !_disposed) setState(() {});
+  }
+
+  void _revealMotion(ScoringMotionEvent event) {
     _hiddenShotLocationIds.remove(event.locationId);
     _transientMarkers.remove(event.locationId);
     if (mounted && !_disposed) setState(() {});
@@ -433,6 +494,7 @@ class _ScoringPageState extends State<ScoringPage>
         detailedShotDraft: state.courtFirstShotDraft,
         hiddenShotLocationIds: _hiddenShotLocationIds,
         transientMarkers: _transientMarkers.values.toList(growable: false),
+        eraserMarkers: _eraserMarkers.values.toList(growable: false),
         locationPrompt: prompt,
         onPendingLocationChanged: _controller.updatePendingLocation,
         onCourtPointTap: _handleCourtPoint,
@@ -458,7 +520,8 @@ class _ScoringPageState extends State<ScoringPage>
         window != null && window.side == side && window.points > 0;
     final reduceMotion =
         (MediaQuery.maybeOf(context)?.disableAnimations ?? false) ||
-        (MediaQuery.maybeAccessibleNavigationOf(context) ?? false);
+        (MediaQuery.maybeAccessibleNavigationOf(context) ?? false) ||
+        _motionMode != ScoringMotionMode.standard;
     final draft = state.courtFirstShotDraft;
     return ScoreSidePanel(
       key: Key('${side.name}-side-panel'),
@@ -621,9 +684,11 @@ class _ScoringPageState extends State<ScoringPage>
     );
     _hiddenShotLocationIds.add(receipt.shotLocationId);
     _transientMarkers[receipt.shotLocationId] = marker;
-    if (mounted) setState(() {});
+    if (mounted && !_disposed) setState(() {});
     try {
-      _motionCoordinator.submit(_motionEvent(receipt, source));
+      final event = _motionEvent(receipt, source);
+      final accepted = _motionCoordinator.submit(event);
+      if (!accepted) _reconcileMotion(event);
     } on Object {
       // Presentation failures must reveal the durable projection immediately.
       _reconcileMotion(
@@ -639,21 +704,22 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<void> _attachSupplement(CourtPoint point) async {
-    final window = _controller.locationSupplementWindow;
-    final source = window == null
-        ? null
-        : _scoreButtonCenter(window.side, window.points);
+    final generation = _actionGeneration;
+    final controller = _controller;
     try {
-      final receipt = await _controller.attachSupplementLocationWithReceipt(
+      final receipt = await controller.attachSupplementLocationWithReceipt(
         point,
       );
+      if (!_isCurrentAction(generation, controller)) return;
       if (receipt != null) {
+        final source = _scoreButtonCenter(receipt.side, receipt.points);
         _submitReceiptMotion(receipt, source);
         _notifyCommitted();
       } else if (mounted) {
         _showActionRejected(_labels(context).supplementExpired);
       }
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return;
       _showCommandFailure(failure);
     }
   }
@@ -663,61 +729,81 @@ class _ScoringPageState extends State<ScoringPage>
     final l10n = _localizations(context);
     final draft = _controller.courtFirstShotDraft;
     if (draft != null) {
-      final source = _scoreButtonCenter(side, points);
-      _controller.updateCourtFirstShot(
+      final generation = _actionGeneration;
+      final controller = _controller;
+      controller.updateCourtFirstShot(
         side: side,
         outcome: ShotOutcome.made,
         points: points,
       );
       try {
-        final receipt = await _controller.commitCourtFirstShotWithReceipt();
+        final receipt = await controller.commitCourtFirstShotWithReceipt();
+        if (!_isCurrentAction(generation, controller)) return;
         if (receipt != null) {
+          final source = _scoreButtonCenter(receipt.side, receipt.points);
           _submitReceiptMotion(receipt, source);
           _notifyCommitted();
         } else {
           _showActionRejected(labels.actionRejected);
         }
       } on MatchCommandFailure catch (failure) {
+        if (!_isCurrentAction(generation, controller)) return;
         _showCommandFailure(failure);
       }
       return;
     }
+    final generation = _actionGeneration;
+    final controller = _controller;
     try {
-      final accepted = await _controller.recordScoreCommitted(
+      final accepted = await controller.recordScoreCommitted(
         side: side,
         points: points,
       );
+      if (!_isCurrentAction(generation, controller)) return;
       if (accepted) {
         _notifyCommitted();
       } else {
         _showActionRejected(l10n.scoringResolvePending);
       }
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return;
       _showCommandFailure(failure);
     }
   }
 
+  bool _isCurrentAction(int generation, ScoringController controller) {
+    return mounted &&
+        !_disposed &&
+        generation == _actionGeneration &&
+        identical(controller, _controller);
+  }
+
   Future<bool> _recordMiss(TeamSide side, {bool rethrowFailure = false}) async {
     final l10n = _localizations(context);
+    final generation = _actionGeneration;
+    final controller = _controller;
     final draft = _controller.courtFirstShotDraft;
     if (draft != null) {
-      _controller.updateCourtFirstShot(
+      controller.updateCourtFirstShot(
         side: side,
         outcome: ShotOutcome.missed,
         points: 0,
       );
       try {
-        final accepted = await _controller.commitCourtFirstShot();
+        final accepted = await controller.commitCourtFirstShot();
+        if (!_isCurrentAction(generation, controller)) return false;
         if (accepted) _notifyCommitted();
         return accepted;
       } on MatchCommandFailure catch (failure) {
+        if (!_isCurrentAction(generation, controller)) return false;
         if (rethrowFailure) throw _moreFailure(failure);
         _showCommandFailure(failure);
         return false;
       }
     }
     try {
-      final accepted = await _controller.recordMissCommitted(side: side);
+      final accepted = await controller.recordMissCommitted(side: side);
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) {
         _notifyCommitted();
       } else {
@@ -725,6 +811,7 @@ class _ScoringPageState extends State<ScoringPage>
       }
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
@@ -736,14 +823,18 @@ class _ScoringPageState extends State<ScoringPage>
     bool made, {
     bool rethrowFailure = false,
   }) async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     try {
-      final accepted = await _controller.recordFreeThrowCommitted(
+      final accepted = await controller.recordFreeThrowCommitted(
         side: side,
         made: made,
       );
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
@@ -754,11 +845,15 @@ class _ScoringPageState extends State<ScoringPage>
     TeamSide side, {
     bool rethrowFailure = false,
   }) async {
+    final generation = _actionGeneration;
+    final controller = _controller;
     try {
-      final accepted = await _controller.recordPossessionCommitted(side);
+      final accepted = await controller.recordPossessionCommitted(side);
+      if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) _notifyCommitted();
       return accepted;
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
       _showCommandFailure(failure);
       return false;
@@ -772,45 +867,63 @@ class _ScoringPageState extends State<ScoringPage>
       _showActionRejected(labels.actionRejected);
       return;
     }
+    final generation = _actionGeneration;
+    final controller = _controller;
     try {
-      final accepted = await _controller.recordFoulCommitted(side);
+      final accepted = await controller.recordFoulCommitted(side);
+      if (!_isCurrentAction(generation, controller)) return;
       if (accepted) {
         _foulStampTimer?.cancel();
         if (mounted) setState(() => _foulStampSide = side);
         _foulStampTimer = Timer(const Duration(milliseconds: 240), () {
-          if (mounted) setState(() => _foulStampSide = null);
+          if (mounted && !_disposed) setState(() => _foulStampSide = null);
         });
         _notifyCommitted();
       } else {
         _showActionRejected(labels.actionRejected);
       }
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return;
       _showCommandFailure(failure);
     }
   }
 
   Future<void> _undoLastScoringAction() async {
     final l10n = _localizations(context);
+    final generation = _actionGeneration;
+    final controller = _controller;
     // A court-first marker is still local state, so Undo first clears the
     // gray point without touching the durable scoring history. Legacy local
     // projections may expose the same marker as a pending supplement; clear
     // that draft before asking the controller for the durable undo.
     if (_controller.courtFirstShotDraft != null) {
-      _controller.cancelCourtFirstShot();
+      controller.cancelCourtFirstShot();
       return;
     }
     if (_controller.state.pendingLocation != null &&
         _controller.locationSupplementWindow != null) {
-      _controller.cancelLocateLastUnlocatedShot();
+      controller.cancelLocateLastUnlocatedShot();
     }
+    final before = List<ScoringShotLocation>.of(controller.state.shotLocations);
     try {
-      final accepted = await _controller.undoLastScoringActionCommitted();
+      final accepted = await controller.undoLastScoringActionCommitted();
+      if (!_isCurrentAction(generation, controller)) return;
       if (accepted) {
+        final afterIds = controller.state.shotLocations
+            .map((item) => item.id)
+            .toSet();
+        for (final location in before.where(
+          (item) => !afterIds.contains(item.id),
+        )) {
+          _motionCoordinator.cancelByLocationId(location.id);
+          _startEraser(location, generation);
+        }
         _notifyCommitted();
       } else {
         _showActionRejected(l10n.scoringUndoFailed);
       }
     } on MatchCommandFailure catch (failure) {
+      if (!_isCurrentAction(generation, controller)) return;
       _showCommandFailure(failure);
     }
   }
@@ -894,9 +1007,25 @@ class _ScoringPageState extends State<ScoringPage>
               }
             }
 
+            final visual = Theme.of(
+              sheetBuilderContext,
+            ).extension<HoopTraceVisualTheme>();
             return SafeArea(
               child: Material(
                 key: const Key('scoring-more-sheet'),
+                color:
+                    visual?.paper ??
+                    Theme.of(sheetBuilderContext).colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
+                  side: BorderSide(
+                    color:
+                        visual?.divider ??
+                        Theme.of(sheetBuilderContext).dividerColor,
+                  ),
+                ),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxHeight: 620),
                   child: SingleChildScrollView(
@@ -908,9 +1037,13 @@ class _ScoringPageState extends State<ScoringPage>
                           children: [
                             Text(
                               labels.more,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
+                              style: Theme.of(sheetBuilderContext)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    color: visual?.ink,
+                                    fontWeight: FontWeight.w900,
+                                  ),
                             ),
                             IconButton(
                               key: const Key('more-close'),
@@ -924,6 +1057,7 @@ class _ScoringPageState extends State<ScoringPage>
                             ),
                           ],
                         ),
+                        Divider(color: visual?.divider),
                         if (inlineFailure != null)
                           Container(
                             key: const Key('more-inline-error'),

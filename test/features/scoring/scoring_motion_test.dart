@@ -300,6 +300,34 @@ void main() {
   });
 
   test(
+    'impact callback fires when flight starts, including a large time step',
+    () {
+      final impacts = <String>[];
+      final completed = <String>[];
+      final coordinator = ScoringMotionCoordinator(
+        onImpact: (event) => impacts.add(event.id),
+        onComplete: (event) => completed.add(event.id),
+      );
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('impact-start'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
+
+      coordinator.advance(const Duration(milliseconds: 520));
+      expect(impacts, ['event-impact-start']);
+      expect(completed, isEmpty);
+      coordinator.advance(const Duration(seconds: 1));
+      expect(impacts, ['event-impact-start']);
+      expect(completed, ['event-impact-start']);
+      coordinator.dispose();
+    },
+  );
+
+  test(
     'duplicate IDs are rejected before disabled and fallback fast paths',
     () {
       for (final mode in [

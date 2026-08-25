@@ -319,7 +319,7 @@ class ScoreSidePanel extends StatelessWidget {
   }
 }
 
-class _ScoreAction extends StatelessWidget {
+class _ScoreAction extends StatefulWidget {
   const _ScoreAction({
     required this.side,
     required this.teamLabel,
@@ -353,24 +353,32 @@ class _ScoreAction extends StatelessWidget {
   final VoidCallback onPressed;
 
   @override
+  State<_ScoreAction> createState() => _ScoreActionState();
+}
+
+class _ScoreActionState extends State<_ScoreAction> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final widget = this.widget;
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    final team = teamLabel;
-    final remaining = locationRemainingSeconds;
-    final foreground = _teamForegroundColor(color);
-    final semantic = locationActive && remaining != null
-        ? l10n.scoringLocationPendingSemantics(points, remaining, team)
-        : l10n.scoringScoreSemantics(points, team);
+    final team = widget.teamLabel;
+    final remaining = widget.locationRemainingSeconds;
+    final foreground = _teamForegroundColor(widget.color);
+    final semantic = widget.locationActive && remaining != null
+        ? l10n.scoringLocationPendingSemantics(widget.points, remaining, team)
+        : l10n.scoringScoreSemantics(widget.points, team);
     final label = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text('+$points'),
-        if (locationActive) ...[
+        Text('+${widget.points}'),
+        if (widget.locationActive) ...[
           const SizedBox(width: 4),
           Icon(
             Icons.location_on_outlined,
-            key: Key('${side.name}-score-$points-location'),
+            key: Key('${widget.side.name}-score-${widget.points}-location'),
             size: 17,
           ),
           if (remaining != null) Text('$remaining'),
@@ -378,39 +386,60 @@ class _ScoreAction extends StatelessWidget {
       ],
     );
     final button = SizedBox(
-      key: geometryKey,
-      width: width,
-      height: height,
+      key: widget.geometryKey,
+      width: widget.width,
+      height: widget.height,
       child: Semantics(
         label: semantic,
         button: true,
-        enabled: enabled,
+        enabled: widget.enabled,
         child: FilledButton(
-          key: Key('${side.name}-score-$points'),
+          key: Key('${widget.side.name}-score-${widget.points}'),
           style: FilledButton.styleFrom(
-            backgroundColor: color,
+            backgroundColor: widget.color,
             foregroundColor: foreground,
             disabledForegroundColor: foreground,
-            minimumSize: Size(48, height),
-            padding: compact ? EdgeInsets.zero : null,
-            side: locationActive && reduceMotion
-                ? BorderSide(color: color, width: 2)
+            minimumSize: Size(48, widget.height),
+            padding: widget.compact ? EdgeInsets.zero : null,
+            side: widget.locationActive && widget.reduceMotion
+                ? BorderSide(color: widget.color, width: 2)
                 : null,
           ),
-          onPressed: enabled ? onPressed : null,
+          onPressed: widget.enabled ? widget.onPressed : null,
           child: FittedBox(fit: BoxFit.scaleDown, child: label),
         ),
       ),
     );
-    if (!locationPulse || reduceMotion) return button;
+    final feedback = Listener(
+      onPointerDown: widget.enabled && !widget.reduceMotion
+          ? (_) => setState(() => _pressed = true)
+          : null,
+      onPointerUp: widget.enabled && !widget.reduceMotion
+          ? (_) => setState(() => _pressed = false)
+          : null,
+      onPointerCancel: widget.enabled && !widget.reduceMotion
+          ? (_) => setState(() => _pressed = false)
+          : null,
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1,
+        duration:
+            Theme.of(context).extension<HoopTraceMotionTheme>()?.press ??
+            const Duration(milliseconds: 90),
+        child: button,
+      ),
+    );
+    if (!widget.locationPulse || widget.reduceMotion) return feedback;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.35), width: 2),
+        border: Border.all(
+          color: widget.color.withValues(alpha: 0.35),
+          width: 2,
+        ),
       ),
-      child: button,
+      child: feedback,
     );
   }
 }
@@ -443,20 +472,31 @@ class _FoulStamp extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     return IgnorePointer(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: HoopTraceColors.orange.withValues(alpha: 0.94),
-          borderRadius: BorderRadius.circular(5),
+      child: TweenAnimationBuilder<double>(
+        duration:
+            Theme.of(context).extension<HoopTraceMotionTheme>()?.foulStamp ??
+            const Duration(milliseconds: 240),
+        tween: Tween(begin: 0.65, end: 1),
+        builder: (context, scale, child) => Transform.scale(
+          scale: scale,
+          alignment: Alignment.topRight,
+          child: child,
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          child: Text(
-            l10n.scoringFoul,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.6,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: HoopTraceColors.orange.withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            child: Text(
+              l10n.scoringFoul,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.6,
+              ),
             ),
           ),
         ),

@@ -20,6 +20,20 @@ import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 import '../../test_helpers/test_database.dart';
 
+class _GatedSupplementController extends ScoringController {
+  _GatedSupplementController(this.result)
+    : super(matchId: 'gated-supplement-controller');
+
+  final Future<ShotLocationCommitReceipt?> result;
+
+  @override
+  Future<ShotLocationCommitReceipt?> attachSupplementLocationWithReceipt(
+    CourtPoint point, {
+    DateTime? requestedAtUtc,
+    String? eventId,
+  }) => result;
+}
+
 void main() {
   testWidgets(
     'court-first receipt queues one hero and reveals durable marker after impact',
@@ -39,8 +53,15 @@ void main() {
       );
       expect(overlay.coordinator.pendingCount, 1);
       expect(controller.state.shotLocations, hasLength(1));
+      var court = tester.widget<CourtView>(find.byType(CourtView));
+      expect(court.hiddenShotLocationIds, hasLength(1));
+      expect(court.transientMarkers, hasLength(1));
       await tester.pump(const Duration(milliseconds: 100));
       expect(overlay.coordinator.active, isNotNull);
+      await tester.pump(const Duration(milliseconds: 500));
+      court = tester.widget<CourtView>(find.byType(CourtView));
+      expect(court.hiddenShotLocationIds, isEmpty);
+      expect(court.transientMarkers, isEmpty);
       await tester.pump(const Duration(milliseconds: 800));
       expect(overlay.coordinator.active, isNull);
       expect(overlay.coordinator.pendingCount, 0);
@@ -70,6 +91,56 @@ void main() {
     expect(overlay.coordinator.active, isNull);
     expect(overlay.coordinator.pendingCount, 0);
     expect(controller.state.shotLocations, hasLength(1));
+  });
+
+  testWidgets('a supplement receipt from a replaced controller is ignored', (
+    tester,
+  ) async {
+    final result = Completer<ShotLocationCommitReceipt?>();
+    final oldController = _GatedSupplementController(result.future);
+    await oldController.recordScoreCommitted(side: TeamSide.red, points: 2);
+    var committed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: oldController,
+          onActionCommitted: () => committed++,
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pump();
+
+    final replacement = ScoringController(matchId: 'replacement-controller');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: replacement)),
+    );
+    result.complete(
+      ShotLocationCommitReceipt(
+        eventId: 'old-event',
+        shotLocationId: 'old-shot',
+        side: TeamSide.red,
+        points: 2,
+        point: CourtPoint(x: 0.4, y: 0.4),
+        source: ShotLocationCommitSource.supplement,
+      ),
+    );
+    await tester.pump();
+
+    expect(committed, 0);
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .pendingCount,
+      0,
+    );
+    expect(
+      tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+      isEmpty,
+    );
   });
   testWidgets('unified scoring keeps secondary actions behind More', (
     tester,
@@ -199,9 +270,23 @@ void main() {
     await tester.tapAt(
       tester.getCenter(find.byKey(const Key('scoring-court'))),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(controller.locationSupplementWindow, isNull);
     expect(controller.state.shotLocations, hasLength(1));
+    final overlay = tester.widget<ScoringMotionOverlay>(
+      find.byType(ScoringMotionOverlay),
+    );
+    expect(overlay.coordinator.pendingCount, 1);
+    expect(
+      tester.widget<CourtView>(find.byType(CourtView)).transientMarkers,
+      hasLength(1),
+    );
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+      isEmpty,
+    );
   });
 
   testWidgets(
