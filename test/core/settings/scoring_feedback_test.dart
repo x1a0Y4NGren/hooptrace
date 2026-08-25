@@ -193,6 +193,61 @@ void main() {
     },
   );
 
+  test(
+    'motion listenable tracks effective load, write, and restore changes',
+    () async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final repository = ScoringFeedbackPreferencesRepository(database);
+      final service = ScoringFeedbackService(repository);
+      final changes = <MotionPreference>[];
+      service.motionPreferenceListenable.addListener(() {
+        changes.add(service.motionPreferenceListenable.value);
+      });
+
+      await service.load();
+      expect(changes, isEmpty);
+      await service.setMotionPreference(MotionPreference.reduced);
+      expect(changes, [MotionPreference.reduced]);
+      await service.load();
+      expect(changes, [MotionPreference.reduced]);
+
+      await database
+          .into(database.appSettings)
+          .insertOnConflictUpdate(
+            AppSetting(
+              key: scoringFeedbackPreferencesKey,
+              valueJson: jsonEncode({
+                'version': 1,
+                'haptic': true,
+                'sound': false,
+                'motion': 'standard',
+              }),
+              updatedAt: DateTime.utc(2026, 8, 26),
+            ),
+          );
+      await service.reload();
+      expect(changes, [MotionPreference.reduced, MotionPreference.standard]);
+    },
+  );
+
+  test('serialized writes publish each effective motion change once', () async {
+    final database = createTestDatabase();
+    addTearDown(database.close);
+    final repository = ScoringFeedbackPreferencesRepository(database);
+    final changes = <MotionPreference>[];
+    repository.motionPreferenceListenable.addListener(() {
+      changes.add(repository.motionPreferenceListenable.value);
+    });
+
+    await Future.wait([
+      repository.update(motion: MotionPreference.reduced),
+      repository.update(motion: MotionPreference.standard),
+    ]);
+
+    expect(changes, [MotionPreference.reduced, MotionPreference.standard]);
+  });
+
   test('concurrent loads share one in-flight read', () async {
     final database = createTestDatabase();
     addTearDown(database.close);
@@ -240,6 +295,45 @@ void main() {
         await repository.load(),
         const ScoringFeedbackPreferences(haptic: false, sound: true),
       );
+      expect(reads, 2);
+    },
+  );
+
+  test(
+    'stale in-flight reads do not publish a lost motion preference',
+    () async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final oldRead = Completer<ScoringFeedbackPreferences>();
+      final freshRead = Completer<ScoringFeedbackPreferences>();
+      var reads = 0;
+      final repository = ScoringFeedbackPreferencesRepository(
+        database,
+        read: () {
+          reads++;
+          return reads == 1 ? oldRead.future : freshRead.future;
+        },
+      );
+      final changes = <MotionPreference>[];
+      repository.motionPreferenceListenable.addListener(() {
+        changes.add(repository.motionPreferenceListenable.value);
+      });
+
+      final oldLoad = repository.load();
+      repository.invalidate();
+      final freshLoad = repository.load();
+      freshRead.complete(
+        const ScoringFeedbackPreferences(
+          haptic: true,
+          sound: false,
+          motion: MotionPreference.reduced,
+        ),
+      );
+      await freshLoad;
+      oldRead.complete(const ScoringFeedbackPreferences.defaults());
+      await oldLoad;
+
+      expect(changes, [MotionPreference.reduced]);
       expect(reads, 2);
     },
   );

@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
@@ -173,6 +175,133 @@ void main() {
     expect(overlay.coordinator.pendingCount, 0);
     expect(controller.state.shotLocations, hasLength(1));
   });
+
+  testWidgets(
+    'scoring reacts to shared motion preference changes after mount',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final feedback = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+      );
+      final controller = ScoringController(matchId: 'reactive-motion');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            motionPreferenceListenable: feedback.motionPreferenceListenable,
+          ),
+        ),
+      );
+
+      ScoringMotionOverlay overlay() => tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay().coordinator.mode, ScoringMotionMode.standard);
+
+      await feedback.setMotionPreference(MotionPreference.reduced);
+      await tester.pump();
+      expect(overlay().coordinator.mode, ScoringMotionMode.reduced);
+
+      await feedback.setMotionPreference(MotionPreference.standard);
+      await tester.pump();
+      expect(overlay().coordinator.mode, ScoringMotionMode.standard);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: MaterialApp(
+            home: ScoringPage(
+              controller: controller,
+              motionPreferenceListenable: feedback.motionPreferenceListenable,
+            ),
+          ),
+        ),
+      );
+      expect(overlay().coordinator.mode, ScoringMotionMode.disabled);
+      await feedback.setMotionPreference(MotionPreference.reduced);
+      await tester.pump();
+      expect(overlay().coordinator.mode, ScoringMotionMode.disabled);
+    },
+  );
+
+  testWidgets('scoring detaches a replaced motion preference listenable', (
+    tester,
+  ) async {
+    final previous = ValueNotifier(MotionPreference.standard);
+    final replacement = ValueNotifier(MotionPreference.standard);
+    addTearDown(previous.dispose);
+    addTearDown(replacement.dispose);
+
+    Widget page(ValueListenable<MotionPreference> listenable) {
+      return MaterialApp(
+        home: ScoringPage(
+          controller: ScoringController(matchId: 'replace-motion'),
+          motionPreferenceListenable: listenable,
+        ),
+      );
+    }
+
+    await tester.pumpWidget(page(previous));
+    await tester.pumpWidget(page(replacement));
+    previous.value = MotionPreference.reduced;
+    await tester.pump();
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .mode,
+      ScoringMotionMode.standard,
+    );
+    replacement.value = MotionPreference.reduced;
+    await tester.pump();
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .mode,
+      ScoringMotionMode.reduced,
+    );
+  });
+
+  testWidgets(
+    'reactive scoring seam loads persisted preference on first mount',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      await database
+          .into(database.appSettings)
+          .insert(
+            AppSetting(
+              key: scoringFeedbackPreferencesKey,
+              valueJson:
+                  '{"version":1,"haptic":true,"sound":false,"motion":"reduced"}',
+              updatedAt: DateTime.utc(2026, 8, 26),
+            ),
+          );
+      final feedback = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: ScoringController(matchId: 'persisted-motion'),
+            motionPreferenceListenable: feedback.motionPreferenceListenable,
+            motionPreferenceLoader: () async => (await feedback.load()).motion,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+            .coordinator
+            .mode,
+        ScoringMotionMode.reduced,
+      );
+    },
+  );
 
   testWidgets(
     'score press compresses for 90ms but reduced motion stays static',

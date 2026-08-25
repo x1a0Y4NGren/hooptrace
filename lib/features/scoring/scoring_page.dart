@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hooptrace/app/app_theme.dart';
@@ -41,6 +42,7 @@ class ScoringPage extends StatefulWidget {
     this.clockTick = const Duration(seconds: 1),
     this.onActionCommitted,
     this.motionPreferenceLoader,
+    this.motionPreferenceListenable,
     this.motionPreference,
     super.key,
   }) : assert(matchId != null || setup != null || controller != null);
@@ -60,6 +62,7 @@ class ScoringPage extends StatefulWidget {
   /// Read-only route seam for the persisted scoring feedback preference.
   /// Settings owns writes; scoring only consumes the value.
   final Future<MotionPreference> Function()? motionPreferenceLoader;
+  final ValueListenable<MotionPreference>? motionPreferenceListenable;
   final MotionPreference? motionPreference;
 
   @override
@@ -103,6 +106,7 @@ class _ScoringPageState extends State<ScoringPage>
   int _foulStampVersion = 0;
   bool _disposed = false;
   int _actionGeneration = 0;
+  ValueListenable<MotionPreference>? _attachedMotionPreference;
 
   @override
   void initState() {
@@ -111,6 +115,7 @@ class _ScoringPageState extends State<ScoringPage>
     _attachController();
     _motionCoordinator = _createMotionCoordinator();
     _startTickers();
+    _attachMotionPreferenceListenable();
     final loader = widget.motionPreferenceLoader;
     if (loader != null) {
       unawaited(
@@ -142,6 +147,11 @@ class _ScoringPageState extends State<ScoringPage>
         oldWidget.clockTick != widget.clockTick) {
       _startTickers();
     }
+    _attachMotionPreferenceListenable();
+    if (oldWidget.motionPreferenceListenable !=
+        widget.motionPreferenceListenable) {
+      _updateMotionMode();
+    }
     if (oldWidget.motionPreference != widget.motionPreference &&
         widget.motionPreference != null) {
       _motionPreference = widget.motionPreference!;
@@ -153,6 +163,7 @@ class _ScoringPageState extends State<ScoringPage>
   void dispose() {
     _disposed = true;
     WidgetsBinding.instance.removeObserver(this);
+    _detachMotionPreferenceListenable();
     _cancelAllMotions();
     _motionCoordinator.dispose();
     _motionTicker?.dispose();
@@ -175,6 +186,31 @@ class _ScoringPageState extends State<ScoringPage>
   void _detachController() {
     _controller.removeListener(_handleStateChanged);
     if (_ownsController) _controller.dispose();
+  }
+
+  void _attachMotionPreferenceListenable() {
+    final next = widget.motionPreferenceListenable;
+    if (identical(next, _attachedMotionPreference)) return;
+    _attachedMotionPreference?.removeListener(_handleMotionPreferenceChanged);
+    _attachedMotionPreference = next;
+    next?.addListener(_handleMotionPreferenceChanged);
+    if (next != null) {
+      _motionPreference = next.value;
+    }
+  }
+
+  void _detachMotionPreferenceListenable() {
+    _attachedMotionPreference?.removeListener(_handleMotionPreferenceChanged);
+    _attachedMotionPreference = null;
+  }
+
+  void _handleMotionPreferenceChanged() {
+    if (!mounted || _disposed) return;
+    final listenable = _attachedMotionPreference;
+    if (listenable == null || _motionPreference == listenable.value) return;
+    _motionPreference = listenable.value;
+    _updateMotionMode();
+    if (mounted && !_disposed) setState(() {});
   }
 
   ScoringMotionCoordinator _createMotionCoordinator() {

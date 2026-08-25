@@ -152,10 +152,10 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ],
                   ),
-                  _SettingsSection(
-                    title: l10n.settingsLanguageSection,
-                    children: [
-                      if (widget.languageController != null)
+                  if (widget.languageController != null)
+                    _SettingsSection(
+                      title: l10n.settingsLanguageSection,
+                      children: [
                         _LanguageSettingTile(
                           icon: Icons.language_outlined,
                           title: l10n.settingsLanguageTitle,
@@ -163,8 +163,8 @@ class _SettingsPageState extends State<SettingsPage> {
                           controller: widget.languageController,
                           l10n: l10n,
                         ),
-                    ],
-                  ),
+                      ],
+                    ),
                   _SettingsSection(
                     title: l10n.settingsFeedbackSection,
                     children: [
@@ -647,7 +647,6 @@ class _MotionSettingTile extends StatelessWidget {
         child: DropdownButton<MotionPreference>(
           key: const Key('motion-preference-dropdown'),
           value: preference,
-          isDense: true,
           items: MotionPreference.values
               .map(
                 (value) => DropdownMenuItem<MotionPreference>(
@@ -776,7 +775,6 @@ class _LanguageSettingTile extends StatelessWidget {
               child: DropdownButton<AppLanguagePreference>(
                 key: const Key('language-preference-dropdown'),
                 value: languageController.preference,
-                isDense: true,
                 items: AppLanguagePreference.values
                     .map(
                       (preference) => DropdownMenuItem<AppLanguagePreference>(
@@ -836,7 +834,6 @@ class _ThemeSettingTile extends StatelessWidget {
               child: DropdownButton<AppThemePreference>(
                 key: const Key('theme-preference-dropdown'),
                 value: themeController.preference,
-                isDense: true,
                 items: AppThemePreference.values
                     .map(
                       (preference) => DropdownMenuItem<AppThemePreference>(

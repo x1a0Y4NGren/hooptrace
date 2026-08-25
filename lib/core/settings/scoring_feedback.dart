@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 
@@ -84,6 +85,12 @@ class ScoringFeedbackPreferencesRepository {
   int _generation = 0;
   int? _loadingGeneration;
   Future<void> _writes = Future<void>.value();
+  final ValueNotifier<MotionPreference> _motionPreference = ValueNotifier(
+    MotionPreference.standard,
+  );
+
+  ValueListenable<MotionPreference> get motionPreferenceListenable =>
+      _motionPreference;
 
   Future<ScoringFeedbackPreferences> load() {
     final cached = _cached;
@@ -95,7 +102,10 @@ class ScoringFeedbackPreferencesRepository {
     late final Future<ScoringFeedbackPreferences> future;
     future = _read()
         .then((value) {
-          if (requestGeneration == _generation) _cached = value;
+          if (requestGeneration == _generation) {
+            _cached = value;
+            _publishMotion(value);
+          }
           return value;
         })
         .whenComplete(() {
@@ -133,6 +143,7 @@ class ScoringFeedbackPreferencesRepository {
             ),
           );
       _cached = next;
+      _publishMotion(next);
       return next;
     });
     _writes = operation.then<void>(
@@ -147,6 +158,12 @@ class ScoringFeedbackPreferencesRepository {
   void invalidate() {
     _generation++;
     _cached = null;
+  }
+
+  void _publishMotion(ScoringFeedbackPreferences value) {
+    if (_motionPreference.value != value.motion) {
+      _motionPreference.value = value.motion;
+    }
   }
 
   Future<ScoringFeedbackPreferences> _read() async {
@@ -210,6 +227,9 @@ class ScoringFeedbackService {
 
   final ScoringFeedbackPreferencesRepository preferences;
   final ScoringFeedbackPlatform platform;
+
+  ValueListenable<MotionPreference> get motionPreferenceListenable =>
+      preferences.motionPreferenceListenable;
 
   Future<ScoringFeedbackPreferences> load() => preferences.load();
 

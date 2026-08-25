@@ -8,6 +8,8 @@ import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
+import 'package:hooptrace/core/settings/language_preferences.dart';
+import 'package:hooptrace/core/settings/theme_preferences.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
@@ -262,6 +264,214 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.lastDirectoryDialogTitle, '选择自动备份文件夹');
   });
+
+  testWidgets(
+    'omits the language section when no language controller is supplied',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+      final automaticBackup = AutomaticBackupService(
+        database,
+        codec,
+        storage: _Storage(),
+      );
+      final controller = SettingsController(
+        exports: ExportCoordinator(
+          database,
+          codec,
+          gateway: _Gateway(),
+          automaticBackup: automaticBackup,
+        ),
+        automaticBackup: automaticBackup,
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsPage(controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Language'), findsNothing);
+    },
+  );
+
+  testWidgets('settings dropdown controls expose 48dp interaction targets', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+    final automaticBackup = AutomaticBackupService(
+      database,
+      codec,
+      storage: _Storage(),
+    );
+    final controller = SettingsController(
+      exports: ExportCoordinator(
+        database,
+        codec,
+        gateway: _Gateway(),
+        automaticBackup: automaticBackup,
+      ),
+      automaticBackup: automaticBackup,
+      feedback: ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+      ),
+    );
+    final language = LanguagePreferencesController(
+      LanguagePreferencesRepository(database),
+    );
+    final theme = ThemePreferencesController(
+      ThemePreferencesRepository(database),
+    );
+    addTearDown(controller.dispose);
+    addTearDown(language.dispose);
+    addTearDown(theme.dispose);
+    await language.load();
+    await theme.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SettingsPage(
+          controller: controller,
+          languageController: language,
+          themeController: theme,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final key in [
+      'motion-preference-dropdown',
+      'language-preference-dropdown',
+      'theme-preference-dropdown',
+    ]) {
+      expect(
+        tester.getSize(find.byKey(Key(key))).shortestSide,
+        greaterThanOrEqualTo(48),
+      );
+      expect(
+        tester.getSemantics(find.byKey(Key(key))).rect.size.shortestSide,
+        greaterThanOrEqualTo(48),
+      );
+    }
+  });
+
+  testWidgets(
+    'settings stays usable across size, locale, theme, and scale matrix',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+      final automaticBackup = AutomaticBackupService(
+        database,
+        codec,
+        storage: _Storage(),
+      );
+      final controller = SettingsController(
+        exports: ExportCoordinator(
+          database,
+          codec,
+          gateway: _Gateway(),
+          automaticBackup: automaticBackup,
+        ),
+        automaticBackup: automaticBackup,
+        feedback: ScoringFeedbackService(
+          ScoringFeedbackPreferencesRepository(database),
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      final cases = [
+        (const Size(390, 844), const Locale('en'), Brightness.light, 1.0),
+        (const Size(390, 844), const Locale('zh'), Brightness.dark, 1.0),
+        (const Size(731, 411), const Locale('en'), Brightness.dark, 1.0),
+        (const Size(731, 411), const Locale('zh'), Brightness.light, 2.0),
+      ];
+      for (final (size, locale, brightness, scale) in cases) {
+        await tester.binding.setSurfaceSize(size);
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: locale,
+            theme: ThemeData(brightness: brightness),
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: MediaQuery(
+              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+              child: SettingsPage(controller: controller),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      }
+
+      await tester.binding.setSurfaceSize(const Size(390, 1600));
+      await controller.setMotionPreference(MotionPreference.reduced);
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('zh'),
+          theme: ThemeData(brightness: Brightness.dark),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: SettingsPage(controller: controller),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('减少动效'), findsOneWidget);
+      expect(
+        tester
+            .widget<AnimatedContainer>(find.byKey(const Key('motion-preview')))
+            .duration,
+        Duration.zero,
+      );
+    },
+  );
 }
 
 class _Gateway implements ExportGateway {
