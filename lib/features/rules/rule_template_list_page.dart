@@ -54,27 +54,22 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
                 final builtIn = RuleTemplateRepository.builtIns.any(
                   (item) => item.id == template.id,
                 );
-                return DoodlePress(
-                  onPressed: builtIn
-                      ? null
-                      : () => _openEditor(context, template),
-                  label: localizedRuleTemplateName(template, l10n),
-                  child: DoodleSurface(
-                    padding: EdgeInsets.zero,
-                    child: ListTile(
-                      minTileHeight: 64,
-                      leading: Icon(
-                        builtIn ? Icons.verified_outlined : Icons.tune,
-                      ),
-                      title: Text(localizedRuleTemplateName(template, l10n)),
-                      subtitle: Text(_summary(template, l10n)),
-                      trailing: builtIn
-                          ? Text(l10n.rulesBuiltIn)
-                          : const Icon(Icons.edit_outlined),
-                      onTap: builtIn
-                          ? null
-                          : () => _openEditor(context, template),
+                return DoodleSurface(
+                  padding: EdgeInsets.zero,
+                  child: ListTile(
+                    key: ValueKey('rule-template-${template.id}'),
+                    minTileHeight: 64,
+                    leading: Icon(
+                      builtIn ? Icons.verified_outlined : Icons.tune,
                     ),
+                    title: Text(localizedRuleTemplateName(template, l10n)),
+                    subtitle: Text(_summary(template, l10n)),
+                    trailing: builtIn
+                        ? Text(l10n.rulesBuiltIn)
+                        : const Icon(Icons.edit_outlined),
+                    onTap: builtIn
+                        ? null
+                        : () => _openEditor(context, template),
                   ),
                 );
               },

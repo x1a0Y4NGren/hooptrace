@@ -159,23 +159,20 @@ class _ProjectLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DoodlePress(
-      onPressed: onTap,
-      label: label,
-      child: DoodleSurface(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          minTileHeight: 56,
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(icon),
-          title: Text(label),
-          trailing: Tooltip(
-            message: (AppLocalizations.of(context) ?? AppLocalizationsZh())
-                .projectOpenBrowser,
-            child: Icon(Icons.open_in_new),
-          ),
-          onTap: onTap,
+    return DoodleSurface(
+      padding: EdgeInsets.zero,
+      child: ListTile(
+        key: ValueKey('project-link-$label'),
+        minTileHeight: 56,
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(icon),
+        title: Text(label),
+        trailing: Tooltip(
+          message: (AppLocalizations.of(context) ?? AppLocalizationsZh())
+              .projectOpenBrowser,
+          child: Icon(Icons.open_in_new),
         ),
+        onTap: onTap,
       ),
     );
   }

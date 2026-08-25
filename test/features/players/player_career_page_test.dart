@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/domain/analytics/player_career_aggregate.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
@@ -10,6 +11,61 @@ import 'package:hooptrace/features/players/player_career_page.dart';
 import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 void main() {
+  testWidgets('career analytics stays usable across visual matrix', (
+    tester,
+  ) async {
+    final controller = PlayerCareerController(
+      playerId: 'matrix-player',
+      loader: (_) =>
+          Stream.value(const PlayerCareerAggregate.empty('matrix-player')),
+    );
+    addTearDown(controller.dispose);
+    const locales = [Locale('zh'), Locale('en')];
+    const sizes = [Size(390, 844), Size(731, 411)];
+    for (final brightness in Brightness.values) {
+      for (final locale in locales) {
+        for (final size in sizes) {
+          await tester.binding.setSurfaceSize(size);
+          await tester.pumpWidget(
+            MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: MaterialApp(
+                theme: buildHoopTraceTheme(brightness: brightness),
+                locale: locale,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: PlayerCareerPage(
+                  controller: controller,
+                  player: Player(
+                    id: 'matrix-player',
+                    nickname: 'Matrix',
+                    createdAt: DateTime.utc(2026, 1, 1),
+                  ),
+                  opponents: const [],
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.byType(DoodleTitle), findsAtLeastNWidgets(2));
+          expect(
+            tester
+                .getSize(find.byKey(const Key('career-window-sevenDays')))
+                .height,
+            greaterThanOrEqualTo(48),
+          );
+        }
+      }
+    }
+    await tester.binding.setSurfaceSize(null);
+  });
+
   testWidgets(
     'career page leads with growth and supports time/opponent filters',
     (tester) async {

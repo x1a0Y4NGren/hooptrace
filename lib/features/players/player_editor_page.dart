@@ -274,13 +274,40 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
             const SizedBox(height: 8),
             const DoodleDivider(),
             DoodlePress(
+              key: const Key('player-save'),
               onPressed: _saving ? null : _save,
               label: _saving ? l10n.playerSaving : l10n.playerSaveTooltip,
-              child: FilledButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: const Icon(Icons.save_outlined),
-                label: Text(
-                  _saving ? l10n.playerSaving : l10n.playerSaveTooltip,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(HoopTraceRadii.control),
+                ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.save_outlined,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            _saving
+                                ? l10n.playerSaving
+                                : l10n.playerSaveTooltip,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

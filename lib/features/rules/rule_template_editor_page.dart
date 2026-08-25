@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/widgets/doodle_components.dart';
@@ -174,15 +175,33 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
               ),
               const SizedBox(height: 8),
               DoodlePress(
+                key: const Key('rule-save'),
                 onPressed: _save,
                 label: l10n.ruleSaveAction,
-                child: SizedBox(
-                  height: 52,
-                  child: FilledButton.icon(
-                    key: const Key('rule-save'),
-                    onPressed: _save,
-                    icon: const Icon(Icons.save_outlined),
-                    label: Text(l10n.ruleSaveAction),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(HoopTraceRadii.control),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.save_outlined,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          l10n.ruleSaveAction,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
