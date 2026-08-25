@@ -18,8 +18,9 @@ DateTime _defaultScoringControllerNowUtc() => DateTime.now().toUtc();
 
 enum ShotLocationCommitSource { courtFirst, supplement }
 
-/// Identifies the durable event and location rows created or confirmed by a
-/// scoring surface action.
+/// Identifies the event and location rows created or confirmed by a scoring
+/// surface action. In local-only mode these IDs identify controller state
+/// rather than durable database rows.
 class ShotLocationCommitReceipt {
   const ShotLocationCommitReceipt({
     required this.eventId,
