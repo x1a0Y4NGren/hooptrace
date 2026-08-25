@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 
 void main() {
@@ -176,4 +177,69 @@ void main() {
     expect(selectedSemantics.flagsCollection.isButton, isTrue);
     expect(selectedSemantics.flagsCollection.isSelected, ui.Tristate.isTrue);
   });
+
+  testWidgets('wide pre-game layout keeps symmetric doodle participant cards', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(731, 411);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+
+    expect(find.byKey(const Key('pregame-red-card')), findsOneWidget);
+    expect(find.byKey(const Key('pregame-blue-card')), findsOneWidget);
+    expect(find.byType(DoodleSurface), findsAtLeastNWidgets(5));
+    expect(
+      tester.getSize(find.byKey(const Key('pregame-red-card'))).width,
+      closeTo(
+        tester.getSize(find.byKey(const Key('pregame-blue-card'))).width,
+        1,
+      ),
+    );
+  });
+
+  testWidgets(
+    'narrow pre-game layout stacks participant cards and keeps start reachable',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+
+      final red = tester.getTopLeft(find.byKey(const Key('pregame-red-card')));
+      final blue = tester.getTopLeft(
+        find.byKey(const Key('pregame-blue-card')),
+      );
+      expect(blue.dy, greaterThan(red.dy));
+
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('pregame-start-match')),
+        260,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.byKey(const Key('pregame-start-match')), findsOneWidget);
+      expect(
+        tester.getSize(find.byKey(const Key('pregame-start-match'))).height,
+        greaterThanOrEqualTo(48),
+      );
+    },
+  );
+
+  testWidgets(
+    'pre-game groups rule, clock, and advanced controls into playbook sections',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+
+      expect(find.byKey(const Key('pregame-rules-section')), findsOneWidget);
+      expect(find.byKey(const Key('pregame-clock-section')), findsOneWidget);
+      expect(find.byKey(const Key('pregame-advanced-section')), findsOneWidget);
+      expect(find.byKey(const Key('pregame-rule-template')), findsOneWidget);
+      expect(find.byKey(const Key('pregame-timer')), findsOneWidget);
+      expect(find.byKey(const Key('pregame-win-by-two')), findsOneWidget);
+    },
+  );
 }
