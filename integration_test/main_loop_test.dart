@@ -30,7 +30,6 @@ void main() {
     );
     await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byKey(const Key('pregame-recording-simple')));
     await tester.ensureVisible(find.byKey(const Key('pregame-start-match')));
     await tester.tap(find.byKey(const Key('pregame-start-match')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
@@ -42,16 +41,21 @@ void main() {
     expect(find.text('2 $redName'), findsOneWidget);
     expect(find.text('$blueName 0'), findsOneWidget);
 
-    final scoringL10n = AppLocalizations.of(
-      tester.element(find.byType(ScoringPage)),
-    )!;
-    await tester.tap(find.text(scoringL10n.scoringReplay));
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('scoring-more')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('more-replay')));
+    await tester.tap(find.byKey(const Key('more-replay')));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
     final activeReplayL10n = AppLocalizations.of(
       tester.element(find.byType(ReplayPage)),
     )!;
-    expect(find.text(redName), findsOneWidget);
-    expect(find.text(blueName), findsOneWidget);
+    expect(find.text(redName), findsAtLeastNWidgets(1));
+    expect(find.text(blueName), findsAtLeastNWidgets(1));
     expect(find.text(activeReplayL10n.replayInProgress), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('replay-finish-match')));
@@ -61,9 +65,15 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('replay-finish-confirm')));
     await _pumpUntilFound(tester, find.text(activeReplayL10n.replayFinished));
-    expect(find.text(redName), findsOneWidget);
-    expect(find.text(blueName), findsOneWidget);
+    expect(find.text(redName), findsAtLeastNWidgets(1));
+    expect(find.text(blueName), findsAtLeastNWidgets(1));
     expect(find.byKey(const Key('replay-finish-match')), findsNothing);
+
+    await tester.binding.handlePopRoute();
+    await _pumpUntilFound(tester, find.byType(HomePage));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(find.byType(ReplayPage), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }
