@@ -544,9 +544,9 @@ void main() {
       expect(reduced.active!.travelEnabled, isFalse);
       expect(reduced.active!.trailEnabled, isFalse);
       expect(reduced.active!.colorRevealProgress, 0);
-      reduced.advance(const Duration(milliseconds: 99));
+      reduced.advance(const Duration(milliseconds: 119));
       expect(reduced.active, isNotNull);
-      expect(reduced.active!.colorRevealProgress, closeTo(.99, .001));
+      expect(reduced.active!.colorRevealProgress, closeTo(.99, .002));
       expect(reducedCompleted, isEmpty);
       reduced.advance(const Duration(milliseconds: 1));
       expect(reducedCompleted, ['event-reduced']);
@@ -571,8 +571,62 @@ void main() {
     },
   );
 
+  test('disabled mode completes immediately when its asset is unavailable', () {
+    final completed = <String>[];
+    final fallbacks = <String>[];
+    final coordinator = ScoringMotionCoordinator(
+      mode: ScoringMotionMode.disabled,
+      onComplete: (event) => completed.add(event.id),
+      onFallback: (event) => fallbacks.add(event.id),
+    );
+
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('disabled-missing-asset'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        assetAvailable: false,
+      ),
+    );
+
+    expect(completed, ['event-disabled-missing-asset']);
+    expect(fallbacks, isEmpty);
+    expect(coordinator.active, isNull);
+    coordinator.dispose();
+  });
+
+  test('reduced mode reveals for 120ms when its asset is unavailable', () {
+    final completed = <String>[];
+    final fallbacks = <String>[];
+    final coordinator = ScoringMotionCoordinator(
+      mode: ScoringMotionMode.reduced,
+      onComplete: (event) => completed.add(event.id),
+      onFallback: (event) => fallbacks.add(event.id),
+    );
+
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('reduced-missing-asset'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        assetAvailable: false,
+      ),
+    );
+
+    expect(coordinator.active, isNotNull);
+    expect(coordinator.active!.isColorReveal, isTrue);
+    coordinator.advance(const Duration(milliseconds: 119));
+    expect(completed, isEmpty);
+    coordinator.advance(const Duration(milliseconds: 1));
+    expect(completed, ['event-reduced-missing-asset']);
+    expect(fallbacks, isEmpty);
+    coordinator.dispose();
+  });
+
   testWidgets(
-    'reduced overlay paints a destination marker through the 100ms reveal',
+    'reduced overlay paints a destination marker through the 120ms reveal',
     (tester) async {
       final completed = <String>[];
       final coordinator = ScoringMotionCoordinator(
@@ -629,7 +683,7 @@ void main() {
       expect(initialColor.g, closeTo(expectedColor.g, .001));
       expect(initialColor.b, closeTo(expectedColor.b, .001));
 
-      coordinator.advance(const Duration(milliseconds: 50));
+      coordinator.advance(const Duration(milliseconds: 60));
       await tester.pump();
       final midpoint = circles();
       expect(midpoint, hasLength(1));
@@ -647,7 +701,7 @@ void main() {
       );
       expect(find.byType(LottieBuilder), findsNothing);
 
-      coordinator.advance(const Duration(milliseconds: 50));
+      coordinator.advance(const Duration(milliseconds: 60));
       await tester.pump();
       expect(completed, ['event-reduced-marker']);
       expect(coordinator.active, isNull);

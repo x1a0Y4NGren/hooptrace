@@ -249,12 +249,12 @@ class ScoringMotionCoordinator extends ChangeNotifier {
   bool submit(ScoringMotionEvent event) {
     if (_disposed) return false;
     if (!_seenEventIds.add(event.id)) return false;
-    if (!event.geometryAvailable || !event.assetAvailable) {
-      _finishImmediately(event, fallback: true);
-      return true;
-    }
     if (mode == ScoringMotionMode.disabled) {
       _finishImmediately(event, fallback: false);
+      return true;
+    }
+    if (!event.geometryAvailable) {
+      _finishImmediately(event, fallback: true);
       return true;
     }
     if (mode == ScoringMotionMode.reduced) {
@@ -269,6 +269,10 @@ class ScoringMotionCoordinator extends ChangeNotifier {
         _timings[event.id] = timing;
       }
       notifyListeners();
+      return true;
+    }
+    if (!event.assetAvailable) {
+      _finishImmediately(event, fallback: true);
       return true;
     }
     final accelerate = pendingCount + 1 > 3;

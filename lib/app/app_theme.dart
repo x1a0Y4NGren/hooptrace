@@ -183,7 +183,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
         impact: const Duration(milliseconds: 240),
         acceleratedScoreFlight: const Duration(milliseconds: 300),
         acceleratedImpact: const Duration(milliseconds: 140),
-        reducedReveal: const Duration(milliseconds: 100),
+        reducedReveal: const Duration(milliseconds: 120),
         press: const Duration(milliseconds: 90),
         scoreTransition: const Duration(milliseconds: 180),
         foulStamp: const Duration(milliseconds: 240),
