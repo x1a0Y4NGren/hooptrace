@@ -235,6 +235,7 @@ class _PregamePageState extends State<PregamePage> {
                           DropdownButtonFormField<String>(
                             key: const Key('pregame-rule-template'),
                             initialValue: state.ruleTemplateId,
+                            isExpanded: true,
                             decoration: InputDecoration(
                               labelText: l10n.pregameRuleTemplate,
                               border: const OutlineInputBorder(),
@@ -598,10 +599,21 @@ class _ParticipantSetup extends StatelessWidget {
     final profileItems = <DropdownMenuItem<String>>[
       DropdownMenuItem(
         value: _temporaryProfileId,
-        child: Text(l10n.pregameTemporaryParticipant),
+        child: Text(
+          l10n.pregameTemporaryParticipant,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       for (final player in players)
-        DropdownMenuItem(value: player.id, child: Text(player.nickname)),
+        DropdownMenuItem(
+          value: player.id,
+          child: Text(
+            player.nickname,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
     ];
     if (selectedProfileId != null &&
         players.every((player) => player.id != selectedProfileId)) {
@@ -609,7 +621,11 @@ class _ParticipantSetup extends StatelessWidget {
         DropdownMenuItem(
           value: selectedProfileId,
           enabled: false,
-          child: Text(l10n.pregameDeletedPlayer),
+          child: Text(
+            l10n.pregameDeletedPlayer,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       );
     }
