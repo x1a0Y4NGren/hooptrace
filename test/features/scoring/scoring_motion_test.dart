@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -45,6 +49,68 @@ void main() {
       const Duration(milliseconds: 570),
     );
   });
+
+  testWidgets(
+    'team fill delegate reaches bundled fill and changes composition color',
+    (tester) async {
+      final coordinator = ScoringMotionCoordinator();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(brightness: Brightness.light),
+          home: ScoringMotionOverlay(coordinator: coordinator),
+        ),
+      );
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('tint'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
+      await tester.pump();
+      final builder = tester.widget<LottieBuilder>(find.byType(LottieBuilder));
+      final delegate = builder.delegates!.values!.single;
+      expect(delegate.keyPath, ['**', 'teamFill', 'teamFill', 'teamFill']);
+      expect(
+        delegate.value,
+        teamColorForScheme(TeamSide.blue, buildHoopTraceTheme().colorScheme),
+      );
+
+      final data = await rootBundle.load('assets/animations/paint_ball.json');
+      final composition = await LottieComposition.fromByteData(data);
+      final json =
+          jsonDecode(utf8.decode(data.buffer.asUint8List()))
+              as Map<String, dynamic>;
+      final originalColor =
+          (((json['layers'] as List).first as Map)['shapes'] as List)
+                  .firstWhere((shape) => shape['ty'] == 'gr')['it']
+                  .firstWhere((shape) => shape['ty'] == 'fl')['c']['k']
+              as List;
+      expect(originalColor, [1, .478, .102, 1]);
+      final drawable = LottieDrawable(composition);
+      Color? callbackColor;
+      final tintedDelegates = LottieDelegates(
+        values: [
+          ValueDelegate.color(
+            ['**', 'teamFill', 'teamFill', 'teamFill'],
+            callback: (_) {
+              callbackColor = Colors.blue;
+              return Colors.blue;
+            },
+          ),
+        ],
+      );
+      drawable.delegates = tintedDelegates;
+      drawable.setProgress(0);
+      final recorder = ui.PictureRecorder();
+      drawable.draw(Canvas(recorder), const Rect.fromLTWH(0, 0, 128, 128));
+      recorder.endRecording();
+      expect(drawable.delegatesHash(), isNot(0));
+      expect(callbackColor, Colors.blue);
+      coordinator.dispose();
+    },
+  );
 
   test('cubic geometry samples exact endpoints and bounded controls', () {
     final path = ScoringMotionPath.build(
@@ -198,6 +264,125 @@ void main() {
       returnsNormally,
     );
     expect(coordinator.pendingCount, 0);
+  });
+
+  test(
+    'duplicate IDs are rejected before disabled and fallback fast paths',
+    () {
+      for (final mode in [
+        ScoringMotionMode.disabled,
+        ScoringMotionMode.standard,
+      ]) {
+        final completed = <String>[];
+        final coordinator = ScoringMotionCoordinator(
+          mode: mode,
+          onComplete: (event) => completed.add(event.id),
+        );
+        final first = ScoringMotionEvent(
+          receipt: receipt('duplicate-$mode'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+          assetAvailable: mode == ScoringMotionMode.disabled,
+        );
+        final second = ScoringMotionEvent(
+          receipt: receipt('duplicate-$mode'),
+          sourceButton: const Offset(30, 30),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+          assetAvailable: mode == ScoringMotionMode.disabled,
+        );
+        expect(coordinator.submit(first), isTrue);
+        expect(coordinator.submit(second), isFalse);
+        expect(completed, ['event-duplicate-$mode']);
+        coordinator.dispose();
+      }
+    },
+  );
+
+  test('fallback disposal prevents completion callback', () {
+    var completions = 0;
+    late ScoringMotionCoordinator coordinator;
+    coordinator = ScoringMotionCoordinator(
+      onFallback: (_) => coordinator.dispose(),
+      onComplete: (_) => completions++,
+    );
+    expect(
+      () => coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('fallback-dispose'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+          assetAvailable: false,
+        ),
+      ),
+      returnsNormally,
+    );
+    expect(completions, 0);
+  });
+
+  test('throwing completion callback resets dispatch state', () {
+    late ScoringMotionCoordinator coordinator;
+    coordinator = ScoringMotionCoordinator(
+      onComplete: (_) => throw StateError('completion failed'),
+    );
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('throws'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+      ),
+    );
+    expect(
+      () => coordinator.advance(const Duration(milliseconds: 760)),
+      throwsA(isA<StateError>()),
+    );
+    expect(
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('after-throw'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      ),
+      isTrue,
+    );
+    expect(coordinator.active!.event.id, 'event-after-throw');
+    coordinator.dispose();
+  });
+
+  test('throwing fallback callback resets dispatch state', () {
+    final coordinator = ScoringMotionCoordinator(
+      onFallback: (_) => throw StateError('fallback failed'),
+    );
+    expect(
+      () => coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('fallback-throws'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+          assetAvailable: false,
+        ),
+      ),
+      throwsA(isA<StateError>()),
+    );
+    expect(
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('after-fallback-throw'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      ),
+      isTrue,
+    );
+    expect(coordinator.active!.event.id, 'event-after-fallback-throw');
+    coordinator.dispose();
   });
 
   test('cancels active and queued events and dispose clears safely', () {
@@ -361,6 +546,86 @@ void main() {
       teamColorForScheme(TeamSide.blue, buildHoopTraceTheme().colorScheme),
     );
     coordinator.dispose();
+  });
+
+  testWidgets(
+    'stateful Lottie asset follows standard and accelerated impact durations',
+    (tester) async {
+      for (final accelerated in [false, true]) {
+        final coordinator = ScoringMotionCoordinator();
+        await tester.pumpWidget(
+          MaterialApp(home: ScoringMotionOverlay(coordinator: coordinator)),
+        );
+        coordinator.submit(
+          ScoringMotionEvent(
+            receipt: receipt('duration-$accelerated-0'),
+            sourceButton: const Offset(20, 20),
+            courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+            safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+          ),
+        );
+        if (accelerated) {
+          for (var i = 1; i < 5; i++) {
+            coordinator.submit(
+              ScoringMotionEvent(
+                receipt: receipt('duration-$accelerated-$i'),
+                sourceButton: const Offset(20, 20),
+                courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+                safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+              ),
+            );
+          }
+        }
+        await tester.pump();
+        if (accelerated) {
+          coordinator.advance(const Duration(milliseconds: 760));
+          await tester.pump();
+        }
+        await tester.pumpAndSettle();
+        final flightState = tester.state<ScoringMotionLottieAssetState>(
+          find.byType(ScoringMotionLottieAsset),
+        );
+        final expectedFlight = accelerated
+            ? const Duration(milliseconds: 300)
+            : const Duration(milliseconds: 520);
+        expect(flightState.animationDuration, expectedFlight);
+        coordinator.advance(expectedFlight);
+        await tester.pump();
+        await tester.pumpAndSettle();
+        final impactState = tester.state<ScoringMotionLottieAssetState>(
+          find.byType(ScoringMotionLottieAsset),
+        );
+        expect(
+          impactState.animationDuration,
+          accelerated
+              ? const Duration(milliseconds: 140)
+              : const Duration(milliseconds: 240),
+        );
+        coordinator.dispose();
+      }
+    },
+  );
+
+  testWidgets('disposing a Lottie asset ignores late composition callbacks', (
+    tester,
+  ) async {
+    final coordinator = ScoringMotionCoordinator();
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringMotionOverlay(coordinator: coordinator)),
+    );
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('late-dispose'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+    coordinator.dispose();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('default overlay uses offline Lottie assets', (tester) async {

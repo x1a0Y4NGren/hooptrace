@@ -234,6 +234,7 @@ class ScoringMotionCoordinator extends ChangeNotifier {
   final ScoringMotionCallback? onComplete;
   final ScoringMotionCallback? onFallback;
   final List<ScoringMotionEvent> _queue = <ScoringMotionEvent>[];
+  final Set<String> _seenEventIds = <String>{};
   ScoringActiveMotion? _active;
   bool _disposed = false;
   bool _completionDispatching = false;
@@ -244,6 +245,7 @@ class ScoringMotionCoordinator extends ChangeNotifier {
 
   bool submit(ScoringMotionEvent event) {
     if (_disposed) return false;
+    if (!_seenEventIds.add(event.id)) return false;
     if (!event.geometryAvailable || !event.assetAvailable) {
       _finishImmediately(event, fallback: true);
       return true;
@@ -251,10 +253,6 @@ class ScoringMotionCoordinator extends ChangeNotifier {
     if (mode == ScoringMotionMode.disabled) {
       _finishImmediately(event, fallback: false);
       return true;
-    }
-    if (_active?.event.id == event.id ||
-        _queue.any((queued) => queued.id == event.id)) {
-      return false;
     }
     if (mode == ScoringMotionMode.reduced) {
       final timing = ScoringMotionTiming(
@@ -302,8 +300,11 @@ class ScoringMotionCoordinator extends ChangeNotifier {
 
   void _dispatchComplete(ScoringMotionEvent event) {
     _completionDispatching = true;
-    onComplete?.call(event);
-    _completionDispatching = false;
+    try {
+      if (!_disposed) onComplete?.call(event);
+    } finally {
+      _completionDispatching = false;
+    }
   }
 
   /*
@@ -312,9 +313,14 @@ class ScoringMotionCoordinator extends ChangeNotifier {
    */
   void _dispatchFallback(ScoringMotionEvent event) {
     _completionDispatching = true;
-    onFallback?.call(event);
-    onComplete?.call(event);
-    _completionDispatching = false;
+    try {
+      if (_disposed) return;
+      onFallback?.call(event);
+      if (_disposed) return;
+      onComplete?.call(event);
+    } finally {
+      _completionDispatching = false;
+    }
   }
 
   final Map<String, ScoringMotionTiming> _timings = {};
@@ -343,8 +349,11 @@ class ScoringMotionCoordinator extends ChangeNotifier {
         final finished = current.event;
         _active = null;
         _completionDispatching = true;
-        onComplete?.call(finished);
-        _completionDispatching = false;
+        try {
+          if (!_disposed) onComplete?.call(finished);
+        } finally {
+          _completionDispatching = false;
+        }
         if (_disposed) return;
         // Completion callbacks may submit more work. Submit queues reentrant
         // events, keeping the already-queued FIFO entries in front.
@@ -429,6 +438,7 @@ class ScoringMotionCoordinator extends ChangeNotifier {
     _active = null;
     _queue.clear();
     _timings.clear();
+    _seenEventIds.clear();
     super.dispose();
   }
 }
@@ -482,24 +492,94 @@ class ScoringMotionOverlay extends StatelessWidget {
       top: active.sample.position.dy - (active.inImpact ? 45 : 30),
       width: active.inImpact ? 90 : 60,
       height: active.inImpact ? 90 : 60,
-      child: Lottie.asset(
-        active.assetName,
+      child: ScoringMotionLottieAsset(
         key: ValueKey('${active.event.id}-${active.assetName}'),
-        animate: true,
-        repeat: false,
-        delegates: LottieDelegates(
-          values: [
-            ValueDelegate.color(['**', 'teamFill', 'teamFill'], value: color),
-          ],
-        ),
-        errorBuilder: (context, error, stackTrace) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            coordinator.fail(active.event.id);
-          });
-          return const SizedBox.shrink();
-        },
+        coordinator: coordinator,
+        active: active,
+        teamColor: color,
       ),
     );
+  }
+}
+
+/// Drives one offline Lottie composition from the coordinator's current phase.
+/// The composition's source duration is intentionally ignored: every phase is
+/// played from 0 to 1 across the scoring motion token, so impact cannot outlive
+/// the durable reveal window.
+class ScoringMotionLottieAsset extends StatefulWidget {
+  const ScoringMotionLottieAsset({
+    required this.coordinator,
+    required this.active,
+    required this.teamColor,
+    super.key,
+  });
+
+  final ScoringMotionCoordinator coordinator;
+  final ScoringActiveMotion active;
+  final Color teamColor;
+
+  @override
+  ScoringMotionLottieAssetState createState() =>
+      ScoringMotionLottieAssetState();
+}
+
+class ScoringMotionLottieAssetState extends State<ScoringMotionLottieAsset>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  Duration? animationDuration;
+
+  AnimationController get controller => _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1),
+    );
+  }
+
+  void _onLoaded(LottieComposition composition) {
+    if (!mounted) return;
+    final duration = widget.active.inImpact
+        ? widget.active.timing.impact
+        : widget.active.timing.flight;
+    _controller.duration = duration;
+    animationDuration = duration;
+    _controller.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Lottie.asset(
+      widget.active.assetName,
+      animate: false,
+      repeat: false,
+      controller: _controller,
+      delegates: LottieDelegates(
+        values: [
+          ValueDelegate.color([
+            '**',
+            'teamFill',
+            'teamFill',
+            'teamFill',
+          ], value: widget.teamColor),
+        ],
+      ),
+      onLoaded: _onLoaded,
+      errorBuilder: (context, error, stackTrace) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          widget.coordinator.fail(widget.active.event.id);
+        });
+        return const SizedBox.shrink();
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }
 
