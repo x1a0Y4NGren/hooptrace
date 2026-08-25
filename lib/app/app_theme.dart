@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
@@ -59,6 +61,184 @@ class HoopTraceStatusColors {
   static const negative = HoopTraceColors.red;
   static const info = HoopTraceColors.blue;
 }
+
+/// The visual language used by the playbook surfaces and doodle widgets.
+///
+/// Keeping these values in a [ThemeExtension] means feature pages can opt in
+/// without coupling themselves to a particular brightness or hard-coding a
+/// canvas color.
+@immutable
+class HoopTraceVisualTheme extends ThemeExtension<HoopTraceVisualTheme> {
+  const HoopTraceVisualTheme({
+    required this.paper,
+    required this.paperDeep,
+    required this.ink,
+    required this.inkMuted,
+    required this.accent,
+    required this.red,
+    required this.blue,
+    required this.divider,
+    this.doodleOpacity = 0.22,
+    this.strokeWidth = 1.5,
+  });
+
+  const HoopTraceVisualTheme.light()
+    : this(
+        paper: HoopTraceColors.offWhite,
+        paperDeep: HoopTraceColors.cream,
+        ink: HoopTraceColors.ink,
+        inkMuted: const Color(0xFF6C5D52),
+        accent: HoopTraceColors.orange,
+        red: HoopTraceColors.redAccessible,
+        blue: HoopTraceColors.blueAccessible,
+        divider: const Color(0x332B2520),
+      );
+
+  const HoopTraceVisualTheme.dark()
+    : this(
+        paper: HoopTraceColors.charcoal,
+        paperDeep: HoopTraceColors.charcoalSurface,
+        ink: HoopTraceColors.darkInk,
+        inkMuted: const Color(0xFFC7B9AC),
+        accent: HoopTraceColors.orangeLight,
+        red: HoopTraceColors.redLight,
+        blue: HoopTraceColors.blueLight,
+        divider: const Color(0x33FFF8E8),
+      );
+
+  final Color paper;
+  final Color paperDeep;
+  final Color ink;
+  final Color inkMuted;
+  final Color accent;
+  final Color red;
+  final Color blue;
+  final Color divider;
+  final double doodleOpacity;
+  final double strokeWidth;
+
+  @override
+  HoopTraceVisualTheme copyWith({
+    Color? paper,
+    Color? paperDeep,
+    Color? ink,
+    Color? inkMuted,
+    Color? accent,
+    Color? red,
+    Color? blue,
+    Color? divider,
+    double? doodleOpacity,
+    double? strokeWidth,
+  }) {
+    return HoopTraceVisualTheme(
+      paper: paper ?? this.paper,
+      paperDeep: paperDeep ?? this.paperDeep,
+      ink: ink ?? this.ink,
+      inkMuted: inkMuted ?? this.inkMuted,
+      accent: accent ?? this.accent,
+      red: red ?? this.red,
+      blue: blue ?? this.blue,
+      divider: divider ?? this.divider,
+      doodleOpacity: doodleOpacity ?? this.doodleOpacity,
+      strokeWidth: strokeWidth ?? this.strokeWidth,
+    );
+  }
+
+  @override
+  HoopTraceVisualTheme lerp(covariant HoopTraceVisualTheme? other, double t) {
+    if (other == null) return this;
+    return HoopTraceVisualTheme(
+      paper: Color.lerp(paper, other.paper, t)!,
+      paperDeep: Color.lerp(paperDeep, other.paperDeep, t)!,
+      ink: Color.lerp(ink, other.ink, t)!,
+      inkMuted: Color.lerp(inkMuted, other.inkMuted, t)!,
+      accent: Color.lerp(accent, other.accent, t)!,
+      red: Color.lerp(red, other.red, t)!,
+      blue: Color.lerp(blue, other.blue, t)!,
+      divider: Color.lerp(divider, other.divider, t)!,
+      doodleOpacity: ui.lerpDouble(doodleOpacity, other.doodleOpacity, t)!,
+      strokeWidth: ui.lerpDouble(strokeWidth, other.strokeWidth, t)!,
+    );
+  }
+}
+
+/// Timing tokens shared by score feedback and the playbook press treatment.
+@immutable
+class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
+  const HoopTraceMotionTheme({
+    required this.scoreFlight,
+    required this.impact,
+    required this.press,
+    required this.scoreTransition,
+    required this.foulStamp,
+    required this.undo,
+  });
+
+  const HoopTraceMotionTheme.light()
+    : this(
+        scoreFlight: const Duration(milliseconds: 520),
+        impact: const Duration(milliseconds: 240),
+        press: const Duration(milliseconds: 90),
+        scoreTransition: const Duration(milliseconds: 180),
+        foulStamp: const Duration(milliseconds: 240),
+        undo: const Duration(milliseconds: 180),
+      );
+
+  const HoopTraceMotionTheme.dark() : this.light();
+
+  final Duration scoreFlight;
+  final Duration impact;
+  final Duration press;
+  final Duration scoreTransition;
+  final Duration foulStamp;
+  final Duration undo;
+
+  @override
+  HoopTraceMotionTheme copyWith({
+    Duration? scoreFlight,
+    Duration? impact,
+    Duration? press,
+    Duration? scoreTransition,
+    Duration? foulStamp,
+    Duration? undo,
+  }) {
+    return HoopTraceMotionTheme(
+      scoreFlight: scoreFlight ?? this.scoreFlight,
+      impact: impact ?? this.impact,
+      press: press ?? this.press,
+      scoreTransition: scoreTransition ?? this.scoreTransition,
+      foulStamp: foulStamp ?? this.foulStamp,
+      undo: undo ?? this.undo,
+    );
+  }
+
+  @override
+  HoopTraceMotionTheme lerp(covariant HoopTraceMotionTheme? other, double t) {
+    if (other == null) return this;
+    Duration blend(Duration a, Duration b) => Duration(
+      microseconds: ui
+          .lerpDouble(
+            a.inMicroseconds.toDouble(),
+            b.inMicroseconds.toDouble(),
+            t,
+          )!
+          .round(),
+    );
+    return HoopTraceMotionTheme(
+      scoreFlight: blend(scoreFlight, other.scoreFlight),
+      impact: blend(impact, other.impact),
+      press: blend(press, other.press),
+      scoreTransition: blend(scoreTransition, other.scoreTransition),
+      foulStamp: blend(foulStamp, other.foulStamp),
+      undo: blend(undo, other.undo),
+    );
+  }
+}
+
+// Descriptive aliases keep the public token vocabulary discoverable while the
+// ThemeExtension names remain concise at call sites.
+typedef HoopTraceVisualTokens = HoopTraceVisualTheme;
+typedef HoopTraceMotionTokens = HoopTraceMotionTheme;
 
 /// Team accents are selected for the surface they sit on, rather than using
 /// the same saturated brand color in both light and dark themes.
@@ -153,5 +333,13 @@ ThemeData buildHoopTraceTheme({Brightness brightness = Brightness.light}) {
     dividerTheme: DividerThemeData(
       color: colorScheme.onSurface.withValues(alpha: isDark ? 0.18 : 0.12),
     ),
+    extensions: [
+      isDark
+          ? const HoopTraceVisualTheme.dark()
+          : const HoopTraceVisualTheme.light(),
+      isDark
+          ? const HoopTraceMotionTheme.dark()
+          : const HoopTraceMotionTheme.light(),
+    ],
   );
 }
