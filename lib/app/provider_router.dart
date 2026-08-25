@@ -386,6 +386,7 @@ class _ScoringRoute extends ConsumerWidget {
               )
             : null,
         onActionCommitted: feedback.emitCommitted,
+        motionPreferenceLoader: () async => (await feedback.load()).motion,
       );
     }
     return const _RouteLoading();

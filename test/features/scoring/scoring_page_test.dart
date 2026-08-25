@@ -13,6 +13,7 @@ import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
+import 'package:hooptrace/features/scoring/motion/scoring_motion.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
@@ -20,6 +21,56 @@ import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  testWidgets(
+    'court-first receipt queues one hero and reveals durable marker after impact',
+    (tester) async {
+      final controller = ScoringController(matchId: 'task4-hero-success');
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('scoring-court'))),
+      );
+      await tester.tap(find.byKey(const Key('blue-score-2')));
+      await tester.pump();
+
+      final overlay = tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay.coordinator.pendingCount, 1);
+      expect(controller.state.shotLocations, hasLength(1));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(overlay.coordinator.active, isNotNull);
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(overlay.coordinator.active, isNull);
+      expect(overlay.coordinator.pendingCount, 0);
+    },
+  );
+
+  testWidgets('system-disabled scoring reveals receipt without a flight', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'task4-hero-disabled');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: ScoringPage(controller: controller),
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.tap(find.byKey(const Key('red-score-3')));
+    await tester.pump();
+    final overlay = tester.widget<ScoringMotionOverlay>(
+      find.byType(ScoringMotionOverlay),
+    );
+    expect(overlay.coordinator.active, isNull);
+    expect(overlay.coordinator.pendingCount, 0);
+    expect(controller.state.shotLocations, hasLength(1));
+  });
   testWidgets('unified scoring keeps secondary actions behind More', (
     tester,
   ) async {

@@ -74,16 +74,39 @@ class HalfCourtGeometry {
   }
 }
 
+/// Presentation-only marker shown while a committed location is travelling
+/// from its score button to the court. It deliberately carries no database
+/// identity beyond the receipt location id and never mutates durable state.
+class TransientShotMarker {
+  const TransientShotMarker({
+    required this.id,
+    required this.point,
+    required this.side,
+  });
+
+  final String id;
+  final CourtPoint point;
+  final TeamSide side;
+
+  String get locationId => id;
+}
+
+typedef CourtTransientMarker = TransientShotMarker;
+
 class CourtPainter extends CustomPainter {
   const CourtPainter({
     this.shotLocations = const [],
     this.pendingLocation,
     this.detailedShotDraft,
+    this.hiddenShotLocationIds = const <String>{},
+    this.transientMarkers = const <TransientShotMarker>[],
   });
 
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
   final DetailedShotDraft? detailedShotDraft;
+  final Set<String> hiddenShotLocationIds;
+  final List<TransientShotMarker> transientMarkers;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -266,6 +289,7 @@ class CourtPainter extends CustomPainter {
 
   void _drawMarkers(Canvas canvas, Size size) {
     for (final location in shotLocations) {
+      if (hiddenShotLocationIds.contains(location.id)) continue;
       _paintMarker(
         canvas,
         size,
@@ -295,6 +319,17 @@ class CourtPainter extends CustomPainter {
         size,
         draft.point,
         _sideColor(draft.side),
+        radius: 10,
+        isPending: true,
+      );
+    }
+
+    for (final marker in transientMarkers) {
+      _paintMarker(
+        canvas,
+        size,
+        marker.point,
+        Colors.grey.shade600,
         radius: 10,
         isPending: true,
       );
@@ -330,6 +365,8 @@ class CourtPainter extends CustomPainter {
   bool shouldRepaint(covariant CourtPainter oldDelegate) {
     return oldDelegate.shotLocations != shotLocations ||
         oldDelegate.pendingLocation != pendingLocation ||
-        oldDelegate.detailedShotDraft != detailedShotDraft;
+        oldDelegate.detailedShotDraft != detailedShotDraft ||
+        oldDelegate.hiddenShotLocationIds != hiddenShotLocationIds ||
+        oldDelegate.transientMarkers != transientMarkers;
   }
 }

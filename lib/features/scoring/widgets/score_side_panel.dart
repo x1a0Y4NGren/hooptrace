@@ -22,6 +22,8 @@ class ScoreSidePanel extends StatelessWidget {
     this.locationRemainingSeconds,
     this.locationPulse = false,
     this.reduceMotion = false,
+    this.scoreButtonKeys,
+    this.foulStamp = false,
     super.key,
   });
 
@@ -41,6 +43,11 @@ class ScoreSidePanel extends StatelessWidget {
   final int? locationRemainingSeconds;
   final bool locationPulse;
   final bool reduceMotion;
+
+  /// Optional geometry handles for the live scoring overlay. Public semantic
+  /// ValueKeys remain on the actual buttons and are never replaced.
+  final Map<int, GlobalKey>? scoreButtonKeys;
+  final bool foulStamp;
 
   @override
   Widget build(BuildContext context) {
@@ -79,19 +86,28 @@ class ScoreSidePanel extends StatelessWidget {
                       : null,
                   locationPulse: locationPulse && locationPoints == points,
                   reduceMotion: reduceMotion,
+                  geometryKey: scoreButtonKeys?[points],
                   onPressed: () => onScore(points),
                 ),
               SizedBox(
                 width: actionWidth,
                 height: buttonHeight,
-                child: OutlinedButton(
-                  key: Key('${side.name}-foul'),
-                  onPressed: foulEnabled ? onFoul : null,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(48, buttonHeight),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: _CompactActionLabel(l10n.scoringFoul),
+                child: Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    Positioned.fill(
+                      child: OutlinedButton(
+                        key: Key('${side.name}-foul'),
+                        onPressed: foulEnabled ? onFoul : null,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(48, buttonHeight),
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: _CompactActionLabel(l10n.scoringFoul),
+                      ),
+                    ),
+                    if (foulStamp) const _FoulStamp(),
+                  ],
                 ),
               ),
               if (missEnabled && onMiss != null)
@@ -253,6 +269,7 @@ class ScoreSidePanel extends StatelessWidget {
                             locationPulse:
                                 locationPulse && locationPoints == points,
                             reduceMotion: reduceMotion,
+                            geometryKey: scoreButtonKeys?[points],
                             onPressed: () => onScore(points),
                           ),
                           SizedBox(height: gap),
@@ -271,11 +288,22 @@ class ScoreSidePanel extends StatelessWidget {
                         ],
                         SizedBox(
                           height: buttonHeight,
-                          child: OutlinedButton.icon(
-                            key: Key('${side.name}-foul'),
-                            onPressed: foulEnabled ? onFoul : null,
-                            icon: const Icon(Icons.flag_outlined, size: 18),
-                            label: Text(l10n.scoringFoul),
+                          child: Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              Positioned.fill(
+                                child: OutlinedButton.icon(
+                                  key: Key('${side.name}-foul'),
+                                  onPressed: foulEnabled ? onFoul : null,
+                                  icon: const Icon(
+                                    Icons.flag_outlined,
+                                    size: 18,
+                                  ),
+                                  label: Text(l10n.scoringFoul),
+                                ),
+                              ),
+                              if (foulStamp) const _FoulStamp(),
+                            ],
                           ),
                         ),
                       ],
@@ -305,6 +333,7 @@ class _ScoreAction extends StatelessWidget {
     required this.locationRemainingSeconds,
     required this.locationPulse,
     required this.reduceMotion,
+    this.geometryKey,
     required this.onPressed,
   });
 
@@ -320,6 +349,7 @@ class _ScoreAction extends StatelessWidget {
   final int? locationRemainingSeconds;
   final bool locationPulse;
   final bool reduceMotion;
+  final GlobalKey? geometryKey;
   final VoidCallback onPressed;
 
   @override
@@ -348,6 +378,7 @@ class _ScoreAction extends StatelessWidget {
       ],
     );
     final button = SizedBox(
+      key: geometryKey,
       width: width,
       height: height,
       child: Semantics(
@@ -401,6 +432,35 @@ class _CompactActionLabel extends StatelessWidget {
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: Text(label, maxLines: 1, softWrap: false),
+    );
+  }
+}
+
+class _FoulStamp extends StatelessWidget {
+  const _FoulStamp();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: HoopTraceColors.orange.withValues(alpha: 0.94),
+          borderRadius: BorderRadius.circular(5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+          child: Text(
+            l10n.scoringFoul,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.6,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

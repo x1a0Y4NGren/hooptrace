@@ -5,6 +5,8 @@ import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 
+export 'court_painter.dart' show TransientShotMarker;
+
 enum CourtViewMode { readOnly, editable }
 
 CourtPoint pointFromLocal(Offset local, Size size) {
@@ -20,6 +22,9 @@ class CourtView extends StatelessWidget {
     this.onPendingLocationChanged,
     this.onCourtPointTap,
     this.onShotLocationTap,
+    this.geometryKey,
+    this.hiddenShotLocationIds = const <String>{},
+    this.transientMarkers = const <TransientShotMarker>[],
     this.mode = CourtViewMode.editable,
     super.key,
   });
@@ -31,6 +36,9 @@ class CourtView extends StatelessWidget {
   final ValueChanged<CourtPoint>? onPendingLocationChanged;
   final ValueChanged<CourtPoint>? onCourtPointTap;
   final ValueChanged<String>? onShotLocationTap;
+  final GlobalKey? geometryKey;
+  final Set<String> hiddenShotLocationIds;
+  final List<TransientShotMarker> transientMarkers;
   final CourtViewMode mode;
 
   @override
@@ -105,10 +113,13 @@ class CourtView extends StatelessWidget {
                 onTapDown: (details) => handleTap(details.localPosition),
                 onPanUpdate: (details) => handlePosition(details.localPosition),
                 child: CustomPaint(
+                  key: geometryKey,
                   painter: CourtPainter(
                     shotLocations: shotLocations,
                     pendingLocation: pendingLocation,
                     detailedShotDraft: detailedShotDraft,
+                    hiddenShotLocationIds: hiddenShotLocationIds,
+                    transientMarkers: transientMarkers,
                   ),
                   child: const SizedBox.expand(),
                 ),

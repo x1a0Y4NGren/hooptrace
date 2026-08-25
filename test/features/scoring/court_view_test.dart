@@ -12,6 +12,41 @@ import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 void main() {
+  testWidgets('court view accepts hidden durable ids and transient markers', (
+    tester,
+  ) async {
+    final point = CourtPoint(x: 0.3, y: 0.4);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CourtView(
+            shotLocations: [
+              ScoringShotLocation(
+                id: 'shot-1',
+                eventId: 'event-1',
+                side: TeamSide.blue,
+                points: 2,
+                point: point,
+                isLocked: true,
+              ),
+            ],
+            hiddenShotLocationIds: const {'shot-1'},
+            transientMarkers: [
+              TransientShotMarker(
+                id: 'shot-1',
+                point: point,
+                side: TeamSide.blue,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(court.hiddenShotLocationIds, contains('shot-1'));
+    expect(court.transientMarkers.single.id, 'shot-1');
+  });
   testWidgets('court prompt is announced while a score location is available', (
     tester,
   ) async {

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
@@ -9,10 +10,13 @@ import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/rules/rule_engine.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
+import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
+import 'package:hooptrace/features/scoring/motion/scoring_motion.dart';
 
 const scoringResumeClockKey = Key('scoring-resume-clock');
 
@@ -36,6 +40,8 @@ class ScoringPage extends StatefulWidget {
     this.clockNowUtc,
     this.clockTick = const Duration(seconds: 1),
     this.onActionCommitted,
+    this.motionPreferenceLoader,
+    this.motionPreference,
     super.key,
   }) : assert(matchId != null || setup != null || controller != null);
 
@@ -51,11 +57,17 @@ class ScoringPage extends StatefulWidget {
   final Duration clockTick;
   final FutureOr<void> Function()? onActionCommitted;
 
+  /// Read-only route seam for the persisted scoring feedback preference.
+  /// Settings owns writes; scoring only consumes the value.
+  final Future<MotionPreference> Function()? motionPreferenceLoader;
+  final MotionPreference? motionPreference;
+
   @override
   State<ScoringPage> createState() => _ScoringPageState();
 }
 
-class _ScoringPageState extends State<ScoringPage> {
+class _ScoringPageState extends State<ScoringPage>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   late ScoringController _controller;
   bool _ownsController = false;
   bool _leaveBusy = false;
@@ -63,12 +75,47 @@ class _ScoringPageState extends State<ScoringPage> {
   bool _pulseOn = false;
   Timer? _clockTicker;
   Timer? _supplementTicker;
+  final GlobalKey _motionWorkspaceKey = GlobalKey();
+  final GlobalKey _courtGeometryKey = GlobalKey();
+  late final Map<TeamSide, Map<int, GlobalKey>> _scoreButtonKeys = {
+    TeamSide.blue: {
+      for (final points in [1, 2, 3]) points: GlobalKey(),
+    },
+    TeamSide.red: {
+      for (final points in [1, 2, 3]) points: GlobalKey(),
+    },
+  };
+  late ScoringMotionCoordinator _motionCoordinator;
+  Ticker? _motionTicker;
+  Duration _motionElapsed = Duration.zero;
+  late MotionPreference _motionPreference =
+      widget.motionPreference ?? MotionPreference.standard;
+  ScoringMotionMode _motionMode = ScoringMotionMode.standard;
+  final Set<String> _hiddenShotLocationIds = <String>{};
+  final Map<String, TransientShotMarker> _transientMarkers =
+      <String, TransientShotMarker>{};
+  Timer? _foulStampTimer;
+  TeamSide? _foulStampSide;
+  bool _disposed = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _attachController();
+    _motionCoordinator = _createMotionCoordinator();
     _startTickers();
+    final loader = widget.motionPreferenceLoader;
+    if (loader != null) {
+      unawaited(
+        loader().then<void>((preference) {
+          if (!mounted) return;
+          _motionPreference = preference;
+          _updateMotionMode();
+          setState(() {});
+        }, onError: (Object error, StackTrace stack) {}),
+      );
+    }
   }
 
   @override
@@ -79,6 +126,7 @@ class _ScoringPageState extends State<ScoringPage> {
         oldWidget.matchId != widget.matchId ||
         oldWidget.setup != widget.setup;
     if (controllerChanged) {
+      _cancelAllMotions();
       _detachController();
       _attachController();
     }
@@ -87,10 +135,21 @@ class _ScoringPageState extends State<ScoringPage> {
         oldWidget.clockTick != widget.clockTick) {
       _startTickers();
     }
+    if (oldWidget.motionPreference != widget.motionPreference &&
+        widget.motionPreference != null) {
+      _motionPreference = widget.motionPreference!;
+      _updateMotionMode();
+    }
   }
 
   @override
   void dispose() {
+    _disposed = true;
+    WidgetsBinding.instance.removeObserver(this);
+    _cancelAllMotions();
+    _motionCoordinator.dispose();
+    _motionTicker?.dispose();
+    _foulStampTimer?.cancel();
     _clockTicker?.cancel();
     _supplementTicker?.cancel();
     _detachController();
@@ -108,6 +167,90 @@ class _ScoringPageState extends State<ScoringPage> {
   void _detachController() {
     _controller.removeListener(_handleStateChanged);
     if (_ownsController) _controller.dispose();
+  }
+
+  ScoringMotionCoordinator _createMotionCoordinator() {
+    return ScoringMotionCoordinator(
+      mode: _motionMode,
+      onComplete: _completeMotion,
+      onFallback: _reconcileMotion,
+    )..addListener(_handleMotionChanged);
+  }
+
+  void _handleMotionChanged() {
+    if (_motionCoordinator.active != null) {
+      _motionTicker ??= createTicker(_advanceMotion);
+      if (!_motionTicker!.isActive) {
+        _motionElapsed = Duration.zero;
+        _motionTicker!.start();
+      }
+    } else {
+      _motionTicker?.stop();
+      _motionElapsed = Duration.zero;
+    }
+    if (mounted && !_disposed) setState(() {});
+  }
+
+  void _advanceMotion(Duration elapsed) {
+    if (_disposed) return;
+    final delta = elapsed - _motionElapsed;
+    _motionElapsed = elapsed;
+    if (delta > Duration.zero) _motionCoordinator.advance(delta);
+  }
+
+  void _updateMotionMode() {
+    if (!mounted) return;
+    final media = MediaQuery.maybeOf(context);
+    final next = media?.disableAnimations == true
+        ? ScoringMotionMode.disabled
+        : (media?.accessibleNavigation == true ||
+              _motionPreference == MotionPreference.reduced)
+        ? ScoringMotionMode.reduced
+        : ScoringMotionMode.standard;
+    if (next == _motionMode) return;
+    _cancelAllMotions();
+    _motionCoordinator.removeListener(_handleMotionChanged);
+    _motionCoordinator.dispose();
+    _motionMode = next;
+    _motionCoordinator = _createMotionCoordinator();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _updateMotionMode();
+  }
+
+  @override
+  void didChangeMetrics() => _cancelAllMotions();
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) _cancelAllMotions();
+  }
+
+  void _cancelAllMotions() {
+    _motionTicker?.stop();
+    _motionElapsed = Duration.zero;
+    for (final event in [
+      if (_motionCoordinator.active != null) _motionCoordinator.active!.event,
+      ..._motionCoordinator.queuedEvents,
+    ]) {
+      _motionCoordinator.cancelByEventId(event.id);
+    }
+    _hiddenShotLocationIds.clear();
+    _transientMarkers.clear();
+    if (mounted && !_disposed) setState(() {});
+  }
+
+  void _reconcileMotion(ScoringMotionEvent event) {
+    _hiddenShotLocationIds.remove(event.locationId);
+    _transientMarkers.remove(event.locationId);
+    if (mounted && !_disposed) setState(() {});
+  }
+
+  void _completeMotion(ScoringMotionEvent event) {
+    _reconcileMotion(event);
   }
 
   void _startTickers() {
@@ -144,7 +287,19 @@ class _ScoringPageState extends State<ScoringPage> {
   }
 
   void _handleStateChanged() {
-    if (mounted) setState(() {});
+    final durableIds = _controller.state.shotLocations
+        .map((location) => location.id)
+        .toSet();
+    final stale = <String>{
+      ..._hiddenShotLocationIds,
+      ..._transientMarkers.keys,
+    }.where((id) => !durableIds.contains(id)).toList();
+    for (final id in stale) {
+      _motionCoordinator.cancelByLocationId(id);
+      _hiddenShotLocationIds.remove(id);
+      _transientMarkers.remove(id);
+    }
+    if (mounted && !_disposed) setState(() {});
   }
 
   @override
@@ -157,29 +312,43 @@ class _ScoringPageState extends State<ScoringPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final portrait = _usesPortraitScoringLayout(constraints);
-            return Column(
+            return Stack(
+              key: _motionWorkspaceKey,
+              fit: StackFit.expand,
               children: [
-                _Scoreboard(
-                  state: state,
-                  clock: clock,
-                  portrait: portrait,
-                  onLeave: _requestLeave,
-                  onUndo: () => unawaited(_undoLastScoringAction()),
-                  onMore: _showMore,
-                  labels: labels,
+                Column(
+                  children: [
+                    _Scoreboard(
+                      state: state,
+                      clock: clock,
+                      portrait: portrait,
+                      onLeave: _requestLeave,
+                      onUndo: () => unawaited(_undoLastScoringAction()),
+                      onMore: _showMore,
+                      labels: labels,
+                    ),
+                    Expanded(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _buildWorkspace(context, state, portrait: portrait),
+                          if (state.decision != null)
+                            _buildDecisionOverlay(context, state),
+                        ],
+                      ),
+                    ),
+                    if (state.ruleHints.isNotEmpty ||
+                        state.ruleWarnings.isNotEmpty)
+                      _buildRuleHints(context, state),
+                  ],
                 ),
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _buildWorkspace(context, state, portrait: portrait),
-                      if (state.decision != null)
-                        _buildDecisionOverlay(context, state),
-                    ],
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: ScoringMotionOverlay(
+                      coordinator: _motionCoordinator,
+                    ),
                   ),
                 ),
-                if (state.ruleHints.isNotEmpty || state.ruleWarnings.isNotEmpty)
-                  _buildRuleHints(context, state),
               ],
             );
           },
@@ -258,9 +427,12 @@ class _ScoringPageState extends State<ScoringPage> {
       padding: const EdgeInsets.all(8),
       child: CourtView(
         key: const Key('scoring-court'),
+        geometryKey: _courtGeometryKey,
         shotLocations: state.shotLocations,
         pendingLocation: state.pendingLocation,
         detailedShotDraft: state.courtFirstShotDraft,
+        hiddenShotLocationIds: _hiddenShotLocationIds,
+        transientMarkers: _transientMarkers.values.toList(growable: false),
         locationPrompt: prompt,
         onPendingLocationChanged: _controller.updatePendingLocation,
         onCourtPointTap: _handleCourtPoint,
@@ -303,6 +475,8 @@ class _ScoringPageState extends State<ScoringPage> {
       locationRemainingSeconds: activeLocation ? remaining : null,
       locationPulse: activeLocation && _pulseOn,
       reduceMotion: reduceMotion,
+      scoreButtonKeys: _scoreButtonKeys[side],
+      foulStamp: _foulStampSide == side,
       onScore: (points) => unawaited(_recordScore(side, points)),
       onFoul: () => unawaited(_recordFoul(side)),
     );
@@ -397,10 +571,84 @@ class _ScoringPageState extends State<ScoringPage> {
     }
   }
 
-  Future<void> _attachSupplement(CourtPoint point) async {
+  Offset? _scoreButtonCenter(TeamSide side, int points) {
+    final box = _scoreButtonKeys[side]?[points]?.currentContext
+        ?.findRenderObject();
+    final overlay = _motionWorkspaceKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || overlay is! RenderBox || !box.hasSize) return null;
+    final global = box.localToGlobal(box.size.center(Offset.zero));
+    return overlay.globalToLocal(global);
+  }
+
+  ScoringMotionEvent _motionEvent(
+    ShotLocationCommitReceipt receipt,
+    Offset? source,
+  ) {
+    final overlay = _motionWorkspaceKey.currentContext?.findRenderObject();
+    final court = _courtGeometryKey.currentContext?.findRenderObject();
+    if (overlay is! RenderBox || court is! RenderBox || !court.hasSize) {
+      return ScoringMotionEvent(
+        receipt: receipt,
+        sourceButton: source ?? Offset.zero,
+        courtBounds: Rect.zero,
+        safeWorkspace: Rect.zero,
+        geometryAvailable: false,
+      );
+    }
+    final courtRect = HalfCourtGeometry.courtRectForSize(court.size);
+    final topLeft = overlay.globalToLocal(
+      court.localToGlobal(courtRect.topLeft),
+    );
+    final bottomRight = overlay.globalToLocal(
+      court.localToGlobal(courtRect.bottomRight),
+    );
+    final bounds = Rect.fromPoints(topLeft, bottomRight);
+    return ScoringMotionEvent(
+      receipt: receipt,
+      sourceButton: source ?? Offset.zero,
+      courtBounds: bounds,
+      safeWorkspace: Offset.zero & overlay.size,
+      geometryAvailable: source != null && !bounds.isEmpty,
+    );
+  }
+
+  void _submitReceiptMotion(ShotLocationCommitReceipt receipt, Offset? source) {
+    if (_disposed) return;
+    final marker = TransientShotMarker(
+      id: receipt.shotLocationId,
+      point: receipt.point,
+      side: receipt.side,
+    );
+    _hiddenShotLocationIds.add(receipt.shotLocationId);
+    _transientMarkers[receipt.shotLocationId] = marker;
+    if (mounted) setState(() {});
     try {
-      final accepted = await _controller.attachSupplementLocation(point);
-      if (accepted) {
+      _motionCoordinator.submit(_motionEvent(receipt, source));
+    } on Object {
+      // Presentation failures must reveal the durable projection immediately.
+      _reconcileMotion(
+        ScoringMotionEvent(
+          receipt: receipt,
+          sourceButton: source ?? Offset.zero,
+          courtBounds: Rect.zero,
+          safeWorkspace: Rect.zero,
+          geometryAvailable: false,
+        ),
+      );
+    }
+  }
+
+  Future<void> _attachSupplement(CourtPoint point) async {
+    final window = _controller.locationSupplementWindow;
+    final source = window == null
+        ? null
+        : _scoreButtonCenter(window.side, window.points);
+    try {
+      final receipt = await _controller.attachSupplementLocationWithReceipt(
+        point,
+      );
+      if (receipt != null) {
+        _submitReceiptMotion(receipt, source);
         _notifyCommitted();
       } else if (mounted) {
         _showActionRejected(_labels(context).supplementExpired);
@@ -415,14 +663,16 @@ class _ScoringPageState extends State<ScoringPage> {
     final l10n = _localizations(context);
     final draft = _controller.courtFirstShotDraft;
     if (draft != null) {
+      final source = _scoreButtonCenter(side, points);
       _controller.updateCourtFirstShot(
         side: side,
         outcome: ShotOutcome.made,
         points: points,
       );
       try {
-        final accepted = await _controller.commitCourtFirstShot();
-        if (accepted) {
+        final receipt = await _controller.commitCourtFirstShotWithReceipt();
+        if (receipt != null) {
+          _submitReceiptMotion(receipt, source);
           _notifyCommitted();
         } else {
           _showActionRejected(labels.actionRejected);
@@ -525,6 +775,11 @@ class _ScoringPageState extends State<ScoringPage> {
     try {
       final accepted = await _controller.recordFoulCommitted(side);
       if (accepted) {
+        _foulStampTimer?.cancel();
+        if (mounted) setState(() => _foulStampSide = side);
+        _foulStampTimer = Timer(const Duration(milliseconds: 240), () {
+          if (mounted) setState(() => _foulStampSide = null);
+        });
         _notifyCommitted();
       } else {
         _showActionRejected(labels.actionRejected);
@@ -563,6 +818,7 @@ class _ScoringPageState extends State<ScoringPage> {
   Future<void> _requestLeave() async {
     final onRequestLeave = widget.onRequestLeave;
     if (onRequestLeave == null) {
+      _cancelAllMotions();
       if (mounted) await Navigator.of(context).maybePop();
       return;
     }
@@ -596,6 +852,7 @@ class _ScoringPageState extends State<ScoringPage> {
       );
       if (leave != true || !mounted) return;
     }
+    _cancelAllMotions();
     _leaveBusy = true;
     try {
       await onRequestLeave();
@@ -611,6 +868,10 @@ class _ScoringPageState extends State<ScoringPage> {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
+      sheetAnimationStyle: const AnimationStyle(
+        duration: Duration(milliseconds: 240),
+        reverseDuration: Duration(milliseconds: 180),
+      ),
       builder: (sheetContext) {
         String? inlineFailure;
         Future<bool> Function()? inlineRetry;
@@ -1440,12 +1701,27 @@ class _ScoreLabel extends StatelessWidget {
         child: FittedBox(
           fit: BoxFit.scaleDown,
           alignment: alignment,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w900,
+          child: AnimatedSwitcher(
+            duration:
+                Theme.of(
+                  context,
+                ).extension<HoopTraceMotionTheme>()?.scoreTransition ??
+                const Duration(milliseconds: 180),
+            transitionBuilder: (child, animation) => SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.65),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+            child: Text(
+              label,
+              key: ValueKey(label),
+              maxLines: 1,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
