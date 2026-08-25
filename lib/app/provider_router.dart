@@ -815,10 +815,16 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
         // deep link, so valueOrNull would incorrectly make an active replay
         // read-only and send its exit back to Home.
         final active = _lifecycle == MatchLifecycle.active;
+        final exitTooltip = active
+            ? l10n.replayExitToScoringTooltip
+            : GoRouter.of(context).canPop()
+            ? l10n.replayExitToHistoryTooltip
+            : l10n.historyHomeTooltip;
         final generation = _requestGeneration;
         final routeMatchId = widget.matchId;
         return ReplayPage(
           controller: controller,
+          exitTooltip: exitTooltip,
           onExit: () {
             final router = GoRouter.of(context);
             if (active) {

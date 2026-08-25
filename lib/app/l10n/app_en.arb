@@ -21,6 +21,8 @@
   "actionFailedRetry": "Action failed. Please try again.",
   "historyTitle": "Recent matches",
   "historyHomeTooltip": "Back to home",
+  "replayExitToScoringTooltip": "Back to scoring",
+  "replayExitToHistoryTooltip": "Back to history",
   "historySearchHint": "Search players or matches",
   "historyCompleted": "Completed",
   "historyArchived": "Archived",

@@ -282,7 +282,7 @@ class _ScoringPageState extends State<ScoringPage> {
       score: isBlue ? state.score.blueScore : state.score.redScore,
       fouls: isBlue ? state.blueFouls : state.redFouls,
       scoreButtons: const [1, 2, 3],
-      scoreEnabled: true,
+      scoreEnabled: draft != null || state.pendingLocation == null,
       missEnabled: false,
       foulEnabled: draft == null && state.pendingLocation == null,
       locationPoints: activeLocation ? window.points : null,

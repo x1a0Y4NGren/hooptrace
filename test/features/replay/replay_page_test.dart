@@ -71,6 +71,24 @@ void main() {
     expect(find.byKey(const Key('replay-event-event-2')), findsOneWidget);
   });
 
+  testWidgets('replay exit tooltip comes from its destination', (tester) async {
+    final controller = buildController();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReplayPage(
+          controller: controller,
+          onExit: () {},
+          exitTooltip: 'Back to scoring',
+        ),
+      ),
+    );
+
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('replay-exit'))).tooltip,
+      'Back to scoring',
+    );
+  });
+
   testWidgets(
     'shows manual and suggested possession segments with current and end boundaries',
     (tester) async {

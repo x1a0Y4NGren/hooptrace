@@ -21,6 +21,8 @@
   "actionFailedRetry": "\u64cd\u4f5c\u5931\u8d25\uff0c\u8bf7\u91cd\u8bd5\u3002",
   "historyTitle": "\u6700\u8fd1\u6bd4\u8d5b",
   "historyHomeTooltip": "\u8fd4\u56de\u4e3b\u9875",
+  "replayExitToScoringTooltip": "\u8fd4\u56de\u8ba1\u5206",
+  "replayExitToHistoryTooltip": "\u8fd4\u56de\u5386\u53f2",
   "historySearchHint": "\u641c\u7d22\u7403\u5458\u6216\u6bd4\u8d5b",
   "historyCompleted": "\u5df2\u5b8c\u6210",
   "historyArchived": "\u5df2\u5f52\u6863",

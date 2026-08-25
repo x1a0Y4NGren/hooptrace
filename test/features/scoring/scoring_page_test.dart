@@ -74,6 +74,62 @@ void main() {
     expect(controller.state.shotLocations, hasLength(1));
   });
 
+  testWidgets(
+    'court-first draft keeps score buttons enabled for side selection',
+    (tester) async {
+      final controller = ScoringController(matchId: 'draft-score-selection');
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('scoring-court'))),
+      );
+      await tester.pump();
+
+      final score = tester.widget<FilledButton>(
+        find.byKey(const Key('blue-score-1')),
+      );
+      final semantics = tester.widget<Semantics>(
+        find
+            .ancestor(
+              of: find.byKey(const Key('blue-score-1')),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(score.onPressed, isNotNull);
+      expect(semantics.properties.enabled, isTrue);
+    },
+  );
+
+  testWidgets('legacy pending location disables score buttons and semantics', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'legacy-pending-score');
+    controller.addScore(side: TeamSide.blue, points: 2);
+    expect(controller.beginLocateLastUnlocatedShot(), isTrue);
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    final score = tester.widget<FilledButton>(
+      find.byKey(const Key('blue-score-1')),
+    );
+    final semantics = tester.widget<Semantics>(
+      find
+          .ancestor(
+            of: find.byKey(const Key('blue-score-1')),
+            matching: find.byType(Semantics),
+          )
+          .first,
+    );
+    expect(controller.state.pendingLocation, isNotNull);
+    expect(controller.courtFirstShotDraft, isNull);
+    expect(score.onPressed, isNull);
+    expect(semantics.properties.enabled, isFalse);
+  });
+
   testWidgets('score-first exposes a ten-second location supplement on court', (
     tester,
   ) async {

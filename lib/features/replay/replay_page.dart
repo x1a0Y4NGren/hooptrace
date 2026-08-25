@@ -20,6 +20,7 @@ class ReplayPage extends StatefulWidget {
   const ReplayPage({
     required this.controller,
     this.onExit,
+    this.exitTooltip,
     this.onFinishMatch,
     this.onShareSummary,
     this.captureBoundary,
@@ -28,6 +29,7 @@ class ReplayPage extends StatefulWidget {
 
   final ReplayController controller;
   final VoidCallback? onExit;
+  final String? exitTooltip;
   final FutureOr<void> Function(int redScore, int blueScore)? onFinishMatch;
   final Future<void> Function(Uint8List bytes, String matchId)? onShareSummary;
   final Future<Uint8List> Function(GlobalKey boundaryKey)? captureBoundary;
@@ -268,7 +270,7 @@ class _ReplayPageState extends State<ReplayPage> {
             ? null
             : IconButton(
                 key: const Key('replay-exit'),
-                tooltip: l10n.historyHomeTooltip,
+                tooltip: widget.exitTooltip ?? l10n.historyHomeTooltip,
                 onPressed: widget.onExit,
                 icon: const Icon(Icons.arrow_back),
               ),

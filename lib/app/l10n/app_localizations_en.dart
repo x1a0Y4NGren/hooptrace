@@ -85,6 +85,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get historyHomeTooltip => 'Back to home';
 
   @override
+  String get replayExitToScoringTooltip => 'Back to scoring';
+
+  @override
+  String get replayExitToHistoryTooltip => 'Back to history';
+
+  @override
   String get historySearchHint => 'Search players or matches';
 
   @override

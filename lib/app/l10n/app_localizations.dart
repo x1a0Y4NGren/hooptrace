@@ -229,6 +229,18 @@ abstract class AppLocalizations {
   /// **'返回主页'**
   String get historyHomeTooltip;
 
+  /// No description provided for @replayExitToScoringTooltip.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回计分'**
+  String get replayExitToScoringTooltip;
+
+  /// No description provided for @replayExitToHistoryTooltip.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回历史'**
+  String get replayExitToHistoryTooltip;
+
   /// No description provided for @historySearchHint.
   ///
   /// In zh, this message translates to:

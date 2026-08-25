@@ -366,6 +366,11 @@ void main() {
     router.push('/matches/$matchId/replay');
     await _pumpUntilFound(tester, find.byType(ReplayPage));
 
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('replay-exit'))).tooltip,
+      l10n.replayExitToScoringTooltip,
+    );
+
     await tester.tap(find.byKey(const Key('replay-exit')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
 
@@ -865,6 +870,11 @@ void main() {
     router.go('/matches/$matchId/replay');
     await _pumpUntilFound(tester, find.byType(ReplayPage));
 
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('replay-exit'))).tooltip,
+      l10n.historyHomeTooltip,
+    );
+
     await tester.tap(find.byKey(const Key('replay-exit')));
     await _pumpUntilFound(tester, find.byType(HomePage));
   });
@@ -906,6 +916,11 @@ void main() {
     await _pumpUntilFound(tester, find.byKey(Key('history-match-$matchId')));
     await tester.tap(find.byKey(Key('history-match-$matchId')));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
+
+    expect(
+      tester.widget<IconButton>(find.byKey(const Key('replay-exit'))).tooltip,
+      l10n.replayExitToHistoryTooltip,
+    );
 
     await tester.tap(find.byKey(const Key('replay-exit')));
     await _pumpUntilFound(tester, find.byType(HistoryPage));

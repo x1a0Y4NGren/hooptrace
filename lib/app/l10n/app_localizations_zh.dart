@@ -81,6 +81,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get historyHomeTooltip => '返回主页';
 
   @override
+  String get replayExitToScoringTooltip => '返回计分';
+
+  @override
+  String get replayExitToHistoryTooltip => '返回历史';
+
+  @override
   String get historySearchHint => '搜索球员或比赛';
 
   @override
