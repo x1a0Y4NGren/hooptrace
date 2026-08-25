@@ -18,6 +18,8 @@ import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/core/export/automatic_backup_service.dart';
+import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
@@ -421,6 +423,182 @@ void main() {
     },
   );
 
+  testWidgets('pending replay finish stays Home after leaving the route', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-pending-finish-home';
+    await _seedActiveMatch(database, matchId);
+    final finishReleased = Completer<void>();
+    var finishStarted = false;
+    final commandService = MatchCommandService(
+      database,
+      failureInjector: (point) async {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          finishStarted = true;
+          await finishReleased.future;
+        }
+      },
+    );
+    final backup = _RecordingAutomaticBackupService(database);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    router.go('/matches/$matchId/replay');
+    await tester.pumpWidget(
+      _routerHost(
+        database,
+        router,
+        commandService: commandService,
+        automaticBackup: backup,
+      ),
+    );
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await tester.tap(find.byKey(const Key('replay-finish-match')));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const Key('replay-finish-confirm')));
+    await _pumpUntil(tester, () => finishStarted);
+
+    router.go('/');
+    await tester.pump();
+    finishReleased.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+    await _pumpUntilFound(tester, find.byType(HomePage));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(find.byType(ReplayPage), findsNothing);
+    expect(
+      (await MatchRepository(
+        database,
+      ).getMatchDetail(matchId))!.match.lifecycle,
+      MatchLifecycle.finished,
+    );
+    await _pumpUntil(tester, () => backup.calls == 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'pending replay finish does not switch back after same-state match switch',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      const activeMatchId = 'task6-pending-finish-switch-active';
+      const finishedMatchId = 'task6-pending-finish-switch-finished';
+      await _seedFinishedMatch(database, finishedMatchId, redName: 'Bravo');
+      await _seedActiveMatch(database, activeMatchId, redName: 'Active');
+      final finishReleased = Completer<void>();
+      var finishStarted = false;
+      final commandService = MatchCommandService(
+        database,
+        failureInjector: (point) async {
+          if (point == MatchCommandFailurePoint.beforeCommit) {
+            finishStarted = true;
+            await finishReleased.future;
+          }
+        },
+      );
+      final backup = _RecordingAutomaticBackupService(database);
+      final router = buildProviderAppRouter();
+      addTearDown(router.dispose);
+      router.go('/matches/$activeMatchId/replay');
+      await tester.pumpWidget(
+        _routerHost(
+          database,
+          router,
+          commandService: commandService,
+          automaticBackup: backup,
+        ),
+      );
+      await _pumpUntilFound(tester, find.byType(ReplayPage));
+      await tester.tap(find.byKey(const Key('replay-finish-match')));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.tap(find.byKey(const Key('replay-finish-confirm')));
+      await _pumpUntil(tester, () => finishStarted);
+
+      router.go('/matches/$finishedMatchId/replay');
+      await tester.pump();
+      finishReleased.complete();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+      await _pumpUntilFound(tester, find.text('Bravo'));
+
+      expect(find.text('Bravo'), findsOneWidget);
+      expect(find.text('Active'), findsNothing);
+      expect(
+        (await MatchRepository(
+          database,
+        ).getMatchDetail(activeMatchId))!.match.lifecycle,
+        MatchLifecycle.finished,
+      );
+      await _pumpUntil(tester, () => backup.calls == 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('stale replay finish failure does not refresh after disposal', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-pending-finish-refresh-dispose';
+    await _seedActiveMatch(database, matchId);
+    final detail = await MatchRepository(database).getMatchDetail(matchId);
+    final repository = _CountingReplayRepository(database);
+    var finishStarted = false;
+    final finishReleased = Completer<void>();
+    final commandService = MatchCommandService(
+      database,
+      failureInjector: (point) async {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          finishStarted = true;
+          await finishReleased.future;
+          throw StateError('finish failed once');
+        }
+      },
+    );
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    router.go('/matches/$matchId/replay');
+    await tester.pumpWidget(
+      _routerHost(
+        database,
+        router,
+        repository: repository,
+        commandService: commandService,
+      ),
+    );
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await tester.tap(find.byKey(const Key('replay-finish-match')));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const Key('replay-finish-confirm')));
+    await _pumpUntil(tester, () => finishStarted);
+    await tester.pumpWidget(const SizedBox.shrink());
+    finishReleased.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+
+    expect(repository.requests, 1);
+    expect(tester.takeException(), isNull);
+    expect(detail, isNotNull);
+  });
+
   testWidgets('pending replay load is ignored after leaving the route', (
     tester,
   ) async {
@@ -739,6 +917,7 @@ Widget _routerHost(
   GoRouter router, {
   MatchRepository? repository,
   MatchCommandService? commandService,
+  AutomaticBackupService? automaticBackup,
 }) {
   return ProviderScope(
     overrides: [
@@ -747,6 +926,8 @@ Widget _routerHost(
         matchRepositoryProvider.overrideWithValue(repository),
       if (commandService != null)
         matchCommandServiceProvider.overrideWithValue(commandService),
+      if (automaticBackup != null)
+        automaticBackupServiceProvider.overrideWithValue(automaticBackup),
     ],
     child: MaterialApp.router(
       theme: buildHoopTraceTheme(),
@@ -800,6 +981,57 @@ class _PendingReplayRepository extends MatchRepository {
   }
 }
 
+class _CountingReplayRepository extends MatchRepository {
+  _CountingReplayRepository(super.database);
+
+  var requests = 0;
+
+  @override
+  Future<MatchDetail?> getMatchDetail(String matchId) {
+    requests++;
+    return super.getMatchDetail(matchId);
+  }
+}
+
+class _RecordingAutomaticBackupService extends AutomaticBackupService {
+  _RecordingAutomaticBackupService(AppDatabase database)
+    : super(database, JsonBackupCodec(database, appVersion: 'test'));
+
+  var calls = 0;
+
+  @override
+  Future<String?> runAfterMatchFinish() async {
+    calls++;
+    return null;
+  }
+}
+
+Future<void> _seedActiveMatch(
+  AppDatabase database,
+  String matchId, {
+  String redName = '红队',
+  String blueName = '蓝队',
+}) async {
+  final now = DateTime.utc(2026, 8, 23, 12);
+  await MatchCommandService(database).start(
+    StartMatchCommand(
+      commandId: '$matchId-start',
+      matchId: matchId,
+      redName: redName,
+      blueName: blueName,
+      ruleTemplate: const RuleTemplate(
+        id: 'free',
+        name: '自由计分',
+        scoreButtons: [1, 2, 3],
+      ),
+      recordingMode: RecordingMode.simple,
+      trackingCoverage: TrackingCoverage.scoresOnly,
+      createdAt: now,
+      startedAt: now,
+    ),
+  );
+}
+
 Future<void> _seedFinishedMatch(
   AppDatabase database,
   String matchId, {
@@ -842,6 +1074,14 @@ Future<void> _eventually(bool Function() predicate) async {
     await Future<void>.delayed(const Duration(milliseconds: 10));
   }
   fail('Timed out waiting for provider update.');
+}
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() predicate) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    await tester.pump(const Duration(milliseconds: 20));
+    if (predicate()) return;
+  }
+  fail('Timed out waiting for test state.');
 }
 
 Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {

@@ -16,6 +16,7 @@ import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
+import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/home/home_page.dart';
@@ -189,10 +190,8 @@ GoRouter buildProviderAppRouter() {
       ),
       GoRoute(
         path: '/matches/:matchId/replay',
-        builder: (context, state) => _ReplayRoute(
-          key: ValueKey('provider-replay-${state.pathParameters['matchId']}'),
-          matchId: state.pathParameters['matchId']!,
-        ),
+        builder: (context, state) =>
+            _ReplayRoute(matchId: state.pathParameters['matchId']!),
       ),
     ],
   );
@@ -586,7 +585,7 @@ class _SettingsRoute extends ConsumerWidget {
 }
 
 class _ReplayRoute extends ConsumerStatefulWidget {
-  const _ReplayRoute({required this.matchId, super.key});
+  const _ReplayRoute({required this.matchId});
 
   final String matchId;
 
@@ -626,6 +625,14 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
     return mounted &&
         generation == _requestGeneration &&
         widget.matchId == matchId;
+  }
+
+  bool _isReplayRouteCurrent(GoRouter router, int generation, String matchId) {
+    if (!_isCurrent(generation, matchId)) return false;
+    final modalRoute = ModalRoute.of(context);
+    return modalRoute?.isCurrent == true ||
+        router.routeInformationProvider.value.uri.path ==
+            '/matches/$matchId/replay';
   }
 
   Future<ReplayController?> _load(int generation, String matchId) async {
@@ -746,9 +753,9 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
     required int generation,
     required String matchId,
   }) async {
-    final refreshed = await ref
-        .read(matchRepositoryProvider)
-        .getMatchDetail(matchId);
+    if (!_isCurrent(generation, matchId)) return;
+    final repository = ref.read(matchRepositoryProvider);
+    final refreshed = await repository.getMatchDetail(matchId);
     if (!_isCurrent(generation, matchId)) return;
     final controller = _controller;
     if (refreshed != null && controller != null) {
@@ -835,18 +842,20 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
           onFinishMatch: active
               ? (redScore, blueScore) async {
                   final router = GoRouter.of(context);
+                  final commandService = ref.read(matchCommandServiceProvider);
+                  final automaticBackup = ref.read(
+                    automaticBackupServiceProvider,
+                  );
                   try {
-                    await ref
-                        .read(matchCommandServiceProvider)
-                        .finish(
-                          FinishMatchCommand(
-                            matchId: routeMatchId,
-                            endedAt: DateTime.now().toUtc(),
-                            confirmFinalScore: true,
-                            expectedRedScore: redScore,
-                            expectedBlueScore: blueScore,
-                          ),
-                        );
+                    await commandService.finish(
+                      FinishMatchCommand(
+                        matchId: routeMatchId,
+                        endedAt: DateTime.now().toUtc(),
+                        confirmFinalScore: true,
+                        expectedRedScore: redScore,
+                        expectedBlueScore: blueScore,
+                      ),
+                    );
                   } on Object {
                     await _refreshController(
                       generation: generation,
@@ -854,8 +863,15 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
                     );
                     rethrow;
                   }
+                  unawaited(_runAutomaticBackup(automaticBackup));
+                  if (!_isReplayRouteCurrent(
+                    router,
+                    generation,
+                    routeMatchId,
+                  )) {
+                    return;
+                  }
                   router.go('/matches/$routeMatchId/replay');
-                  unawaited(_runAutomaticBackup(ref));
                   await _refreshController(
                     generation: generation,
                     matchId: routeMatchId,
@@ -1027,24 +1043,24 @@ Future<void> _finishScoringDecision(
   int blueScore,
 ) async {
   final router = GoRouter.of(context);
-  await ref
-      .read(matchCommandServiceProvider)
-      .finish(
-        FinishMatchCommand(
-          matchId: matchId,
-          endedAt: DateTime.now().toUtc(),
-          confirmFinalScore: true,
-          expectedRedScore: redScore,
-          expectedBlueScore: blueScore,
-        ),
-      );
+  final commandService = ref.read(matchCommandServiceProvider);
+  final automaticBackup = ref.read(automaticBackupServiceProvider);
+  await commandService.finish(
+    FinishMatchCommand(
+      matchId: matchId,
+      endedAt: DateTime.now().toUtc(),
+      confirmFinalScore: true,
+      expectedRedScore: redScore,
+      expectedBlueScore: blueScore,
+    ),
+  );
   router.go('/matches/$matchId/replay');
-  unawaited(_runAutomaticBackup(ref));
+  unawaited(_runAutomaticBackup(automaticBackup));
 }
 
-Future<void> _runAutomaticBackup(WidgetRef ref) async {
+Future<void> _runAutomaticBackup(AutomaticBackupService service) async {
   try {
-    await ref.read(automaticBackupServiceProvider).runAfterMatchFinish();
+    await service.runAfterMatchFinish();
   } on Object {
     // Backup failure must not undo a committed match finish.
   }
