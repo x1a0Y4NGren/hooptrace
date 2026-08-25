@@ -168,6 +168,8 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
   const HoopTraceMotionTheme({
     required this.scoreFlight,
     required this.impact,
+    required this.acceleratedScoreFlight,
+    required this.acceleratedImpact,
     required this.press,
     required this.scoreTransition,
     required this.foulStamp,
@@ -178,6 +180,8 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     : this(
         scoreFlight: const Duration(milliseconds: 520),
         impact: const Duration(milliseconds: 240),
+        acceleratedScoreFlight: const Duration(milliseconds: 300),
+        acceleratedImpact: const Duration(milliseconds: 140),
         press: const Duration(milliseconds: 90),
         scoreTransition: const Duration(milliseconds: 180),
         foulStamp: const Duration(milliseconds: 240),
@@ -188,6 +192,8 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
 
   final Duration scoreFlight;
   final Duration impact;
+  final Duration acceleratedScoreFlight;
+  final Duration acceleratedImpact;
   final Duration press;
   final Duration scoreTransition;
   final Duration foulStamp;
@@ -197,6 +203,8 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
   HoopTraceMotionTheme copyWith({
     Duration? scoreFlight,
     Duration? impact,
+    Duration? acceleratedScoreFlight,
+    Duration? acceleratedImpact,
     Duration? press,
     Duration? scoreTransition,
     Duration? foulStamp,
@@ -205,6 +213,9 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     return HoopTraceMotionTheme(
       scoreFlight: scoreFlight ?? this.scoreFlight,
       impact: impact ?? this.impact,
+      acceleratedScoreFlight:
+          acceleratedScoreFlight ?? this.acceleratedScoreFlight,
+      acceleratedImpact: acceleratedImpact ?? this.acceleratedImpact,
       press: press ?? this.press,
       scoreTransition: scoreTransition ?? this.scoreTransition,
       foulStamp: foulStamp ?? this.foulStamp,
@@ -227,12 +238,41 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     return HoopTraceMotionTheme(
       scoreFlight: blend(scoreFlight, other.scoreFlight),
       impact: blend(impact, other.impact),
+      acceleratedScoreFlight: blend(
+        acceleratedScoreFlight,
+        other.acceleratedScoreFlight,
+      ),
+      acceleratedImpact: blend(acceleratedImpact, other.acceleratedImpact),
       press: blend(press, other.press),
       scoreTransition: blend(scoreTransition, other.scoreTransition),
       foulStamp: blend(foulStamp, other.foulStamp),
       undo: blend(undo, other.undo),
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is HoopTraceMotionTheme &&
+      other.scoreFlight == scoreFlight &&
+      other.impact == impact &&
+      other.acceleratedScoreFlight == acceleratedScoreFlight &&
+      other.acceleratedImpact == acceleratedImpact &&
+      other.press == press &&
+      other.scoreTransition == scoreTransition &&
+      other.foulStamp == foulStamp &&
+      other.undo == undo;
+
+  @override
+  int get hashCode => Object.hash(
+    scoreFlight,
+    impact,
+    acceleratedScoreFlight,
+    acceleratedImpact,
+    press,
+    scoreTransition,
+    foulStamp,
+    undo,
+  );
 }
 
 // Descriptive aliases keep the public token vocabulary discoverable while the
