@@ -199,7 +199,10 @@ class ReplayTimelineFilters extends StatelessWidget {
               selected:
                   eventFilter.sides.contains(TeamSide.red) &&
                   eventFilter.sides.length == 1,
-              selectedColor: HoopTraceColors.red.withValues(alpha: 0.18),
+              selectedColor: teamColorForScheme(
+                TeamSide.red,
+                Theme.of(context).colorScheme,
+              ).withValues(alpha: 0.18),
               onSelected: () => setSides(const {TeamSide.red}),
             ),
             _FilterChip(
@@ -207,7 +210,10 @@ class ReplayTimelineFilters extends StatelessWidget {
               selected:
                   eventFilter.sides.contains(TeamSide.blue) &&
                   eventFilter.sides.length == 1,
-              selectedColor: HoopTraceColors.blue.withValues(alpha: 0.18),
+              selectedColor: teamColorForScheme(
+                TeamSide.blue,
+                Theme.of(context).colorScheme,
+              ).withValues(alpha: 0.18),
               onSelected: () => setSides(const {TeamSide.blue}),
             ),
             _FilterChip(
@@ -303,11 +309,9 @@ class ReplayTimelineEvent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _localizations(context);
-    final sideColor = event.side == TeamSide.red
-        ? HoopTraceColors.red
-        : event.side == TeamSide.blue
-        ? HoopTraceColors.blue
-        : Theme.of(context).colorScheme.onSurface;
+    final sideColor = event.side == null
+        ? Theme.of(context).colorScheme.onSurface
+        : teamColorForScheme(event.side!, Theme.of(context).colorScheme);
     final sideName = event.side == TeamSide.red
         ? data.redName
         : event.side == TeamSide.blue
@@ -365,6 +369,7 @@ class ReplayTimelineEvent extends StatelessWidget {
                       Text(
                         '$sideName · $action',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: sideColor,
                           fontWeight: FontWeight.w700,
                         ),
                       ),

@@ -549,7 +549,10 @@ class _ReplayExportSummary extends StatelessWidget {
                 child: _ExportTeamScore(
                   name: data.blueName,
                   score: data.blueScore,
-                  color: HoopTraceColors.blue,
+                  color: teamColorForScheme(
+                    TeamSide.blue,
+                    Theme.of(context).colorScheme,
+                  ),
                   alignment: CrossAxisAlignment.start,
                 ),
               ),
@@ -564,7 +567,10 @@ class _ReplayExportSummary extends StatelessWidget {
                 child: _ExportTeamScore(
                   name: data.redName,
                   score: data.redScore,
-                  color: HoopTraceColors.red,
+                  color: teamColorForScheme(
+                    TeamSide.red,
+                    Theme.of(context).colorScheme,
+                  ),
                   alignment: CrossAxisAlignment.end,
                 ),
               ),
@@ -748,7 +754,10 @@ class _ScoreHeader extends StatelessWidget {
             child: _TeamScore(
               name: data.blueName,
               score: data.blueScore,
-              color: HoopTraceColors.blue,
+              color: teamColorForScheme(
+                TeamSide.blue,
+                Theme.of(context).colorScheme,
+              ),
               alignment: CrossAxisAlignment.start,
             ),
           ),
@@ -767,7 +776,10 @@ class _ScoreHeader extends StatelessWidget {
             child: _TeamScore(
               name: data.redName,
               score: data.redScore,
-              color: HoopTraceColors.red,
+              color: teamColorForScheme(
+                TeamSide.red,
+                Theme.of(context).colorScheme,
+              ),
               alignment: CrossAxisAlignment.end,
             ),
           ),
@@ -1095,9 +1107,10 @@ class _PossessionSegmentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    final sideColor = data.side == TeamSide.red
-        ? HoopTraceColors.red
-        : HoopTraceColors.blue;
+    final sideColor = teamColorForScheme(
+      data.side,
+      Theme.of(context).colorScheme,
+    );
     final sideName = data.side == TeamSide.red ? redName : blueName;
     final sourceLabel = data.source == PossessionSource.manual
         ? l10n.replayPossessionManual
