@@ -72,6 +72,24 @@ void main() {
   );
 
   test(
+    'motion preference delegates to feedback service and persists',
+    () async {
+      await controller.load();
+
+      expect(
+        await controller.setMotionPreference(MotionPreference.reduced),
+        isTrue,
+      );
+      expect(controller.feedbackState.motion, MotionPreference.reduced);
+      expect((await feedback.load()).motion, MotionPreference.reduced);
+      expect(
+        (await ScoringFeedbackPreferencesRepository(database).load()).motion,
+        MotionPreference.reduced,
+      );
+    },
+  );
+
+  test(
     'enabling prompts for and stores a directory before first backup',
     () async {
       gateway.pickedDirectory = const BackupDirectorySelection(

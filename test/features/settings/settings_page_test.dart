@@ -17,7 +17,7 @@ void main() {
   testWidgets('settings exposes usable local export and backup controls', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = createTestDatabase();
     final gateway = _Gateway();
@@ -47,6 +47,11 @@ void main() {
       MaterialApp(home: SettingsPage(controller: controller)),
     );
     await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('scoring-feedback-haptic-switch')),
+      240,
+    );
 
     expect(
       tester
@@ -110,11 +115,80 @@ void main() {
     await tester.tap(find.byKey(const Key('automatic-backup-switch')));
     await tester.pumpAndSettle();
     expect(storage.writeCount, 1);
-    expect(find.text('已开启'), findsOneWidget);
+    expect(find.text('已开启'), findsWidgets);
   });
 
+  testWidgets(
+    'settings exposes localized motion preference and settings-only preview',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+      final automaticBackup = AutomaticBackupService(
+        database,
+        codec,
+        storage: _Storage(),
+      );
+      final feedback = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+      );
+      final controller = SettingsController(
+        exports: ExportCoordinator(
+          database,
+          codec,
+          gateway: _Gateway(),
+          automaticBackup: automaticBackup,
+        ),
+        automaticBackup: automaticBackup,
+        feedback: feedback,
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsPage(controller: controller),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const Key('motion-preference-dropdown')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('motion-preview')), findsOneWidget);
+      expect(
+        find.text(
+          'Reduced motion shortens transitions and removes decorative movement.',
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const Key('motion-preference-dropdown')));
+      await tester.pumpAndSettle();
+      expect(find.text('Reduced motion'), findsWidgets);
+      await tester.tap(find.text('Reduced motion').last);
+      await tester.pumpAndSettle();
+
+      expect((await feedback.load()).motion, MotionPreference.reduced);
+      expect(find.text('Preview: reduced motion'), findsOneWidget);
+    },
+  );
+
   testWidgets('passes the active app locale to backup pickers', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1000));
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final database = createTestDatabase();
     addTearDown(() async {
@@ -158,9 +232,13 @@ void main() {
     await tester.pumpWidget(app(const Locale('en')));
     await tester.pumpAndSettle();
     final restoreTile = find.text('Restore from backup');
-    await tester.scrollUntilVisible(restoreTile, 200);
-    await tester.ensureVisible(restoreTile);
-    await tester.tap(restoreTile);
+    await tester.scrollUntilVisible(restoreTile, -200);
+    final restoreListTile = find.ancestor(
+      of: restoreTile,
+      matching: find.byType(ListTile),
+    );
+    await tester.ensureVisible(restoreListTile);
+    await tester.tap(restoreListTile);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('backup-mode-merge')));
     await tester.pumpAndSettle();

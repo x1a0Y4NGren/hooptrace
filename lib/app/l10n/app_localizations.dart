@@ -1680,6 +1680,12 @@ abstract class AppLocalizations {
   /// **'外观'**
   String get settingsAppearanceSection;
 
+  /// No description provided for @settingsLanguageSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'语言'**
+  String get settingsLanguageSection;
+
   /// No description provided for @settingsLanguageTitle.
   ///
   /// In zh, this message translates to:
@@ -1733,6 +1739,60 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'深色'**
   String get settingsThemeDark;
+
+  /// No description provided for @settingsMotionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'动效'**
+  String get settingsMotionTitle;
+
+  /// No description provided for @settingsMotionSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择界面动效程度'**
+  String get settingsMotionSubtitle;
+
+  /// No description provided for @settingsMotionStandard.
+  ///
+  /// In zh, this message translates to:
+  /// **'标准动效'**
+  String get settingsMotionStandard;
+
+  /// No description provided for @settingsMotionReduced.
+  ///
+  /// In zh, this message translates to:
+  /// **'减少动效'**
+  String get settingsMotionReduced;
+
+  /// No description provided for @settingsMotionHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'减少动效会缩短过渡并移除装饰性动画。'**
+  String get settingsMotionHelp;
+
+  /// No description provided for @settingsMotionPreview.
+  ///
+  /// In zh, this message translates to:
+  /// **'动效预览'**
+  String get settingsMotionPreview;
+
+  /// No description provided for @settingsMotionPreviewStandard.
+  ///
+  /// In zh, this message translates to:
+  /// **'预览：标准动效'**
+  String get settingsMotionPreviewStandard;
+
+  /// No description provided for @settingsMotionPreviewReduced.
+  ///
+  /// In zh, this message translates to:
+  /// **'预览：减少动效'**
+  String get settingsMotionPreviewReduced;
+
+  /// No description provided for @settingsDataSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据管理'**
+  String get settingsDataSection;
 
   /// No description provided for @settingsStatisticsSection.
   ///

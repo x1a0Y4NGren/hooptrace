@@ -845,6 +845,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppearanceSection => 'Appearance';
 
   @override
+  String get settingsLanguageSection => 'Language';
+
+  @override
   String get settingsLanguageTitle => 'Language';
 
   @override
@@ -870,6 +873,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsThemeDark => 'Dark';
+
+  @override
+  String get settingsMotionTitle => 'Motion';
+
+  @override
+  String get settingsMotionSubtitle =>
+      'Choose how much interface motion is used';
+
+  @override
+  String get settingsMotionStandard => 'Standard motion';
+
+  @override
+  String get settingsMotionReduced => 'Reduced motion';
+
+  @override
+  String get settingsMotionHelp =>
+      'Reduced motion shortens transitions and removes decorative movement.';
+
+  @override
+  String get settingsMotionPreview => 'Motion preview';
+
+  @override
+  String get settingsMotionPreviewStandard => 'Preview: standard motion';
+
+  @override
+  String get settingsMotionPreviewReduced => 'Preview: reduced motion';
+
+  @override
+  String get settingsDataSection => 'Data management';
 
   @override
   String get settingsStatisticsSection => 'Statistics';

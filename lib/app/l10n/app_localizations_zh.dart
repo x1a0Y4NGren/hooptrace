@@ -829,6 +829,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAppearanceSection => '外观';
 
   @override
+  String get settingsLanguageSection => '语言';
+
+  @override
   String get settingsLanguageTitle => '语言';
 
   @override
@@ -854,6 +857,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsThemeDark => '深色';
+
+  @override
+  String get settingsMotionTitle => '动效';
+
+  @override
+  String get settingsMotionSubtitle => '选择界面动效程度';
+
+  @override
+  String get settingsMotionStandard => '标准动效';
+
+  @override
+  String get settingsMotionReduced => '减少动效';
+
+  @override
+  String get settingsMotionHelp => '减少动效会缩短过渡并移除装饰性动画。';
+
+  @override
+  String get settingsMotionPreview => '动效预览';
+
+  @override
+  String get settingsMotionPreviewStandard => '预览：标准动效';
+
+  @override
+  String get settingsMotionPreviewReduced => '预览：减少动效';
+
+  @override
+  String get settingsDataSection => '数据管理';
 
   @override
   String get settingsStatisticsSection => '统计';
