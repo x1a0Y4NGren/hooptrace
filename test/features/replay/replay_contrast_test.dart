@@ -38,17 +38,9 @@ void main() {
                 widget.style?.fontWeight == FontWeight.w800,
           ),
         );
-        final timelineEvent = tester.widget<Text>(
-          find.text('Red · +2 分'),
-        );
-        final blueColor = teamColorForScheme(
-          TeamSide.blue,
-          theme.colorScheme,
-        );
-        final redColor = teamColorForScheme(
-          TeamSide.red,
-          theme.colorScheme,
-        );
+        final timelineEvent = tester.widget<Text>(find.text('Red · +2 分'));
+        final blueColor = teamColorForScheme(TeamSide.blue, theme.colorScheme);
+        final redColor = teamColorForScheme(TeamSide.red, theme.colorScheme);
 
         expect(blueName.style?.color, blueColor);
         expect(redName.style?.color, redColor);
