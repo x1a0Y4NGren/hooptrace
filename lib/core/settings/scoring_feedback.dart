@@ -11,21 +11,36 @@ import 'package:hooptrace/core/data/app_database.dart';
 const scoringFeedbackPreferencesKey = 'scoring.feedback.v1';
 const _scoringFeedbackPreferencesVersion = 1;
 
-class ScoringFeedbackPreferences {
-  const ScoringFeedbackPreferences({required this.haptic, required this.sound});
+enum MotionPreference { standard, reduced }
 
-  const ScoringFeedbackPreferences.defaults() : haptic = true, sound = false;
+class ScoringFeedbackPreferences {
+  const ScoringFeedbackPreferences({
+    required this.haptic,
+    required this.sound,
+    this.motion = MotionPreference.standard,
+  });
+
+  const ScoringFeedbackPreferences.defaults()
+    : haptic = true,
+      sound = false,
+      motion = MotionPreference.standard;
 
   final bool haptic;
   final bool sound;
+  final MotionPreference motion;
 
   bool get hapticEnabled => haptic;
   bool get soundEnabled => sound;
 
-  ScoringFeedbackPreferences copyWith({bool? haptic, bool? sound}) {
+  ScoringFeedbackPreferences copyWith({
+    bool? haptic,
+    bool? sound,
+    MotionPreference? motion,
+  }) {
     return ScoringFeedbackPreferences(
       haptic: haptic ?? this.haptic,
       sound: sound ?? this.sound,
+      motion: motion ?? this.motion,
     );
   }
 
@@ -33,17 +48,19 @@ class ScoringFeedbackPreferences {
     'version': _scoringFeedbackPreferencesVersion,
     'haptic': haptic,
     'sound': sound,
+    'motion': motion.name,
   };
 
   @override
   bool operator ==(Object other) {
     return other is ScoringFeedbackPreferences &&
         other.haptic == haptic &&
-        other.sound == sound;
+        other.sound == sound &&
+        other.motion == motion;
   }
 
   @override
-  int get hashCode => Object.hash(haptic, sound);
+  int get hashCode => Object.hash(haptic, sound, motion);
 }
 
 /// Persists and caches the settings used by scoring feedback.
@@ -93,11 +110,19 @@ class ScoringFeedbackPreferencesRepository {
     return future;
   }
 
-  Future<ScoringFeedbackPreferences> update({bool? haptic, bool? sound}) {
+  Future<ScoringFeedbackPreferences> update({
+    bool? haptic,
+    bool? sound,
+    MotionPreference? motion,
+  }) {
     late final Future<ScoringFeedbackPreferences> operation;
     operation = _writes.then((_) async {
       final current = await load();
-      final next = current.copyWith(haptic: haptic, sound: sound);
+      final next = current.copyWith(
+        haptic: haptic,
+        sound: sound,
+        motion: motion,
+      );
       await database
           .into(database.appSettings)
           .insertOnConflictUpdate(
@@ -140,6 +165,11 @@ class ScoringFeedbackPreferencesRepository {
         return const ScoringFeedbackPreferences.defaults();
       }
       final defaults = const ScoringFeedbackPreferences.defaults();
+      final motion = switch (decoded['motion']) {
+        'reduced' => MotionPreference.reduced,
+        'standard' => MotionPreference.standard,
+        _ => defaults.motion,
+      };
       return ScoringFeedbackPreferences(
         haptic: decoded['haptic'] is bool
             ? decoded['haptic'] as bool
@@ -147,6 +177,7 @@ class ScoringFeedbackPreferencesRepository {
         sound: decoded['sound'] is bool
             ? decoded['sound'] as bool
             : defaults.sound,
+        motion: motion,
       );
     } on Object {
       return const ScoringFeedbackPreferences.defaults();
@@ -190,8 +221,18 @@ class ScoringFeedbackService {
     return preferences.update(sound: enabled);
   }
 
-  Future<ScoringFeedbackPreferences> update({bool? haptic, bool? sound}) {
-    return preferences.update(haptic: haptic, sound: sound);
+  Future<ScoringFeedbackPreferences> setMotionPreference(
+    MotionPreference preference,
+  ) {
+    return preferences.update(motion: preference);
+  }
+
+  Future<ScoringFeedbackPreferences> update({
+    bool? haptic,
+    bool? sound,
+    MotionPreference? motion,
+  }) {
+    return preferences.update(haptic: haptic, sound: sound, motion: motion);
   }
 
   Future<ScoringFeedbackPreferences> reload() {

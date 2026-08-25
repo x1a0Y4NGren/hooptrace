@@ -30,6 +30,95 @@ void main() {
     expect(controller.state.locationSupplementWindow?.openedAtUtc, now);
   });
 
+  test(
+    'local court-first receipt reports the committed event and location',
+    () async {
+      final controller = ScoringController(
+        matchId: 'receipt-local-court',
+        nowUtc: () => DateTime.utc(2026, 8, 25, 12),
+      );
+      final point = CourtPoint(x: 0.2, y: 0.8);
+      expect(
+        controller.beginOrMoveCourtFirstShot(point, side: TeamSide.red),
+        isTrue,
+      );
+      controller.updateCourtFirstShot(points: 2);
+
+      final receipt = await controller.commitCourtFirstShotWithReceipt();
+
+      expect(receipt, isNotNull);
+      expect(receipt!.source, ShotLocationCommitSource.courtFirst);
+      expect(receipt.eventId, controller.state.events.single.id);
+      expect(
+        receipt.actualShotLocationId,
+        controller.state.shotLocations.single.id,
+      );
+      expect(receipt.side, TeamSide.red);
+      expect(receipt.points, 2);
+      expect(receipt.point.x, point.x);
+      expect(receipt.point.y, point.y);
+    },
+  );
+
+  test(
+    'command-backed supplement receipt uses the confirmed projection location id',
+    () async {
+      await withTestDatabase((database) async {
+        final now = DateTime.utc(2026, 8, 25, 12);
+        final service = MatchCommandService(database, now: () => now);
+        final started = await service.start(
+          _startCommand(matchId: 'receipt-supplement'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.blue, points: 3),
+          isTrue,
+        );
+        final eventId = controller.state.events.single.id;
+        final command = ConfirmShotLocationCommand(
+          commandId: 'receipt-existing-location',
+          matchId: started.match.id,
+          eventId: eventId,
+          point: CourtPoint(x: 0.1, y: 0.1),
+          requestedAtUtc: now,
+          shotLocationId: 'receipt-existing-location-shot',
+        );
+        // Seed an unconfirmed row through the real command kernel's undo path.
+        final firstProjection = await service.confirmShotLocation(command);
+        expect(firstProjection.shotLocations.single.isConfirmed, isTrue);
+        final undone = await service.undoLastScoringAction(
+          UndoLastScoringActionCommand(
+            commandId: 'receipt-existing-location-undo',
+            matchId: started.match.id,
+          ),
+        );
+        final durableLocation = await (database.select(
+          database.shotLocations,
+        )..where((row) => row.eventId.equals(eventId))).getSingle();
+        expect(durableLocation.id, 'receipt-existing-location-shot');
+        expect(durableLocation.isConfirmed, isFalse);
+        controller.replaceCommittedProjection(undone);
+        final receipt = await controller.attachSupplementLocationWithReceipt(
+          CourtPoint(x: 0.9, y: 0.7),
+          requestedAtUtc: now,
+        );
+
+        expect(receipt, isNotNull);
+        expect(receipt!.source, ShotLocationCommitSource.supplement);
+        expect(receipt.eventId, eventId);
+        expect(receipt.actualShotLocationId, 'receipt-existing-location-shot');
+        expect(receipt.side, TeamSide.blue);
+        expect(receipt.points, 3);
+        expect(receipt.point.x, 0.9);
+        expect(receipt.point.y, 0.7);
+      });
+    },
+  );
+
   test('local score-first accepts foul and next score replaces the window', () {
     final now = DateTime.utc(2026, 8, 25, 12);
     final controller = ScoringController(matchId: 'match-1', nowUtc: () => now);
@@ -762,6 +851,25 @@ void main() {
         );
       });
     },
+  );
+}
+
+StartMatchCommand _startCommand({required String matchId}) {
+  return StartMatchCommand(
+    commandId: '$matchId-start',
+    matchId: matchId,
+    redName: 'Red',
+    blueName: 'Blue',
+    ruleTemplate: const RuleTemplate(
+      id: 'free',
+      name: 'Free',
+      scoreButtons: [1, 2, 3],
+    ),
+    recordingMode: RecordingMode.simple,
+    trackingCoverage: TrackingCoverage.scoresOnly,
+    timerEnabled: false,
+    createdAt: DateTime.utc(2026, 8, 25, 12),
+    startedAt: DateTime.utc(2026, 8, 25, 12),
   );
 }
 

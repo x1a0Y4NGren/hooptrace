@@ -16,6 +16,30 @@ import 'package:hooptrace/features/pregame/pregame_controller.dart';
 
 DateTime _defaultScoringControllerNowUtc() => DateTime.now().toUtc();
 
+enum ShotLocationCommitSource { courtFirst, supplement }
+
+/// Identifies the durable event and location rows created or confirmed by a
+/// scoring surface action.
+class ShotLocationCommitReceipt {
+  const ShotLocationCommitReceipt({
+    required this.eventId,
+    required this.shotLocationId,
+    required this.side,
+    required this.points,
+    required this.point,
+    required this.source,
+  });
+
+  final String eventId;
+  final String shotLocationId;
+  final TeamSide side;
+  final int points;
+  final CourtPoint point;
+  final ShotLocationCommitSource source;
+
+  String get actualShotLocationId => shotLocationId;
+}
+
 class PendingShotLocation {
   const PendingShotLocation({
     required this.eventId,
@@ -825,19 +849,32 @@ class ScoringController extends ChangeNotifier {
     DateTime? requestedAtUtc,
     String? eventId,
   }) async {
-    if (_disposed || _exclusiveBusy) return false;
+    return (await attachSupplementLocationWithReceipt(
+          point,
+          requestedAtUtc: requestedAtUtc,
+          eventId: eventId,
+        )) !=
+        null;
+  }
+
+  Future<ShotLocationCommitReceipt?> attachSupplementLocationWithReceipt(
+    CourtPoint point, {
+    DateTime? requestedAtUtc,
+    String? eventId,
+  }) async {
+    if (_disposed || _exclusiveBusy) return null;
     final requested = (requestedAtUtc ?? _nowUtc()).toUtc();
     final window = _state.locationSupplementWindow;
     if (window == null ||
         (eventId != null && eventId != window.eventId) ||
         !window.contains(requested)) {
-      return false;
+      return null;
     }
     final service = _commandService;
     final event = _state.events
         .where((item) => item.id == window.eventId && !item.isDeleted)
         .firstOrNull;
-    if (event == null) return false;
+    if (event == null) return null;
     if (service == null) {
       final marker = ScoringShotLocation(
         id: '${_state.matchId}-shot-${_state.shotLocations.length + 1}',
@@ -853,20 +890,32 @@ class ScoringController extends ChangeNotifier {
         clearPendingLocation: true,
       );
       notifyListeners();
-      return true;
+      return ShotLocationCommitReceipt(
+        eventId: event.id,
+        shotLocationId: marker.id,
+        side: marker.side,
+        points: marker.points,
+        point: marker.point,
+        source: ShotLocationCommitSource.supplement,
+      );
     }
-    if (_drainingQueue || _commandQueue.isNotEmpty) return false;
+    if (_drainingQueue || _commandQueue.isNotEmpty) return null;
     final command = ConfirmShotLocationCommand(
       matchId: _state.matchId,
       eventId: event.id,
       point: point,
       requestedAtUtc: requested,
     );
-    final accepted = await _runExclusive(
+    final projection = await _runExclusiveProjection(
       command,
       () => service.confirmShotLocation(command),
     );
-    return accepted;
+    if (projection == null) return null;
+    return _receiptFromProjection(
+      projection,
+      eventId: command.eventId,
+      source: ShotLocationCommitSource.supplement,
+    );
   }
 
   /// Starts a detailed-mode local draft. The current possession is used as
@@ -927,33 +976,39 @@ class ScoringController extends ChangeNotifier {
   );
 
   Future<bool> commitDetailedShot() async {
-    if (_disposed) return false;
+    return (await commitDetailedShotWithReceipt()) != null;
+  }
+
+  Future<ShotLocationCommitReceipt?> commitDetailedShotWithReceipt() async {
+    if (_disposed) return null;
     final draft = _state.detailedShotDraft;
-    if (draft == null || draft.side == null) return false;
-    if (draft.outcome == ShotOutcome.notApplicable) return false;
+    if (draft == null || draft.side == null) return null;
+    if (draft.outcome == ShotOutcome.notApplicable) return null;
     if (_commandService == null) {
-      final accepted = _recordLocalCommand(
-        RecordMatchEventCommand(
-          matchId: _state.matchId,
-          type: EventKind.fieldGoal,
-          side: draft.side,
-          points: draft.outcome == ShotOutcome.missed ? 0 : draft.points,
-          outcome: draft.outcome,
-          occurredAt: _nowUtc().toUtc(),
-          shotLocation: MatchShotLocationInput(
-            x: draft.point.x,
-            y: draft.point.y,
-          ),
+      final command = RecordMatchEventCommand(
+        matchId: _state.matchId,
+        type: EventKind.fieldGoal,
+        side: draft.side,
+        points: draft.outcome == ShotOutcome.missed ? 0 : draft.points,
+        outcome: draft.outcome,
+        occurredAt: _nowUtc().toUtc(),
+        shotLocation: MatchShotLocationInput(
+          x: draft.point.x,
+          y: draft.point.y,
         ),
       );
-      if (accepted) {
+      if (_recordLocalCommand(command)) {
         _state = _state.copyWith(clearDetailedShotDraft: true);
         notifyListeners();
+        return _receiptFromLocalState(
+          eventId: command.eventId,
+          source: ShotLocationCommitSource.courtFirst,
+        );
       }
-      return accepted;
+      return null;
     }
     if (_exclusiveBusy || _drainingQueue || _commandQueue.isNotEmpty) {
-      return false;
+      return null;
     }
     final command = RecordMatchEventCommand(
       matchId: _state.matchId,
@@ -964,18 +1019,29 @@ class ScoringController extends ChangeNotifier {
       occurredAt: _nowUtc().toUtc(),
       shotLocation: MatchShotLocationInput(x: draft.point.x, y: draft.point.y),
     );
-    final accepted = await _runExclusive(
+    final projection = await _runExclusiveProjection(
       command,
       () => _commandService.record(command),
     );
-    if (accepted && !_disposed) {
+    if (projection != null && !_disposed) {
       _state = _state.copyWith(clearDetailedShotDraft: true);
       notifyListeners();
+      return _receiptFromProjection(
+        projection,
+        eventId: command.eventId,
+        source: ShotLocationCommitSource.courtFirst,
+      );
     }
-    return accepted;
+    return null;
   }
 
-  Future<bool> commitCourtFirstShot() => commitDetailedShot();
+  Future<ShotLocationCommitReceipt?> commitCourtFirstShotWithReceipt() {
+    return commitDetailedShotWithReceipt();
+  }
+
+  Future<bool> commitCourtFirstShot() async {
+    return (await commitCourtFirstShotWithReceipt()) != null;
+  }
 
   bool cancelDetailedShot() {
     if (_disposed || _exclusiveBusy || _state.detailedShotDraft == null) {
@@ -1334,22 +1400,76 @@ class ScoringController extends ChangeNotifier {
     MatchCommand command,
     Future<MatchDetail> Function() operation,
   ) async {
+    return (await _runExclusiveProjection(command, operation)) != null;
+  }
+
+  Future<MatchDetail?> _runExclusiveProjection(
+    MatchCommand command,
+    Future<MatchDetail> Function() operation,
+  ) async {
     if (_disposed ||
         _exclusiveBusy ||
         _drainingQueue ||
         _commandQueue.isNotEmpty) {
-      return false;
+      return null;
     }
     _exclusiveBusy = true;
     try {
       final projection = await operation();
-      if (_disposed) return false;
+      if (_disposed) return null;
       _replaceFromProjection(projection);
       notifyListeners();
-      return true;
+      return projection;
     } finally {
       _exclusiveBusy = false;
     }
+  }
+
+  ShotLocationCommitReceipt? _receiptFromProjection(
+    MatchDetail projection, {
+    required String eventId,
+    required ShotLocationCommitSource source,
+  }) {
+    final event = projection.events
+        .where((candidate) => candidate.id == eventId && !candidate.isDeleted)
+        .firstOrNull;
+    final location = projection.shotLocations
+        .where(
+          (candidate) => candidate.eventId == eventId && candidate.isConfirmed,
+        )
+        .firstOrNull;
+    if (event?.side == null || location == null) return null;
+    return ShotLocationCommitReceipt(
+      eventId: eventId,
+      shotLocationId: location.id,
+      side: event!.side!,
+      points: event.points,
+      point: location.point,
+      source: source,
+    );
+  }
+
+  ShotLocationCommitReceipt? _receiptFromLocalState({
+    required String eventId,
+    required ShotLocationCommitSource source,
+  }) {
+    final event = _state.events
+        .where((candidate) => candidate.id == eventId && !candidate.isDeleted)
+        .firstOrNull;
+    final location = _state.shotLocations
+        .where(
+          (candidate) => candidate.eventId == eventId && candidate.isLocked,
+        )
+        .firstOrNull;
+    if (event?.side == null || location == null) return null;
+    return ShotLocationCommitReceipt(
+      eventId: eventId,
+      shotLocationId: location.id,
+      side: event!.side!,
+      points: event.points,
+      point: location.point,
+      source: source,
+    );
   }
 
   bool _recordLocalCommand(RecordMatchEventCommand command) {

@@ -18,6 +18,80 @@ void main() {
     );
   });
 
+  test(
+    'legacy payloads default motion to standard and unknown motion is safe',
+    () async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final now = DateTime.utc(2026, 8, 25);
+      await database
+          .into(database.appSettings)
+          .insert(
+            AppSetting(
+              key: scoringFeedbackPreferencesKey,
+              valueJson: jsonEncode({
+                'version': 1,
+                'haptic': false,
+                'sound': true,
+              }),
+              updatedAt: now,
+            ),
+          );
+      expect(
+        (await ScoringFeedbackPreferencesRepository(database).load()).motion,
+        MotionPreference.standard,
+      );
+
+      await database
+          .into(database.appSettings)
+          .insertOnConflictUpdate(
+            AppSetting(
+              key: scoringFeedbackPreferencesKey,
+              valueJson: jsonEncode({
+                'version': 1,
+                'haptic': false,
+                'sound': true,
+                'motion': 'future-mode',
+              }),
+              updatedAt: now,
+            ),
+          );
+      expect(
+        (await ScoringFeedbackPreferencesRepository(database).load()).motion,
+        MotionPreference.standard,
+      );
+    },
+  );
+
+  test(
+    'motion preference round trips with stable JSON field ordering',
+    () async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final repository = ScoringFeedbackPreferencesRepository(database);
+
+      final saved = await repository.update(
+        haptic: false,
+        sound: true,
+        motion: MotionPreference.reduced,
+      );
+      expect(saved.motion, MotionPreference.reduced);
+      final row =
+          await (database.select(database.appSettings)..where(
+                (setting) => setting.key.equals(scoringFeedbackPreferencesKey),
+              ))
+              .getSingle();
+      expect(
+        row.valueJson,
+        '{"version":1,"haptic":false,"sound":true,"motion":"reduced"}',
+      );
+      expect(
+        await ScoringFeedbackPreferencesRepository(database).load(),
+        saved,
+      );
+    },
+  );
+
   test('malformed and unknown preference payloads fall back safely', () async {
     final database = createTestDatabase();
     addTearDown(database.close);
