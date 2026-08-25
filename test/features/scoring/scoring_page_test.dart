@@ -39,6 +39,8 @@ class _GatedSupplementController extends ScoringController {
 class _FailingScoreController extends ScoringController {
   _FailingScoreController(String matchId) : super(matchId: matchId);
 
+  var retryWithReceiptCalls = 0;
+
   late final MatchCommandFailure failure = MatchCommandFailure(
     command: RecordMatchEventCommand(
       matchId: state.matchId,
@@ -56,17 +58,41 @@ class _FailingScoreController extends ScoringController {
     required int points,
     DateTime? occurredAt,
   }) => Future<bool>.error(failure);
+
+  @override
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return const ScoringCommandRetryResult(accepted: true);
+  }
 }
 
 class _RetryTrackingController extends ScoringController {
   _RetryTrackingController(String matchId) : super(matchId: matchId);
 
-  var retryCalls = 0;
+  var retryWithReceiptCalls = 0;
 
   @override
-  Future<bool> retryCommand(MatchCommandFailure failure) async {
-    retryCalls++;
-    return true;
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return const ScoringCommandRetryResult(accepted: true);
+  }
+}
+
+class _GatedRetryController extends _FailingScoreController {
+  _GatedRetryController(super.matchId, this.retryResult);
+
+  final Future<ScoringCommandRetryResult> retryResult;
+
+  @override
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return retryResult;
   }
 }
 
@@ -483,9 +509,92 @@ void main() {
     retry.onPressed();
     await tester.pump();
 
-    expect(replacement.retryCalls, 0);
+    expect(oldController.retryWithReceiptCalls, 0);
+    expect(replacement.retryWithReceiptCalls, 0);
     expect(replacement.state.events, isEmpty);
   });
+
+  testWidgets(
+    'successful retry action is consumed while an in-flight duplicate is ignored',
+    (tester) async {
+      final retryResult = Completer<ScoringCommandRetryResult>();
+      final controller = _GatedRetryController(
+        'in-flight-retry',
+        retryResult.future,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+      await tester.tap(find.byKey(const Key('red-score-1')));
+      await tester.pump();
+      expect(find.byType(SnackBarAction), findsOneWidget);
+
+      final retryAction = tester.widget<SnackBarAction>(
+        find.byType(SnackBarAction),
+      );
+      retryAction.onPressed();
+      retryAction.onPressed();
+      expect(controller.retryWithReceiptCalls, 1);
+
+      retryResult.complete(const ScoringCommandRetryResult(accepted: true));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+
+      expect(controller.retryWithReceiptCalls, 1);
+      expect(find.byType(SnackBarAction), findsNothing);
+      retryAction.onPressed();
+      await tester.pump();
+      expect(controller.retryWithReceiptCalls, 1);
+    },
+  );
+
+  testWidgets('failed retry keeps a retry action available', (tester) async {
+    final retryResult = Completer<ScoringCommandRetryResult>();
+    final retryFailure = MatchCommandFailure(
+      command: RecordMatchEventCommand(
+        matchId: 'failed-retry',
+        side: TeamSide.red,
+        points: 1,
+        occurredAt: DateTime.utc(2026, 8, 25, 12),
+      ),
+      message: 'retry failed once',
+      canRetry: true,
+    );
+    final controller = _GatedRetryController(
+      'failed-retry',
+      retryResult.future,
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+    await tester.tap(find.byKey(const Key('red-score-1')));
+    await tester.pump();
+    final firstRetry = tester.widget<SnackBarAction>(
+      find.byType(SnackBarAction),
+    );
+    firstRetry.onPressed();
+    retryResult.completeError(retryFailure);
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+
+    expect(controller.retryWithReceiptCalls, 1);
+    expect(find.byType(SnackBarAction), findsOneWidget);
+    tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+    expect(controller.retryWithReceiptCalls, 2);
+    expect(find.byType(SnackBarAction), findsOneWidget);
+  });
+
   testWidgets('unified scoring keeps secondary actions behind More', (
     tester,
   ) async {
@@ -981,7 +1090,10 @@ void main() {
             .pendingCount,
         0,
       );
-      tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+      final retryAction = tester.widget<SnackBarAction>(
+        find.byType(SnackBarAction),
+      );
+      retryAction.onPressed();
       await tester.pump();
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 30)),
@@ -998,17 +1110,58 @@ void main() {
         tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
         hasLength(1),
       );
-      tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+
+      expect(find.byType(SnackBarAction), findsNothing);
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(overlay.coordinator.pendingCount, 0);
+
+      await tester.tap(find.byKey(const Key('scoring-undo')));
       await tester.pump();
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 30)),
       );
       await tester.pump();
-      expect(overlay.coordinator.pendingCount, 1);
+      await tester.tap(find.byKey(const Key('scoring-undo')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+
+      final eventRows = await database.select(database.matchEvents).get();
+      final locationRows = await database.select(database.shotLocations).get();
+      expect(eventRows, hasLength(1));
+      expect(eventRows.single.isDeleted, isTrue);
+      expect(locationRows, hasLength(1));
+      expect(locationRows.single.isConfirmed, isFalse);
+      expect(controller.state.score.blueScore, 0);
+      expect(
+        controller.state.events.where((event) => !event.isDeleted),
+        isEmpty,
+      );
+
+      retryAction.onPressed();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+      expect(overlay.coordinator.pendingCount, 0);
       expect(
         tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
-        hasLength(1),
+        isEmpty,
       );
+      expect(
+        (await database.select(database.matchEvents).get()).single.isDeleted,
+        isTrue,
+      );
+      expect(
+        (await database.select(database.shotLocations).get())
+            .single
+            .isConfirmed,
+        isFalse,
+      );
+      expect(controller.state.score.blueScore, 0);
     });
   });
 

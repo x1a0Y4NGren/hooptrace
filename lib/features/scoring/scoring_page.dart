@@ -1689,7 +1689,29 @@ class _ScoringPageState extends State<ScoringPage>
     if (!mounted) return;
     final generation = _actionGeneration;
     final controller = _controller;
-    ScaffoldMessenger.of(context)
+    final messenger = ScaffoldMessenger.of(context);
+    var consumed = false;
+    var inFlight = false;
+    Future<void> retry() async {
+      if (consumed || inFlight) return;
+      inFlight = true;
+      try {
+        final accepted = await _retryCommand(
+          failure,
+          generation: generation,
+          controller: controller,
+        );
+        if (!accepted) return;
+        consumed = true;
+        if (_isCurrentAction(generation, controller)) {
+          messenger.removeCurrentSnackBar();
+        }
+      } finally {
+        inFlight = false;
+      }
+    }
+
+    messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -1697,28 +1719,22 @@ class _ScoringPageState extends State<ScoringPage>
           action: failure.canRetry
               ? SnackBarAction(
                   label: _labels(context).retry,
-                  onPressed: () => unawaited(
-                    _retryCommand(
-                      failure,
-                      generation: generation,
-                      controller: controller,
-                    ),
-                  ),
+                  onPressed: () => unawaited(retry()),
                 )
               : null,
         ),
       );
   }
 
-  Future<void> _retryCommand(
+  Future<bool> _retryCommand(
     MatchCommandFailure failure, {
     required int generation,
     required ScoringController controller,
   }) async {
-    if (!_isCurrentAction(generation, controller)) return;
+    if (!_isCurrentAction(generation, controller)) return false;
     try {
       final result = await controller.retryCommandWithReceipt(failure);
-      if (!_isCurrentAction(generation, controller)) return;
+      if (!_isCurrentAction(generation, controller)) return false;
       if (result.accepted) {
         if (controller.courtFirstShotDraft != null) {
           controller.cancelCourtFirstShot();
@@ -1732,9 +1748,11 @@ class _ScoringPageState extends State<ScoringPage>
         }
         _notifyCommitted();
       }
+      return result.accepted;
     } on MatchCommandFailure catch (nextFailure) {
-      if (!_isCurrentAction(generation, controller)) return;
+      if (!_isCurrentAction(generation, controller)) return false;
       _showCommandFailure(nextFailure);
+      return false;
     }
   }
 
