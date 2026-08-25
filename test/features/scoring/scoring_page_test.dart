@@ -375,7 +375,7 @@ void main() {
     }
   });
 
-  testWidgets('scoreboard keeps timer centered with teams at outer edges', (
+  testWidgets('scoreboard aligns team scores with their side action columns', (
     tester,
   ) async {
     const size = Size(731, 411);
@@ -391,15 +391,48 @@ void main() {
     final undo = tester.getRect(find.byKey(const Key('scoring-undo')));
     final more = tester.getRect(find.byKey(const Key('scoring-more')));
     final red = tester.getRect(find.text('0 红方'));
+    final blueColumn = tester.getRect(find.byKey(const Key('blue-score-1')));
+    final redColumn = tester.getRect(find.byKey(const Key('red-score-1')));
 
     expect(timer.center.dx, closeTo(size.width / 2, 0.5));
+    expect(blue.center.dx, closeTo(blueColumn.center.dx, 0.5));
+    expect(red.center.dx, closeTo(redColumn.center.dx, 0.5));
     expect(blue.center.dx, lessThan(leave.center.dx));
     expect(leave.center.dx, lessThan(timer.center.dx));
     expect(timer.center.dx, lessThan(undo.center.dx));
     expect(undo.center.dx, lessThan(more.center.dx));
     expect(more.center.dx, lessThan(red.center.dx));
-    expect(blue.left, lessThan(16));
-    expect(red.right, greaterThan(size.width - 16));
+  });
+
+  testWidgets('portrait scoreboard aligns teams without overlapping controls', (
+    tester,
+  ) async {
+    const size = Size(390, 844);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'portrait-scoreboard')),
+    );
+
+    final blue = tester.getRect(find.text('蓝方 0'));
+    final red = tester.getRect(find.text('0 红方'));
+    final timer = tester.getRect(find.text('无计时'));
+    final controls = [
+      tester.getRect(find.byKey(const Key('scoring-leave'))),
+      tester.getRect(find.byKey(const Key('scoring-undo'))),
+      tester.getRect(find.byKey(const Key('scoring-more'))),
+    ];
+    final blueColumn = tester.getRect(find.byKey(const Key('blue-score-1')));
+    final redColumn = tester.getRect(find.byKey(const Key('red-score-1')));
+
+    expect(timer.center.dx, closeTo(size.width / 2, 0.5));
+    expect(blue.center.dx, closeTo(blueColumn.center.dx, 0.5));
+    expect(red.center.dx, closeTo(redColumn.center.dx, 0.5));
+    for (final control in controls) {
+      expect(blue.overlaps(control), isFalse);
+      expect(red.overlaps(control), isFalse);
+      expect(timer.overlaps(control), isFalse);
+    }
   });
 
   testWidgets('reduced motion uses a static location outline', (tester) async {

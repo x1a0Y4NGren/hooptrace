@@ -16,6 +16,13 @@ import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 const scoringResumeClockKey = Key('scoring-resume-clock');
 
+double _landscapeSideWidth(double availableWidth) =>
+    (availableWidth * 0.2).clamp(132.0, 220.0);
+
+bool _usesPortraitScoringLayout(BoxConstraints constraints) =>
+    constraints.maxWidth < 600 &&
+    constraints.maxHeight > constraints.maxWidth * 1.05;
+
 class ScoringPage extends StatefulWidget {
   const ScoringPage({
     this.matchId,
@@ -147,29 +154,35 @@ class _ScoringPageState extends State<ScoringPage> {
     final labels = _labels(context);
     final page = Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            _Scoreboard(
-              state: state,
-              clock: clock,
-              onLeave: _requestLeave,
-              onUndo: () => unawaited(_undoLastScoringAction()),
-              onMore: _showMore,
-              labels: labels,
-            ),
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildWorkspace(context, state),
-                  if (state.decision != null)
-                    _buildDecisionOverlay(context, state),
-                ],
-              ),
-            ),
-            if (state.ruleHints.isNotEmpty || state.ruleWarnings.isNotEmpty)
-              _buildRuleHints(context, state),
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final portrait = _usesPortraitScoringLayout(constraints);
+            return Column(
+              children: [
+                _Scoreboard(
+                  state: state,
+                  clock: clock,
+                  portrait: portrait,
+                  onLeave: _requestLeave,
+                  onUndo: () => unawaited(_undoLastScoringAction()),
+                  onMore: _showMore,
+                  labels: labels,
+                ),
+                Expanded(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildWorkspace(context, state, portrait: portrait),
+                      if (state.decision != null)
+                        _buildDecisionOverlay(context, state),
+                    ],
+                  ),
+                ),
+                if (state.ruleHints.isNotEmpty || state.ruleWarnings.isNotEmpty)
+                  _buildRuleHints(context, state),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -183,12 +196,13 @@ class _ScoringPageState extends State<ScoringPage> {
     );
   }
 
-  Widget _buildWorkspace(BuildContext context, MatchScoringState state) {
+  Widget _buildWorkspace(
+    BuildContext context,
+    MatchScoringState state, {
+    required bool portrait,
+  }) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final portrait =
-            constraints.maxWidth < 600 &&
-            constraints.maxHeight > constraints.maxWidth * 1.05;
         if (portrait) {
           final sideHeight = (constraints.maxHeight * 0.31).clamp(220.0, 310.0);
           return Column(
@@ -210,7 +224,7 @@ class _ScoringPageState extends State<ScoringPage> {
             ],
           );
         }
-        final sideWidth = (constraints.maxWidth * 0.2).clamp(132.0, 220.0);
+        final sideWidth = _landscapeSideWidth(constraints.maxWidth);
         return Row(
           children: [
             SizedBox(
@@ -1208,6 +1222,7 @@ class _Scoreboard extends StatelessWidget {
   const _Scoreboard({
     required this.state,
     required this.clock,
+    required this.portrait,
     required this.onLeave,
     required this.onUndo,
     required this.onMore,
@@ -1216,6 +1231,7 @@ class _Scoreboard extends StatelessWidget {
 
   final MatchScoringState state;
   final ClockProjection? clock;
+  final bool portrait;
   final VoidCallback onLeave;
   final VoidCallback onUndo;
   final VoidCallback onMore;
@@ -1265,7 +1281,7 @@ class _Scoreboard extends StatelessWidget {
       key: const Key('scoring-scoreboard'),
       color: HoopTraceColors.ink,
       child: SizedBox(
-        height: 56,
+        height: portrait ? 104 : 56,
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
@@ -1278,25 +1294,33 @@ class _Scoreboard extends StatelessWidget {
             final leaveLeft = clockLeft - 48;
             final undoLeft = clockRight;
             final moreLeft = undoLeft + 48;
-            final redLeft = moreLeft + 48;
+            final sideWidth = _landscapeSideWidth(width);
+            final sideCenter = portrait ? width / 4 : sideWidth / 2;
+            final teamWidth = portrait
+                ? ((clockLeft - sideCenter) * 2).clamp(48.0, width / 2)
+                : sideWidth;
+            final teamLeft = sideCenter - teamWidth / 2;
+            final scoreBottom = portrait ? 52.0 : 4.0;
+            final actionTop = portrait ? 52.0 : 4.0;
 
             return Stack(
               children: [
                 Positioned(
-                  left: 0,
+                  left: teamLeft,
                   top: 4,
-                  bottom: 4,
-                  width: leaveLeft,
+                  bottom: scoreBottom,
+                  width: teamWidth,
                   child: _ScoreLabel(
+                    side: TeamSide.blue,
                     name: state.blueName,
                     score: state.score.blueScore,
                     color: blue,
-                    alignment: Alignment.centerLeft,
+                    alignment: Alignment.center,
                   ),
                 ),
                 Positioned(
                   left: leaveLeft,
-                  top: 4,
+                  top: actionTop,
                   bottom: 4,
                   width: 48,
                   child: action(
@@ -1309,7 +1333,7 @@ class _Scoreboard extends StatelessWidget {
                 Positioned(
                   left: clockLeft,
                   top: 4,
-                  bottom: 4,
+                  bottom: scoreBottom,
                   width: clockWidth,
                   child: Padding(
                     padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 12),
@@ -1348,7 +1372,7 @@ class _Scoreboard extends StatelessWidget {
                 ),
                 Positioned(
                   left: undoLeft,
-                  top: 4,
+                  top: actionTop,
                   bottom: 4,
                   width: 48,
                   child: action(
@@ -1360,7 +1384,7 @@ class _Scoreboard extends StatelessWidget {
                 ),
                 Positioned(
                   left: moreLeft,
-                  top: 4,
+                  top: actionTop,
                   bottom: 4,
                   width: 48,
                   child: action(
@@ -1371,15 +1395,16 @@ class _Scoreboard extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  left: redLeft,
-                  right: 0,
+                  right: teamLeft,
                   top: 4,
-                  bottom: 4,
+                  bottom: scoreBottom,
+                  width: teamWidth,
                   child: _ScoreLabel(
+                    side: TeamSide.red,
                     name: state.redName,
                     score: state.score.redScore,
                     color: red,
-                    alignment: Alignment.centerRight,
+                    alignment: Alignment.center,
                   ),
                 ),
               ],
@@ -1393,11 +1418,13 @@ class _Scoreboard extends StatelessWidget {
 
 class _ScoreLabel extends StatelessWidget {
   const _ScoreLabel({
+    required this.side,
     required this.name,
     required this.score,
     required this.color,
     required this.alignment,
   });
+  final TeamSide side;
   final String name;
   final int score;
   final Color color;
@@ -1405,9 +1432,7 @@ class _ScoreLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = alignment == Alignment.centerLeft
-        ? '$name $score'
-        : '$score $name';
+    final label = side == TeamSide.blue ? '$name $score' : '$score $name';
     return Semantics(
       label: label,
       child: Align(
