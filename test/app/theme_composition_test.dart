@@ -82,11 +82,11 @@ void main() {
       const Key('language-preference-dropdown'),
     );
     expect(languageDropdown, findsOneWidget);
-    await tester.scrollUntilVisible(
-      languageDropdown,
-      300,
-      scrollable: find.byType(Scrollable).first,
+    await Scrollable.ensureVisible(
+      tester.element(languageDropdown),
+      alignment: 0.5,
     );
+    await tester.pumpAndSettle();
     await tester.tap(languageDropdown);
     await tester.pumpAndSettle();
     await tester.tap(find.text('English').last);
