@@ -41,6 +41,15 @@ class ShotLocationCommitReceipt {
   String get actualShotLocationId => shotLocationId;
 }
 
+/// Result of retrying a command, including the durable shot receipt when the
+/// command committed a location-bearing scoring action.
+class ScoringCommandRetryResult {
+  const ScoringCommandRetryResult({required this.accepted, this.receipt});
+
+  final bool accepted;
+  final ShotLocationCommitReceipt? receipt;
+}
+
 class PendingShotLocation {
   const PendingShotLocation({
     required this.eventId,
@@ -751,14 +760,46 @@ class ScoringController extends ChangeNotifier {
   /// failure. The original command object is retained by the failure, so a
   /// retry cannot accidentally allocate a second event or receipt.
   Future<bool> retryCommand(MatchCommandFailure failure) async {
+    final result = await retryCommandWithReceipt(failure);
+    return result.accepted;
+  }
+
+  /// Retries a command and returns the durable shot receipt when the command
+  /// is a court-first or supplement location commit. Other command kinds are
+  /// still retried normally and report only whether they were accepted.
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
     if (_disposed ||
         _exclusiveBusy ||
         _drainingQueue ||
         _commandQueue.isNotEmpty ||
         failure.command.matchId != _state.matchId) {
-      return false;
+      return const ScoringCommandRetryResult(accepted: false);
     }
-    return _runExclusive(failure.command, failure.retry);
+    final projection = await _runExclusiveProjection(
+      failure.command,
+      failure.retry,
+    );
+    if (projection == null) {
+      return const ScoringCommandRetryResult(accepted: false);
+    }
+    final command = failure.command;
+    ShotLocationCommitReceipt? receipt;
+    if (command is RecordMatchEventCommand && command.shotLocation != null) {
+      receipt = _receiptFromProjection(
+        projection,
+        eventId: command.eventId,
+        source: ShotLocationCommitSource.courtFirst,
+      );
+    } else if (command is ConfirmShotLocationCommand) {
+      receipt = _receiptFromProjection(
+        projection,
+        eventId: command.eventId,
+        source: ShotLocationCommitSource.supplement,
+      );
+    }
+    return ScoringCommandRetryResult(accepted: true, receipt: receipt);
   }
 
   /// Starts an explicit, non-blocking location capture for the latest

@@ -95,6 +95,7 @@ class _ScoringPageState extends State<ScoringPage>
       widget.motionPreference ?? MotionPreference.standard;
   ScoringMotionMode _motionMode = ScoringMotionMode.standard;
   final Set<String> _hiddenShotLocationIds = <String>{};
+  final Set<String> _submittedMotionEventIds = <String>{};
   final Map<String, TransientShotMarker> _transientMarkers =
       <String, TransientShotMarker>{};
   final Map<String, EraserShotMarker> _eraserMarkers =
@@ -285,6 +286,7 @@ class _ScoringPageState extends State<ScoringPage>
       _motionCoordinator.cancelByEventId(event.id);
     }
     _hiddenShotLocationIds.clear();
+    _submittedMotionEventIds.clear();
     _transientMarkers.clear();
     _foulStampTimer?.cancel();
     _foulStampTimer = null;
@@ -717,6 +719,7 @@ class _ScoringPageState extends State<ScoringPage>
 
   void _submitReceiptMotion(ShotLocationCommitReceipt receipt, Offset? source) {
     if (_disposed) return;
+    if (!_submittedMotionEventIds.add(receipt.eventId)) return;
     final marker = TransientShotMarker(
       id: receipt.shotLocationId,
       point: receipt.point,
@@ -1714,11 +1717,18 @@ class _ScoringPageState extends State<ScoringPage>
   }) async {
     if (!_isCurrentAction(generation, controller)) return;
     try {
-      final accepted = await controller.retryCommand(failure);
+      final result = await controller.retryCommandWithReceipt(failure);
       if (!_isCurrentAction(generation, controller)) return;
-      if (accepted) {
+      if (result.accepted) {
         if (controller.courtFirstShotDraft != null) {
           controller.cancelCourtFirstShot();
+        }
+        final receipt = result.receipt;
+        if (receipt != null) {
+          _submitReceiptMotion(
+            receipt,
+            _scoreButtonCenter(receipt.side, receipt.points),
+          );
         }
         _notifyCommitted();
       }

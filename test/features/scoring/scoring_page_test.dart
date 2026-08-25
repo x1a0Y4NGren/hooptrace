@@ -974,6 +974,13 @@ void main() {
 
       expect(controller.courtFirstShotDraft, isNotNull);
       expect(find.byType(SnackBarAction), findsOneWidget);
+      expect(
+        tester
+            .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+            .coordinator
+            .pendingCount,
+        0,
+      );
       tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
       await tester.pump();
       await tester.runAsync(
@@ -982,6 +989,26 @@ void main() {
       await tester.pump();
       expect(controller.courtFirstShotDraft, isNull);
       expect(await database.select(database.matchEvents).get(), hasLength(1));
+      final overlay = tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay.coordinator.pendingCount, 1);
+      expect(overlay.coordinator.active, isNotNull);
+      expect(
+        tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+        hasLength(1),
+      );
+      tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+      expect(overlay.coordinator.pendingCount, 1);
+      expect(
+        tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+        hasLength(1),
+      );
     });
   });
 
@@ -1022,6 +1049,13 @@ void main() {
 
       expect(controller.locationSupplementWindow, isNotNull);
       expect(find.byType(SnackBarAction), findsOneWidget);
+      expect(
+        tester
+            .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+            .coordinator
+            .pendingCount,
+        0,
+      );
       tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
       await tester.pump();
       await tester.runAsync(
@@ -2486,6 +2520,15 @@ void main() {
       expect(controller.locationSupplementWindow, isNull);
       expect(await database.select(database.shotLocations).get(), hasLength(1));
       expect(committedFeedbackCount, 1);
+      final overlay = tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay.coordinator.pendingCount, 1);
+      expect(overlay.coordinator.active, isNotNull);
+      expect(
+        tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+        hasLength(1),
+      );
     });
   });
 
