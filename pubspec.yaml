@@ -45,6 +45,15 @@ flutter:
     - assets/icons/
     - assets/images/
     - assets/animations/
+  fonts:
+    - family: Barlow Condensed
+      fonts:
+        - asset: assets/fonts/BarlowCondensed-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/BarlowCondensed-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/BarlowCondensed-Bold.ttf
+          weight: 700
 
 # Build SQLite from the pinned amalgamation checked into the repository. This
 # keeps F-Droid/offline builds independent of package:sqlite3's GitHub binary

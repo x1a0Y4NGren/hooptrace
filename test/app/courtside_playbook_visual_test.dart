@@ -26,8 +26,8 @@ void main() {
     expect(darkMotion, isNotNull);
     expect(lightVisual!.paper, HoopTraceColors.offWhite);
     expect(darkVisual!.paper, HoopTraceColors.charcoal);
-    expect(lightMotion!.scoreFlight, const Duration(milliseconds: 520));
-    expect(lightMotion.impact, const Duration(milliseconds: 240));
+    expect(lightMotion!.scoreFlight, const Duration(milliseconds: 480));
+    expect(lightMotion.impact, const Duration(milliseconds: 180));
     expect(darkMotion!.scoreFlight, lightMotion.scoreFlight);
   });
 

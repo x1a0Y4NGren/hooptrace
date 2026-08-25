@@ -118,7 +118,7 @@ void main() {
       var court = tester.widget<CourtView>(find.byType(CourtView));
       expect(court.hiddenShotLocationIds, hasLength(1));
       expect(court.transientMarkers, hasLength(1));
-      await tester.pump(const Duration(milliseconds: 510));
+      await tester.pump(const Duration(milliseconds: 470));
       expect(overlay.coordinator.active, isNotNull);
       expect(
         tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,

@@ -26,10 +26,10 @@ void main() {
   test('motion theme exposes standard and accelerated timings', () {
     final light = const HoopTraceMotionTheme.light();
     final dark = const HoopTraceMotionTheme.dark();
-    expect(light.scoreFlight, const Duration(milliseconds: 520));
-    expect(light.impact, const Duration(milliseconds: 240));
-    expect(light.acceleratedScoreFlight, const Duration(milliseconds: 300));
-    expect(light.acceleratedImpact, const Duration(milliseconds: 140));
+    expect(light.scoreFlight, const Duration(milliseconds: 480));
+    expect(light.impact, const Duration(milliseconds: 180));
+    expect(light.acceleratedScoreFlight, const Duration(milliseconds: 320));
+    expect(light.acceleratedImpact, const Duration(milliseconds: 120));
     expect(dark.acceleratedScoreFlight, light.acceleratedScoreFlight);
     expect(light, light.copyWith());
     expect(light.hashCode, light.copyWith().hashCode);
@@ -46,7 +46,7 @@ void main() {
             .5,
           )
           .acceleratedImpact,
-      const Duration(milliseconds: 570),
+      const Duration(milliseconds: 560),
     );
   });
 
@@ -225,12 +225,12 @@ void main() {
       ]);
       expect(
         coordinator.active!.timing.flight,
-        const Duration(milliseconds: 520),
+        const Duration(milliseconds: 480),
       );
       coordinator.advance(const Duration(milliseconds: 760));
       expect(
         coordinator.active!.timing.flight,
-        const Duration(milliseconds: 300),
+        const Duration(milliseconds: 320),
       );
       coordinator.advance(const Duration(milliseconds: 440));
       expect(completed, ['event-0', 'event-1']);
@@ -317,7 +317,7 @@ void main() {
         ),
       );
 
-      coordinator.advance(const Duration(milliseconds: 520));
+      coordinator.advance(const Duration(milliseconds: 480));
       expect(impacts, ['event-impact-start']);
       expect(completed, isEmpty);
       coordinator.advance(const Duration(seconds: 1));
@@ -730,7 +730,7 @@ void main() {
     expect(coordinator.active!.event.id, 'event-3');
     expect(
       coordinator.active!.timing.flight,
-      const Duration(milliseconds: 300),
+      const Duration(milliseconds: 320),
     );
     coordinator.dispose();
   });
@@ -792,7 +792,7 @@ void main() {
       colors.last,
       teamColorForScheme(TeamSide.blue, buildHoopTraceTheme().colorScheme),
     );
-    coordinator.advance(const Duration(milliseconds: 520));
+    coordinator.advance(const Duration(milliseconds: 480));
     await tester.pump();
     expect(assets.last, 'assets/animations/paint_splash.json');
     expect(
@@ -840,8 +840,8 @@ void main() {
           find.byType(ScoringMotionLottieAsset),
         );
         final expectedFlight = accelerated
-            ? const Duration(milliseconds: 300)
-            : const Duration(milliseconds: 520);
+            ? const Duration(milliseconds: 320)
+            : const Duration(milliseconds: 480);
         expect(flightState.animationDuration, expectedFlight);
         coordinator.advance(expectedFlight);
         await tester.pump();
@@ -852,8 +852,8 @@ void main() {
         expect(
           impactState.animationDuration,
           accelerated
-              ? const Duration(milliseconds: 140)
-              : const Duration(milliseconds: 240),
+              ? const Duration(milliseconds: 120)
+              : const Duration(milliseconds: 180),
         );
         coordinator.dispose();
       }
