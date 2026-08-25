@@ -1054,8 +1054,16 @@ Future<void> _finishScoringDecision(
       expectedBlueScore: blueScore,
     ),
   );
-  router.go('/matches/$matchId/replay');
   unawaited(_runAutomaticBackup(automaticBackup));
+  if (!_isScoringRouteForMatch(router, matchId)) return;
+  router.go('/matches/$matchId/replay');
+}
+
+bool _isScoringRouteForMatch(GoRouter router, String matchId) {
+  final segments = router.routeInformationProvider.value.uri.pathSegments;
+  return segments.length == 2 &&
+      segments[0] == 'scoring' &&
+      segments[1] == matchId;
 }
 
 Future<void> _runAutomaticBackup(AutomaticBackupService service) async {

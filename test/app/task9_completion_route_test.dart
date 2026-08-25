@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,8 +11,12 @@ import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
+import 'package:hooptrace/core/export/automatic_backup_service.dart';
+import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/home/home_page.dart';
+import 'package:go_router/go_router.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -93,6 +99,129 @@ void main() {
     expect(match.lifecycle, MatchLifecycle.active.name);
     expect(await database.select(database.activeSessions).get(), hasLength(1));
     expect(find.byType(ScoringPage), findsOneWidget);
+  });
+
+  testWidgets('pending scoring finish stays Home after leaving the route', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(3000, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 200));
+    });
+    await _seedDecision(database, 'route-finish-pending-home');
+    final finishReleased = Completer<void>();
+    var finishStarted = false;
+    final service = MatchCommandService(
+      database,
+      failureInjector: (point) async {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          finishStarted = true;
+          await finishReleased.future;
+        }
+      },
+    );
+    final backup = _RecordingAutomaticBackupService(database);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          matchCommandServiceProvider.overrideWithValue(service),
+          automaticBackupServiceProvider.overrideWithValue(backup),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await _tapVisible(tester, find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    final router = _routerFrom(tester);
+    await _tapVisible(tester, find.byKey(const Key('scoring-decision-finish')));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('scoring-finish-confirm')));
+    await _pumpUntil(tester, () => finishStarted);
+
+    router.go('/');
+    await tester.pump();
+    finishReleased.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+    await _pumpUntilFound(tester, find.byType(HomePage));
+
+    expect(router.routeInformationProvider.value.uri.path, '/');
+    expect(find.byType(ReplayPage), findsNothing);
+    expect(
+      (await database.select(database.matches).getSingle()).lifecycle,
+      MatchLifecycle.finished.name,
+    );
+    await _pumpUntil(tester, () => backup.calls == 1);
+  });
+
+  testWidgets('pending scoring finish stays on a switched scoring route', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(3000, 1080));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 200));
+    });
+    const matchId = 'route-finish-pending-switch';
+    await _seedDecision(database, matchId);
+    final finishReleased = Completer<void>();
+    var finishStarted = false;
+    final service = MatchCommandService(
+      database,
+      failureInjector: (point) async {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          finishStarted = true;
+          await finishReleased.future;
+        }
+      },
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          matchCommandServiceProvider.overrideWithValue(service),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await _tapVisible(tester, find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    final router = _routerFrom(tester);
+    await _tapVisible(tester, find.byKey(const Key('scoring-decision-finish')));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('scoring-finish-confirm')));
+    await _pumpUntil(tester, () => finishStarted);
+
+    const switchedMatchId = 'route-finish-pending-switch-target';
+    router.go('/scoring/$switchedMatchId?source=pending-finish');
+    await tester.pump();
+    finishReleased.complete();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+
+    expect(
+      router.routeInformationProvider.value.uri.path,
+      '/scoring/$switchedMatchId',
+    );
+    expect(find.byType(ReplayPage), findsNothing);
+    expect(
+      (await database.select(database.matches).getSingle()).lifecycle,
+      MatchLifecycle.finished.name,
+    );
   });
 
   testWidgets(
@@ -230,6 +359,24 @@ void main() {
   );
 }
 
+GoRouter _routerFrom(WidgetTester tester) {
+  final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+  return app.routerConfig! as GoRouter;
+}
+
+class _RecordingAutomaticBackupService extends AutomaticBackupService {
+  _RecordingAutomaticBackupService(AppDatabase database)
+    : super(database, JsonBackupCodec(database, appVersion: 'test'));
+
+  var calls = 0;
+
+  @override
+  Future<String?> runAfterMatchFinish() async {
+    calls++;
+    return null;
+  }
+}
+
 Future<void> _seedDecision(AppDatabase database, String matchId) async {
   final service = MatchCommandService(database);
   await service.start(
@@ -316,6 +463,17 @@ Future<void> _pumpUntilMissing(WidgetTester tester, Finder finder) async {
     );
   }
   fail('Timed out waiting for $finder to disappear');
+}
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() predicate) async {
+  for (var attempt = 0; attempt < 150; attempt++) {
+    await tester.pump(const Duration(milliseconds: 20));
+    if (predicate()) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 5)),
+    );
+  }
+  fail('Timed out waiting for test state.');
 }
 
 Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
