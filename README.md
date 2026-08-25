@@ -120,6 +120,14 @@ HoopTrace 不计划同时分发两个签名不同的官方 Android 包。F-Droid
 
 Bug、想法、文档改进和代码贡献都欢迎。提交 Issue 或 Pull Request 前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。隐私、离线能力和永久免费开源承诺属于不可破坏的项目约束。
 
+## 设计参考与动效资产
+
+HoopTrace 的手绘视觉方向参考了
+[`flutter_rough`](https://github.com/acyment/flutter_rough) 和
+[Flutter Vignettes](https://github.com/gskinnerTeam/flutter_vignettes)；这里只借鉴视觉与交互思路，没有复制它们的代码、插画、动画或其他仓库资产。两个参考项目均采用 MIT License。
+
+`assets/animations/paint_ball.json` 与 `assets/animations/paint_splash.json` 是为 HoopTrace 原创的、自包含 Lottie JSON 动效，不含外部资源，随应用本地打包并支持离线运行。运行时使用 `lottie 3.3.3`，其 MIT 许可文本记录在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 ## 许可证
 
 代码和仓库内项目资产按 [MIT License](LICENSE) 发布。
