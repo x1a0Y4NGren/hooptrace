@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:ui' show SemanticsFlag;
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -117,8 +117,8 @@ void main() {
     );
     final disabledButton = find.byType(DoodlePress);
     expect(
-      tester.getSemantics(disabledButton).hasFlag(SemanticsFlag.isEnabled),
-      isFalse,
+      tester.getSemantics(disabledButton).flagsCollection.isEnabled,
+      Tristate.isFalse,
     );
     await tester.tap(disabledButton);
     expect(calls, 0);
@@ -144,8 +144,8 @@ void main() {
 
     final button = find.byType(DoodlePress);
     expect(
-      tester.getSemantics(button).hasFlag(SemanticsFlag.isEnabled),
-      isFalse,
+      tester.getSemantics(button).flagsCollection.isEnabled,
+      Tristate.isFalse,
     );
     await tester.tap(button);
     await tester.pump();
@@ -185,7 +185,7 @@ void main() {
         expect(_nestedNames(inkLayer['shapes']), contains('inkFill'));
         final composition = await LottieComposition.fromByteData(bytes);
         expect(composition, isNotNull);
-        expect(composition!.duration, greaterThan(Duration.zero));
+        expect(composition.duration, greaterThan(Duration.zero));
       }
     },
   );
