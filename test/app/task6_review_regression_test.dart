@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -408,10 +410,213 @@ void main() {
       expect(find.text(l10n.replayInProgress), findsOneWidget);
       expect(find.byKey(const Key('replay-finish-match')), findsOneWidget);
 
+      await tester.binding.handlePopRoute();
+      await _pumpUntilFound(tester, find.byType(ScoringPage));
+
+      router.go('/matches/$matchId/replay');
+      await _pumpUntilFound(tester, find.byType(ReplayPage));
+      await tester.pump(const Duration(milliseconds: 500));
       await tester.tap(find.byKey(const Key('replay-exit')));
       await _pumpUntilFound(tester, find.byType(ScoringPage));
     },
   );
+
+  testWidgets('pending replay load is ignored after leaving the route', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-pending-replay-load';
+    await _seedFinishedMatch(database, matchId);
+    final detail = await MatchRepository(database).getMatchDetail(matchId);
+    final pending = Completer<MatchDetail?>();
+    final repository = _PendingReplayRepository(database)
+      ..enqueue(matchId, pending.future);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      _routerHost(database, router, repository: repository),
+    );
+    router.go('/matches/$matchId/replay');
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+
+    pending.complete(detail);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+
+    expect(find.byType(ReplayPage), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('pending replay refresh is ignored after route disposal', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-pending-replay-refresh';
+    final start = MatchCommandService(database);
+    await start.start(
+      StartMatchCommand(
+        commandId: '$matchId-start',
+        matchId: matchId,
+        redName: '红队',
+        blueName: '蓝队',
+        ruleTemplate: const RuleTemplate(
+          id: 'free',
+          name: '自由计分',
+          scoreButtons: [1, 2, 3],
+        ),
+        recordingMode: RecordingMode.simple,
+        trackingCoverage: TrackingCoverage.scoresOnly,
+        createdAt: DateTime.utc(2026, 8, 23, 12),
+        startedAt: DateTime.utc(2026, 8, 23, 12),
+      ),
+    );
+    final detail = await MatchRepository(database).getMatchDetail(matchId);
+    expect(detail, isNotNull);
+    final pending = Completer<MatchDetail?>();
+    final repository = _PendingReplayRepository(database)
+      ..enqueue(matchId, Future<MatchDetail?>.value(detail))
+      ..enqueue(matchId, pending.future);
+    var failNext = true;
+    final commandService = MatchCommandService(
+      database,
+      failureInjector: (point) {
+        if (failNext && point == MatchCommandFailurePoint.beforeCommit) {
+          failNext = false;
+          throw StateError('finish failed once');
+        }
+      },
+    );
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    router.go('/matches/$matchId/replay');
+    await tester.pumpWidget(
+      _routerHost(
+        database,
+        router,
+        repository: repository,
+        commandService: commandService,
+      ),
+    );
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await tester.tap(find.byKey(const Key('replay-finish-match')));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tap(find.byKey(const Key('replay-finish-confirm')));
+    for (var attempt = 0; attempt < 100; attempt++) {
+      await tester.pump(const Duration(milliseconds: 20));
+      if (repository.pendingRequests == 2) break;
+    }
+    expect(repository.pendingRequests, 2);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    pending.complete(detail);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('rapid replay route switch only shows the latest loaded match', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    await _seedFinishedMatch(
+      database,
+      'task6-switch-a',
+      redName: 'Alpha',
+      blueName: 'Blue A',
+    );
+    await _seedFinishedMatch(
+      database,
+      'task6-switch-b',
+      redName: 'Bravo',
+      blueName: 'Blue B',
+    );
+    final base = MatchRepository(database);
+    final detailA = await base.getMatchDetail('task6-switch-a');
+    final detailB = await base.getMatchDetail('task6-switch-b');
+    final pendingA = Completer<MatchDetail?>();
+    final pendingB = Completer<MatchDetail?>();
+    final repository = _PendingReplayRepository(database)
+      ..enqueue('task6-switch-a', pendingA.future)
+      ..enqueue('task6-switch-b', pendingB.future);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    router.go('/matches/task6-switch-a/replay');
+    await tester.pumpWidget(
+      _routerHost(database, router, repository: repository),
+    );
+    await tester.pump();
+    router.go('/matches/task6-switch-b/replay');
+    await tester.pump();
+
+    pendingB.complete(detailB);
+    await _pumpUntilFound(tester, find.text('Bravo'));
+    pendingA.complete(detailA);
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 30)),
+    );
+    await tester.pump();
+
+    expect(find.text('Bravo'), findsOneWidget);
+    expect(find.text('Alpha'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('replay not-found home action returns to Home', (tester) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(_routerHost(database, router));
+    router.go('/matches/task6-not-found-home/replay');
+    await _pumpUntilFound(tester, find.text(l10n.routeReplayNotFound));
+    await tester.tap(find.byKey(const Key('route-message-home')));
+    await _pumpUntilFound(tester, find.byType(HomePage));
+  });
+
+  testWidgets('replay load-error home action returns to Home', (tester) async {
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    const matchId = 'task6-load-error-home';
+    await _seedFinishedMatch(database, matchId);
+    final detail = await MatchRepository(database).getMatchDetail(matchId);
+    final repository = _FlakyReplayRepository(database, [
+      StateError('offline'),
+      detail,
+    ]);
+    final router = buildProviderAppRouter();
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      _routerHost(database, router, repository: repository),
+    );
+    router.go('/matches/$matchId/replay');
+    await _pumpUntilFound(tester, find.text(l10n.routeReplayOpenError));
+    await tester.tap(find.byKey(const Key('route-message-home')));
+    await _pumpUntilFound(tester, find.byType(HomePage));
+  });
 
   testWidgets(
     'replay not-found fallback has home and retry and reloads successfully',
@@ -533,12 +738,15 @@ Widget _routerHost(
   AppDatabase database,
   GoRouter router, {
   MatchRepository? repository,
+  MatchCommandService? commandService,
 }) {
   return ProviderScope(
     overrides: [
       appDatabaseProvider.overrideWithValue(database),
       if (repository != null)
         matchRepositoryProvider.overrideWithValue(repository),
+      if (commandService != null)
+        matchCommandServiceProvider.overrideWithValue(commandService),
     ],
     child: MaterialApp.router(
       theme: buildHoopTraceTheme(),
@@ -571,15 +779,41 @@ class _FlakyReplayRepository extends MatchRepository {
   }
 }
 
-Future<void> _seedFinishedMatch(AppDatabase database, String matchId) async {
+class _PendingReplayRepository extends MatchRepository {
+  _PendingReplayRepository(super.database);
+
+  final _responses = <String, List<Future<MatchDetail?>>>{};
+  var pendingRequests = 0;
+
+  void enqueue(String matchId, Future<MatchDetail?> response) {
+    (_responses[matchId] ??= []).add(response);
+  }
+
+  @override
+  Future<MatchDetail?> getMatchDetail(String matchId) {
+    final responses = _responses[matchId];
+    if (responses == null || responses.isEmpty) {
+      return super.getMatchDetail(matchId);
+    }
+    pendingRequests++;
+    return responses.removeAt(0);
+  }
+}
+
+Future<void> _seedFinishedMatch(
+  AppDatabase database,
+  String matchId, {
+  String redName = '红队',
+  String blueName = '蓝队',
+}) async {
   final service = MatchCommandService(database);
   final now = DateTime.utc(2026, 8, 23, 12);
   await service.start(
     StartMatchCommand(
       commandId: '$matchId-start',
       matchId: matchId,
-      redName: '红队',
-      blueName: '蓝队',
+      redName: redName,
+      blueName: blueName,
       ruleTemplate: const RuleTemplate(
         id: 'free',
         name: '自由计分',

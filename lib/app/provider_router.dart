@@ -598,16 +598,40 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
   late Future<ReplayController?> _future;
   ReplayController? _controller;
   MatchLifecycle? _lifecycle;
+  int _requestGeneration = 0;
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    _startLoad();
   }
 
-  Future<ReplayController?> _load() async {
+  @override
+  void didUpdateWidget(covariant _ReplayRoute oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.matchId == widget.matchId) return;
+    _controller?.dispose();
+    _controller = null;
+    _lifecycle = null;
+    _startLoad();
+  }
+
+  void _startLoad() {
+    final generation = ++_requestGeneration;
+    final matchId = widget.matchId;
+    _future = _load(generation, matchId);
+  }
+
+  bool _isCurrent(int generation, String matchId) {
+    return mounted &&
+        generation == _requestGeneration &&
+        widget.matchId == matchId;
+  }
+
+  Future<ReplayController?> _load(int generation, String matchId) async {
     final repository = ref.read(matchRepositoryProvider);
-    final detail = await repository.getMatchDetail(widget.matchId);
+    final detail = await repository.getMatchDetail(matchId);
+    if (!_isCurrent(generation, matchId)) return null;
     if (detail == null) return null;
     _lifecycle = detail.match.lifecycle;
     final replayEditable =
@@ -616,8 +640,8 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
     final commandService = ref.read(matchCommandServiceProvider);
     late final ReplayController controller;
     Future<void> refresh() async {
-      final refreshed = await repository.getMatchDetail(widget.matchId);
-      if (refreshed != null) {
+      final refreshed = await repository.getMatchDetail(matchId);
+      if (_isCurrent(generation, matchId) && refreshed != null) {
         controller.replaceData(replayDataFromDetail(refreshed));
       }
     }
@@ -629,7 +653,7 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
               try {
                 final projection = await commandService.correct(
                   CorrectMatchEventCommand(
-                    matchId: widget.matchId,
+                    matchId: matchId,
                     eventId: correction.eventId,
                     type: correction.type,
                     side: correction.side,
@@ -642,7 +666,9 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
                     reason: correction.reason,
                   ),
                 );
-                controller.replaceData(replayDataFromDetail(projection));
+                if (_isCurrent(generation, matchId)) {
+                  controller.replaceData(replayDataFromDetail(projection));
+                }
               } on Object {
                 await refresh();
                 rethrow;
@@ -654,12 +680,14 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
               try {
                 final projection = await commandService.undo(
                   UndoMatchEventCommand(
-                    matchId: widget.matchId,
+                    matchId: matchId,
                     eventId: eventId,
                     reason: reason,
                   ),
                 );
-                controller.replaceData(replayDataFromDetail(projection));
+                if (_isCurrent(generation, matchId)) {
+                  controller.replaceData(replayDataFromDetail(projection));
+                }
               } on Object {
                 await refresh();
                 rethrow;
@@ -671,12 +699,14 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
               try {
                 final projection = await commandService.restore(
                   RestoreMatchEventCommand(
-                    matchId: widget.matchId,
+                    matchId: matchId,
                     eventId: eventId,
                     reason: reason,
                   ),
                 );
-                controller.replaceData(replayDataFromDetail(projection));
+                if (_isCurrent(generation, matchId)) {
+                  controller.replaceData(replayDataFromDetail(projection));
+                }
               } on Object {
                 await refresh();
                 rethrow;
@@ -688,33 +718,43 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
               try {
                 final projection = await commandService.correctShotLocation(
                   CorrectShotLocationCommand(
-                    matchId: widget.matchId,
+                    matchId: matchId,
                     eventId: eventId,
                     point: point,
                     reason: reason,
                   ),
                 );
-                controller.replaceData(replayDataFromDetail(projection));
+                if (_isCurrent(generation, matchId)) {
+                  controller.replaceData(replayDataFromDetail(projection));
+                }
               } on Object {
                 await refresh();
                 rethrow;
               }
             }
           : null,
-      loadAuditLogs: () => repository.listAuditLogs(widget.matchId),
+      loadAuditLogs: () => repository.listAuditLogs(matchId),
     );
+    if (!_isCurrent(generation, matchId)) {
+      controller.dispose();
+      return null;
+    }
     return _controller = controller;
   }
 
-  Future<void> _refreshController() async {
+  Future<void> _refreshController({
+    required int generation,
+    required String matchId,
+  }) async {
     final refreshed = await ref
         .read(matchRepositoryProvider)
-        .getMatchDetail(widget.matchId);
+        .getMatchDetail(matchId);
+    if (!_isCurrent(generation, matchId)) return;
     final controller = _controller;
     if (refreshed != null && controller != null) {
       _lifecycle = refreshed.match.lifecycle;
       controller.replaceData(replayDataFromDetail(refreshed));
-      if (mounted) setState(() {});
+      setState(() {});
     }
   }
 
@@ -722,14 +762,18 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
     _controller?.dispose();
     _controller = null;
     _lifecycle = null;
+    final generation = ++_requestGeneration;
+    final matchId = widget.matchId;
     setState(() {
-      _future = _load();
+      _future = _load(generation, matchId);
     });
   }
 
   @override
   void dispose() {
+    _requestGeneration++;
     _controller?.dispose();
+    _controller = null;
     super.dispose();
   }
 
@@ -764,6 +808,8 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
         // deep link, so valueOrNull would incorrectly make an active replay
         // read-only and send its exit back to Home.
         final active = _lifecycle == MatchLifecycle.active;
+        final generation = _requestGeneration;
+        final routeMatchId = widget.matchId;
         return ReplayPage(
           controller: controller,
           onExit: () {
@@ -772,7 +818,7 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
               // An active replay is always an auxiliary view of the live
               // scoring route. Going there explicitly also handles a cold
               // start deep link, whose router stack may still contain Home.
-              router.go('/scoring/${widget.matchId}');
+              router.go('/scoring/$routeMatchId');
             } else if (router.canPop()) {
               router.pop();
             } else {
@@ -794,7 +840,7 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
                         .read(matchCommandServiceProvider)
                         .finish(
                           FinishMatchCommand(
-                            matchId: widget.matchId,
+                            matchId: routeMatchId,
                             endedAt: DateTime.now().toUtc(),
                             confirmFinalScore: true,
                             expectedRedScore: redScore,
@@ -802,12 +848,18 @@ class _ReplayRouteState extends ConsumerState<_ReplayRoute> {
                           ),
                         );
                   } on Object {
-                    await _refreshController();
+                    await _refreshController(
+                      generation: generation,
+                      matchId: routeMatchId,
+                    );
                     rethrow;
                   }
-                  router.go('/matches/${widget.matchId}/replay');
+                  router.go('/matches/$routeMatchId/replay');
                   unawaited(_runAutomaticBackup(ref));
-                  await _refreshController();
+                  await _refreshController(
+                    generation: generation,
+                    matchId: routeMatchId,
+                  );
                 }
               : null,
         );
