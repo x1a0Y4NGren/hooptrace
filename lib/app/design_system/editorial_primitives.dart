@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/editorial_color_helpers.dart';
+import 'package:hooptrace/app/design_system/editorial_motion.dart';
+import 'package:hooptrace/app/design_system/editorial_theme.dart';
+import 'package:hooptrace/app/design_system/editorial_tokens.dart';
 
 HoopTraceEditorialTheme editorialThemeOf(BuildContext context) =>
     Theme.of(context).extension<HoopTraceEditorialTheme>() ??
@@ -56,6 +59,60 @@ class EditorialSurface extends StatelessWidget {
   }
 }
 
+class EditorialFocusOutline extends StatelessWidget {
+  const EditorialFocusOutline({
+    required this.focused,
+    required this.child,
+    this.borderRadius = BorderRadius.zero,
+    super.key,
+  });
+
+  final bool focused;
+  final Widget child;
+  final BorderRadius borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
+    final transparent = editorial.focus.withValues(alpha: 0);
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              position: DecorationPosition.foreground,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: focused
+                      ? accessibleForegroundFor(editorial.focus)
+                      : transparent,
+                  width: 2,
+                ),
+                borderRadius: borderRadius,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: DecoratedBox(
+                  position: DecorationPosition.foreground,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: focused ? editorial.focus : transparent,
+                      width: 2,
+                    ),
+                    borderRadius: borderRadius,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class EditorialTapTarget extends StatefulWidget {
   const EditorialTapTarget({
     required this.child,
@@ -77,6 +134,7 @@ class EditorialTapTarget extends StatefulWidget {
 }
 
 class _EditorialTapTargetState extends State<EditorialTapTarget> {
+  bool _focused = false;
   bool _pressed = false;
 
   bool get _isEnabled => widget.enabled && widget.onPressed != null;
@@ -92,24 +150,29 @@ class _EditorialTapTargetState extends State<EditorialTapTarget> {
     final motion = Theme.of(context).extension<HoopTraceMotionTheme>();
     final content = ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: _isEnabled ? widget.onPressed : null,
-          onTapDown: (_) => _setPressed(true),
-          onTapUp: (_) => _setPressed(false),
-          onTapCancel: () => _setPressed(false),
-          borderRadius: BorderRadius.circular(HoopTraceRadii.control),
-          focusColor: editorial.focus.withValues(alpha: 0.18),
-          splashColor: editorial.arenaAccent.withValues(alpha: 0.14),
-          child: AnimatedScale(
-            scale: _pressed ? 0.97 : 1,
-            duration: editorialMotionDuration(
-              context,
-              standard: motion?.press ?? const Duration(milliseconds: 90),
+      child: EditorialFocusOutline(
+        focused: _focused,
+        borderRadius: BorderRadius.circular(HoopTraceRadii.control),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _isEnabled ? widget.onPressed : null,
+            onTapDown: (_) => _setPressed(true),
+            onTapUp: (_) => _setPressed(false),
+            onTapCancel: () => _setPressed(false),
+            onFocusChange: (focused) => setState(() => _focused = focused),
+            borderRadius: BorderRadius.circular(HoopTraceRadii.control),
+            focusColor: editorial.focus.withValues(alpha: 0.18),
+            splashColor: editorial.arenaAccent.withValues(alpha: 0.14),
+            child: AnimatedScale(
+              scale: _pressed ? 0.97 : 1,
+              duration: editorialMotionDuration(
+                context,
+                standard: motion?.press ?? const Duration(milliseconds: 90),
+              ),
+              curve: Curves.easeOut,
+              child: widget.child,
             ),
-            curve: Curves.easeOut,
-            child: widget.child,
           ),
         ),
       ),

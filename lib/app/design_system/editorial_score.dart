@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/design_system/editorial_primitives.dart';
+import 'package:hooptrace/app/design_system/editorial_tokens.dart';
 
 class ScoreNumeral extends StatelessWidget {
   const ScoreNumeral({
@@ -23,6 +23,7 @@ class ScoreNumeral extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     return Semantics(
       label: semanticLabel,
+      excludeSemantics: semanticLabel != null,
       child: Text(
         '$value',
         style: Theme.of(context).textTheme.displayLarge?.copyWith(

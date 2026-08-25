@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/design_system/editorial_primitives.dart';
+import 'package:hooptrace/app/design_system/editorial_tokens.dart';
 
 class EditorialMasthead extends StatelessWidget {
   const EditorialMasthead({
@@ -61,7 +61,7 @@ class EditorialMasthead extends StatelessWidget {
               Text(
                 eyebrow!.toUpperCase(),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: editorial.arenaAccent,
+                  color: editorial.mutedInk,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                 ),

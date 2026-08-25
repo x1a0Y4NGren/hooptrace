@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:hooptrace/app/design_system/editorial_primitives.dart';
 
-class EditorialIndexRow extends StatelessWidget {
+class EditorialIndexRow extends StatefulWidget {
   const EditorialIndexRow({
     required this.index,
     required this.title,
@@ -21,64 +21,80 @@ class EditorialIndexRow extends StatelessWidget {
   final String? semanticLabel;
 
   @override
+  State<EditorialIndexRow> createState() => _EditorialIndexRowState();
+}
+
+class _EditorialIndexRowState extends State<EditorialIndexRow> {
+  bool _focused = false;
+
+  @override
   Widget build(BuildContext context) {
     final editorial = editorialThemeOf(context);
     final row = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 64),
-      child: InkWell(
-        onTap: onTap,
-        focusColor: editorial.focus.withValues(alpha: 0.18),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: editorial.rule)),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 48,
-                child: Text(
-                  index,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: editorial.arenaAccent,
-                    fontWeight: FontWeight.w800,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+      child: EditorialFocusOutline(
+        focused: _focused,
+        child: InkWell(
+          onTap: widget.onTap,
+          onFocusChange: (focused) => setState(() => _focused = focused),
+          focusColor: editorial.focus.withValues(alpha: 0.18),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: editorial.rule)),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 48,
+                  child: Text(
+                    widget.index,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: editorial.mutedInk,
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: editorial.ink,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (subtitle != null)
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        subtitle!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: editorial.mutedInk,
-                        ),
+                        widget.title,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              color: editorial.ink,
+                              fontWeight: FontWeight.w700,
+                            ),
                       ),
-                  ],
+                      if (widget.subtitle != null)
+                        Text(
+                          widget.subtitle!,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: editorial.mutedInk),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: 12),
-                trailing!,
-              ] else if (onTap != null)
-                Icon(Icons.arrow_forward, color: editorial.ink, size: 20),
-            ],
+                if (widget.trailing != null) ...[
+                  const SizedBox(width: 12),
+                  widget.trailing!,
+                ] else if (widget.onTap != null)
+                  Icon(Icons.arrow_forward, color: editorial.ink, size: 20),
+              ],
+            ),
           ),
         ),
       ),
     );
-    if (semanticLabel == null) return row;
-    return Semantics(label: semanticLabel, button: onTap != null, child: row);
+    if (widget.semanticLabel == null) return row;
+    return Semantics(
+      label: widget.semanticLabel,
+      button: widget.onTap != null,
+      excludeSemantics: true,
+      child: row,
+    );
   }
 }

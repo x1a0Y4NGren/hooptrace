@@ -1,12 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
+import 'package:hooptrace/app/design_system/editorial_color_helpers.dart'
+    as color_helpers;
+import 'package:hooptrace/app/design_system/editorial_motion.dart' as motion;
+import 'package:hooptrace/app/design_system/editorial_theme.dart'
+    as editorial_theme;
+import 'package:hooptrace/app/design_system/editorial_tokens.dart' as tokens;
 import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 void main() {
   group('editorial theme', () {
+    test('focused modules expose tokens while app_theme stays compatible', () {
+      const focusedTheme = editorial_theme.HoopTraceEditorialTheme.light();
+      const focusedMotion = motion.HoopTraceMotionTheme.light();
+      final assembledTheme = buildHoopTraceTheme();
+
+      expect(tokens.HoopTraceColors.offWhite, focusedTheme.canvas);
+      expect(focusedMotion.scoreFlight, const Duration(milliseconds: 480));
+      expect(
+        color_helpers.accessibleForegroundFor(focusedTheme.teamBlue),
+        Colors.white,
+      );
+      expect(
+        assembledTheme.extension<HoopTraceEditorialTheme>()?.canvas,
+        focusedTheme.canvas,
+      );
+    });
+
     test('light and dark palettes expose the approved semantic colors', () {
       final light = buildHoopTraceTheme().extension<HoopTraceEditorialTheme>()!;
       final dark = buildHoopTraceTheme(
@@ -62,6 +86,153 @@ void main() {
   });
 
   group('editorial components', () {
+    testWidgets(
+      'tap targets and index rows expose a solid high-contrast focus outline',
+      (tester) async {
+        Future<void> expectFocusOutline(
+          Widget widget,
+          Type componentType,
+          Brightness brightness,
+        ) async {
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: buildHoopTraceTheme(brightness: brightness),
+              home: Scaffold(body: widget),
+            ),
+          );
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pump();
+
+          final context = tester.element(find.byType(componentType));
+          final editorial = Theme.of(
+            context,
+          ).extension<HoopTraceEditorialTheme>()!;
+          final outlineFinder = find.descendant(
+            of: find.byType(componentType),
+            matching: find.byWidgetPredicate((widget) {
+              if (widget case DecoratedBox(
+                decoration: final BoxDecoration decoration,
+              )) {
+                final border = decoration.border;
+                return widget.position == DecorationPosition.foreground &&
+                    border is Border &&
+                    border.top.color == editorial.focus &&
+                    border.top.style == BorderStyle.solid &&
+                    border.top.width >= 2;
+              }
+              return false;
+            }),
+          );
+
+          expect(outlineFinder, findsOneWidget);
+          final backingFinder = find.descendant(
+            of: find.byType(componentType),
+            matching: find.byWidgetPredicate((widget) {
+              if (widget case DecoratedBox(
+                decoration: final BoxDecoration decoration,
+              )) {
+                final border = decoration.border;
+                return widget.position == DecorationPosition.foreground &&
+                    border is Border &&
+                    border.top.color == Colors.black &&
+                    border.top.style == BorderStyle.solid &&
+                    border.top.width >= 2;
+              }
+              return false;
+            }),
+          );
+          expect(backingFinder, findsOneWidget);
+          expect(
+            _contrast(editorial.focus, Colors.black),
+            greaterThanOrEqualTo(3),
+          );
+        }
+
+        for (final brightness in Brightness.values) {
+          await expectFocusOutline(
+            EditorialTapTarget(
+              onPressed: _noop,
+              label: 'Open game',
+              child: const Text('Open'),
+            ),
+            EditorialTapTarget,
+            brightness,
+          );
+          await expectFocusOutline(
+            EditorialIndexRow(index: '01', title: 'Latest game', onTap: _noop),
+            EditorialIndexRow,
+            brightness,
+          );
+        }
+      },
+    );
+
+    testWidgets('passive editorial labels use muted ink, not arena orange', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: const Scaffold(
+            body: Column(
+              children: [
+                EditorialMasthead(title: 'HoopTrace', eyebrow: 'Game desk'),
+                EditorialIndexRow(index: '07', title: 'Latest game'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final editorial = Theme.of(
+        tester.element(find.text('GAME DESK')),
+      ).extension<HoopTraceEditorialTheme>()!;
+      expect(
+        tester.widget<Text>(find.text('GAME DESK')).style?.color,
+        editorial.mutedInk,
+      );
+      expect(
+        tester.widget<Text>(find.text('07')).style?.color,
+        editorial.mutedInk,
+      );
+      expect(editorial.mutedInk, isNot(editorial.arenaAccent));
+    });
+
+    testWidgets('replacement labels suppress row and score descendants', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: const Scaffold(
+            body: Column(
+              children: [
+                EditorialIndexRow(
+                  index: '07',
+                  title: 'Latest game',
+                  subtitle: 'Final',
+                  semanticLabel: 'Open the latest game',
+                ),
+                ScoreNumeral(value: 108, semanticLabel: 'Blue team score: 108'),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(EditorialIndexRow)).label,
+        'Open the latest game',
+      );
+      expect(
+        tester.getSemantics(find.byType(ScoreNumeral)).label,
+        'Blue team score: 108',
+      );
+      semantics.dispose();
+    });
+
     testWidgets('scaffold responds to width and renders both brightnesses', (
       tester,
     ) async {
