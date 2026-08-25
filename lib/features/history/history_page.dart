@@ -3,6 +3,7 @@ import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/l10n/rule_template_localizations.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 
@@ -590,77 +591,81 @@ class _HistoryMatchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final actions =
         onArchive != null || onUnarchive != null || onDelete != null;
-    return InkWell(
-      key: Key('history-match-${match.matchId}'),
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: wide ? 88 : 142),
-        child: SizedBox(
-          width: double.infinity,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-            child: wide
-                ? Row(
-                    children: [
-                      SizedBox(width: 128, child: _date(context)),
-                      Expanded(flex: 4, child: _teamsAndScore(context)),
-                      Expanded(flex: 2, child: _winner(context)),
-                      Expanded(
-                        flex: 2,
-                        child: _Meta(
-                          label: _historyL10n(context).historyRule,
-                          value: localizedStoredRuleTemplateName(
-                            match.ruleName,
-                            _historyL10n(context),
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 78,
-                        child: _Meta(
-                          label: _historyL10n(context).historyDuration,
-                          value: _formatDuration(match.duration),
-                        ),
-                      ),
-                      SizedBox(width: 88, child: _completeness(context)),
-                      if (actions) _boundedActions(context),
-                      const Icon(Icons.chevron_right),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: _date(context)),
-                          if (actions) _boundedActions(context),
-                          const Icon(Icons.chevron_right),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      _teamsAndScore(context),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 8,
-                        children: [
-                          _winner(context),
-                          _Meta(
+    return DoodleSurface(
+      key: Key('history-card-${match.matchId}'),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: InkWell(
+        key: Key('history-match-${match.matchId}'),
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: wide ? 88 : 142),
+          child: SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+              child: wide
+                  ? Row(
+                      children: [
+                        SizedBox(width: 128, child: _date(context)),
+                        Expanded(flex: 4, child: _teamsAndScore(context)),
+                        Expanded(flex: 2, child: _winner(context)),
+                        Expanded(
+                          flex: 2,
+                          child: _Meta(
                             label: _historyL10n(context).historyRule,
                             value: localizedStoredRuleTemplateName(
                               match.ruleName,
                               _historyL10n(context),
                             ),
                           ),
-                          _Meta(
+                        ),
+                        SizedBox(
+                          width: 78,
+                          child: _Meta(
                             label: _historyL10n(context).historyDuration,
                             value: _formatDuration(match.duration),
                           ),
-                          _completeness(context),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                        SizedBox(width: 88, child: _completeness(context)),
+                        if (actions) _boundedActions(context),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _date(context)),
+                            if (actions) _boundedActions(context),
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _teamsAndScore(context),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 8,
+                          children: [
+                            _winner(context),
+                            _Meta(
+                              label: _historyL10n(context).historyRule,
+                              value: localizedStoredRuleTemplateName(
+                                match.ruleName,
+                                _historyL10n(context),
+                              ),
+                            ),
+                            _Meta(
+                              label: _historyL10n(context).historyDuration,
+                              value: _formatDuration(match.duration),
+                            ),
+                            _completeness(context),
+                          ],
+                        ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),

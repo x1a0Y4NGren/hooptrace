@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -52,19 +53,22 @@ class ReplayTimelinePanel extends StatelessWidget {
               (event) => ReplayTimelineEvent(
                 event: event,
                 data: controller.data,
-                onTap: controller.isEditing ? () => onEventTap(event) : null,
+                selected: controller.selectedEventId == event.id,
+                editing: controller.isEditing,
+                onTap: () => onEventTap(event),
               ),
             )
           else
             Expanded(
               child: ListView.builder(
+                key: const Key('replay-timeline-scroll'),
                 itemCount: events.length,
                 itemBuilder: (context, index) => ReplayTimelineEvent(
                   event: events[index],
                   data: controller.data,
-                  onTap: controller.isEditing
-                      ? () => onEventTap(events[index])
-                      : null,
+                  selected: controller.selectedEventId == events[index].id,
+                  editing: controller.isEditing,
+                  onTap: () => onEventTap(events[index]),
                 ),
               ),
             ),
@@ -72,8 +76,15 @@ class ReplayTimelinePanel extends StatelessWidget {
       );
     }
 
-    if (embedded) return content(inlineEvents: true);
-    return Padding(
+    if (embedded) {
+      return DoodleSurface(
+        key: const Key('replay-timeline-pane'),
+        padding: const EdgeInsets.all(16),
+        child: content(inlineEvents: true),
+      );
+    }
+    return DoodleSurface(
+      key: const Key('replay-timeline-pane'),
       padding: const EdgeInsets.all(20),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -82,7 +93,12 @@ class ReplayTimelinePanel extends StatelessWidget {
           final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
           final scrollable = compactHeight || compactWidth || largeText;
           final child = content(inlineEvents: scrollable);
-          return scrollable ? SingleChildScrollView(child: child) : child;
+          return scrollable
+              ? SingleChildScrollView(
+                  key: const Key('replay-timeline-scroll'),
+                  child: child,
+                )
+              : child;
         },
       ),
     );
@@ -272,12 +288,16 @@ class ReplayTimelineEvent extends StatelessWidget {
   const ReplayTimelineEvent({
     required this.event,
     required this.data,
+    this.selected = false,
+    this.editing = false,
     this.onTap,
     super.key,
   });
 
   final ReplayEventData event;
   final ReplayMatchData data;
+  final bool selected;
+  final bool editing;
   final VoidCallback? onTap;
 
   @override
@@ -305,13 +325,16 @@ class ReplayTimelineEvent extends StatelessWidget {
       if (event.matchClockPositionSeconds case final seconds?)
         l10n.replayClockPosition(seconds),
     ];
-    return InkWell(
+    final eventTile = InkWell(
       key: Key('replay-event-${event.id}'),
       onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 64),
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
+          color: selected
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.10)
+              : null,
           border: Border(
             bottom: BorderSide(
               color: Theme.of(
@@ -366,7 +389,12 @@ class ReplayTimelineEvent extends StatelessWidget {
                 ],
               ),
             ),
-            if (onTap != null)
+            if (selected)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(Icons.radio_button_checked, size: 20),
+              )
+            else if (editing)
               const Padding(
                 padding: EdgeInsets.only(left: 8),
                 child: Icon(Icons.edit_outlined, size: 20),
@@ -379,6 +407,12 @@ class ReplayTimelineEvent extends StatelessWidget {
           ],
         ),
       ),
+    );
+    return Semantics(
+      selected: selected,
+      button: onTap != null,
+      container: true,
+      child: eventTile,
     );
   }
 }

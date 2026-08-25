@@ -79,8 +79,8 @@ class _ReplayPageState extends State<ReplayPage> {
 
   Future<void> _showEventEditor(ReplayEventData event) async {
     final controller = widget.controller;
-    if (!controller.isEditing) return;
     controller.selectEvent(event.id);
+    if (!controller.isEditing) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -842,11 +842,13 @@ class _ReplayOverview extends StatelessWidget {
             return Align(
               alignment: Alignment.center,
               child: SizedBox(
+                key: const Key('replay-court-pane'),
                 width: height * 15 / 14,
                 height: height,
                 child: CourtView(
                   shotLocations: controller.shotLocations,
                   pendingLocation: controller.pendingShotLocation,
+                  highlightedShotLocationId: _selectedLocationId(controller),
                   onPendingLocationChanged: controller.isEditing
                       ? controller.updatePendingShotPoint
                       : null,
@@ -910,6 +912,12 @@ class _ReplayOverview extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  String? _selectedLocationId(ReplayController controller) {
+    final selected = controller.selectedEvent;
+    if (selected == null || selected.shotPoint == null) return null;
+    return selected.locationId ?? 'replay-shot-${selected.id}';
   }
 
   Future<void> _saveLocation(BuildContext context) async {

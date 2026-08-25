@@ -112,6 +112,7 @@ class CourtPainter extends CustomPainter {
     this.shotLocations = const [],
     this.pendingLocation,
     this.detailedShotDraft,
+    this.highlightedShotLocationId,
     this.hiddenShotLocationIds = const <String>{},
     this.transientMarkers = const <TransientShotMarker>[],
     this.eraserMarkers = const <EraserShotMarker>[],
@@ -120,6 +121,7 @@ class CourtPainter extends CustomPainter {
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
   final DetailedShotDraft? detailedShotDraft;
+  final String? highlightedShotLocationId;
   final Set<String> hiddenShotLocationIds;
   final List<TransientShotMarker> transientMarkers;
   final List<EraserShotMarker> eraserMarkers;
@@ -314,6 +316,14 @@ class CourtPainter extends CustomPainter {
         radius: 6,
         isPending: false,
       );
+      if (location.id == highlightedShotLocationId) {
+        final center = HalfCourtGeometry.pointToOffset(location.point, size);
+        final highlightPaint = Paint()
+          ..color = HoopTraceColors.orange
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3;
+        canvas.drawCircle(center, 13, highlightPaint);
+      }
     }
 
     final pending = pendingLocation;
@@ -396,6 +406,7 @@ class CourtPainter extends CustomPainter {
     return oldDelegate.shotLocations != shotLocations ||
         oldDelegate.pendingLocation != pendingLocation ||
         oldDelegate.detailedShotDraft != detailedShotDraft ||
+        oldDelegate.highlightedShotLocationId != highlightedShotLocationId ||
         oldDelegate.hiddenShotLocationIds != hiddenShotLocationIds ||
         oldDelegate.transientMarkers != transientMarkers ||
         oldDelegate.eraserMarkers != eraserMarkers;

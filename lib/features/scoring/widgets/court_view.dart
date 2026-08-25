@@ -18,6 +18,7 @@ class CourtView extends StatelessWidget {
     required this.shotLocations,
     this.pendingLocation,
     this.detailedShotDraft,
+    this.highlightedShotLocationId,
     this.locationPrompt,
     this.onPendingLocationChanged,
     this.onCourtPointTap,
@@ -33,6 +34,9 @@ class CourtView extends StatelessWidget {
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
   final DetailedShotDraft? detailedShotDraft;
+
+  /// Presentation-only stable location identity used by replay selection.
+  final String? highlightedShotLocationId;
   final String? locationPrompt;
   final ValueChanged<CourtPoint>? onPendingLocationChanged;
   final ValueChanged<CourtPoint>? onCourtPointTap;
@@ -120,6 +124,7 @@ class CourtView extends StatelessWidget {
                     shotLocations: shotLocations,
                     pendingLocation: pendingLocation,
                     detailedShotDraft: detailedShotDraft,
+                    highlightedShotLocationId: highlightedShotLocationId,
                     hiddenShotLocationIds: hiddenShotLocationIds,
                     transientMarkers: transientMarkers,
                     eraserMarkers: eraserMarkers,
