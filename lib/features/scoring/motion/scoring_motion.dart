@@ -289,12 +289,22 @@ class ScoringMotionCoordinator extends ChangeNotifier {
   }
 
   void _finishImmediately(ScoringMotionEvent event, {required bool fallback}) {
-    if (fallback) {
-      _dispatchFallback(event);
-    } else {
-      _dispatchComplete(event);
+    try {
+      if (fallback) {
+        _dispatchFallback(event);
+      } else {
+        _dispatchComplete(event);
+      }
+    } catch (error, stack) {
+      _recoverAfterDispatch();
+      Error.throwWithStackTrace(error, stack);
     }
-    if (!_disposed && _active == null) _startNext();
+    _recoverAfterDispatch();
+  }
+
+  void _recoverAfterDispatch() {
+    if (_disposed) return;
+    if (_active == null) _startNext();
     if (!_disposed) notifyListeners();
   }
 
@@ -351,6 +361,10 @@ class ScoringMotionCoordinator extends ChangeNotifier {
         _completionDispatching = true;
         try {
           if (!_disposed) onComplete?.call(finished);
+        } catch (error, stack) {
+          _completionDispatching = false;
+          _recoverAfterDispatch();
+          Error.throwWithStackTrace(error, stack);
         } finally {
           _completionDispatching = false;
         }
@@ -376,18 +390,26 @@ class ScoringMotionCoordinator extends ChangeNotifier {
     if (_active?.event.id == eventId) {
       final failed = _active!.event;
       _active = null;
-      _dispatchFallback(failed);
-      if (_disposed) return true;
-      if (_active == null) _startNext();
-      if (!_disposed) notifyListeners();
+      try {
+        _dispatchFallback(failed);
+      } catch (error, stack) {
+        _recoverAfterDispatch();
+        Error.throwWithStackTrace(error, stack);
+      }
+      _recoverAfterDispatch();
       return true;
     }
     final index = _queue.indexWhere((event) => event.id == eventId);
     if (index < 0) return false;
     final failed = _queue.removeAt(index);
     _timings.remove(failed.id);
-    _dispatchFallback(failed);
-    if (!_disposed) notifyListeners();
+    try {
+      _dispatchFallback(failed);
+    } catch (error, stack) {
+      _recoverAfterDispatch();
+      Error.throwWithStackTrace(error, stack);
+    }
+    _recoverAfterDispatch();
     return true;
   }
 
@@ -593,7 +615,16 @@ class ScoringMotionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final active = coordinator.active;
-    if (active == null || !active.travelEnabled) return;
+    if (active == null) return;
+    if (!active.travelEnabled) {
+      canvas.drawCircle(
+        active.event.destination,
+        10,
+        Paint()
+          ..color = ballColor.withValues(alpha: active.colorRevealProgress),
+      );
+      return;
+    }
     final sample = active.sample;
     final paint = Paint()..color = ballColor;
     if (active.trailEnabled) {

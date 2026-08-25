@@ -112,6 +112,39 @@ void main() {
     },
   );
 
+  test('bundled ball and splash draw delegates resolve blue and red', () async {
+    final theme = buildHoopTraceTheme();
+    for (final side in TeamSide.values) {
+      final expected = teamColorForScheme(side, theme.colorScheme);
+      for (final asset in [
+        'assets/animations/paint_ball.json',
+        'assets/animations/paint_splash.json',
+      ]) {
+        final data = await rootBundle.load(asset);
+        final composition = await LottieComposition.fromByteData(data);
+        Color? callbackColor;
+        final drawable = LottieDrawable(composition);
+        drawable.delegates = LottieDelegates(
+          values: [
+            ValueDelegate.color(
+              ['**', 'teamFill', 'teamFill', 'teamFill'],
+              callback: (_) {
+                callbackColor = expected;
+                return expected;
+              },
+            ),
+          ],
+        );
+        drawable.setProgress(0);
+        final recorder = ui.PictureRecorder();
+        drawable.draw(Canvas(recorder), const Rect.fromLTWH(0, 0, 180, 180));
+        recorder.endRecording();
+        expect(callbackColor, expected, reason: '$side $asset');
+        expect(callbackColor, isNot(HoopTraceColors.orange));
+      }
+    }
+  });
+
   test('cubic geometry samples exact endpoints and bounded controls', () {
     final path = ScoringMotionPath.build(
       source: const Offset(80, 520),
@@ -385,6 +418,59 @@ void main() {
     coordinator.dispose();
   });
 
+  test('throwing completion drains queued motions in FIFO order', () {
+    final completed = <String>[];
+    final coordinator = ScoringMotionCoordinator(
+      onComplete: (event) {
+        if (event.id == 'event-0') throw StateError('first failed');
+        completed.add(event.id);
+      },
+    );
+    for (var i = 0; i < 3; i++) {
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('$i'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
+    }
+    expect(
+      () => coordinator.advance(const Duration(milliseconds: 760)),
+      throwsA(isA<StateError>()),
+    );
+    expect(coordinator.active?.event.id, 'event-1');
+    coordinator.advance(const Duration(milliseconds: 760));
+    expect(coordinator.active?.event.id, 'event-2');
+    coordinator.advance(const Duration(milliseconds: 760));
+    expect(completed, ['event-1', 'event-2']);
+    coordinator.dispose();
+  });
+
+  test('throwing fallback during active failure starts the next event', () {
+    final coordinator = ScoringMotionCoordinator(
+      onFallback: (event) {
+        if (event.id == 'event-fail-0') {
+          throw StateError('asset failed');
+        }
+      },
+    );
+    for (var i = 0; i < 2; i++) {
+      coordinator.submit(
+        ScoringMotionEvent(
+          receipt: receipt('fail-$i'),
+          sourceButton: const Offset(20, 20),
+          courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+          safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+        ),
+      );
+    }
+    expect(() => coordinator.fail('event-fail-0'), throwsA(isA<StateError>()));
+    expect(coordinator.active?.event.id, 'event-fail-1');
+    coordinator.dispose();
+  });
+
   test('cancels active and queued events and dispose clears safely', () {
     final completed = <String>[];
     final coordinator = ScoringMotionCoordinator(
@@ -454,6 +540,92 @@ void main() {
       expect(disabledCompleted, ['event-disabled']);
       expect(disabled.active, isNull);
       disabled.dispose();
+    },
+  );
+
+  testWidgets(
+    'reduced overlay paints a destination marker through the 100ms reveal',
+    (tester) async {
+      final completed = <String>[];
+      final coordinator = ScoringMotionCoordinator(
+        mode: ScoringMotionMode.reduced,
+        onComplete: (event) => completed.add(event.id),
+      );
+      final event = ScoringMotionEvent(
+        receipt: receipt('reduced-marker', x: .25, y: .75),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(100, 200, 400, 200),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 600, 500),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: ScoringMotionOverlay(coordinator: coordinator),
+        ),
+      );
+      coordinator.submit(event);
+      await tester.pump();
+
+      List<RecordedInvocation> circles() {
+        final customPaint = tester.widget<CustomPaint>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is CustomPaint && widget.painter is ScoringMotionPainter,
+          ),
+        );
+        final canvas = TestRecordingCanvas();
+        (customPaint.painter! as ScoringMotionPainter).paint(
+          canvas,
+          const Size(600, 500),
+        );
+        return canvas.invocations
+            .where((call) => call.invocation.memberName == #drawCircle)
+            .toList();
+      }
+
+      final expectedColor = teamColorForScheme(
+        TeamSide.blue,
+        buildHoopTraceTheme().colorScheme,
+      );
+      expect(find.byType(LottieBuilder), findsNothing);
+      final initial = circles();
+      expect(initial, hasLength(1));
+      expect(
+        initial.single.invocation.positionalArguments[0],
+        event.destination,
+      );
+      final initialColor =
+          (initial.single.invocation.positionalArguments[2] as Paint).color;
+      expect(initialColor.a, 0);
+      expect(initialColor.r, closeTo(expectedColor.r, .001));
+      expect(initialColor.g, closeTo(expectedColor.g, .001));
+      expect(initialColor.b, closeTo(expectedColor.b, .001));
+
+      coordinator.advance(const Duration(milliseconds: 50));
+      await tester.pump();
+      final midpoint = circles();
+      expect(midpoint, hasLength(1));
+      expect(
+        midpoint.single.invocation.positionalArguments[0],
+        event.destination,
+      );
+      expect(
+        (midpoint.single.invocation.positionalArguments[2] as Paint).color.a,
+        closeTo(.5, .001),
+      );
+      expect(
+        (midpoint.single.invocation.positionalArguments[2] as Paint).color.r,
+        closeTo(expectedColor.r, .001),
+      );
+      expect(find.byType(LottieBuilder), findsNothing);
+
+      coordinator.advance(const Duration(milliseconds: 50));
+      await tester.pump();
+      expect(completed, ['event-reduced-marker']);
+      expect(coordinator.active, isNull);
+      expect(circles(), isEmpty);
+      expect(find.byType(LottieBuilder), findsNothing);
+      coordinator.dispose();
     },
   );
 
