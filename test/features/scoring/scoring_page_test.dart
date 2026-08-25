@@ -344,6 +344,64 @@ void main() {
     },
   );
 
+  testWidgets('landscape side actions form one evenly spaced vertical column', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(731, 411));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'vertical-actions')),
+    );
+
+    for (final side in const ['blue', 'red']) {
+      final rects = [
+        for (final action in const ['score-1', 'score-2', 'score-3', 'foul'])
+          tester.getRect(find.byKey(Key('$side-$action'))),
+      ];
+      final x = rects.first.center.dx;
+      for (final rect in rects.skip(1)) {
+        expect(rect.center.dx, closeTo(x, 0.5));
+      }
+      for (var index = 1; index < rects.length; index++) {
+        expect(rects[index].top, greaterThan(rects[index - 1].bottom));
+      }
+      final centerGaps = [
+        for (var index = 1; index < rects.length; index++)
+          rects[index].center.dy - rects[index - 1].center.dy,
+      ];
+      for (final gap in centerGaps.skip(1)) {
+        expect(gap, closeTo(centerGaps.first, 0.5));
+      }
+    }
+  });
+
+  testWidgets('scoreboard keeps timer centered with teams at outer edges', (
+    tester,
+  ) async {
+    const size = Size(731, 411);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'symmetric-scoreboard')),
+    );
+
+    final blue = tester.getRect(find.text('蓝方 0'));
+    final leave = tester.getRect(find.byKey(const Key('scoring-leave')));
+    final timer = tester.getRect(find.text('无计时'));
+    final undo = tester.getRect(find.byKey(const Key('scoring-undo')));
+    final more = tester.getRect(find.byKey(const Key('scoring-more')));
+    final red = tester.getRect(find.text('0 红方'));
+
+    expect(timer.center.dx, closeTo(size.width / 2, 0.5));
+    expect(blue.center.dx, lessThan(leave.center.dx));
+    expect(leave.center.dx, lessThan(timer.center.dx));
+    expect(timer.center.dx, lessThan(undo.center.dx));
+    expect(undo.center.dx, lessThan(more.center.dx));
+    expect(more.center.dx, lessThan(red.center.dx));
+    expect(blue.left, lessThan(16));
+    expect(red.right, greaterThan(size.width - 16));
+  });
+
   testWidgets('reduced motion uses a static location outline', (tester) async {
     final controller = ScoringController(matchId: 'unified-reduced-motion')
       ..addScore(side: TeamSide.blue, points: 2);
@@ -1632,10 +1690,11 @@ void main() {
       'red-score-3',
       'red-foul',
     ]) {
-      final rect = tester.getRect(find.byKey(Key(key)));
+      final control = find.byKey(Key(key));
+      final rect = tester.getRect(control);
       expect(rect.top, greaterThanOrEqualTo(safeTop));
       expect(rect.bottom, lessThanOrEqualTo(safeBottom));
-      expect(rect.height, greaterThanOrEqualTo(48));
+      expect(tester.getSize(control).height, greaterThanOrEqualTo(48));
     }
     expect(
       tester.getSize(find.byKey(const Key('scoring-court'))).height,

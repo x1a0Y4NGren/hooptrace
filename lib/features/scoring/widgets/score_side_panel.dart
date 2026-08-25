@@ -61,10 +61,7 @@ class ScoreSidePanel extends StatelessWidget {
               48.0,
               double.infinity,
             );
-            final twoColumns = availableWidth >= 48 * 2 + 4;
-            final actionWidth = twoColumns
-                ? (availableWidth - 4) / 2
-                : availableWidth;
+            final actionWidth = availableWidth;
             final actions = <Widget>[
               for (final points in scoreButtons)
                 _ScoreAction(
@@ -149,15 +146,33 @@ class ScoreSidePanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Expanded(
-                    child: SingleChildScrollView(
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: actions,
-                        ),
-                      ),
+                    child: LayoutBuilder(
+                      builder: (context, actionConstraints) {
+                        final requiredHeight =
+                            actions.length * buttonHeight +
+                            (actions.length - 1) * 4;
+                        if (actionConstraints.maxHeight >= requiredHeight) {
+                          return Column(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: actions,
+                          );
+                        }
+                        return SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              for (
+                                var index = 0;
+                                index < actions.length;
+                                index++
+                              ) ...[
+                                actions[index],
+                                if (index < actions.length - 1)
+                                  const SizedBox(height: 4),
+                              ],
+                            ],
+                          ),
+                        );
+                      },
                     ),
                   ),
                 ],

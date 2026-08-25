@@ -1264,84 +1264,127 @@ class _Scoreboard extends StatelessWidget {
     return Material(
       key: const Key('scoring-scoreboard'),
       color: HoopTraceColors.ink,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-        child: Row(
-          children: [
-            action(
-              key: const Key('scoring-leave'),
-              tooltip: labels.back,
-              icon: Icons.arrow_back,
-              onPressed: onLeave,
-            ),
-            Expanded(
-              child: _ScoreLabel(
-                name: state.blueName,
-                score: state.score.blueScore,
-                color: blue,
-                alignment: Alignment.centerLeft,
-              ),
-            ),
-            Flexible(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: compact ? 88 : 180),
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 12),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          clockLabel,
-                          maxLines: 1,
-                          semanticsLabel: labels.matchTime(clockLabel),
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures(),
-                                ],
-                              ),
-                        ),
-                      ),
-                      if (!compact)
+      child: SizedBox(
+        height: 56,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final clockWidth = (width * 0.22).clamp(
+              compact ? 88.0 : 112.0,
+              compact ? 112.0 : 180.0,
+            );
+            final clockLeft = (width - clockWidth) / 2;
+            final clockRight = clockLeft + clockWidth;
+            final leaveLeft = clockLeft - 48;
+            final undoLeft = clockRight;
+            final moreLeft = undoLeft + 48;
+            final redLeft = moreLeft + 48;
+
+            return Stack(
+              children: [
+                Positioned(
+                  left: 0,
+                  top: 4,
+                  bottom: 4,
+                  width: leaveLeft,
+                  child: _ScoreLabel(
+                    name: state.blueName,
+                    score: state.score.blueScore,
+                    color: blue,
+                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+                Positioned(
+                  left: leaveLeft,
+                  top: 4,
+                  bottom: 4,
+                  width: 48,
+                  child: action(
+                    key: const Key('scoring-leave'),
+                    tooltip: labels.back,
+                    icon: Icons.arrow_back,
+                    onPressed: onLeave,
+                  ),
+                ),
+                Positioned(
+                  left: clockLeft,
+                  top: 4,
+                  bottom: 4,
+                  width: clockWidth,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: compact ? 2 : 12),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           child: Text(
-                            status,
+                            clockLabel,
                             maxLines: 1,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(color: Colors.white70),
+                            semanticsLabel: labels.matchTime(clockLabel),
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontFeatures: const [
+                                    FontFeature.tabularFigures(),
+                                  ],
+                                ),
                           ),
                         ),
-                    ],
+                        if (!compact)
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              status,
+                              maxLines: 1,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: Colors.white70),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-            Expanded(
-              child: _ScoreLabel(
-                name: state.redName,
-                score: state.score.redScore,
-                color: red,
-                alignment: Alignment.centerRight,
-              ),
-            ),
-            action(
-              key: const Key('scoring-undo'),
-              tooltip: labels.undo,
-              icon: Icons.undo,
-              onPressed: onUndo,
-            ),
-            action(
-              key: const Key('scoring-more'),
-              tooltip: labels.more,
-              icon: Icons.more_vert,
-              onPressed: onMore,
-            ),
-          ],
+                Positioned(
+                  left: undoLeft,
+                  top: 4,
+                  bottom: 4,
+                  width: 48,
+                  child: action(
+                    key: const Key('scoring-undo'),
+                    tooltip: labels.undo,
+                    icon: Icons.undo,
+                    onPressed: onUndo,
+                  ),
+                ),
+                Positioned(
+                  left: moreLeft,
+                  top: 4,
+                  bottom: 4,
+                  width: 48,
+                  child: action(
+                    key: const Key('scoring-more'),
+                    tooltip: labels.more,
+                    icon: Icons.more_vert,
+                    onPressed: onMore,
+                  ),
+                ),
+                Positioned(
+                  left: redLeft,
+                  right: 0,
+                  top: 4,
+                  bottom: 4,
+                  child: _ScoreLabel(
+                    name: state.redName,
+                    score: state.score.redScore,
+                    color: red,
+                    alignment: Alignment.centerRight,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
