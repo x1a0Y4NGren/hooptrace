@@ -4,12 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/features/rules/rule_template_editor_page.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 import '../../test_helpers/test_database.dart';
 
@@ -52,9 +52,9 @@ void main() {
           expect(tester.takeException(), isNull);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          expect(find.byType(DoodleTitle), findsOneWidget);
+          expect(find.byType(EditorialMasthead), findsOneWidget);
           expect(
-            tester.getSize(find.byType(ListTile).first).height,
+            tester.getSize(find.byType(EditorialIndexRow).first).height,
             greaterThanOrEqualTo(48),
           );
 
@@ -164,6 +164,13 @@ void main() {
   testWidgets('built-in rule names follow the active locale', (tester) async {
     final database = createTestDatabase();
     final repository = RuleTemplateRepository(database);
+    await repository.save(
+      const RuleTemplate(
+        id: 'custom-identity',
+        name: 'Custom practice',
+        scoreButtons: [1, 2],
+      ),
+    );
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       await database.close();
@@ -185,8 +192,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Free scoring'), findsOneWidget);
-    expect(find.byType(DoodleTitle), findsOneWidget);
-    expect(find.byType(DoodleSurface), findsAtLeastNWidgets(4));
+    expect(find.byType(EditorialMasthead), findsOneWidget);
+    expect(find.byType(EditorialIndexRow), findsAtLeastNWidgets(4));
+    expect(find.byIcon(Icons.lock_outline), findsAtLeastNWidgets(4));
+    expect(find.text('Built-in'), findsAtLeastNWidgets(4));
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
+    expect(find.text('Custom'), findsOneWidget);
     expect(find.text('11 points (win by 2)'), findsOneWidget);
     expect(find.text('21 points'), findsOneWidget);
     expect(find.text('10-minute timed'), findsOneWidget);
@@ -221,12 +232,22 @@ void main() {
       '1,3,5',
     );
     await tester.enterText(find.byKey(const Key('rule-event-types')), '抢断,盖帽');
-    await tester.tap(find.byKey(const Key('rule-win-by-two')));
-    await tester.tap(find.byKey(const Key('rule-possession-hint')));
-    await tester.fling(find.byType(ListView), const Offset(0, -800), 1000);
+    await tester.ensureVisible(find.byKey(const Key('rule-win-by-two')));
     await tester.pumpAndSettle();
-    expect(find.byType(DoodleDivider), findsOneWidget);
-    expect(find.byType(DoodlePress), findsOneWidget);
+    await tester.tap(find.byKey(const Key('rule-win-by-two')));
+    await tester.ensureVisible(find.byKey(const Key('rule-possession-hint')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('rule-possession-hint')));
+    await tester.fling(
+      find.byType(Scrollable).first,
+      const Offset(0, -800),
+      1000,
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(EditorialSectionRule), findsAtLeastNWidgets(2));
+    expect(find.byType(EditorialTapTarget), findsWidgets);
+    await tester.ensureVisible(find.byKey(const Key('rule-save')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('rule-save')));
     await tester.pumpAndSettle();
 
@@ -335,6 +356,32 @@ void main() {
       expect(saved.possessionPolicy, PossessionPolicy.switchAfterMade);
     },
   );
+
+  testWidgets('rule editor rejects missing and non-positive specification', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(database.close);
+    final repository = RuleTemplateRepository(database);
+
+    await tester.pumpWidget(
+      MaterialApp(home: RuleTemplateEditorPage(repository: repository)),
+    );
+    await tester.enterText(find.byKey(const Key('rule-target-score')), '0');
+    await tester.enterText(find.byKey(const Key('rule-score-buttons')), '0');
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('rule-save')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('rule-save')));
+    await tester.pump();
+
+    expect(find.text('请输入名称'), findsOneWidget);
+    expect(find.textContaining('必须为正整数'), findsOneWidget);
+    expect(find.text('至少填写一个正整数'), findsOneWidget);
+    expect(await repository.listAll(), isEmpty);
+  });
 }
 
 void _expectSingleTapOwner(WidgetTester tester, Finder target) {

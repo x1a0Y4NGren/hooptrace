@@ -6,13 +6,13 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/players/player_editor_page.dart';
 import 'package:hooptrace/features/players/player_list_page.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 import '../../test_helpers/test_database.dart';
 
@@ -57,9 +57,11 @@ void main() {
           expect(tester.takeException(), isNull);
           await _pumpDatabase(tester);
           expect(tester.takeException(), isNull);
-          expect(find.byType(DoodleTitle), findsOneWidget);
+          expect(find.byType(EditorialScaffold), findsOneWidget);
+          expect(find.byType(EditorialMasthead), findsOneWidget);
+          expect(find.byType(EditorialTapTarget), findsOneWidget);
           expect(
-            tester.getSize(find.byType(DoodlePress)).height,
+            tester.getSize(find.byType(EditorialTapTarget)).height,
             greaterThanOrEqualTo(48),
           );
 
@@ -220,9 +222,8 @@ void main() {
     );
     await _pumpDatabase(tester);
     expect(find.text('还没有保存的球员'), findsOneWidget);
-    expect(find.byType(DoodleTitle), findsOneWidget);
-    expect(find.byType(DoodleSurface), findsOneWidget);
-    expect(find.byType(DoodlePress), findsOneWidget);
+    expect(find.byType(EditorialMasthead), findsOneWidget);
+    expect(find.byType(EditorialEmptyState), findsOneWidget);
 
     await tester.tap(find.byTooltip('新建球员'));
     expect(created, isTrue);
@@ -264,9 +265,9 @@ void main() {
     await tester.enterText(find.byKey(const Key('player-nickname')), '飞鱼');
     await tester.tap(find.text('蓝方'));
     await tester.enterText(find.byKey(const Key('player-note')), '惯用左手');
-    expect(find.byType(DoodleSurface), findsOneWidget);
-    expect(find.byType(DoodleDivider), findsOneWidget);
-    expect(find.byType(DoodlePress), findsOneWidget);
+    expect(find.byType(EditorialScaffold), findsOneWidget);
+    expect(find.byType(EditorialSectionRule), findsAtLeastNWidgets(2));
+    expect(find.byType(EditorialTapTarget), findsWidgets);
     await tester.tap(find.byTooltip('保存球员'));
     await _pumpDatabase(tester);
 
@@ -298,6 +299,56 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('player editor validates, confirms deletion, and calls back', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(database.close);
+    final repository = PlayerRepository(database);
+    await repository.save(
+      Player(
+        id: 'delete-player',
+        nickname: '小北',
+        createdAt: DateTime.utc(2026, 7, 10),
+      ),
+    );
+    var saved = false;
+    var deleted = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlayerEditorPage(
+          repository: repository,
+          playerId: 'delete-player',
+          onSaved: () => saved = true,
+          onDeleted: () => deleted = true,
+        ),
+      ),
+    );
+    await _pumpUntilFound(tester, find.text('小北'));
+
+    await tester.enterText(find.byKey(const Key('player-nickname')), '');
+    await tester.tap(find.byKey(const Key('player-save')));
+    await tester.pump();
+    expect(find.text('请输入球员昵称'), findsOneWidget);
+    expect(saved, isFalse);
+
+    await tester.tap(find.byTooltip('删除球员'));
+    await tester.pumpAndSettle();
+    expect(find.text('删除球员？'), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    expect(await repository.getById('delete-player'), isNotNull);
+    expect(deleted, isFalse);
+
+    await tester.tap(find.byTooltip('删除球员'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('删除'));
+    await _pumpDatabase(tester);
+    expect(await repository.getById('delete-player'), isNull);
+    expect(deleted, isTrue);
   });
 }
 

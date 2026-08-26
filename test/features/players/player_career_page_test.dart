@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/domain/analytics/player_career_aggregate.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
 import 'package:hooptrace/features/players/player_career_controller.dart';
 import 'package:hooptrace/features/players/player_career_page.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 void main() {
   testWidgets('career avatar foreground meets normal-text contrast', (
@@ -96,7 +96,8 @@ void main() {
           expect(tester.takeException(), isNull);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          expect(find.byType(DoodleTitle), findsAtLeastNWidgets(2));
+          expect(find.byType(EditorialMasthead), findsOneWidget);
+          expect(find.byType(ScoreNumeral), findsAtLeastNWidgets(1));
           expect(
             tester
                 .getSize(find.byKey(const Key('career-window-sevenDays')))
@@ -174,9 +175,9 @@ void main() {
       expect(find.text('对手'), findsOneWidget);
       expect(find.textContaining('油漆区'), findsOneWidget);
       expect(find.text('飞鱼'), findsWidgets);
-      expect(find.byType(DoodleTitle), findsAtLeastNWidgets(2));
-      expect(find.byType(DoodleSurface), findsAtLeastNWidgets(3));
-      expect(find.byType(DoodleDivider), findsAtLeastNWidgets(1));
+      expect(find.byType(EditorialMasthead), findsOneWidget);
+      expect(find.byType(ScoreNumeral), findsAtLeastNWidgets(3));
+      expect(find.byType(EditorialSectionRule), findsAtLeastNWidgets(3));
 
       await tester.tap(find.text('近 7 天'));
       await tester.pump();
@@ -399,6 +400,41 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('career error state exposes retry and reloads the query', (
+    tester,
+  ) async {
+    var loads = 0;
+    final controller = PlayerCareerController(
+      playerId: 'p1',
+      loader: (_) {
+        loads++;
+        return Stream<PlayerCareerAggregate>.error(StateError('offline'));
+      },
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlayerCareerPage(
+          controller: controller,
+          player: Player(
+            id: 'p1',
+            nickname: '小北',
+            createdAt: DateTime.utc(2026, 1, 1),
+          ),
+          opponents: const [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialErrorState), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(loads, 2);
+  });
 }
 
 double _contrastRatio(Color foreground, Color background) {

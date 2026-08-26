@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 
@@ -79,19 +78,29 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    return Scaffold(
-      appBar: AppBar(
-        title: DoodleTitle(
-          widget.template == null ? l10n.ruleNewTitle : l10n.ruleEditTitle,
-          icon: Icons.rule,
-        ),
+    final canPop = Navigator.of(context).canPop();
+    return EditorialScaffold(
+      maxContentWidth: 760,
+      masthead: EditorialMasthead(
+        title: widget.template == null ? l10n.ruleNewTitle : l10n.ruleEditTitle,
+        leading: canPop
+            ? EditorialTapTarget(
+                onPressed: () => Navigator.maybePop(context),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                label: MaterialLocalizations.of(context).backButtonTooltip,
+                child: const Icon(Icons.arrow_back),
+              )
+            : null,
       ),
-      body: SafeArea(
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.only(bottom: HoopTraceSpacing.section),
         child: Form(
           key: _formKey,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _FormSectionHeading(label: l10n.ruleNameLabel),
+              const SizedBox(height: 16),
               _field(
                 key: const Key('rule-name'),
                 controller: _name,
@@ -100,6 +109,9 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
                     ? l10n.ruleNameRequired
                     : null,
               ),
+              const SizedBox(height: 12),
+              _FormSectionHeading(label: l10n.ruleTargetLabel),
+              const SizedBox(height: 16),
               _field(
                 key: const Key('rule-target-score'),
                 controller: _target,
@@ -118,6 +130,15 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
                 label: l10n.ruleFoulLimitLabel,
                 numeric: true,
               ),
+              _SpecToggle(
+                key: const Key('rule-win-by-two'),
+                value: _winByTwo,
+                title: l10n.ruleWinByTwoTitle,
+                onChanged: (value) => setState(() => _winByTwo = value),
+              ),
+              const SizedBox(height: 12),
+              _FormSectionHeading(label: l10n.ruleScoreButtonsLabel),
+              const SizedBox(height: 16),
               _field(
                 key: const Key('rule-score-buttons'),
                 controller: _scoreButtons,
@@ -129,37 +150,36 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
                 controller: _eventTypes,
                 label: l10n.ruleCustomLabelsLabel,
               ),
-              SwitchListTile(
-                key: const Key('rule-win-by-two'),
-                contentPadding: EdgeInsets.zero,
-                value: _winByTwo,
-                title: Text(l10n.ruleWinByTwoTitle),
-                onChanged: (value) => setState(() => _winByTwo = value),
-              ),
-              SwitchListTile(
+              const SizedBox(height: 12),
+              _FormSectionHeading(label: l10n.rulePossessionHintTitle),
+              const SizedBox(height: 8),
+              _SpecToggle(
                 key: const Key('rule-possession-hint'),
-                contentPadding: EdgeInsets.zero,
                 value: _possessionHint,
-                title: Text(l10n.rulePossessionHintTitle),
-                subtitle: Text(l10n.rulePossessionHintSubtitle),
+                title: l10n.rulePossessionHintTitle,
+                subtitle: l10n.rulePossessionHintSubtitle,
                 onChanged: (value) => setState(() {
                   _possessionHint = value;
                   if (!value) _possessionPolicy = PossessionPolicy.manual;
                 }),
               ),
+              const SizedBox(height: 8),
               DropdownButtonFormField<PossessionPolicy>(
                 key: const Key('rule-possession-policy'),
                 initialValue: _possessionPolicy,
+                isExpanded: true,
                 decoration: InputDecoration(
                   labelText: l10n.rulePossessionPolicyLabel,
                   helperText: l10n.rulePossessionPolicyHelper,
-                  border: OutlineInputBorder(),
                 ),
                 items: [
                   for (final policy in PossessionPolicy.values)
                     DropdownMenuItem(
                       value: policy,
-                      child: Text(_possessionPolicyLabel(policy, l10n)),
+                      child: Text(
+                        _possessionPolicyLabel(policy, l10n),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                 ],
                 onChanged: _possessionHint
@@ -169,39 +189,18 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
                       }
                     : null,
               ),
-              DoodleSurface(
-                padding: EdgeInsets.zero,
-                child: const DoodleDivider(),
-              ),
-              const SizedBox(height: 8),
-              DoodlePress(
+              const SizedBox(height: 24),
+              Semantics(
                 key: const Key('rule-save'),
-                onPressed: _save,
+                button: true,
+                enabled: true,
                 label: l10n.ruleSaveAction,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                    borderRadius: BorderRadius.circular(HoopTraceRadii.control),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.save_outlined,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          l10n.ruleSaveAction,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
+                onTap: _save,
+                child: ExcludeSemantics(
+                  child: EditorialTapTarget(
+                    onPressed: _save,
+                    tooltip: l10n.ruleSaveAction,
+                    child: _SaveRuleAction(label: l10n.ruleSaveAction),
                   ),
                 ),
               ),
@@ -226,10 +225,7 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
         key: key,
         controller: controller,
         keyboardType: numeric ? TextInputType.number : TextInputType.text,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
+        decoration: InputDecoration(labelText: label),
         validator:
             validator ??
             (numeric
@@ -313,5 +309,107 @@ class _RuleTemplateEditorPageState extends State<RuleTemplateEditorPage> {
       PossessionPolicy.switchAfterMade => l10n.rulePolicySwitchAfterMade,
       PossessionPolicy.keepAfterMade => l10n.rulePolicyKeepAfterMade,
     };
+  }
+}
+
+class _FormSectionHeading extends StatelessWidget {
+  const _FormSectionHeading({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+        if (!largeText && constraints.maxWidth >= 360) {
+          return EditorialSectionRule(label: label);
+        }
+        final editorial = editorialThemeOf(context);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label.toUpperCase(),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: editorial.mutedInk,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Divider(color: editorial.rule),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SpecToggle extends StatelessWidget {
+  const _SpecToggle({
+    required this.value,
+    required this.title,
+    required this.onChanged,
+    this.subtitle,
+    super.key,
+  });
+
+  final bool value;
+  final String title;
+  final String? subtitle;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: editorial.rule)),
+      ),
+      child: SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        value: value,
+        secondary: Icon(
+          value ? Icons.check_box_outlined : Icons.check_box_outline_blank,
+          color: value ? editorial.success : editorial.mutedInk,
+        ),
+        title: Text(title),
+        subtitle: subtitle == null ? null : Text(subtitle!),
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+class _SaveRuleAction extends StatelessWidget {
+  const _SaveRuleAction({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
+    final foreground = accessibleForegroundFor(editorial.arenaAccent);
+    return Container(
+      constraints: const BoxConstraints(minHeight: 52),
+      color: editorial.arenaAccent,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.save_outlined, color: foreground),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: foreground, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
