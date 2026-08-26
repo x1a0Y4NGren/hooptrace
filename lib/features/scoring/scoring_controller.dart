@@ -716,13 +716,7 @@ class ScoringController extends ChangeNotifier {
   Future<void> confirmPendingLocation([CourtPoint? point]) async {
     if (_disposed) return;
     final pending = _state.pendingLocation;
-    if (pending == null) {
-      final window = _state.locationSupplementWindow;
-      if (window != null) {
-        await attachSupplementLocation(point ?? CourtPoint(x: 0.5, y: 0.58));
-      }
-      return;
-    }
+    if (pending == null) return;
     final confirmedPoint = point ?? pending.point;
     final window = _state.locationSupplementWindow;
     if (window != null && window.eventId == pending.eventId) {

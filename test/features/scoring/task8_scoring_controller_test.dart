@@ -223,6 +223,7 @@ void main() {
         final controller = ScoringController.fromCommittedProjection(
           first,
           service,
+          nowUtc: () => now,
         );
         expect(controller.beginLocateLastUnlocatedShot(), isTrue);
         expect(

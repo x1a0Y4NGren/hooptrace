@@ -705,6 +705,7 @@ void main() {
     final point = CourtPoint(x: 0.25, y: 0.75);
 
     controller.addScore(side: TeamSide.blue, points: 2);
+    expect(controller.beginLocateLastUnlocatedShot(), isTrue);
     controller.confirmPendingLocation(point);
 
     expect(controller.state.pendingLocation, isNull);
