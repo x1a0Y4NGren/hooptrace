@@ -109,12 +109,16 @@ class EditorialSectionRule extends StatelessWidget {
     if (label == null) return Row(children: [rule]);
     return Row(
       children: [
-        Text(
-          label!.toUpperCase(),
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: editorial.mutedInk,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1,
+        Flexible(
+          child: Text(
+            label!.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: editorial.mutedInk,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1,
+            ),
           ),
         ),
         const SizedBox(width: 12),

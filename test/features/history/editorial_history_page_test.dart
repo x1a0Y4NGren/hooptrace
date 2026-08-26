@@ -93,6 +93,36 @@ void main() {
     expect(find.byType(EditorialEmptyState), findsOneWidget);
   });
 
+  testWidgets('large text stacks rows and keeps blue identity on the left', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: HistoryPage(
+            controller: HistoryController(
+              matches: [_summary('large-text', DateTime(2026, 8, 26))],
+            ),
+            onMatchTap: (_) {},
+          ),
+        ),
+      ),
+    );
+    final row = find.byKey(const Key('history-match-large-text'));
+    expect(tester.getSize(row).height, greaterThanOrEqualTo(104));
+    expect(
+      tester.getCenter(find.text('Blue')).dx,
+      lessThan(tester.getCenter(find.text('Red')).dx),
+    );
+    expect(
+      tester.getRect(find.byKey(const Key('history-search'))).left,
+      tester.getRect(row).left,
+    );
+  });
+
   testWidgets('recovery notices avoid card stacks and reflow at 200 percent', (
     tester,
   ) async {
@@ -125,6 +155,7 @@ void main() {
           .height,
       greaterThanOrEqualTo(48),
     );
+    expect(find.text('Blue 7 : 11 Red'), findsNWidgets(2));
   });
 }
 

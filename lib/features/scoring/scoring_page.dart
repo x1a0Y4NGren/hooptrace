@@ -476,7 +476,7 @@ class _ScoringPageState extends State<ScoringPage>
     return LayoutBuilder(
       builder: (context, constraints) {
         if (portrait) {
-          final sideHeight = (constraints.maxHeight * 0.31).clamp(220.0, 310.0);
+          final sideHeight = constraints.maxHeight.clamp(0.0, 310.0);
           return Column(
             children: [
               Expanded(child: _buildCourt(context, state)),
@@ -632,28 +632,25 @@ class _ScoringPageState extends State<ScoringPage>
       child: ColoredBox(
         color: Colors.black.withValues(alpha: 0.28),
         child: Center(
-          child: Card(
+          child: EditorialSheet(
             key: const Key('scoring-decision-dock'),
-            margin: const EdgeInsets.all(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  Text(
-                    l10n.finalScoreLine(
-                      state.blueName,
-                      decision.blueScore,
-                      state.redName,
-                      decision.redScore,
-                    ),
-                    style: Theme.of(context).textTheme.titleMedium,
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                Text(
+                  l10n.finalScoreLine(
+                    state.blueName,
+                    decision.blueScore,
+                    state.redName,
+                    decision.redScore,
                   ),
-                  ...actions,
-                ],
-              ),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                ...actions,
+              ],
             ),
           ),
         ),
@@ -915,7 +912,7 @@ class _ScoringPageState extends State<ScoringPage>
     final controller = _controller;
     final foulStampDuration =
         Theme.of(context).extension<HoopTraceMotionTheme>()?.foulStamp ??
-        const Duration(milliseconds: 240);
+        Duration.zero;
     try {
       final accepted = await controller.recordFoulCommitted(side);
       if (!_isCurrentAction(generation, controller)) return;
@@ -1033,13 +1030,16 @@ class _ScoringPageState extends State<ScoringPage>
   Future<void> _showMore() async {
     final labels = _labels(context);
     final clock = _displayClock();
+    final sheetDuration =
+        Theme.of(context).extension<HoopTraceMotionTheme>()?.sheet ??
+        Duration.zero;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: false,
-      sheetAnimationStyle: const AnimationStyle(
-        duration: Duration(milliseconds: 240),
-        reverseDuration: Duration(milliseconds: 180),
+      sheetAnimationStyle: AnimationStyle(
+        duration: sheetDuration,
+        reverseDuration: sheetDuration,
       ),
       builder: (sheetContext) {
         String? inlineFailure;
@@ -2052,20 +2052,22 @@ class _Scoreboard extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            clockLabel,
-                            maxLines: 1,
-                            semanticsLabel: labels.matchTime(clockLabel),
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontFeatures: const [
-                                    FontFeature.tabularFigures(),
-                                  ],
-                                ),
+                        Expanded(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              clockLabel,
+                              maxLines: 1,
+                              semanticsLabel: labels.matchTime(clockLabel),
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                            ),
                           ),
                         ),
                         if (!compact)

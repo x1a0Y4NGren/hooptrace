@@ -397,9 +397,9 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.image_outlined,
-                    color: HoopTraceColors.orange,
+                    color: editorialThemeOf(context).arenaAccent,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -526,9 +526,9 @@ class _ReplayExportSummary extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.sports_basketball,
-                color: HoopTraceColors.orange,
+                color: editorialThemeOf(context).arenaAccent,
                 size: 28,
               ),
               const SizedBox(width: 10),
@@ -719,8 +719,10 @@ class _ExportMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          top: BorderSide(color: editorialThemeOf(context).rule),
+          bottom: BorderSide(color: editorialThemeOf(context).rule),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1103,8 +1105,10 @@ class _Metric extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 108, minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          top: BorderSide(color: editorialThemeOf(context).rule),
+          bottom: BorderSide(color: editorialThemeOf(context).rule),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1135,8 +1139,10 @@ class _PossessionSegmentsCard extends StatelessWidget {
       key: const Key('replay-possession-segments'),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          top: BorderSide(color: editorialThemeOf(context).rule),
+          bottom: BorderSide(color: editorialThemeOf(context).rule),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1288,7 +1294,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 21, color: HoopTraceColors.orange),
+        Icon(icon, size: 21, color: editorialThemeOf(context).arenaAccent),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

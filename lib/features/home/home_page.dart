@@ -165,7 +165,7 @@ class _StartHero extends StatelessWidget {
         Text(
           '01',
           style: Theme.of(context).textTheme.displayLarge?.copyWith(
-            color: editorial.arenaAccent,
+            color: editorial.canvas,
             fontFamily: HoopTraceTypography.displayFamily,
             fontSize: 96,
             fontWeight: FontWeight.w700,
@@ -237,7 +237,7 @@ class _ActiveHero extends StatelessWidget {
         Text(
           l10n.homeActiveMatch.toUpperCase(),
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: editorial.arenaAccent,
+            color: editorial.canvas,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.2,
           ),
@@ -250,7 +250,10 @@ class _ActiveHero extends StatelessWidget {
               child: _HeroTeamScore(
                 name: detail.match.blueName,
                 score: detail.blueScore,
-                color: editorial.teamBlue,
+                identityColor: Theme.of(context).brightness == Brightness.light
+                    ? const Color(0xFF69A1FF)
+                    : const Color(0xFF064BA3),
+                identityKey: const Key('home-blue-identity-rule'),
               ),
             ),
             Padding(
@@ -264,7 +267,10 @@ class _ActiveHero extends StatelessWidget {
               child: _HeroTeamScore(
                 name: detail.match.redName,
                 score: detail.redScore,
-                color: editorial.teamRed,
+                identityColor: Theme.of(context).brightness == Brightness.light
+                    ? const Color(0xFFFF747D)
+                    : const Color(0xFFA41E29),
+                identityKey: const Key('home-red-identity-rule'),
                 alignEnd: true,
               ),
             ),
@@ -336,17 +342,20 @@ class _HeroTeamScore extends StatelessWidget {
   const _HeroTeamScore({
     required this.name,
     required this.score,
-    required this.color,
+    required this.identityColor,
+    required this.identityKey,
     this.alignEnd = false,
   });
 
   final String name;
   final int score;
-  final Color color;
+  final Color identityColor;
+  final Key identityKey;
   final bool alignEnd;
 
   @override
   Widget build(BuildContext context) {
+    final foreground = editorialThemeOf(context).canvas;
     return Column(
       crossAxisAlignment: alignEnd
           ? CrossAxisAlignment.end
@@ -357,11 +366,13 @@ class _HeroTeamScore extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: color,
+            color: foreground,
             fontWeight: FontWeight.w800,
           ),
         ),
-        ScoreNumeral(value: score, color: color),
+        ScoreNumeral(value: score, color: foreground),
+        const SizedBox(height: 4),
+        Container(key: identityKey, width: 48, height: 4, color: identityColor),
       ],
     );
   }

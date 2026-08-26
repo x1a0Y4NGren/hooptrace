@@ -125,6 +125,13 @@ void main() {
     expect(find.text('2 : 2'), findsOneWidget);
     expect(find.text('关键回合'), findsOneWidget);
     expect(find.textContaining('反超'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('replay-analytics-summary')),
+        matching: find.byType(Chip),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('shows a clear no-attempt state in compact landscape', (

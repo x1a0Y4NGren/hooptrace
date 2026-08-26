@@ -104,6 +104,7 @@ class _PlayerIdentity extends StatelessWidget {
     return Semantics(
       container: true,
       label: player.nickname,
+      excludeSemantics: true,
       child: Row(
         children: [
           CircleAvatar(
@@ -328,6 +329,7 @@ class _Delta extends StatelessWidget {
     final color = positive ? editorial.success : editorial.danger;
     return Semantics(
       label: '$label ${positive ? '+' : ''}${value.toStringAsFixed(1)}',
+      excludeSemantics: true,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

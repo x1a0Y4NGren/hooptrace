@@ -28,8 +28,8 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
   }
 
   Future<void> _retry() async {
-    await widget.repository.ensureBuiltIns();
     if (mounted) setState(() => _streamKey++);
+    await widget.repository.ensureBuiltIns();
   }
 
   @override

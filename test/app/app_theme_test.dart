@@ -4,6 +4,17 @@ import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 void main() {
+  test('retired visual compatibility extension is not registered', () {
+    final theme = buildHoopTraceTheme();
+    expect(
+      theme.extensions.values.any(
+        (extension) =>
+            extension.runtimeType.toString() == 'HoopTraceVisualTheme',
+      ),
+      isFalse,
+    );
+  });
+
   test('light theme uses the editorial canvas and shared tokens', () {
     final theme = buildHoopTraceTheme();
 

@@ -163,9 +163,6 @@ ThemeData buildHoopTraceTheme({Brightness brightness = Brightness.light}) {
     extensions: [
       editorial,
       isDark
-          ? const HoopTraceVisualTheme.dark()
-          : const HoopTraceVisualTheme.light(),
-      isDark
           ? const HoopTraceMotionTheme.dark()
           : const HoopTraceMotionTheme.light(),
     ],

@@ -7,7 +7,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
@@ -81,7 +80,6 @@ void main() {
 
     expect(find.byType(EditorialScaffold), findsOneWidget);
     expect(find.byType(EditorialMasthead), findsOneWidget);
-    expect(find.byType(DoodleSurface), findsNothing);
     final labels = tester
         .widgetList<EditorialSectionRule>(find.byType(EditorialSectionRule))
         .map((rule) => rule.label)
@@ -334,6 +332,29 @@ void main() {
           home: SettingsPage(controller: controller),
         ),
       );
+
+      final slide = find.descendant(
+        of: find.byKey(const Key('motion-preview')),
+        matching: find.byType(SlideTransition),
+      );
+      final initialOffset = tester
+          .widget<SlideTransition>(slide)
+          .position
+          .value;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 90));
+      final midpointOffset = tester
+          .widget<SlideTransition>(slide)
+          .position
+          .value;
+      await tester.pump(const Duration(milliseconds: 90));
+      final settledOffset = tester
+          .widget<SlideTransition>(slide)
+          .position
+          .value;
+      expect(initialOffset.dx, lessThan(midpointOffset.dx));
+      expect(midpointOffset.dx, lessThan(settledOffset.dx));
+      expect(settledOffset, Offset.zero);
       await tester.pumpAndSettle();
 
       expect(

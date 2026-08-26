@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -259,6 +260,37 @@ void main() {
     expect(find.text('恢复规则'), findsOneWidget);
   });
 
+  testWidgets('rule retry resubscribes before built-in repair completes', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    addTearDown(database.close);
+    final repair = Completer<void>();
+    final repository = _SequencedRuleRepository(
+      database,
+      streams: [
+        Stream<List<RuleTemplate>>.error(StateError('offline')),
+        Stream.value(const [
+          RuleTemplate(id: 'retry-fast', name: '立即恢复', scoreButtons: [1]),
+        ]),
+      ],
+      retryEnsure: repair.future,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: RuleTemplateListPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('重试'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(repository.watchCalls, 2);
+    expect(find.text('立即恢复'), findsOneWidget);
+    repair.complete();
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('lists built-ins and persists a custom template from editor', (
     tester,
   ) async {
@@ -459,15 +491,22 @@ void _expectSingleTapOwner(WidgetTester tester, Finder target) {
 }
 
 class _SequencedRuleRepository extends RuleTemplateRepository {
-  _SequencedRuleRepository(super.database, {required this.streams});
+  _SequencedRuleRepository(
+    super.database, {
+    required this.streams,
+    this.retryEnsure,
+  });
 
   final List<Stream<List<RuleTemplate>>> streams;
   var watchCalls = 0;
   var ensureCalls = 0;
+  final Future<void>? retryEnsure;
 
   @override
   Future<void> ensureBuiltIns() async {
     ensureCalls++;
+    final future = retryEnsure;
+    if (ensureCalls > 1 && future != null) await future;
   }
 
   @override

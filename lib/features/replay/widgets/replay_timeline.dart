@@ -105,21 +105,77 @@ class ReplayTimelinePanel extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compactHeight = constraints.maxHeight < 280;
+          final compactHeight = constraints.maxHeight < 420;
           final compactWidth = constraints.maxWidth < 360;
           final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-          final scrollable = compactHeight || compactWidth || largeText;
+          final compact = compactHeight || compactWidth || largeText;
+          if (compact) {
+            final events = controller.visibleEvents;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SectionTitle(
+                          title: l10n.replayTimeline,
+                          icon: Icons.timeline,
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('replay-compact-filter-action'),
+                        tooltip: l10n.replayFilterAll,
+                        onPressed: () => _showCompactFilters(context),
+                        icon: const Icon(Icons.tune),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  if (events.isEmpty)
+                    Expanded(child: Center(child: Text(l10n.replayNoEvents)))
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        key: const Key('replay-timeline-scroll'),
+                        itemCount: events.length,
+                        itemBuilder: (context, index) => ReplayTimelineEvent(
+                          event: events[index],
+                          data: controller.data,
+                          selected:
+                              controller.selectedEventId == events[index].id,
+                          editing: controller.isEditing,
+                          onTap: () => onEventTap(events[index]),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }
           final child = Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: content(inlineEvents: scrollable),
+            child: content(inlineEvents: false),
           );
-          return scrollable
-              ? SingleChildScrollView(
-                  key: const Key('replay-timeline-scroll'),
-                  child: child,
-                )
-              : child;
+          return child;
         },
+      ),
+    );
+  }
+
+  Future<void> _showCompactFilters(BuildContext context) {
+    final l10n = _localizations(context);
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: EditorialSheet(
+          title: l10n.replayTimeline,
+          child: SingleChildScrollView(
+            child: ReplayTimelineFilters(controller: controller),
+          ),
+        ),
       ),
     );
   }
@@ -480,7 +536,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 21, color: HoopTraceColors.orange),
+        Icon(icon, size: 21, color: editorialThemeOf(context).arenaAccent),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

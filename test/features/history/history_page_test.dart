@@ -40,7 +40,7 @@ void main() {
     expect(find.text('最近比赛'), findsOneWidget);
     expect(find.text('烈火'), findsOneWidget);
     expect(find.text('深海'), findsOneWidget);
-    expect(find.text('11 : 7'), findsOneWidget);
+    expect(find.text('7 : 11'), findsOneWidget);
     expect(find.textContaining('胜者：烈火'), findsOneWidget);
     expect(find.text('11 分制'), findsOneWidget);
     expect(find.text('12:08'), findsOneWidget);

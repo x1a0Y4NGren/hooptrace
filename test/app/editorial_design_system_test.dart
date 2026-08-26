@@ -10,7 +10,6 @@ import 'package:hooptrace/app/design_system/editorial_motion.dart' as motion;
 import 'package:hooptrace/app/design_system/editorial_theme.dart'
     as editorial_theme;
 import 'package:hooptrace/app/design_system/editorial_tokens.dart' as tokens;
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 void main() {
   group('editorial theme', () {
@@ -373,7 +372,7 @@ void main() {
             theme: buildHoopTraceTheme(),
             home: const MediaQuery(
               data: MediaQueryData(disableAnimations: true),
-              child: DoodlePress(onPressed: _noop, child: Text('Press')),
+              child: EditorialTapTarget(onPressed: _noop, child: Text('Press')),
             ),
           ),
         );

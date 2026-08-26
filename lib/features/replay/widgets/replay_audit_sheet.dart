@@ -65,7 +65,7 @@ class _AuditEntryTile extends StatelessWidget {
             : log.action == AuditAction.restore
             ? Icons.restore_outlined
             : Icons.edit_outlined,
-        color: HoopTraceColors.orange,
+        color: editorialThemeOf(context).arenaAccent,
       ),
       title: Text('$action · $target'),
       subtitle: Column(

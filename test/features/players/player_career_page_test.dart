@@ -195,6 +195,11 @@ void main() {
       expect(find.byType(EditorialMasthead), findsOneWidget);
       expect(find.byType(ScoreNumeral), findsAtLeastNWidgets(3));
       expect(find.byType(EditorialSectionRule), findsAtLeastNWidgets(3));
+      final identitySemantics = find.byWidgetPredicate(
+        (widget) => widget is Semantics && widget.properties.label == '飞鱼',
+      );
+      expect(identitySemantics, findsOneWidget);
+      expect(tester.getSemantics(identitySemantics).label, '飞鱼');
       final allTime = find.byKey(const Key('career-window-allTime'));
       final sevenDays = find.byKey(const Key('career-window-sevenDays'));
       expect(
@@ -337,6 +342,16 @@ void main() {
     expect(
       tester.widget<Text>(find.text('+2.0')).style?.fontFamily,
       HoopTraceTypography.displayFamily,
+    );
+    final deltaSemantics = find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          widget.properties.label?.contains('+2.0') == true,
+    );
+    expect(deltaSemantics, findsOneWidget);
+    expect(
+      tester.getSemantics(deltaSemantics).label,
+      tester.widget<Semantics>(deltaSemantics).properties.label,
     );
     expect(find.textContaining('场均分差'), findsNothing);
     expect(tester.takeException(), isNull);

@@ -8,7 +8,6 @@ import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/features/project/external_link_launcher.dart';
 import 'package:hooptrace/features/project/project_details_page.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 
 class RecordingLauncher extends ExternalLinkLauncher {
   final opened = <String>[];
@@ -38,9 +37,6 @@ void main() {
     expect(find.byType(EditorialMasthead), findsOneWidget);
     expect(find.text('About'), findsOneWidget);
     expect(find.text('HOOPTRACE'), findsOneWidget);
-    expect(find.byType(DoodleTitle), findsNothing);
-    expect(find.byType(DoodleDivider), findsNothing);
-    expect(find.byType(DoodleSurface), findsNothing);
   });
 
   testWidgets('project details stays usable across visual matrix', (
@@ -161,9 +157,6 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(EditorialScaffold), findsOneWidget);
-    expect(find.byType(DoodleTitle), findsNothing);
-    expect(find.byType(DoodleDivider), findsNothing);
-    expect(find.byType(DoodleSurface), findsNothing);
     final l10n = AppLocalizations.of(
       tester.element(find.byType(ProjectDetailsPage)),
     )!;

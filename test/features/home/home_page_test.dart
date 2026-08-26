@@ -170,6 +170,63 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets(
+    'inverse hero renders all text at accessible contrast with non-color team rules',
+    (tester) async {
+      for (final brightness in [Brightness.light, Brightness.dark]) {
+        await _pumpHome(tester, brightness: brightness);
+        final startContext = tester.element(
+          find.byKey(const Key('home-editorial-hero')),
+        );
+        final startEditorial = editorialThemeOf(startContext);
+        final startIndex = tester.widget<Text>(
+          find.descendant(
+            of: find.byKey(const Key('home-editorial-hero')),
+            matching: find.text('01'),
+          ),
+        );
+        expect(
+          _contrastRatio(
+            startIndex.style!.color!,
+            startEditorial.inverseSurface,
+          ),
+          greaterThanOrEqualTo(4.5),
+          reason: 'the start index must remain readable on the inverse hero',
+        );
+
+        await _pumpHome(
+          tester,
+          brightness: brightness,
+          activeMatch: _activeMatch,
+        );
+        final context = tester.element(
+          find.byKey(const Key('home-editorial-hero')),
+        );
+        final editorial = editorialThemeOf(context);
+        final l10n = AppLocalizations.of(context)!;
+        for (final label in [
+          l10n.homeActiveMatch.toUpperCase(),
+          'River',
+          'Jordan',
+          '11',
+          '9',
+        ]) {
+          final text = tester.widget<Text>(find.text(label));
+          expect(
+            _contrastRatio(text.style!.color!, editorial.inverseSurface),
+            greaterThanOrEqualTo(4.5),
+            reason: '$label must remain readable on the inverse hero',
+          );
+        }
+        expect(
+          find.byKey(const Key('home-blue-identity-rule')),
+          findsOneWidget,
+        );
+        expect(find.byKey(const Key('home-red-identity-rule')), findsOneWidget);
+      }
+    },
+  );
 }
 
 Future<void> _pumpHome(
@@ -307,4 +364,13 @@ Future<void> _setSurface(WidgetTester tester, Size size) async {
   tester.view.physicalSize = size;
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.view.resetPhysicalSize);
+}
+
+double _contrastRatio(Color foreground, Color background) {
+  final lighter = foreground.computeLuminance() > background.computeLuminance()
+      ? foreground
+      : background;
+  final darker = identical(lighter, foreground) ? background : foreground;
+  return (lighter.computeLuminance() + 0.05) /
+      (darker.computeLuminance() + 0.05);
 }

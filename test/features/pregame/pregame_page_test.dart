@@ -8,6 +8,21 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 
 void main() {
+  testWidgets('configuration rail is flat and contains no nested surfaces', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+    final rail = find.byKey(const Key('pregame-configuration-rail'));
+    expect(rail, findsOneWidget);
+    expect(
+      find.descendant(of: rail, matching: find.byType(EditorialSurface)),
+      findsNothing,
+    );
+    expect(find.byKey(const Key('pregame-rules-section')), findsOneWidget);
+    expect(find.byKey(const Key('pregame-clock-section')), findsOneWidget);
+    expect(find.byKey(const Key('pregame-advanced-section')), findsOneWidget);
+  });
+
   testWidgets('pre-game page exposes fast start and advanced settings', (
     tester,
   ) async {
@@ -17,18 +32,18 @@ void main() {
     expect(find.text('球员'), findsOneWidget);
     expect(find.text('红方'), findsWidgets);
     expect(find.text('蓝方'), findsWidgets);
-    expect(find.text('规则模板'), findsOneWidget);
+    expect(find.text('规则模板'), findsWidgets);
     expect(find.text('自由计分'), findsOneWidget);
-    expect(find.text('高级设置'), findsOneWidget);
-    expect(find.text('计时'), findsOneWidget);
+    expect(find.text('高级设置'), findsWidgets);
+    expect(find.text('计时'), findsWidgets);
     expect(find.text('开始比赛'), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.text('高级设置'),
+      find.byKey(const Key('pregame-advanced')),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.tap(find.text('高级设置'));
+    await tester.tap(find.byKey(const Key('pregame-advanced')));
     await tester.pumpAndSettle();
 
     expect(find.text('目标分'), findsOneWidget);

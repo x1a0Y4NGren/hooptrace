@@ -58,7 +58,7 @@ void main() {
   });
 
   testWidgets(
-    'wide replay gives the court visual priority and scrollable paper timeline',
+    'compact replay gives the court priority and keeps filters reachable',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(731, 411));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -81,7 +81,12 @@ void main() {
 
       expect(find.byKey(const Key('replay-court-pane')), findsOneWidget);
       expect(find.byKey(const Key('replay-timeline-pane')), findsOneWidget);
-      expect(find.byKey(const Key('replay-timeline-scroll')), findsOneWidget);
+      expect(
+        tester
+            .getSize(find.byKey(const Key('replay-compact-filter-action')))
+            .shortestSide,
+        greaterThanOrEqualTo(48),
+      );
       expect(tester.takeException(), isNull);
     },
   );

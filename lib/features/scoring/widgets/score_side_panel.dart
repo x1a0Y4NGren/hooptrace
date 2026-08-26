@@ -150,39 +150,72 @@ class ScoreSidePanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
                   SizedBox(
-                    height: scoreHeight,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        '$score',
-                        style: Theme.of(context).textTheme.displayMedium
-                            ?.copyWith(
-                              color: HoopTraceColors.offWhite,
-                              fontFamily: HoopTraceTypography.displayFamily,
-                              fontWeight: FontWeight.w900,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
+                    height: 68,
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 64,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '$score',
+                              style: Theme.of(context).textTheme.displayMedium
+                                  ?.copyWith(
+                                    color: HoopTraceColors.offWhite,
+                                    fontFamily:
+                                        HoopTraceTypography.displayFamily,
+                                    fontWeight: FontWeight.w900,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
                             ),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '${l10n.scoringFoul} $fouls',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: HoopTraceColors.offWhite,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    name,
+                                    maxLines: 1,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelLarge
+                                        ?.copyWith(
+                                          color: color,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    '${l10n.scoringFoul} $fouls',
+                                    maxLines: 1,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .labelSmall
+                                        ?.copyWith(
+                                          color: HoopTraceColors.offWhite,
+                                        ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -543,19 +576,20 @@ class _FoulStamp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final editorial = editorialThemeOf(context);
     final stamp = DecoratedBox(
       key: const Key('scoring-foul-stamp'),
       decoration: BoxDecoration(
-        color: HoopTraceColors.orange.withValues(alpha: 0.94),
-        border: Border.all(color: HoopTraceColors.offWhite, width: 1),
+        color: editorial.arenaAccent,
+        border: Border.all(color: editorial.ink, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
         child: Text(
           l10n.scoringFoul,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 10,
+          style: TextStyle(
+            color: const Color(0xFF101112),
+            fontSize: 12,
             fontWeight: FontWeight.w900,
             letterSpacing: 0.6,
           ),
@@ -567,7 +601,7 @@ class _FoulStamp extends StatelessWidget {
       child: TweenAnimationBuilder<double>(
         duration:
             Theme.of(context).extension<HoopTraceMotionTheme>()?.foulStamp ??
-            const Duration(milliseconds: 240),
+            Duration.zero,
         tween: Tween(begin: 0.65, end: 1),
         builder: (context, scale, child) => Transform.scale(
           scale: scale,

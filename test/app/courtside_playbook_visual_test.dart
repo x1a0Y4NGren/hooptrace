@@ -5,18 +5,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:lottie/lottie.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('light and dark themes expose visual and motion extensions', () {
+  test('light and dark themes expose editorial and motion extensions', () {
     final light = buildHoopTraceTheme();
     final dark = buildHoopTraceTheme(brightness: Brightness.dark);
 
-    final lightVisual = light.extension<HoopTraceVisualTheme>();
-    final darkVisual = dark.extension<HoopTraceVisualTheme>();
+    final lightVisual = light.extension<HoopTraceEditorialTheme>();
+    final darkVisual = dark.extension<HoopTraceEditorialTheme>();
     final lightMotion = light.extension<HoopTraceMotionTheme>();
     final darkMotion = dark.extension<HoopTraceMotionTheme>();
 
@@ -24,116 +24,117 @@ void main() {
     expect(darkVisual, isNotNull);
     expect(lightMotion, isNotNull);
     expect(darkMotion, isNotNull);
-    expect(lightVisual!.paper, HoopTraceColors.offWhite);
-    expect(darkVisual!.paper, HoopTraceColors.charcoal);
+    expect(lightVisual!.canvas, HoopTraceColors.offWhite);
+    expect(darkVisual!.canvas, HoopTraceColors.charcoal);
     expect(lightMotion!.scoreFlight, const Duration(milliseconds: 480));
     expect(lightMotion.impact, const Duration(milliseconds: 180));
     expect(darkMotion!.scoreFlight, lightMotion.scoreFlight);
   });
 
-  testWidgets('doodle surface, title and divider preserve semantic content', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildHoopTraceTheme(),
-        home: const Scaffold(
-          body: DoodleSurface(
-            child: Column(
-              children: [
-                DoodleTitle('Court notes'),
-                DoodleDivider(),
-                Text('Body copy'),
-              ],
+  testWidgets(
+    'editorial surface, masthead and rule preserve semantic content',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: const Scaffold(
+            body: EditorialSurface(
+              child: Column(
+                children: [
+                  EditorialMasthead(title: 'Court notes'),
+                  EditorialSectionRule(),
+                  Text('Body copy'),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Court notes'), findsOneWidget);
-    expect(find.text('Body copy'), findsOneWidget);
-    expect(find.byType(DoodleDivider), findsOneWidget);
-    expect(tester.getSize(find.byType(DoodleDivider)).height, greaterThan(1));
-  });
+      expect(find.text('Court notes'), findsOneWidget);
+      expect(find.text('Body copy'), findsOneWidget);
+      expect(find.byType(EditorialSectionRule), findsWidgets);
+    },
+  );
 
-  testWidgets('doodle press has a 48dp hit target and pressed visual state', (
+  testWidgets(
+    'editorial target has a 48dp hit target and pressed visual state',
+    (tester) async {
+      final semanticsHandle = tester.ensureSemantics();
+      var presses = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: Scaffold(
+            body: EditorialTapTarget(
+              label: 'Add point',
+              onPressed: () => presses++,
+              child: const Text('Add point'),
+            ),
+          ),
+        ),
+      );
+
+      final button = find.byType(EditorialTapTarget);
+      expect(tester.getSize(button).width, greaterThanOrEqualTo(48));
+      expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+      final before = tester.widget<AnimatedScale>(
+        find.descendant(of: button, matching: find.byType(AnimatedScale)),
+      );
+      expect(before.scale, 1);
+
+      final gesture = await tester.startGesture(tester.getCenter(button));
+      await tester.pump();
+      final during = tester.widget<AnimatedScale>(
+        find.descendant(of: button, matching: find.byType(AnimatedScale)),
+      );
+      expect(during.scale, lessThan(1));
+      expect(tester.getSemantics(button).rect.width, greaterThanOrEqualTo(48));
+      expect(tester.getSemantics(button).rect.height, greaterThanOrEqualTo(48));
+      expect(
+        tester.getSemantics(find.byType(InkWell)).rect.width,
+        greaterThanOrEqualTo(48),
+      );
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(presses, 1);
+      semanticsHandle.dispose();
+
+      var calls = 0;
+      final disabledHandle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: Scaffold(
+            body: EditorialTapTarget(
+              label: 'Disabled',
+              enabled: false,
+              onPressed: () => calls++,
+              child: const Text('Disabled'),
+            ),
+          ),
+        ),
+      );
+      final disabledButton = find.byType(EditorialTapTarget);
+      expect(
+        tester.getSemantics(disabledButton).flagsCollection.isEnabled,
+        Tristate.isFalse,
+      );
+      await tester.tap(disabledButton);
+      expect(calls, 0);
+      disabledHandle.dispose();
+    },
+  );
+
+  testWidgets('editorial target is disabled when no callback is supplied', (
     tester,
   ) async {
     final semanticsHandle = tester.ensureSemantics();
-    var presses = 0;
     await tester.pumpWidget(
       MaterialApp(
         theme: buildHoopTraceTheme(),
         home: Scaffold(
-          body: DoodlePress(
-            label: 'Add point',
-            onPressed: () => presses++,
-            child: const Text('Add point'),
-          ),
-        ),
-      ),
-    );
-
-    final button = find.byType(DoodlePress);
-    expect(tester.getSize(button).width, greaterThanOrEqualTo(48));
-    expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
-    final before = tester.widget<AnimatedScale>(
-      find.descendant(of: button, matching: find.byType(AnimatedScale)),
-    );
-    expect(before.scale, 1);
-
-    final gesture = await tester.startGesture(tester.getCenter(button));
-    await tester.pump();
-    final during = tester.widget<AnimatedScale>(
-      find.descendant(of: button, matching: find.byType(AnimatedScale)),
-    );
-    expect(during.scale, lessThan(1));
-    expect(tester.getSemantics(button).rect.width, greaterThanOrEqualTo(48));
-    expect(tester.getSemantics(button).rect.height, greaterThanOrEqualTo(48));
-    expect(
-      tester.getSemantics(find.byType(InkWell)).rect.width,
-      greaterThanOrEqualTo(48),
-    );
-    await gesture.up();
-    await tester.pumpAndSettle();
-    expect(presses, 1);
-    semanticsHandle.dispose();
-
-    var calls = 0;
-    final disabledHandle = tester.ensureSemantics();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildHoopTraceTheme(),
-        home: Scaffold(
-          body: DoodlePress(
-            label: 'Disabled',
-            enabled: false,
-            onPressed: () => calls++,
-            child: const Text('Disabled'),
-          ),
-        ),
-      ),
-    );
-    final disabledButton = find.byType(DoodlePress);
-    expect(
-      tester.getSemantics(disabledButton).flagsCollection.isEnabled,
-      Tristate.isFalse,
-    );
-    await tester.tap(disabledButton);
-    expect(calls, 0);
-    disabledHandle.dispose();
-  });
-
-  testWidgets('doodle press is disabled when no callback is supplied', (
-    tester,
-  ) async {
-    final semanticsHandle = tester.ensureSemantics();
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildHoopTraceTheme(),
-        home: Scaffold(
-          body: DoodlePress(
+          body: EditorialTapTarget(
             label: 'Unavailable',
             onPressed: null,
             child: const Text('Unavailable'),
@@ -142,7 +143,7 @@ void main() {
       ),
     );
 
-    final button = find.byType(DoodlePress);
+    final button = find.byType(EditorialTapTarget);
     expect(
       tester.getSemantics(button).flagsCollection.isEnabled,
       Tristate.isFalse,

@@ -1012,6 +1012,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('English More sheet exposes Notes and Custom Records', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const ScoringPage(matchId: 'english-more-copy'),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-more')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('NOTES/CUSTOM RECORDS', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('more-note'), skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('more-custom'), skipOffstage: false),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'unified scoring remains operable across landscape and portrait sizes',
     (tester) async {
@@ -2423,6 +2455,48 @@ void main() {
     expect(find.byKey(const Key('more-pause')), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  for (final textScaler in [TextScaler.noScaling, const TextScaler.linear(2)]) {
+    testWidgets(
+      'portrait scoring keeps every primary action visible at ${textScaler == TextScaler.noScaling ? 'normal' : '200 percent'} text',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        const insets = EdgeInsets.only(top: 24, bottom: 24);
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: textScaler,
+                padding: insets,
+                viewPadding: insets,
+              ),
+              child: child!,
+            ),
+            home: const ScoringPage(matchId: 'portrait-primary-actions'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final side in ['blue', 'red']) {
+          final rail = tester.getRect(find.byKey(Key('$side-action-rail')));
+          expect(rail.top, greaterThanOrEqualTo(insets.top));
+          expect(rail.bottom, lessThanOrEqualTo(844 - insets.bottom));
+          for (final action in ['score-1', 'score-2', 'score-3', 'foul']) {
+            final rect = tester.getRect(find.byKey(Key('$side-$action')));
+            expect(rect.height, greaterThanOrEqualTo(48));
+            expect(
+              rail.contains(rect.topLeft) && rail.contains(rect.bottomRight),
+              isTrue,
+              reason:
+                  '$side $action must be visible inside the rail on first paint',
+            );
+          }
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('compact scoring remains usable at 200 percent text size', (
     tester,

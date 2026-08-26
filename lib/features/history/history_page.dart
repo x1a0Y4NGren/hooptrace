@@ -218,7 +218,9 @@ class _HistoryPageState extends State<HistoryPage> {
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final wide = constraints.maxWidth >= 720;
+          final wide =
+              constraints.maxWidth >= 720 &&
+              MediaQuery.textScalerOf(context).scale(1) < 1.5;
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
@@ -363,7 +365,7 @@ class _HistoryToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = _historyL10n(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.only(top: 4),
       child: Column(
         children: [
           TextField(
@@ -449,7 +451,7 @@ class _RecoveryBanner extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          '${match.redName} ${match.redScore} : ${match.blueScore} ${match.blueName}',
+          '${match.blueName} ${match.blueScore} : ${match.redScore} ${match.redName}',
         ),
       ],
     );
@@ -522,7 +524,7 @@ class _ImportedIncompleteBanner extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${match.redName} ${match.redScore} : ${match.blueScore} ${match.blueName}',
+            '${match.blueName} ${match.blueScore} : ${match.redScore} ${match.redName}',
           ),
           const SizedBox(height: 4),
           Text(l10n.historyImportedIncompleteBody),
@@ -642,7 +644,7 @@ class _HistoryMatchRow extends StatelessWidget {
     return Semantics(
       button: true,
       label:
-          '${match.redName} ${match.redScore} : ${match.blueScore} ${match.blueName}',
+          '${match.blueName} ${match.blueScore} : ${match.redScore} ${match.redName}',
       child: InkWell(
         key: Key('history-match-${match.matchId}'),
         onTap: onTap,
@@ -837,12 +839,12 @@ class _HistoryMatchRow extends StatelessWidget {
     children: [
       Expanded(
         child: Text(
-          match.redName,
+          match.blueName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: teamColorForScheme(
-              TeamSide.red,
+              TeamSide.blue,
               Theme.of(context).colorScheme,
             ),
             fontWeight: FontWeight.w700,
@@ -852,7 +854,7 @@ class _HistoryMatchRow extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(
-          '${match.redScore} : ${match.blueScore}',
+          '${match.blueScore} : ${match.redScore}',
           style: Theme.of(
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
@@ -860,13 +862,13 @@ class _HistoryMatchRow extends StatelessWidget {
       ),
       Expanded(
         child: Text(
-          match.blueName,
+          match.redName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.end,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: teamColorForScheme(
-              TeamSide.blue,
+              TeamSide.red,
               Theme.of(context).colorScheme,
             ),
             fontWeight: FontWeight.w700,

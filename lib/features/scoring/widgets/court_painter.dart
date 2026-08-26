@@ -116,6 +116,13 @@ class CourtPainter extends CustomPainter {
     this.hiddenShotLocationIds = const <String>{},
     this.transientMarkers = const <TransientShotMarker>[],
     this.eraserMarkers = const <EraserShotMarker>[],
+    this.surfaceColor = HoopTraceColors.cream,
+    this.lineColor = HoopTraceColors.ink,
+    this.accentColor = HoopTraceColors.orange,
+    this.eraserColor = HoopTraceColors.ink,
+    this.teamBlueColor = HoopTraceColors.blue,
+    this.teamRedColor = HoopTraceColors.red,
+    this.markerRingColor = HoopTraceColors.ink,
   });
 
   final List<ScoringShotLocation> shotLocations;
@@ -125,6 +132,13 @@ class CourtPainter extends CustomPainter {
   final Set<String> hiddenShotLocationIds;
   final List<TransientShotMarker> transientMarkers;
   final List<EraserShotMarker> eraserMarkers;
+  final Color surfaceColor;
+  final Color lineColor;
+  final Color accentColor;
+  final Color eraserColor;
+  final Color teamBlueColor;
+  final Color teamRedColor;
+  final Color markerRingColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -134,31 +148,23 @@ class CourtPainter extends CustomPainter {
     }
 
     final surfacePaint = Paint()
-      ..color = HoopTraceColors.cream
+      ..color = surfaceColor
       ..style = PaintingStyle.fill;
     final linePaint = Paint()
-      ..color = HoopTraceColors.ink.withValues(alpha: 0.7)
+      ..color = lineColor.withValues(alpha: 0.84)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     final mutedLinePaint = Paint()
-      ..color = HoopTraceColors.ink.withValues(alpha: 0.34)
+      ..color = lineColor.withValues(alpha: 0.46)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
     final rimPaint = Paint()
-      ..color = HoopTraceColors.orange.withValues(alpha: 0.9)
+      ..color = accentColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.1;
 
-    final courtShape = RRect.fromRectAndRadius(court, const Radius.circular(8));
-    final shadowPath = Path()..addRRect(courtShape);
-    canvas.drawShadow(
-      shadowPath,
-      Colors.black.withValues(alpha: 0.18),
-      8,
-      true,
-    );
-    canvas.drawRRect(courtShape, surfacePaint);
-    canvas.drawRRect(courtShape, linePaint);
+    canvas.drawRect(court, surfacePaint);
+    canvas.drawRect(court, linePaint);
 
     _drawHalfCourtLines(
       canvas: canvas,
@@ -319,7 +325,7 @@ class CourtPainter extends CustomPainter {
       if (location.id == highlightedShotLocationId) {
         final center = HalfCourtGeometry.pointToOffset(location.point, size);
         final highlightPaint = Paint()
-          ..color = HoopTraceColors.orange
+          ..color = accentColor
           ..style = PaintingStyle.stroke
           ..strokeWidth = 3;
         canvas.drawCircle(center, 13, highlightPaint);
@@ -369,7 +375,7 @@ class CourtPainter extends CustomPainter {
         ..style = PaintingStyle.fill;
       canvas.drawCircle(center, 6 * (1 - progress).clamp(0.35, 1), shotPaint);
       final paint = Paint()
-        ..color = Colors.white.withValues(alpha: opacity * 0.75)
+        ..color = eraserColor.withValues(alpha: opacity)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4;
       canvas.drawCircle(center, 8 + progress * 12, paint);
@@ -389,7 +395,7 @@ class CourtPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
     final ringPaint = Paint()
-      ..color = Colors.white
+      ..color = markerRingColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = isPending ? 3 : 2;
     canvas.drawCircle(center, radius, fillPaint);
@@ -398,7 +404,7 @@ class CourtPainter extends CustomPainter {
 
   Color _sideColor(TeamSide? side) {
     if (side == null) return Colors.grey.shade600;
-    return side == TeamSide.red ? HoopTraceColors.red : HoopTraceColors.blue;
+    return side == TeamSide.red ? teamRedColor : teamBlueColor;
   }
 
   @override
@@ -409,6 +415,13 @@ class CourtPainter extends CustomPainter {
         oldDelegate.highlightedShotLocationId != highlightedShotLocationId ||
         oldDelegate.hiddenShotLocationIds != hiddenShotLocationIds ||
         oldDelegate.transientMarkers != transientMarkers ||
-        oldDelegate.eraserMarkers != eraserMarkers;
+        oldDelegate.eraserMarkers != eraserMarkers ||
+        oldDelegate.surfaceColor != surfaceColor ||
+        oldDelegate.lineColor != lineColor ||
+        oldDelegate.accentColor != accentColor ||
+        oldDelegate.eraserColor != eraserColor ||
+        oldDelegate.teamBlueColor != teamBlueColor ||
+        oldDelegate.teamRedColor != teamRedColor ||
+        oldDelegate.markerRingColor != markerRingColor;
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
@@ -128,6 +129,13 @@ class CourtView extends StatelessWidget {
                     hiddenShotLocationIds: hiddenShotLocationIds,
                     transientMarkers: transientMarkers,
                     eraserMarkers: eraserMarkers,
+                    surfaceColor: editorialThemeOf(context).surface,
+                    lineColor: editorialThemeOf(context).ink,
+                    accentColor: editorialThemeOf(context).arenaAccent,
+                    eraserColor: editorialThemeOf(context).ink,
+                    teamBlueColor: editorialThemeOf(context).teamBlue,
+                    teamRedColor: editorialThemeOf(context).teamRed,
+                    markerRingColor: editorialThemeOf(context).ink,
                   ),
                   child: const SizedBox.expand(),
                 ),
