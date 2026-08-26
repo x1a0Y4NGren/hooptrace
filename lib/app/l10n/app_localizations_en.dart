@@ -332,6 +332,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get replayTimeline => 'Event timeline';
 
   @override
+  String get replayFilters => 'Replay filters';
+
+  @override
   String get replayNoEvents => 'No events match the filters';
 
   @override

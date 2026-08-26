@@ -99,6 +99,7 @@
   "replayNoReason": "未填写原因",
   "replaySuggestedReason": "命中后按规则建议",
   "replayTimeline": "事件时间线",
+  "replayFilters": "筛选",
   "replayNoEvents": "没有符合筛选条件的事件",
   "replayFilterAll": "全部",
   "replayFilterScores": "得分",

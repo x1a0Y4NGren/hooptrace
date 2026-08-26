@@ -54,6 +54,10 @@ flutter:
           weight: 600
         - asset: assets/fonts/BarlowCondensed-Bold.ttf
           weight: 700
+    - family: Noto Sans SC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Regular.otf
+          weight: 400
 
 # Build SQLite from the pinned amalgamation checked into the repository. This
 # keeps F-Droid/offline builds independent of package:sqlite3's GitHub binary

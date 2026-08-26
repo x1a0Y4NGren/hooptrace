@@ -268,10 +268,14 @@ class _ReplayPageState extends State<ReplayPage> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final l10n = _localizations(context);
+    final viewport = MediaQuery.sizeOf(context);
+    final compactLandscape =
+        viewport.width > viewport.height && viewport.height < 500;
     final page = EditorialScaffold(
       maxContentWidth: 1440,
       masthead: EditorialMasthead(
         title: l10n.replayTitle,
+        compact: compactLandscape,
         leading: widget.onExit == null
             ? null
             : IconButton(
@@ -288,8 +292,12 @@ class _ReplayPageState extends State<ReplayPage> {
       ),
       body: Column(
         children: [
-          _ScoreHeader(data: controller.data),
-          const SizedBox(height: HoopTraceSpacing.section),
+          _ScoreHeader(data: controller.data, compact: compactLandscape),
+          SizedBox(
+            height: compactLandscape
+                ? HoopTraceSpacing.compact
+                : HoopTraceSpacing.section,
+          ),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -751,13 +759,58 @@ class _ExportMetric extends StatelessWidget {
 }
 
 class _ScoreHeader extends StatelessWidget {
-  const _ScoreHeader({required this.data});
+  const _ScoreHeader({required this.data, this.compact = false});
 
   final ReplayMatchData data;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: _CompactTeamScore(
+                name: data.blueName,
+                score: data.blueScore,
+                color: teamColorForScheme(
+                  TeamSide.blue,
+                  Theme.of(context).colorScheme,
+                ),
+                textAlign: TextAlign.start,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                data.isFinished ? l10n.replayFinished : l10n.replayInProgress,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.72),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _CompactTeamScore(
+                name: data.redName,
+                score: data.redScore,
+                color: teamColorForScheme(
+                  TeamSide.red,
+                  Theme.of(context).colorScheme,
+                ),
+                textAlign: TextAlign.end,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -797,6 +850,51 @@ class _ScoreHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CompactTeamScore extends StatelessWidget {
+  const _CompactTeamScore({
+    required this.name,
+    required this.score,
+    required this.color,
+    required this.textAlign,
+  });
+
+  final String name;
+  final int score;
+  final Color color;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    final alignEnd = textAlign == TextAlign.end;
+    return Row(
+      mainAxisAlignment: alignEnd
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      children: [
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$score',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -325,6 +325,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get replayTimeline => '事件时间线';
 
   @override
+  String get replayFilters => '筛选';
+
+  @override
   String get replayNoEvents => '没有符合筛选条件的事件';
 
   @override

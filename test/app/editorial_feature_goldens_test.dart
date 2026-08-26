@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
@@ -11,6 +12,19 @@ import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 void main() {
+  setUpAll(() async {
+    await (FontLoader(
+      'Noto Sans SC',
+    )..addFont(rootBundle.load('assets/fonts/NotoSansSC-Regular.otf'))).load();
+    await (FontLoader('Barlow Condensed')
+          ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Medium.ttf'))
+          ..addFont(
+            rootBundle.load('assets/fonts/BarlowCondensed-SemiBold.ttf'),
+          )
+          ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf')))
+        .load();
+  });
+
   final features = <({String name, Size size, Widget Function() page})>[
     (
       name: 'pregame',
@@ -49,7 +63,7 @@ void main() {
                 GlobalCupertinoLocalizations.delegate,
               ],
               supportedLocales: AppLocalizations.supportedLocales,
-              theme: buildHoopTraceTheme(brightness: brightness),
+              theme: _goldenTheme(brightness),
               home: RepaintBoundary(
                 key: const Key('editorial-feature-golden-root'),
                 child: feature.page(),
@@ -66,6 +80,13 @@ void main() {
       }
     }
   }
+}
+
+ThemeData _goldenTheme(Brightness brightness) {
+  final theme = buildHoopTraceTheme(brightness: brightness);
+  return theme.copyWith(
+    textTheme: theme.textTheme.apply(fontFamily: 'Noto Sans SC'),
+  );
 }
 
 ReplayController _replayController() => ReplayController(

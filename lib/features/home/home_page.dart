@@ -250,9 +250,7 @@ class _ActiveHero extends StatelessWidget {
               child: _HeroTeamScore(
                 name: detail.match.blueName,
                 score: detail.blueScore,
-                identityColor: Theme.of(context).brightness == Brightness.light
-                    ? const Color(0xFF69A1FF)
-                    : const Color(0xFF064BA3),
+                identityColor: editorial.inverseTeamBlue,
                 identityKey: const Key('home-blue-identity-rule'),
               ),
             ),
@@ -267,9 +265,7 @@ class _ActiveHero extends StatelessWidget {
               child: _HeroTeamScore(
                 name: detail.match.redName,
                 score: detail.redScore,
-                identityColor: Theme.of(context).brightness == Brightness.light
-                    ? const Color(0xFFFF747D)
-                    : const Color(0xFFA41E29),
+                identityColor: editorial.inverseTeamRed,
                 identityKey: const Key('home-red-identity-rule'),
                 alignEnd: true,
               ),

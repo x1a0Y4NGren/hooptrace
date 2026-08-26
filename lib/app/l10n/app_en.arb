@@ -99,6 +99,7 @@
   "replayNoReason": "No reason provided",
   "replaySuggestedReason": "Suggested by the scoring rule",
   "replayTimeline": "Event timeline",
+  "replayFilters": "Replay filters",
   "replayNoEvents": "No events match the filters",
   "replayFilterAll": "All",
   "replayFilterScores": "Scores",

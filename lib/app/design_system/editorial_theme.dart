@@ -13,6 +13,8 @@ class HoopTraceEditorialTheme extends ThemeExtension<HoopTraceEditorialTheme> {
     required this.arenaAccent,
     required this.teamBlue,
     required this.teamRed,
+    required this.inverseTeamBlue,
+    required this.inverseTeamRed,
     required this.foregroundOnTeam,
     required this.focus,
     required this.success,
@@ -31,6 +33,8 @@ class HoopTraceEditorialTheme extends ThemeExtension<HoopTraceEditorialTheme> {
         arenaAccent: const Color(0xFFFF5A1F),
         teamBlue: const Color(0xFF064BA3),
         teamRed: const Color(0xFFA41E29),
+        inverseTeamBlue: const Color(0xFF69A1FF),
+        inverseTeamRed: const Color(0xFFFF747D),
         foregroundOnTeam: const Color(0xFFF4F3EF),
         focus: const Color(0xFFFF5A1F),
         success: const Color(0xFF176B45),
@@ -49,6 +53,8 @@ class HoopTraceEditorialTheme extends ThemeExtension<HoopTraceEditorialTheme> {
         arenaAccent: const Color(0xFFFF6A32),
         teamBlue: const Color(0xFF69A1FF),
         teamRed: const Color(0xFFFF747D),
+        inverseTeamBlue: const Color(0xFF064BA3),
+        inverseTeamRed: const Color(0xFFA41E29),
         foregroundOnTeam: const Color(0xFF101112),
         focus: const Color(0xFFFF6A32),
         success: const Color(0xFF55D996),
@@ -65,6 +71,8 @@ class HoopTraceEditorialTheme extends ThemeExtension<HoopTraceEditorialTheme> {
   final Color arenaAccent;
   final Color teamBlue;
   final Color teamRed;
+  final Color inverseTeamBlue;
+  final Color inverseTeamRed;
   final Color foregroundOnTeam;
   final Color focus;
   final Color success;
@@ -82,6 +90,8 @@ class HoopTraceEditorialTheme extends ThemeExtension<HoopTraceEditorialTheme> {
     Color? arenaAccent,
     Color? teamBlue,
     Color? teamRed,
+    Color? inverseTeamBlue,
+    Color? inverseTeamRed,
     Color? foregroundOnTeam,
     Color? focus,
     Color? success,
@@ -98,6 +108,8 @@ class HoopTraceEditorialTheme extends ThemeExtension<HoopTraceEditorialTheme> {
       arenaAccent: arenaAccent ?? this.arenaAccent,
       teamBlue: teamBlue ?? this.teamBlue,
       teamRed: teamRed ?? this.teamRed,
+      inverseTeamBlue: inverseTeamBlue ?? this.inverseTeamBlue,
+      inverseTeamRed: inverseTeamRed ?? this.inverseTeamRed,
       foregroundOnTeam: foregroundOnTeam ?? this.foregroundOnTeam,
       focus: focus ?? this.focus,
       success: success ?? this.success,
@@ -122,6 +134,8 @@ class HoopTraceEditorialTheme extends ThemeExtension<HoopTraceEditorialTheme> {
       arenaAccent: Color.lerp(arenaAccent, other.arenaAccent, t)!,
       teamBlue: Color.lerp(teamBlue, other.teamBlue, t)!,
       teamRed: Color.lerp(teamRed, other.teamRed, t)!,
+      inverseTeamBlue: Color.lerp(inverseTeamBlue, other.inverseTeamBlue, t)!,
+      inverseTeamRed: Color.lerp(inverseTeamRed, other.inverseTeamRed, t)!,
       foregroundOnTeam: Color.lerp(
         foregroundOnTeam,
         other.foregroundOnTeam,

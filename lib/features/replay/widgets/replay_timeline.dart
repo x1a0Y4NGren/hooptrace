@@ -124,11 +124,16 @@ class ReplayTimelinePanel extends StatelessWidget {
                           icon: Icons.timeline,
                         ),
                       ),
-                      IconButton(
+                      Semantics(
                         key: const Key('replay-compact-filter-action'),
-                        tooltip: l10n.replayFilterAll,
-                        onPressed: () => _showCompactFilters(context),
-                        icon: const Icon(Icons.tune),
+                        label: l10n.replayFilters,
+                        button: true,
+                        excludeSemantics: true,
+                        child: IconButton(
+                          tooltip: l10n.replayFilters,
+                          onPressed: () => _showCompactFilters(context),
+                          icon: const Icon(Icons.tune),
+                        ),
                       ),
                     ],
                   ),
@@ -143,6 +148,7 @@ class ReplayTimelinePanel extends StatelessWidget {
                         itemBuilder: (context, index) => ReplayTimelineEvent(
                           event: events[index],
                           data: controller.data,
+                          compact: true,
                           selected:
                               controller.selectedEventId == events[index].id,
                           editing: controller.isEditing,
@@ -171,7 +177,7 @@ class ReplayTimelinePanel extends StatelessWidget {
       isScrollControlled: true,
       builder: (sheetContext) => SafeArea(
         child: EditorialSheet(
-          title: l10n.replayTimeline,
+          title: l10n.replayFilters,
           child: SingleChildScrollView(
             child: ReplayTimelineFilters(controller: controller),
           ),
@@ -372,6 +378,7 @@ class ReplayTimelineEvent extends StatelessWidget {
     required this.data,
     this.selected = false,
     this.editing = false,
+    this.compact = false,
     this.onTap,
     super.key,
   });
@@ -380,6 +387,7 @@ class ReplayTimelineEvent extends StatelessWidget {
   final ReplayMatchData data;
   final bool selected;
   final bool editing;
+  final bool compact;
   final VoidCallback? onTap;
 
   @override
@@ -410,7 +418,7 @@ class ReplayTimelineEvent extends StatelessWidget {
       onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 64),
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: EdgeInsets.symmetric(vertical: compact ? 6 : 10),
         decoration: BoxDecoration(
           color: selected
               ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.10)
@@ -423,70 +431,106 @@ class ReplayTimelineEvent extends StatelessWidget {
             ),
           ),
         ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 52,
-              child: Text(
-                _formatDuration(event.elapsed),
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-            Container(width: 4, height: 32, color: sideColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: compact
+            ? Row(
                 children: [
-                  Wrap(
-                    spacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        '$sideName · $action',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: sideColor,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (event.isDeleted)
-                        Chip(
-                          label: Text(l10n.replayDeleted),
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                        ),
-                    ],
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      _formatDuration(event.elapsed),
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
                   ),
-                  if (details.isNotEmpty)
-                    Text(details.join(' · '), maxLines: 1),
-                  if (event.customLabel case final label?)
-                    Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (event.note != null && event.note!.isNotEmpty)
-                    Text(
-                      event.note!,
-                      maxLines: 2,
+                  Container(width: 4, height: 32, color: sideColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$sideName · $action',
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: sideColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (selected)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Icon(Icons.radio_button_checked, size: 20),
+                    ),
+                ],
+              )
+            : Row(
+                children: [
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      _formatDuration(event.elapsed),
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  Container(width: 4, height: 32, color: sideColor),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              '$sideName · $action',
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: sideColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                            if (event.isDeleted)
+                              Chip(
+                                label: Text(l10n.replayDeleted),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                              ),
+                          ],
+                        ),
+                        if (details.isNotEmpty)
+                          Text(details.join(' · '), maxLines: 1),
+                        if (event.customLabel case final label?)
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        if (event.note != null && event.note!.isNotEmpty)
+                          Text(
+                            event.note!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (selected)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.radio_button_checked, size: 20),
+                    )
+                  else if (editing)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.edit_outlined, size: 20),
+                    )
+                  else if (event.shotPoint != null)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.location_on_outlined, size: 20),
                     ),
                 ],
               ),
-            ),
-            if (selected)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.radio_button_checked, size: 20),
-              )
-            else if (editing)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.edit_outlined, size: 20),
-              )
-            else if (event.shotPoint != null)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.location_on_outlined, size: 20),
-              ),
-          ],
-        ),
       ),
     );
     return Semantics(

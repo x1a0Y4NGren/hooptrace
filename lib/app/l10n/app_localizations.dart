@@ -697,6 +697,12 @@ abstract class AppLocalizations {
   /// **'事件时间线'**
   String get replayTimeline;
 
+  /// No description provided for @replayFilters.
+  ///
+  /// In zh, this message translates to:
+  /// **'筛选'**
+  String get replayFilters;
+
   /// No description provided for @replayNoEvents.
   ///
   /// In zh, this message translates to:

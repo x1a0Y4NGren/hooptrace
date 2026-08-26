@@ -45,22 +45,25 @@ ThemeData buildHoopTraceTheme({Brightness brightness = Brightness.light}) {
     brightness: brightness,
     colorScheme: colorScheme,
   ).textTheme;
-  final textTheme = baseTextTheme
+  final fallbackTextTheme = baseTextTheme.apply(
+    fontFamilyFallback: const ['Noto Sans SC'],
+  );
+  final textTheme = fallbackTextTheme
       .copyWith(
-        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+        bodyLarge: fallbackTextTheme.bodyLarge?.copyWith(
           fontSize: HoopTraceTypography.body,
           height: 1.45,
         ),
-        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+        bodyMedium: fallbackTextTheme.bodyMedium?.copyWith(
           fontSize: HoopTraceTypography.label,
           height: 1.45,
         ),
-        labelLarge: baseTextTheme.labelLarge?.copyWith(
+        labelLarge: fallbackTextTheme.labelLarge?.copyWith(
           fontSize: HoopTraceTypography.label,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
         ),
-        titleLarge: baseTextTheme.titleLarge?.copyWith(
+        titleLarge: fallbackTextTheme.titleLarge?.copyWith(
           fontSize: HoopTraceTypography.title,
           fontWeight: FontWeight.w700,
         ),
