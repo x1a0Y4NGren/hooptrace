@@ -7,6 +7,7 @@ import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/entities/possession_segment.dart';
+import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/export/replay_image_exporter.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
@@ -941,11 +942,15 @@ class _SelectableReplayCourt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final locations = controller.shotLocations;
+    final eventsById = {
+      for (final event in controller.data.events) event.id: event,
+    };
     final selectedLocationId = _selectedLocationId(controller);
     return LayoutBuilder(
       builder: (context, constraints) {
         final size = Size(constraints.maxWidth, constraints.maxHeight);
-        return Stack(
+        final court = HalfCourtGeometry.courtRectForSize(size);
+        final courtStack = Stack(
           fit: StackFit.expand,
           children: [
             CourtView(
@@ -960,14 +965,23 @@ class _SelectableReplayCourt extends StatelessWidget {
                   ? CourtViewMode.editable
                   : CourtViewMode.readOnly,
             ),
-            for (final location in locations)
-              _ReplayCourtMarkerTarget(
-                location: location,
-                center: HalfCourtGeometry.pointToOffset(location.point, size),
-                selected: selectedLocationId == location.id,
-                onTap: () => controller.selectLocation(location.id),
-              ),
+            if (!controller.isEditing)
+              for (final location in locations)
+                _ReplayCourtMarkerTarget(
+                  location: location,
+                  event: eventsById[location.eventId]!,
+                  center: _targetCenter(location.point, size, court),
+                  selected: selectedLocationId == location.id,
+                  onTap: () => controller.selectEvent(location.eventId),
+                ),
           ],
+        );
+        if (!controller.isEditing) return courtStack;
+        return Listener(
+          onPointerMove: (event) => controller.updatePendingShotPoint(
+            HalfCourtGeometry.pointFromLocal(event.localPosition, size),
+          ),
+          child: courtStack,
         );
       },
     );
@@ -978,17 +992,28 @@ class _SelectableReplayCourt extends StatelessWidget {
     if (selected == null || selected.shotPoint == null) return null;
     return selected.locationId ?? 'replay-shot-${selected.id}';
   }
+
+  Offset _targetCenter(CourtPoint point, Size size, Rect court) {
+    final paintedCenter = HalfCourtGeometry.pointToOffset(point, size);
+    if (court.width < 48 || court.height < 48) return court.center;
+    return Offset(
+      paintedCenter.dx.clamp(court.left + 24, court.right - 24).toDouble(),
+      paintedCenter.dy.clamp(court.top + 24, court.bottom - 24).toDouble(),
+    );
+  }
 }
 
 class _ReplayCourtMarkerTarget extends StatelessWidget {
   const _ReplayCourtMarkerTarget({
     required this.location,
+    required this.event,
     required this.center,
     required this.selected,
     required this.onTap,
   });
 
   final ScoringShotLocation location;
+  final ReplayEventData event;
   final Offset center;
   final bool selected;
   final VoidCallback onTap;
@@ -1007,7 +1032,9 @@ class _ReplayCourtMarkerTarget extends StatelessWidget {
       child: Semantics(
         button: true,
         selected: selected,
-        label: '$sideLabel ${l10n.replayActionScore(location.points)}',
+        label:
+            '$sideLabel ${l10n.replayActionScore(location.points)}, '
+            '${_formatDuration(event.elapsed)}',
         child: Material(
           color: Colors.transparent,
           child: InkWell(

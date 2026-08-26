@@ -604,22 +604,12 @@ class _HistoryLoadError extends StatelessWidget {
     final l10n = _historyL10n(context);
     return Center(
       key: const Key('history-load-error'),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          EditorialErrorState(
-            title: l10n.historyLoadError,
-            message: l10n.actionFailedRetry,
-            icon: Icons.error_outline,
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            key: const Key('history-retry'),
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: Text(l10n.historyRetry),
-          ),
-        ],
+      child: EditorialErrorState(
+        title: l10n.historyLoadError,
+        message: l10n.actionFailedRetry,
+        actionLabel: l10n.historyRetry,
+        onAction: onRetry,
+        icon: Icons.error_outline,
       ),
     );
   }

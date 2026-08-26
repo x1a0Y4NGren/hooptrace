@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
@@ -223,16 +224,20 @@ void main() {
     final source = _RetryHistorySource();
     final controller = HistoryController(matches: const [], dataSource: source);
     await tester.pumpWidget(
-      MaterialApp(
-        home: HistoryPage(controller: controller, onMatchTap: (_) {}),
-      ),
+      _localizedApp(HistoryPage(controller: controller, onMatchTap: (_) {})),
     );
 
     await controller.loadNextPage();
     await tester.pump();
     expect(find.byKey(const Key('history-load-error')), findsOneWidget);
+    final errorState = tester.widget<EditorialErrorState>(
+      find.byType(EditorialErrorState),
+    );
+    final l10n = AppLocalizations.of(tester.element(find.byType(HistoryPage)))!;
+    expect(errorState.actionLabel, l10n.historyRetry);
+    expect(errorState.onAction, isNotNull);
 
-    await tester.tap(find.byKey(const Key('history-retry')));
+    await tester.tap(find.text(l10n.historyRetry));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('history-match-recovered')), findsOneWidget);
   });

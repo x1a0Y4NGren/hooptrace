@@ -354,6 +354,7 @@ class ReplayController extends ChangeNotifier {
   }
 
   void selectLocation(String locationId) {
+    if (!_isEditing) return;
     final event = _data.events
         .where(
           (item) =>
