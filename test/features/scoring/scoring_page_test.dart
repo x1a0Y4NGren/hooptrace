@@ -692,7 +692,7 @@ void main() {
     expect(find.text('投篮'), findsOneWidget);
     expect(find.text('罚球'), findsOneWidget);
     expect(find.text('比赛状态'), findsOneWidget);
-    expect(find.text('记录'), findsOneWidget);
+    expect(find.text('备注/自定义记录'), findsOneWidget);
     expect(find.text('比赛'), findsOneWidget);
   });
 

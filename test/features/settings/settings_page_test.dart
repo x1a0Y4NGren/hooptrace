@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
@@ -16,6 +18,86 @@ import 'package:hooptrace/features/settings/settings_page.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  testWidgets('settings uses exactly five editorial groups in order', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
+    final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+    final automaticBackup = AutomaticBackupService(
+      database,
+      codec,
+      storage: _Storage(),
+    );
+    final controller = SettingsController(
+      exports: ExportCoordinator(
+        database,
+        codec,
+        gateway: _Gateway(),
+        automaticBackup: automaticBackup,
+      ),
+      automaticBackup: automaticBackup,
+      feedback: ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+      ),
+    );
+    final language = LanguagePreferencesController(
+      LanguagePreferencesRepository(database),
+    );
+    final theme = ThemePreferencesController(
+      ThemePreferencesRepository(database),
+    );
+    addTearDown(controller.dispose);
+    addTearDown(language.dispose);
+    addTearDown(theme.dispose);
+    await language.load();
+    await theme.load();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: SettingsPage(
+          controller: controller,
+          languageController: language,
+          themeController: theme,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialScaffold), findsOneWidget);
+    expect(find.byType(EditorialMasthead), findsOneWidget);
+    expect(find.byType(DoodleSurface), findsNothing);
+    final labels = tester
+        .widgetList<EditorialSectionRule>(find.byType(EditorialSectionRule))
+        .map((rule) => rule.label)
+        .whereType<String>()
+        .toList();
+    expect(labels, [
+      'Appearance',
+      'Scoring feedback',
+      'Language',
+      'Data',
+      'About',
+    ]);
+    expect(find.text('Defaults'), findsNothing);
+    expect(find.text('Statistics'), findsNothing);
+    expect(find.text('Experimental'), findsNothing);
+    expect(find.text('Developer diagnostics'), findsNothing);
+  });
+
   testWidgets('settings exposes usable local export and backup controls', (
     tester,
   ) async {
@@ -172,6 +254,12 @@ void main() {
       );
       expect(find.byKey(const Key('motion-preview')), findsOneWidget);
       expect(
+        tester
+            .widget<AnimatedContainer>(find.byKey(const Key('motion-preview')))
+            .duration,
+        const Duration(milliseconds: 180),
+      );
+      expect(
         find.text(
           'Reduced motion shortens transitions and removes decorative movement.',
         ),
@@ -186,6 +274,23 @@ void main() {
 
       expect((await feedback.load()).motion, MotionPreference.reduced);
       expect(find.text('Preview: reduced motion'), findsOneWidget);
+      expect(
+        tester
+            .widget<AnimatedContainer>(find.byKey(const Key('motion-preview')))
+            .duration,
+        const Duration(milliseconds: 120),
+      );
+      expect(
+        tester.widget<AnimatedSlide>(find.byType(AnimatedSlide)).offset,
+        Offset.zero,
+      );
+      expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 1);
+      expect(
+        tester.getSemantics(find.byKey(const Key('motion-preview'))).label,
+        'Motion preview',
+      );
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
     },
   );
 
@@ -235,12 +340,8 @@ void main() {
     await tester.pumpAndSettle();
     final restoreTile = find.text('Restore from backup');
     await tester.scrollUntilVisible(restoreTile, -200);
-    final restoreListTile = find.ancestor(
-      of: restoreTile,
-      matching: find.byType(ListTile),
-    );
-    await tester.ensureVisible(restoreListTile);
-    await tester.tap(restoreListTile);
+    await tester.ensureVisible(restoreTile);
+    await tester.tap(restoreTile);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('backup-mode-merge')));
     await tester.pumpAndSettle();
@@ -440,6 +541,14 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final about = find.byKey(const Key('settings-about-row'));
+        await tester.scrollUntilVisible(
+          about,
+          300,
+          scrollable: find.byType(Scrollable).first,
+        );
+        expect(tester.getSize(about).height, greaterThanOrEqualTo(48));
         expect(tester.takeException(), isNull);
       }
 

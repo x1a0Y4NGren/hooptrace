@@ -185,6 +185,10 @@ GoRouter buildProviderAppRouter() {
         builder: (context, state) => const _SettingsRoute(),
       ),
       GoRoute(
+        path: '/about',
+        builder: (context, state) => const ProjectDetailsPage(),
+      ),
+      GoRoute(
         path: '/project',
         builder: (context, state) => const ProjectDetailsPage(),
       ),
@@ -204,6 +208,7 @@ class _HomeRoute extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final active = ref.watch(activeMatchProvider);
+    final latestFinished = ref.watch(latestFinishedMatchProvider).valueOrNull;
     return active.when(
       loading: () => const _RouteLoading(),
       error: (error, stackTrace) => _RouteMessage(
@@ -212,6 +217,7 @@ class _HomeRoute extends ConsumerWidget {
       ),
       data: (detail) => HomePage(
         activeMatch: detail,
+        latestFinishedMatch: latestFinished,
         onStartScoring: () {
           if (detail != null) {
             ScaffoldMessenger.of(context)
@@ -233,7 +239,7 @@ class _HomeRoute extends ConsumerWidget {
         onOpenPlayers: () => context.push('/players'),
         onOpenRules: () => context.push('/settings/rules'),
         onOpenSettings: () => context.push('/settings'),
-        onOpenProject: () => context.push('/project'),
+        onOpenProject: () => context.push('/about'),
       ),
     );
   }
@@ -580,7 +586,7 @@ class _SettingsRoute extends ConsumerWidget {
       controller: ref.watch(settingsControllerProvider),
       themeController: ref.watch(themePreferencesControllerProvider),
       languageController: ref.watch(languagePreferencesControllerProvider),
-      onOpenProject: () => context.push('/project'),
+      onOpenProject: () => context.push('/about'),
       onOpenRules: () => context.push('/settings/rules'),
       onDataRestored: () => context.go('/'),
     );

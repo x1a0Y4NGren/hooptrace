@@ -1548,6 +1548,12 @@ abstract class AppLocalizations {
   /// **'无法读取分析数据'**
   String get playerAnalyticsLoadError;
 
+  /// No description provided for @playerAnalyticsLoadErrorBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取生涯分析，请重试以刷新本地比赛数据。'**
+  String get playerAnalyticsLoadErrorBody;
+
   /// No description provided for @playerAnalyticsNotFound.
   ///
   /// In zh, this message translates to:
@@ -1791,7 +1797,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDataSection.
   ///
   /// In zh, this message translates to:
-  /// **'数据管理'**
+  /// **'数据'**
   String get settingsDataSection;
 
   /// No description provided for @settingsStatisticsSection.
@@ -1997,6 +2003,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'关于 HoopTrace'**
   String get settingsAboutTitle;
+
+  /// No description provided for @settingsAboutSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于'**
+  String get settingsAboutSection;
 
   /// No description provided for @settingsAboutSubtitle.
   ///
@@ -2436,6 +2448,12 @@ abstract class AppLocalizations {
   /// **'无法打开球员档案'**
   String get playerOpenError;
 
+  /// No description provided for @playerOpenErrorBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开该球员档案，请检查本地数据后重试。'**
+  String get playerOpenErrorBody;
+
   /// No description provided for @playerNicknameLabel.
   ///
   /// In zh, this message translates to:
@@ -2496,6 +2514,18 @@ abstract class AppLocalizations {
   /// **'规则模板'**
   String get rulesTitle;
 
+  /// No description provided for @rulesEmptyTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无规则模板'**
+  String get rulesEmptyTitle;
+
+  /// No description provided for @rulesEmptyBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'创建自定义规则模板，为下一场比赛设定计分方式。'**
+  String get rulesEmptyBody;
+
   /// No description provided for @rulesCreate.
   ///
   /// In zh, this message translates to:
@@ -2508,11 +2538,23 @@ abstract class AppLocalizations {
   /// **'规则模板读取失败'**
   String get rulesLoadError;
 
+  /// No description provided for @rulesLoadErrorBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取规则模板，请检查本地数据后重试。'**
+  String get rulesLoadErrorBody;
+
   /// No description provided for @rulesBuiltIn.
   ///
   /// In zh, this message translates to:
   /// **'内置'**
   String get rulesBuiltIn;
+
+  /// No description provided for @rulesCustom.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义'**
+  String get rulesCustom;
 
   /// No description provided for @ruleBuiltInFreeScoring.
   ///
@@ -3779,6 +3821,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'记录'**
   String get scoringRecordsGroup;
+
+  /// No description provided for @scoringNotesCustomRecordsGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'备注/自定义记录'**
+  String get scoringNotesCustomRecordsGroup;
 
   /// No description provided for @scoringMatchGroup.
   ///

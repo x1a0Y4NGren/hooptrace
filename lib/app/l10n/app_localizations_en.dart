@@ -773,6 +773,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerAnalyticsLoadError => 'Could not load analytics';
 
   @override
+  String get playerAnalyticsLoadErrorBody =>
+      'Career analytics could not be loaded. Try again to refresh the local match data.';
+
+  @override
   String get playerAnalyticsNotFound => 'Player not found';
 
   @override
@@ -901,7 +905,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsMotionPreviewReduced => 'Preview: reduced motion';
 
   @override
-  String get settingsDataSection => 'Data management';
+  String get settingsDataSection => 'Data';
 
   @override
   String get settingsStatisticsSection => 'Statistics';
@@ -1017,6 +1021,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAboutTitle => 'About HoopTrace';
+
+  @override
+  String get settingsAboutSection => 'About';
 
   @override
   String get settingsAboutSubtitle =>
@@ -1262,6 +1269,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerOpenError => 'Could not open player profile';
 
   @override
+  String get playerOpenErrorBody =>
+      'This player could not be opened. Check the local data and try again.';
+
+  @override
   String get playerNicknameLabel => 'Nickname';
 
   @override
@@ -1292,13 +1303,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rulesTitle => 'Rule templates';
 
   @override
+  String get rulesEmptyTitle => 'No rule templates yet';
+
+  @override
+  String get rulesEmptyBody =>
+      'Create a custom rule template to define how the next game is scored.';
+
+  @override
   String get rulesCreate => 'New rule';
 
   @override
   String get rulesLoadError => 'Could not load rule templates';
 
   @override
+  String get rulesLoadErrorBody =>
+      'Rule templates could not be loaded. Check the local data and try again.';
+
+  @override
   String get rulesBuiltIn => 'Built-in';
+
+  @override
+  String get rulesCustom => 'Custom';
 
   @override
   String get ruleBuiltInFreeScoring => 'Free scoring';
@@ -1998,6 +2023,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scoringRecordsGroup => 'Records';
+
+  @override
+  String get scoringNotesCustomRecordsGroup => 'Notes/Custom Records';
 
   @override
   String get scoringMatchGroup => 'Match';

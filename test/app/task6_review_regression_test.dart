@@ -792,10 +792,10 @@ void main() {
     ]);
     final router = buildProviderAppRouter();
     addTearDown(router.dispose);
+    router.go('/matches/$matchId/replay');
     await tester.pumpWidget(
       _routerHost(database, router, repository: repository),
     );
-    router.go('/matches/$matchId/replay');
     await _pumpUntilFound(tester, find.text(l10n.routeReplayOpenError));
     await tester.tap(find.byKey(const Key('route-message-home')));
     await _pumpUntilFound(tester, find.byType(HomePage));
@@ -844,8 +844,8 @@ void main() {
       ]);
       final router = buildProviderAppRouter();
       addTearDown(router.dispose);
-      await tester.pumpWidget(_routerHost(database, router, repository: flaky));
       router.go('/matches/$matchId/replay');
+      await tester.pumpWidget(_routerHost(database, router, repository: flaky));
       await _pumpUntilFound(tester, find.text(l10n.routeReplayOpenError));
 
       expect(find.byKey(const Key('route-message-home')), findsOneWidget);

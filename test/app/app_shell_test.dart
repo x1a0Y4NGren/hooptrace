@@ -22,10 +22,16 @@ void main() {
 
     final l10n = _l10n(tester);
     expect(find.byKey(homeStartScoringKey), findsOneWidget);
-    expect(find.text(l10n.replayHistory), findsOneWidget);
-    expect(find.byTooltip(l10n.homePlayersTooltip), findsOneWidget);
-    expect(find.byTooltip(l10n.homeSettingsTooltip), findsOneWidget);
-    expect(find.byTooltip(l10n.homeProjectTooltip), findsOneWidget);
+    expect(find.text(l10n.replayHistory), findsWidgets);
+    for (final key in const [
+      Key('home-history-shortcut'),
+      Key('home-players-shortcut'),
+      Key('home-rules-shortcut'),
+      Key('home-settings-shortcut'),
+    ]) {
+      expect(find.byKey(key), findsOneWidget);
+    }
+    expect(find.byKey(homeProjectShortcutKey), findsNothing);
   });
 
   testWidgets('start scoring route enters landscape scoring shell', (

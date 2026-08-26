@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
@@ -65,7 +66,12 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Appearance'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<EditorialSectionRule>(find.byType(EditorialSectionRule))
+            .map((rule) => rule.label),
+        contains('Appearance'),
+      );
       expect(find.text('外观'), findsNothing);
 
       await tester.scrollUntilVisible(

@@ -79,7 +79,7 @@ class _CareerBody extends StatelessWidget {
         else if (controller.error != null)
           EditorialErrorState(
             title: l10n.playerAnalyticsLoadError,
-            message: l10n.playerAnalyticsLoadError,
+            message: l10n.playerAnalyticsLoadErrorBody,
             actionLabel: l10n.playerAnalyticsRetry,
             onAction: controller.reload,
           )

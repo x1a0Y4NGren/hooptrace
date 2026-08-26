@@ -259,6 +259,20 @@ final liveMatchProvider = StreamProvider.autoDispose
       return ref.watch(matchRepositoryProvider).watchLiveMatch(matchId);
     });
 
+/// Optional presentation projection for Home's latest-result strip.
+/// History already supplies newest-first, unarchived finished matches.
+final latestFinishedMatchProvider = Provider<AsyncValue<MatchDetail?>>((ref) {
+  final history = ref.watch(historyProvider);
+  return history.when(
+    loading: () => const AsyncLoading<MatchDetail?>(),
+    error: (error, stackTrace) => AsyncError<MatchDetail?>(error, stackTrace),
+    data: (entries) {
+      if (entries.isEmpty) return const AsyncData<MatchDetail?>(null);
+      return ref.watch(liveMatchProvider(entries.first.id));
+    },
+  );
+});
+
 /// A command-backed controller is reconstructed from the latest committed
 /// projection. Subsequent Drift updates are applied to the same short-lived
 /// controller, preserving a pending location only until its command commits.

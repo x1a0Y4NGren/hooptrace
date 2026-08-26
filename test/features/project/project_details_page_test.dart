@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/features/project/external_link_launcher.dart';
 import 'package:hooptrace/features/project/project_details_page.dart';
@@ -19,7 +20,29 @@ class RecordingLauncher extends ExternalLinkLauncher {
   }
 }
 
+class FailingLauncher extends ExternalLinkLauncher {
+  @override
+  Future<bool> open(String url) async => false;
+}
+
 void main() {
+  testWidgets('about uses editorial composition and localized title', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _localizedApp(ProjectDetailsPage(launcher: RecordingLauncher())),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialScaffold), findsOneWidget);
+    expect(find.byType(EditorialMasthead), findsOneWidget);
+    expect(find.text('About'), findsOneWidget);
+    expect(find.text('HOOPTRACE'), findsOneWidget);
+    expect(find.byType(DoodleTitle), findsNothing);
+    expect(find.byType(DoodleDivider), findsNothing);
+    expect(find.byType(DoodleSurface), findsNothing);
+  });
+
   testWidgets('project details stays usable across visual matrix', (
     tester,
   ) async {
@@ -47,14 +70,17 @@ void main() {
                   GlobalCupertinoLocalizations.delegate,
                 ],
                 supportedLocales: AppLocalizations.supportedLocales,
-                home: ProjectDetailsPage(launcher: RecordingLauncher()),
+                home: ProjectDetailsPage(
+                  key: ValueKey('$brightness-$locale-$size'),
+                  launcher: RecordingLauncher(),
+                ),
               ),
             ),
           );
           expect(tester.takeException(), isNull);
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          expect(find.byType(DoodleTitle), findsAtLeastNWidgets(1));
+          expect(find.byType(EditorialScaffold), findsOneWidget);
           final l10n = AppLocalizations.of(
             tester.element(find.byType(ProjectDetailsPage)),
           )!;
@@ -64,7 +90,11 @@ void main() {
             scrollable: find.byType(Scrollable).first,
           );
           expect(
-            tester.getSize(find.byType(ListTile).first).height,
+            tester
+                .getSize(
+                  find.byKey(ValueKey('project-link-${l10n.projectGitHub}')),
+                )
+                .height,
             greaterThanOrEqualTo(48),
           );
         }
@@ -102,6 +132,26 @@ void main() {
     semanticsHandle.dispose();
   });
 
+  testWidgets('failed external launch keeps the localized snackbar contract', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _localizedApp(ProjectDetailsPage(launcher: FailingLauncher())),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('GitHub'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('GitHub'));
+    await tester.pumpAndSettle();
+    final l10n = AppLocalizations.of(
+      tester.element(find.byType(ProjectDetailsPage)),
+    )!;
+    expect(find.text(l10n.routeProjectLinkError), findsOneWidget);
+  });
+
   testWidgets('project details state open-source and local data principles', (
     tester,
   ) async {
@@ -110,9 +160,10 @@ void main() {
       _localizedApp(ProjectDetailsPage(launcher: launcher)),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(DoodleTitle), findsAtLeastNWidgets(1));
-    expect(find.byType(DoodleDivider), findsAtLeastNWidgets(1));
-    expect(find.byType(DoodleSurface), findsAtLeastNWidgets(2));
+    expect(find.byType(EditorialScaffold), findsOneWidget);
+    expect(find.byType(DoodleTitle), findsNothing);
+    expect(find.byType(DoodleDivider), findsNothing);
+    expect(find.byType(DoodleSurface), findsNothing);
     final l10n = AppLocalizations.of(
       tester.element(find.byType(ProjectDetailsPage)),
     )!;
@@ -123,6 +174,11 @@ void main() {
       l10n.projectOffline,
       l10n.projectPrivacy,
     ]) {
+      await tester.scrollUntilVisible(
+        find.text(text),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text(text), findsOneWidget);
     }
     for (final link in [

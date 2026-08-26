@@ -191,7 +191,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
       return Center(
         child: EditorialErrorState(
           title: l10n.playerOpenError,
-          message: l10n.playerOpenError,
+          message: l10n.playerOpenErrorBody,
           actionLabel: l10n.retryAction,
           onAction: _load,
         ),

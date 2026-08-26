@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -93,84 +93,59 @@ class _SettingsPageState extends State<SettingsPage> {
     final controller = widget.controller;
     final backup = controller.backupState;
     final l10n = _localizations(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.settings)),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (controller.busy) const LinearProgressIndicator(minHeight: 2),
-            Expanded(
-              child: ListView(
-                // Keep the final row reachable at small heights and leave
-                // enough scroll slack for 48dp targets after expanded motion
-                // preview content.
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 320),
-                children: [
-                  _SettingsSection(
-                    title: l10n.settingsDefaultSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.tune,
-                        title: l10n.settingsDefaultRuleTitle,
-                        subtitle: l10n.settingsDefaultRuleSubtitle,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsRulesSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.tune,
-                        title: l10n.settingsRulesTemplateTitle,
-                        subtitle: l10n.settingsRulesTemplateSubtitle,
-                        onTap: widget.onOpenRules,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsAppearanceSection,
-                    children: [
-                      _ThemeSettingTile(
-                        icon: Icons.palette_outlined,
-                        title: l10n.settingsThemeTitle,
-                        subtitle: l10n.settingsThemeSubtitle,
-                        controller: widget.themeController,
-                        l10n: l10n,
-                      ),
-                      _MotionSettingTile(
-                        icon: Icons.motion_photos_on_outlined,
-                        title: l10n.settingsMotionTitle,
-                        subtitle: l10n.settingsMotionSubtitle,
-                        preference: controller.feedbackState.motion,
-                        enabled: !controller.busy,
-                        l10n: l10n,
-                        onChanged: _setMotionPreference,
-                      ),
-                      _MotionPreview(
-                        preference: controller.feedbackState.motion,
-                        l10n: l10n,
-                      ),
-                    ],
-                  ),
-                  if (widget.languageController != null)
-                    _SettingsSection(
-                      title: l10n.settingsLanguageSection,
-                      children: [
-                        _LanguageSettingTile(
-                          icon: Icons.language_outlined,
-                          title: l10n.settingsLanguageTitle,
-                          subtitle: l10n.settingsLanguageSubtitle,
-                          controller: widget.languageController,
-                          l10n: l10n,
-                        ),
-                      ],
+    return EditorialScaffold(
+      masthead: EditorialMasthead(
+        title: l10n.settings,
+        compact: true,
+        leading: Navigator.canPop(context)
+            ? EditorialTapTarget(
+                onPressed: () => Navigator.maybePop(context),
+                label: MaterialLocalizations.of(context).backButtonTooltip,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                child: const Icon(Icons.arrow_back),
+              )
+            : null,
+      ),
+      body: Column(
+        children: [
+          if (controller.busy) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: HoopTraceSpacing.section),
+              children: [
+                _SettingsSection(
+                  title: l10n.settingsAppearanceSection,
+                  children: [
+                    _ThemeSettingTile(
+                      icon: Icons.palette_outlined,
+                      title: l10n.settingsThemeTitle,
+                      subtitle: l10n.settingsThemeSubtitle,
+                      controller: widget.themeController,
+                      l10n: l10n,
                     ),
-                  _SettingsSection(
-                    title: l10n.settingsFeedbackSection,
-                    children: [
-                      SwitchListTile(
+                    _MotionSettingTile(
+                      icon: Icons.motion_photos_on_outlined,
+                      title: l10n.settingsMotionTitle,
+                      subtitle: l10n.settingsMotionSubtitle,
+                      preference: controller.feedbackState.motion,
+                      enabled: !controller.busy,
+                      l10n: l10n,
+                      onChanged: _setMotionPreference,
+                    ),
+                    _MotionPreview(
+                      preference: controller.feedbackState.motion,
+                      l10n: l10n,
+                    ),
+                  ],
+                ),
+                _SettingsSection(
+                  title: l10n.settingsFeedbackSection,
+                  children: [
+                    _RuledControl(
+                      child: SwitchListTile(
                         key: const Key('scoring-feedback-haptic-switch'),
                         minTileHeight: 64,
+                        contentPadding: EdgeInsets.zero,
                         secondary: const Icon(Icons.vibration),
                         title: Text(l10n.settingsHapticTitle),
                         subtitle: Text(
@@ -183,9 +158,12 @@ class _SettingsPageState extends State<SettingsPage> {
                             ? null
                             : _setHapticFeedbackEnabled,
                       ),
-                      SwitchListTile(
+                    ),
+                    _RuledControl(
+                      child: SwitchListTile(
                         key: const Key('scoring-feedback-sound-switch'),
                         minTileHeight: 64,
+                        contentPadding: EdgeInsets.zero,
                         secondary: const Icon(Icons.volume_up_outlined),
                         title: Text(l10n.settingsSoundTitle),
                         subtitle: Text(
@@ -198,71 +176,43 @@ class _SettingsPageState extends State<SettingsPage> {
                             ? null
                             : _setSoundFeedbackEnabled,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                if (widget.languageController != null)
                   _SettingsSection(
-                    title: l10n.settingsStatisticsSection,
+                    title: l10n.settingsLanguageSection,
                     children: [
-                      _SettingTile(
-                        icon: Icons.query_stats,
-                        title: l10n.settingsStatisticsSection,
-                        subtitle: l10n.settingsStatisticsSubtitle,
+                      _LanguageSettingTile(
+                        icon: Icons.language_outlined,
+                        title: l10n.settingsLanguageTitle,
+                        subtitle: l10n.settingsLanguageSubtitle,
+                        controller: widget.languageController,
+                        l10n: l10n,
                       ),
                     ],
                   ),
-                  _dataManagementSection(
-                    controller: controller,
-                    backup: backup,
-                    l10n: l10n,
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsPrivacySection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.lock_outline,
-                        title: l10n.settingsPrivacyTitle,
-                        subtitle: l10n.settingsPrivacySubtitle,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsExperimentalSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.science_outlined,
-                        title: l10n.settingsExperimentalTitle,
-                        subtitle: l10n.settingsExperimentalSubtitle,
-                        enabled: false,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsDiagnosticsSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.monitor_heart_outlined,
-                        title: l10n.settingsDiagnosticsTitle,
-                        subtitle: l10n.settingsDiagnosticsSubtitle,
-                        enabled: false,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsProjectSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.info_outline,
-                        title: l10n.settingsAboutTitle,
-                        subtitle: l10n.settingsAboutSubtitle,
-                        onTap: widget.onOpenProject,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                _dataManagementSection(
+                  controller: controller,
+                  backup: backup,
+                  l10n: l10n,
+                ),
+                _SettingsSection(
+                  title: l10n.settingsAboutSection,
+                  children: [
+                    _SettingTile(
+                      key: const Key('settings-about-row'),
+                      icon: Icons.info_outline,
+                      title: l10n.settingsAboutTitle,
+                      subtitle: l10n.settingsAboutSubtitle,
+                      onTap: widget.onOpenProject,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -275,6 +225,12 @@ class _SettingsPageState extends State<SettingsPage> {
     return _SettingsSection(
       title: l10n.settingsDataSection,
       children: [
+        _SettingTile(
+          icon: Icons.tune,
+          title: l10n.settingsRulesTemplateTitle,
+          subtitle: l10n.settingsRulesTemplateSubtitle,
+          onTap: widget.onOpenRules,
+        ),
         _SettingTile(
           icon: Icons.archive_outlined,
           title: l10n.settingsExportBackupTitle,
@@ -306,17 +262,21 @@ class _SettingsPageState extends State<SettingsPage> {
             success: l10n.settingsExportCsvSuccess,
           ),
         ),
-        SwitchListTile(
-          key: const Key('automatic-backup-switch'),
-          secondary: const Icon(Icons.backup_outlined),
-          title: Text(l10n.settingsAutomaticBackupTitle),
-          subtitle: Text(
-            backup.enabled
-                ? l10n.settingsAutomaticBackupEnabled
-                : l10n.settingsAutomaticBackupDisabled,
+        _RuledControl(
+          child: SwitchListTile(
+            key: const Key('automatic-backup-switch'),
+            minTileHeight: 64,
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.backup_outlined),
+            title: Text(l10n.settingsAutomaticBackupTitle),
+            subtitle: Text(
+              backup.enabled
+                  ? l10n.settingsAutomaticBackupEnabled
+                  : l10n.settingsAutomaticBackupDisabled,
+            ),
+            value: backup.enabled,
+            onChanged: controller.busy ? null : _setAutomaticBackupEnabled,
           ),
-          value: backup.enabled,
-          onChanged: controller.busy ? null : _setAutomaticBackupEnabled,
         ),
         _SettingTile(
           icon: Icons.folder_outlined,
@@ -335,13 +295,12 @@ class _SettingsPageState extends State<SettingsPage> {
           enabled: !controller.busy && backup.isConfigured,
           onTap: _runBackupNow,
         ),
-        ListTile(
+        _SettingsControlRow(
           key: const Key('backup-retention-limit'),
-          minTileHeight: 64,
-          leading: const Icon(Icons.delete_sweep_outlined),
-          title: Text(l10n.settingsBackupRetentionTitle),
-          subtitle: Text(l10n.settingsBackupRetentionSubtitle),
-          trailing: DropdownButton<int>(
+          icon: Icons.delete_sweep_outlined,
+          title: l10n.settingsBackupRetentionTitle,
+          subtitle: l10n.settingsBackupRetentionSubtitle,
+          control: DropdownButton<int>(
             key: const Key('backup-retention-dropdown'),
             value: backup.retentionLimit,
             items: _retentionOptions(backup.retentionLimit)
@@ -358,6 +317,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     if (value != null) unawaited(_setRetentionLimit(value));
                   },
           ),
+        ),
+        _SettingTile(
+          icon: Icons.lock_outline,
+          title: l10n.settingsPrivacyTitle,
+          subtitle: l10n.settingsPrivacySubtitle,
         ),
       ],
     );
@@ -636,14 +600,13 @@ class _MotionSettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    return _SettingsControlRow(
       key: const Key('motion-preference-tile'),
-      minTileHeight: 64,
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
       enabled: enabled,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: DropdownButtonHideUnderline(
+      control: DropdownButtonHideUnderline(
         child: DropdownButton<MotionPreference>(
           key: const Key('motion-preference-dropdown'),
           value: preference,
@@ -676,68 +639,114 @@ String _motionPreferenceLabel(
   };
 }
 
-class _MotionPreview extends StatelessWidget {
+class _MotionPreview extends StatefulWidget {
   const _MotionPreview({required this.preference, required this.l10n});
 
   final MotionPreference preference;
   final AppLocalizations l10n;
 
   @override
+  State<_MotionPreview> createState() => _MotionPreviewState();
+}
+
+class _MotionPreviewState extends State<_MotionPreview> {
+  bool _settled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleReveal();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MotionPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.preference != widget.preference) {
+      _settled = false;
+      _scheduleReveal();
+    }
+  }
+
+  void _scheduleReveal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_settled) setState(() => _settled = true);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.maybeOf(context);
+    final systemDisabled = media?.disableAnimations == true;
     final reduced =
-        preference == MotionPreference.reduced ||
-        MediaQuery.maybeOf(context)?.disableAnimations == true;
-    final duration = reduced
+        widget.preference == MotionPreference.reduced ||
+        media?.accessibleNavigation == true;
+    final motion = Theme.of(context).extension<HoopTraceMotionTheme>();
+    final duration = systemDisabled
         ? Duration.zero
-        : (Theme.of(context).extension<HoopTraceMotionTheme>()?.impact ??
-              const Duration(milliseconds: 240));
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Semantics(
-        label: l10n.settingsMotionPreview,
-        container: true,
-        child: AnimatedContainer(
-          key: const Key('motion-preview'),
+        : reduced
+        ? (motion?.reducedReveal ?? const Duration(milliseconds: 120))
+        : (motion?.state ?? const Duration(milliseconds: 180));
+    final settled = systemDisabled || _settled;
+    final editorial = editorialThemeOf(context);
+    return Semantics(
+      label: widget.l10n.settingsMotionPreview,
+      container: true,
+      excludeSemantics: true,
+      child: AnimatedContainer(
+        key: const Key('motion-preview'),
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        constraints: const BoxConstraints(minHeight: 72),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: settled
+              ? editorial.teamBlue.withValues(alpha: 0.12)
+              : editorial.surface,
+          border: Border(
+            left: BorderSide(color: editorial.teamBlue, width: 4),
+            bottom: BorderSide(color: editorial.rule),
+          ),
+        ),
+        child: AnimatedSlide(
+          offset: reduced || settled ? Offset.zero : const Offset(-0.06, 0),
           duration: duration,
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Row(
-            children: [
-              AnimatedScale(
-                scale: reduced ? 1 : 1.08,
-                duration: duration,
-                child: Icon(
-                  reduced ? Icons.accessibility_new : Icons.auto_awesome,
+          child: AnimatedScale(
+            scale: reduced || settled ? 1 : 0.96,
+            duration: duration,
+            child: Row(
+              children: [
+                Icon(
+                  settled ? Icons.check_circle_outline : Icons.circle_outlined,
+                  color: editorial.teamBlue,
                   size: 24,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      reduced
-                          ? l10n.settingsMotionPreviewReduced
-                          : l10n.settingsMotionPreviewStandard,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.settingsMotionHelp,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        reduced
+                            ? widget.l10n.settingsMotionPreviewReduced
+                            : widget.l10n.settingsMotionPreviewStandard,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: editorial.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.l10n.settingsMotionHelp,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: editorial.mutedInk,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -763,13 +772,12 @@ class _LanguageSettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final languageController = controller;
-    return ListTile(
+    return _SettingsControlRow(
       key: const Key('language-preference-tile'),
-      minTileHeight: 64,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: languageController == null
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      control: languageController == null
           ? null
           : DropdownButtonHideUnderline(
               child: DropdownButton<AppLanguagePreference>(
@@ -822,13 +830,12 @@ class _ThemeSettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeController = controller;
-    return ListTile(
+    return _SettingsControlRow(
       key: const Key('theme-preference-tile'),
-      minTileHeight: 64,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: themeController == null
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      control: themeController == null
           ? null
           : DropdownButtonHideUnderline(
               child: DropdownButton<AppThemePreference>(
@@ -873,19 +880,12 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: HoopTraceSpacing.section),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-            child: Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
+          EditorialSectionRule(label: title),
+          const SizedBox(height: 4),
           ...children,
         ],
       ),
@@ -900,6 +900,7 @@ class _SettingTile extends StatelessWidget {
     required this.subtitle,
     this.enabled = true,
     this.onTap,
+    super.key,
   });
 
   final IconData icon;
@@ -910,14 +911,158 @@ class _SettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      minTileHeight: 64,
-      enabled: enabled,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right),
-      onTap: enabled ? onTap : null,
+    final editorial = editorialThemeOf(context);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 64),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: editorial.rule)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(width: 48, child: Icon(icon)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: enabled ? editorial.ink : editorial.mutedInk,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: editorial.mutedInk,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onTap != null) ...[
+                const SizedBox(width: 8),
+                const SizedBox.square(
+                  dimension: 48,
+                  child: Icon(Icons.arrow_forward, size: 20),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RuledControl extends StatelessWidget {
+  const _RuledControl({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: editorialThemeOf(context).rule)),
+    ),
+    child: child,
+  );
+}
+
+class _SettingsControlRow extends StatelessWidget {
+  const _SettingsControlRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.control,
+    this.enabled = true,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? control;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 560 || scale >= 1.6;
+        final copy = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 48, height: 48, child: Icon(icon)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: enabled ? editorial.ink : editorial.mutedInk,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: editorial.mutedInk,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+        final target = control == null
+            ? null
+            : ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: control,
+              );
+        return Container(
+          constraints: const BoxConstraints(minHeight: 64),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: editorial.rule)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: stacked
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    copy,
+                    if (target != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 48, top: 4),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: target,
+                        ),
+                      ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: copy),
+                    if (target != null) ...[const SizedBox(width: 12), target],
+                  ],
+                ),
+        );
+      },
     );
   }
 }

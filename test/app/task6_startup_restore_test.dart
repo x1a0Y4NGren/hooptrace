@@ -70,7 +70,7 @@ void main() {
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-start-scoring')));
-    expect(find.text('HoopTrace'), findsOneWidget);
+    expect(find.text('HOOPTRACE'), findsOneWidget);
   });
 
   testWidgets('built-in startup failure is shown instead of being swallowed', (

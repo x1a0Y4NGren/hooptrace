@@ -2299,7 +2299,7 @@ class _ScoringLabels {
   String get shots => l10n.scoringShotsGroup;
   String get freeThrows => l10n.scoringFreeThrowsGroup;
   String get matchStatus => l10n.scoringMatchStatusGroup;
-  String get records => l10n.scoringRecordsGroup;
+  String get records => l10n.scoringNotesCustomRecordsGroup;
   String get match => l10n.scoringMatchGroup;
   String get note => l10n.scoringNote;
   String get custom => l10n.scoringCustom;

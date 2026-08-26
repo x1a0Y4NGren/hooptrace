@@ -64,7 +64,7 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
             return _StateViewport(
               child: EditorialErrorState(
                 title: l10n.rulesLoadError,
-                message: l10n.rulesLoadError,
+                message: l10n.rulesLoadErrorBody,
                 actionLabel: l10n.retryAction,
                 onAction: _retry,
               ),
@@ -77,8 +77,8 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
           if (templates.isEmpty) {
             return _StateViewport(
               child: EditorialEmptyState(
-                title: l10n.rulesTitle,
-                message: l10n.rulesCreate,
+                title: l10n.rulesEmptyTitle,
+                message: l10n.rulesEmptyBody,
                 actionLabel: l10n.rulesCreate,
                 onAction: () => _openEditor(context),
                 icon: Icons.rule_outlined,
@@ -94,7 +94,7 @@ class _RuleTemplateListPageState extends State<RuleTemplateListPage> {
                 (item) => item.id == template.id,
               );
               final name = localizedRuleTemplateName(template, l10n);
-              final status = builtIn ? l10n.rulesBuiltIn : l10n.scoringCustom;
+              final status = builtIn ? l10n.rulesBuiltIn : l10n.rulesCustom;
               final summary = _summary(template, l10n);
               return EditorialIndexRow(
                 key: ValueKey('rule-template-${template.id}'),

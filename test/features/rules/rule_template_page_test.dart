@@ -219,7 +219,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(EditorialEmptyState), findsOneWidget);
-    expect(find.text('规则模板'), findsNWidgets(2));
+    expect(find.text('暂无规则模板'), findsOneWidget);
+    expect(find.text('创建自定义规则模板，为下一场比赛设定计分方式。'), findsOneWidget);
     await tester.tap(find.text('新建规则').last);
     await tester.pumpAndSettle();
     expect(find.byType(RuleTemplateEditorPage), findsOneWidget);
@@ -245,7 +246,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(EditorialErrorState), findsOneWidget);
-    expect(find.text('规则模板读取失败'), findsNWidgets(2));
+    expect(find.text('规则模板读取失败'), findsOneWidget);
+    expect(find.text('无法读取规则模板，请检查本地数据后重试。'), findsOneWidget);
     expect(repository.watchCalls, 1);
 
     await tester.tap(find.text('重试'));
