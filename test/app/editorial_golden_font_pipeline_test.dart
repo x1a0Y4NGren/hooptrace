@@ -89,55 +89,163 @@ void main() {
     tester,
   ) async {
     const bodyGlyph = Key('body-glyph');
-    const missingGlyph = Key('missing-body-glyph');
     final bodyStyle = buildHoopTraceTheme().textTheme.bodyMedium!.copyWith(
-      fontSize: 32,
+      color: Colors.black,
+      fontSize: 40,
+      height: 1,
     );
     await tester.pumpWidget(
       MaterialApp(
         theme: buildHoopTraceTheme(),
-        home: Row(
-          textDirection: TextDirection.ltr,
-          children: [
-            RepaintBoundary(
-              key: bodyGlyph,
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: RepaintBoundary(
+            key: bodyGlyph,
+            child: ColoredBox(
+              color: Colors.white,
               child: SizedBox.square(
-                dimension: 48,
-                child: Text('A', style: bodyStyle),
+                dimension: 64,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Text('A', style: bodyStyle),
+                ),
               ),
             ),
-            RepaintBoundary(
-              key: missingGlyph,
-              child: SizedBox.square(
-                dimension: 48,
-                child: Text(String.fromCharCode(0x10ffff), style: bodyStyle),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
+    final raster = await _captureRaster(tester, find.byKey(bodyGlyph));
+    final metrics = _measureDarkGlyph(raster);
     expect(
-      await _capturePixels(tester, find.byKey(bodyGlyph)),
-      isNot(equals(await _capturePixels(tester, find.byKey(missingGlyph)))),
-      reason: 'English body copy must not render as the Ahem tofu box.',
+      metrics.backgroundRatioInsideBounds,
+      // SDK Roboto measures 0.435 here, while the deliberate no-Roboto
+      // mutation produces Ahem's 41x41 solid block at exactly 0.000. The 0.20
+      // floor keeps wide anti-aliasing/platform tolerance without accepting a
+      // substantially filled test-font box or coupling the gate to a hash.
+      greaterThan(0.20),
+      reason:
+          'A production-theme Latin "A" must contain substantial white space '
+          'inside its ink bounds (the counter and the area outside its angled '
+          'strokes). Flutter test\'s Ahem fallback is a solid block with no such '
+          'space. Raster metrics: $metrics',
     );
   });
 }
 
-Future<Uint8List> _capturePixels(WidgetTester tester, Finder finder) async {
+final class _Raster {
+  const _Raster({
+    required this.width,
+    required this.height,
+    required this.pixels,
+  });
+
+  final int width;
+  final int height;
+  final Uint8List pixels;
+}
+
+final class _GlyphMetrics {
+  const _GlyphMetrics({
+    required this.bounds,
+    required this.inkPixels,
+    required this.backgroundPixelsInsideBounds,
+  });
+
+  final Rect bounds;
+  final int inkPixels;
+  final int backgroundPixelsInsideBounds;
+
+  double get backgroundRatioInsideBounds {
+    final area = bounds.width.toInt() * bounds.height.toInt();
+    return backgroundPixelsInsideBounds / area;
+  }
+
+  @override
+  String toString() =>
+      'bounds=$bounds, inkPixels=$inkPixels, '
+      'backgroundPixelsInsideBounds=$backgroundPixelsInsideBounds, '
+      'backgroundRatioInsideBounds='
+      '${backgroundRatioInsideBounds.toStringAsFixed(3)}';
+}
+
+_GlyphMetrics _measureDarkGlyph(_Raster raster) {
+  var minX = raster.width;
+  var minY = raster.height;
+  var maxX = -1;
+  var maxY = -1;
+  var inkPixels = 0;
+  for (var y = 0; y < raster.height; y++) {
+    for (var x = 0; x < raster.width; x++) {
+      if (!_isDarkPixel(raster, x, y)) continue;
+      inkPixels++;
+      minX = x < minX ? x : minX;
+      minY = y < minY ? y : minY;
+      maxX = x > maxX ? x : maxX;
+      maxY = y > maxY ? y : maxY;
+    }
+  }
+  if (inkPixels == 0) {
+    fail('The rendered Latin glyph contained no dark pixels.');
+  }
+
+  var backgroundPixels = 0;
+  for (var y = minY; y <= maxY; y++) {
+    for (var x = minX; x <= maxX; x++) {
+      if (_isWhitePixel(raster, x, y)) backgroundPixels++;
+    }
+  }
+  return _GlyphMetrics(
+    bounds: Rect.fromLTRB(
+      minX.toDouble(),
+      minY.toDouble(),
+      (maxX + 1).toDouble(),
+      (maxY + 1).toDouble(),
+    ),
+    inkPixels: inkPixels,
+    backgroundPixelsInsideBounds: backgroundPixels,
+  );
+}
+
+bool _isDarkPixel(_Raster raster, int x, int y) {
+  final offset = (y * raster.width + x) * 4;
+  return raster.pixels[offset] < 224 &&
+      raster.pixels[offset + 1] < 224 &&
+      raster.pixels[offset + 2] < 224;
+}
+
+bool _isWhitePixel(_Raster raster, int x, int y) {
+  final offset = (y * raster.width + x) * 4;
+  return raster.pixels[offset] > 248 &&
+      raster.pixels[offset + 1] > 248 &&
+      raster.pixels[offset + 2] > 248;
+}
+
+Future<_Raster> _captureRaster(WidgetTester tester, Finder finder) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(finder);
-  final pixels = await tester.runAsync(() async {
+  final raster = await tester.runAsync(() async {
     final image = await boundary.toImage(pixelRatio: 1);
     final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-    image.dispose();
-    if (data == null) return null;
-    return Uint8List.fromList(
-      data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+    if (data == null) {
+      image.dispose();
+      return null;
+    }
+    final result = _Raster(
+      width: image.width,
+      height: image.height,
+      pixels: Uint8List.fromList(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      ),
     );
+    image.dispose();
+    return result;
   });
-  if (pixels == null) fail('Could not capture pixels for $finder.');
-  return pixels;
+  if (raster == null) fail('Could not capture pixels for $finder.');
+  return raster;
+}
+
+Future<Uint8List> _capturePixels(WidgetTester tester, Finder finder) async {
+  return (await _captureRaster(tester, finder)).pixels;
 }
