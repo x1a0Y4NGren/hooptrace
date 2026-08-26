@@ -155,6 +155,50 @@ void main() {
     semanticsHandle.dispose();
   });
 
+  testWidgets('player side choices expose selected semantics and glyph', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    final database = createTestDatabase();
+    addTearDown(database.close);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: PlayerEditorPage(
+          repository: PlayerRepository(database),
+          onSaved: () {},
+        ),
+      ),
+    );
+
+    final any = find.widgetWithText(OutlinedButton, '不限');
+    final blue = find.widgetWithText(OutlinedButton, '蓝方');
+    expect(
+      tester.getSemantics(any).flagsCollection.isSelected,
+      ui.Tristate.isTrue,
+    );
+    expect(
+      tester.getSemantics(blue).flagsCollection.isSelected,
+      ui.Tristate.isFalse,
+    );
+    expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
+    _expectSingleTapOwner(tester, any);
+    _expectSingleTapOwner(tester, blue);
+
+    await tester.tap(blue);
+    await tester.pump();
+    expect(
+      tester.getSemantics(any).flagsCollection.isSelected,
+      ui.Tristate.isFalse,
+    );
+    expect(
+      tester.getSemantics(blue).flagsCollection.isSelected,
+      ui.Tristate.isTrue,
+    );
+    expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
+    semanticsHandle.dispose();
+  });
+
   testWidgets('player avatar foreground meets normal-text contrast', (
     tester,
   ) async {
@@ -245,6 +289,144 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
+  testWidgets('player list exposes error and retries into populated content', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    final repository = _SequencedPlayerRepository(
+      database,
+      streams: [
+        Stream<List<Player>>.error(StateError('offline')),
+        Stream.value([
+          Player(
+            id: 'retry-player',
+            nickname: '重试成功',
+            createdAt: DateTime.utc(2026, 7, 10),
+          ),
+        ]),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlayerListPage(
+          repository: repository,
+          onCreate: () {},
+          onEdit: (_) {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialErrorState), findsOneWidget);
+    expect(find.text('无法读取球员'), findsOneWidget);
+    expect(repository.watchCalls, 1);
+
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+
+    expect(repository.watchCalls, 2);
+    expect(find.byType(EditorialErrorState), findsNothing);
+    expect(find.text('重试成功'), findsOneWidget);
+  });
+
+  testWidgets('player editor exposes open error and retries the load', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    var loadCalls = 0;
+    final repository = _SequencedPlayerRepository(
+      database,
+      streams: const [],
+      load: (id) async {
+        loadCalls++;
+        if (loadCalls == 1) throw StateError('offline');
+        return Player(
+          id: id,
+          nickname: '恢复档案',
+          createdAt: DateTime.utc(2026, 7, 10),
+        );
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlayerEditorPage(
+          repository: repository,
+          playerId: 'open-error-player',
+          onSaved: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialErrorState), findsOneWidget);
+    expect(find.text('无法打开球员档案'), findsNWidgets(2));
+    expect(loadCalls, 1);
+
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+
+    expect(loadCalls, 2);
+    expect(find.byType(EditorialErrorState), findsNothing);
+    expect(find.text('恢复档案'), findsOneWidget);
+  });
+
+  testWidgets('populated player list remains usable at 200 percent text', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = createTestDatabase();
+    final repository = PlayerRepository(database);
+    var editCalls = 0;
+    var analyticsCalls = 0;
+    await repository.save(
+      Player(
+        id: 'large-text-player',
+        nickname: '很长的球员昵称用于大字号列表',
+        createdAt: DateTime.utc(2026, 7, 10),
+        preferredSide: TeamSide.blue,
+        note: '外线投篮与快速防守',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+        child: MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: PlayerListPage(
+            repository: repository,
+            onCreate: () {},
+            onEdit: (_) => editCalls++,
+            onViewAnalytics: (_) => analyticsCalls++,
+          ),
+        ),
+      ),
+    );
+    await _pumpDatabase(tester);
+
+    expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('player-row-large-text-player')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('player-avatar-large-text-player')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('player-analytics-large-text-player')),
+    );
+    expect(analyticsCalls, 1);
+    await tester.tap(
+      find.byKey(const ValueKey('player-row-large-text-player')),
+      warnIfMissed: false,
+    );
+    expect(editCalls, 1);
+  });
+
   testWidgets('player editor creates and updates persisted fields', (
     tester,
   ) async {
@@ -329,6 +511,12 @@ void main() {
     );
     await _pumpUntilFound(tester, find.text('小北'));
 
+    final deleteIcon = tester.widget<Icon>(find.byIcon(Icons.delete_outline));
+    final editorial = editorialThemeOf(
+      tester.element(find.byIcon(Icons.delete_outline)),
+    );
+    expect(deleteIcon.color, editorial.ink);
+
     await tester.enterText(find.byKey(const Key('player-nickname')), '');
     await tester.tap(find.byKey(const Key('player-save')));
     await tester.pump();
@@ -399,4 +587,28 @@ void _expectSingleTapOwner(WidgetTester tester, Finder target) {
   visit(targetNode);
   expect(tapNodes, hasLength(1));
   expect(tapNodes.single, same(targetNode));
+}
+
+class _SequencedPlayerRepository extends PlayerRepository {
+  _SequencedPlayerRepository(
+    super.database, {
+    required this.streams,
+    this.load,
+  });
+
+  final List<Stream<List<Player>>> streams;
+  final Future<Player?> Function(String id)? load;
+  var watchCalls = 0;
+
+  @override
+  Stream<List<Player>> watchAll() {
+    final index = watchCalls++;
+    return streams[index < streams.length ? index : streams.length - 1];
+  }
+
+  @override
+  Future<Player?> getById(String id) {
+    final loader = load;
+    return loader == null ? super.getById(id) : loader(id);
+  }
 }

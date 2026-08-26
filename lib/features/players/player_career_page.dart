@@ -100,7 +100,7 @@ class _PlayerIdentity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editorial = editorialThemeOf(context);
-    final avatarForeground = accessibleForegroundFor(editorial.arenaAccent);
+    final avatarForeground = accessibleForegroundFor(editorial.inverseSurface);
     return Semantics(
       container: true,
       label: player.nickname,
@@ -109,12 +109,15 @@ class _PlayerIdentity extends StatelessWidget {
           CircleAvatar(
             key: ValueKey('career-avatar-${player.id}'),
             radius: 32,
-            backgroundColor: editorial.arenaAccent,
+            backgroundColor: editorial.inverseSurface,
             foregroundColor: avatarForeground,
-            child: ScoreNumeral(
-              value: player.nickname.characters.first,
-              color: avatarForeground,
-              fontSize: 28,
+            child: Text(
+              player.nickname.characters.first,
+              style: TextStyle(
+                color: avatarForeground,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -216,23 +219,33 @@ class _FilterChoice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editorial = editorialThemeOf(context);
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48),
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(
-          selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-          size: 18,
-        ),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: selected
-              ? accessibleForegroundFor(editorial.inverseSurface)
-              : editorial.ink,
-          backgroundColor: selected ? editorial.inverseSurface : null,
-          side: BorderSide(
-            color: selected ? editorial.inverseSurface : editorial.rule,
-            width: selected ? 2 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onPressed,
+      child: ExcludeSemantics(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              size: 18,
+            ),
+            label: Text(label),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: selected
+                  ? accessibleForegroundFor(editorial.inverseSurface)
+                  : editorial.ink,
+              backgroundColor: selected ? editorial.inverseSurface : null,
+              side: BorderSide(
+                color: selected ? editorial.inverseSurface : editorial.rule,
+                width: selected ? 2 : 1,
+              ),
+            ),
           ),
         ),
       ),
@@ -327,7 +340,12 @@ class _Delta extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '${positive ? '+' : ''}${value.toStringAsFixed(1)}',
-            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: color,
+              fontFamily: HoopTraceTypography.displayFamily,
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
           ),
         ],
       ),
@@ -439,9 +457,6 @@ class _TrendRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final editorial = editorialThemeOf(context);
     final percentage = trend.recordedShootingPercentage;
-    final value = percentage == null
-        ? '${l10n.playerAnalyticsRecordedShots}: ${trend.recordedAttempts}'
-        : '${(percentage * 100).round()}%';
     return Container(
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: editorial.rule)),
@@ -449,23 +464,44 @@ class _TrendRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final details = Text(
-            '${l10n.playerAnalyticsFieldGoals} ${trend.fieldGoalMade}/${trend.fieldGoalAttempts} · '
-            '${l10n.playerAnalyticsFreeThrows} ${trend.freeThrowMade}/${trend.freeThrowAttempts}',
+          final details = Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(text: '${l10n.playerAnalyticsFieldGoals} '),
+                TextSpan(
+                  text: '${trend.fieldGoalMade}/${trend.fieldGoalAttempts}',
+                  style: const TextStyle(
+                    fontFamily: HoopTraceTypography.displayFamily,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                TextSpan(text: ' · ${l10n.playerAnalyticsFreeThrows} '),
+                TextSpan(
+                  text: '${trend.freeThrowMade}/${trend.freeThrowAttempts}',
+                  style: const TextStyle(
+                    fontFamily: HoopTraceTypography.displayFamily,
+                    fontWeight: FontWeight.w700,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
           );
           final identity = Text(
             '${index.toString().padLeft(2, '0')}  '
             '${trend.playedAt.month}/${trend.playedAt.day}',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: editorial.mutedInk,
+              fontFamily: HoopTraceTypography.displayFamily,
               fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
             ),
           );
-          final result = Text(
-            value,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          final result = _TrendResult(
+            percentage: percentage,
+            recordedAttempts: trend.recordedAttempts,
+            recordedShotsLabel: l10n.playerAnalyticsRecordedShots,
           );
           final compact =
               constraints.maxWidth < 520 ||
@@ -492,6 +528,38 @@ class _TrendRow extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _TrendResult extends StatelessWidget {
+  const _TrendResult({
+    required this.percentage,
+    required this.recordedAttempts,
+    required this.recordedShotsLabel,
+  });
+
+  final double? percentage;
+  final int recordedAttempts;
+  final String recordedShotsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final numericStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
+      fontFamily: HoopTraceTypography.displayFamily,
+      fontWeight: FontWeight.w800,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    if (percentage != null) {
+      return Text('${(percentage! * 100).round()}%', style: numericStyle);
+    }
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 6,
+      children: [
+        Text(recordedShotsLabel),
+        Text('$recordedAttempts', style: numericStyle),
+      ],
     );
   }
 }
@@ -551,7 +619,14 @@ class _ZoneMetric extends StatelessWidget {
         children: [
           Flexible(child: Text(label)),
           const SizedBox(width: 12),
-          Text('$value', style: const TextStyle(fontWeight: FontWeight.w800)),
+          Text(
+            '$value',
+            style: const TextStyle(
+              fontFamily: HoopTraceTypography.displayFamily,
+              fontWeight: FontWeight.w800,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
         ],
       ),
     );

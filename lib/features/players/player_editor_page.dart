@@ -175,7 +175,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
                 label: l10n.playerDeleteTooltip,
                 child: Icon(
                   Icons.delete_outline,
-                  color: editorialThemeOf(context).danger,
+                  color: editorialThemeOf(context).ink,
                 ),
               )
             : null,
@@ -347,20 +347,40 @@ class _SideOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editorial = editorialThemeOf(context);
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: 48),
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, color: iconColor),
-        label: Text(label),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: selected ? editorial.inverseSurface : null,
-          foregroundColor: selected
-              ? accessibleForegroundFor(editorial.inverseSurface)
-              : editorial.ink,
-          side: BorderSide(
-            color: selected ? editorial.inverseSurface : editorial.rule,
-            width: selected ? 2 : 1,
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onPressed,
+      child: ExcludeSemantics(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Icon(icon, color: iconColor, size: 16),
+              ],
+            ),
+            label: Text(label),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: selected ? editorial.inverseSurface : null,
+              foregroundColor: selected
+                  ? accessibleForegroundFor(editorial.inverseSurface)
+                  : editorial.ink,
+              side: BorderSide(
+                color: selected ? editorial.inverseSurface : editorial.rule,
+                width: selected ? 2 : 1,
+              ),
+            ),
           ),
         ),
       ),

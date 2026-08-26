@@ -204,6 +204,59 @@ void main() {
     expect(find.text('自由计分'), findsNothing);
   });
 
+  testWidgets('rule list exposes an empty state that opens the editor', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    final repository = _SequencedRuleRepository(
+      database,
+      streams: [Stream.value(const <RuleTemplate>[])],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: RuleTemplateListPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialEmptyState), findsOneWidget);
+    expect(find.text('规则模板'), findsNWidgets(2));
+    await tester.tap(find.text('新建规则').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(RuleTemplateEditorPage), findsOneWidget);
+  });
+
+  testWidgets('rule list exposes error and retries into populated content', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    final repository = _SequencedRuleRepository(
+      database,
+      streams: [
+        Stream<List<RuleTemplate>>.error(StateError('offline')),
+        Stream.value(const [
+          RuleTemplate(id: 'retry-rule', name: '恢复规则', scoreButtons: [1, 2]),
+        ]),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(home: RuleTemplateListPage(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialErrorState), findsOneWidget);
+    expect(find.text('规则模板读取失败'), findsNWidgets(2));
+    expect(repository.watchCalls, 1);
+
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+
+    expect(repository.watchCalls, 2);
+    expect(repository.ensureCalls, greaterThanOrEqualTo(2));
+    expect(find.byType(EditorialErrorState), findsNothing);
+    expect(find.text('恢复规则'), findsOneWidget);
+  });
+
   testWidgets('lists built-ins and persists a custom template from editor', (
     tester,
   ) async {
@@ -401,4 +454,23 @@ void _expectSingleTapOwner(WidgetTester tester, Finder target) {
   visit(targetNode);
   expect(tapNodes, hasLength(1));
   expect(tapNodes.single, same(targetNode));
+}
+
+class _SequencedRuleRepository extends RuleTemplateRepository {
+  _SequencedRuleRepository(super.database, {required this.streams});
+
+  final List<Stream<List<RuleTemplate>>> streams;
+  var watchCalls = 0;
+  var ensureCalls = 0;
+
+  @override
+  Future<void> ensureBuiltIns() async {
+    ensureCalls++;
+  }
+
+  @override
+  Stream<List<RuleTemplate>> watchAll() {
+    final index = watchCalls++;
+    return streams[index < streams.length ? index : streams.length - 1];
+  }
 }

@@ -1,5 +1,8 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
@@ -41,11 +44,24 @@ void main() {
       final avatar = tester.widget<CircleAvatar>(
         find.byKey(const Key('career-avatar-career-contrast')),
       );
+      final editorial = editorialThemeOf(
+        tester.element(find.byKey(const Key('career-avatar-career-contrast'))),
+      );
+      expect(avatar.backgroundColor, editorial.inverseSurface);
+      expect(avatar.backgroundColor, isNot(editorial.arenaAccent));
       expect(
         _contrastRatio(avatar.foregroundColor!, avatar.backgroundColor!),
         greaterThanOrEqualTo(4.5),
         reason: '$brightness career avatar contrast',
       );
+      final initial = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('career-avatar-career-contrast')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(initial.data, 'O');
+      expect(initial.style?.fontFamily, isNull);
     }
   });
   testWidgets('career analytics stays usable across visual matrix', (
@@ -97,7 +113,7 @@ void main() {
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
           expect(find.byType(EditorialMasthead), findsOneWidget);
-          expect(find.byType(ScoreNumeral), findsAtLeastNWidgets(1));
+          expect(find.byType(ScoreNumeral), findsNothing);
           expect(
             tester
                 .getSize(find.byKey(const Key('career-window-sevenDays')))
@@ -113,6 +129,7 @@ void main() {
   testWidgets(
     'career page leads with growth and supports time/opponent filters',
     (tester) async {
+      final semanticsHandle = tester.ensureSemantics();
       final controller = PlayerCareerController(
         playerId: 'p1',
         loader: (_) => Stream.value(
@@ -178,11 +195,58 @@ void main() {
       expect(find.byType(EditorialMasthead), findsOneWidget);
       expect(find.byType(ScoreNumeral), findsAtLeastNWidgets(3));
       expect(find.byType(EditorialSectionRule), findsAtLeastNWidgets(3));
+      final allTime = find.byKey(const Key('career-window-allTime'));
+      final sevenDays = find.byKey(const Key('career-window-sevenDays'));
+      expect(
+        tester.getSemantics(allTime).flagsCollection.isSelected,
+        ui.Tristate.isTrue,
+      );
+      expect(
+        tester.getSemantics(sevenDays).flagsCollection.isSelected,
+        ui.Tristate.isFalse,
+      );
+      _expectSingleTapOwner(tester, allTime);
+      _expectSingleTapOwner(tester, sevenDays);
+      expect(
+        tester.widget<Text>(find.text('01  8/1')).style?.fontFamily,
+        HoopTraceTypography.displayFamily,
+      );
+      expect(
+        tester.widget<Text>(find.text('57%')).style?.fontFamily,
+        HoopTraceTypography.displayFamily,
+      );
+      expect(
+        tester.widget<Text>(find.text('4')).style?.fontFamily,
+        HoopTraceTypography.displayFamily,
+      );
+      final shotLine = find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains('投篮 3/6') &&
+            widget.text.toPlainText().contains('罚球 1/1'),
+      );
+      expect(shotLine, findsOneWidget);
+      final shotSpan = tester.widget<RichText>(shotLine).text as TextSpan;
+      expect(
+        shotSpan.children!
+            .whereType<TextSpan>()
+            .where((span) => span.text == '3/6' || span.text == '1/1')
+            .every(
+              (span) =>
+                  span.style?.fontFamily == HoopTraceTypography.displayFamily,
+            ),
+        isTrue,
+      );
 
       await tester.tap(find.text('近 7 天'));
       await tester.pump();
       expect(controller.query.window, PlayerCareerWindow.sevenDays);
+      expect(
+        tester.getSemantics(sevenDays).flagsCollection.isSelected,
+        ui.Tristate.isTrue,
+      );
       expect(tester.takeException(), isNull);
+      semanticsHandle.dispose();
     },
   );
 
@@ -270,6 +334,10 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('+2.0'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('+2.0')).style?.fontFamily,
+      HoopTraceTypography.displayFamily,
+    );
     expect(find.textContaining('场均分差'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -447,4 +515,23 @@ double _contrastRatio(Color foreground, Color background) {
       ? backgroundLuminance
       : foregroundLuminance;
   return (lighter + 0.05) / (darker + 0.05);
+}
+
+void _expectSingleTapOwner(WidgetTester tester, Finder target) {
+  final targetNode = tester.getSemantics(target);
+  final tapNodes = <SemanticsNode>[];
+
+  void visit(SemanticsNode node) {
+    if (node.getSemanticsData().hasAction(ui.SemanticsAction.tap)) {
+      tapNodes.add(node);
+    }
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(targetNode);
+  expect(tapNodes, hasLength(1));
+  expect(tapNodes.single, same(targetNode));
 }
