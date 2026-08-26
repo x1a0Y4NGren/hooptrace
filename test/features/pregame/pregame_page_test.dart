@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 
 void main() {
@@ -87,6 +87,7 @@ void main() {
   ) async {
     await tester.pumpWidget(const MaterialApp(home: PregamePage()));
 
+    await tester.ensureVisible(find.byKey(const Key('pregame-rule-template')));
     await tester.tap(find.text('自由计分'));
     await tester.pumpAndSettle();
 
@@ -158,6 +159,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+    await tester.ensureVisible(find.byKey(const Key('pregame-timer')));
     await tester.tap(find.byKey(const Key('pregame-timer')));
     await tester.pump();
     await tester.scrollUntilVisible(
@@ -180,7 +182,7 @@ void main() {
     expect(selectedSemantics.flagsCollection.isSelected, ui.Tristate.isTrue);
   });
 
-  testWidgets('wide pre-game layout keeps symmetric doodle participant cards', (
+  testWidgets('wide pre-game layout is a symmetric editorial matchup', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(731, 411);
@@ -190,14 +192,12 @@ void main() {
 
     await tester.pumpWidget(const MaterialApp(home: PregamePage()));
 
+    expect(find.byType(EditorialScaffold), findsOneWidget);
     expect(find.byKey(const Key('pregame-red-card')), findsOneWidget);
     expect(find.byKey(const Key('pregame-blue-card')), findsOneWidget);
-    expect(find.byType(DoodleSurface), findsAtLeastNWidgets(5));
     expect(
-      tester.getTopLeft(find.byKey(const Key('pregame-red-card'))).dx,
-      lessThan(
-        tester.getTopLeft(find.byKey(const Key('pregame-blue-card'))).dx,
-      ),
+      tester.getTopLeft(find.byKey(const Key('pregame-blue-card'))).dx,
+      lessThan(tester.getTopLeft(find.byKey(const Key('pregame-red-card'))).dx),
     );
     expect(
       tester.getSize(find.byKey(const Key('pregame-red-card'))).width,
@@ -206,6 +206,8 @@ void main() {
         1,
       ),
     );
+    expect(find.byKey(const Key('pregame-court-divider')), findsOneWidget);
+    expect(find.byKey(const Key('pregame-configuration-rail')), findsOneWidget);
   });
 
   testWidgets(
@@ -218,11 +220,15 @@ void main() {
 
       await tester.pumpWidget(const MaterialApp(home: PregamePage()));
 
-      final red = tester.getTopLeft(find.byKey(const Key('pregame-red-card')));
       final blue = tester.getTopLeft(
         find.byKey(const Key('pregame-blue-card')),
       );
-      expect(blue.dy, greaterThan(red.dy));
+      final red = tester.getTopLeft(find.byKey(const Key('pregame-red-card')));
+      final configuration = tester.getTopLeft(
+        find.byKey(const Key('pregame-configuration-rail')),
+      );
+      expect(red.dy, greaterThan(blue.dy));
+      expect(configuration.dy, greaterThan(red.dy));
 
       await tester.scrollUntilVisible(
         find.byKey(const Key('pregame-start-match')),
