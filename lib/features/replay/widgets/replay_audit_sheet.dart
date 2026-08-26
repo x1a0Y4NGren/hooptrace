@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/audit/audit_diff.dart';
@@ -19,29 +19,21 @@ class ReplayAuditSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = _localizations(context);
     return SafeArea(
-      child: SizedBox(
-        height: math.min(MediaQuery.sizeOf(context).height * 0.8, 620),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-              child: Text(
-                l10n.replayAuditTitle,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-            ),
-            Expanded(
-              child: logs.isEmpty
-                  ? Center(child: Text(l10n.replayAuditEmpty))
-                  : ListView.separated(
-                      itemCount: logs.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) =>
-                          _AuditEntryTile(log: logs[index], l10n: l10n),
-                    ),
-            ),
-          ],
+      child: EditorialSheet(
+        title: l10n.replayAuditTitle,
+        child: SizedBox(
+          height: math.max(
+            120,
+            math.min(MediaQuery.sizeOf(context).height * 0.8, 620) - 80,
+          ),
+          child: logs.isEmpty
+              ? Center(child: Text(l10n.replayAuditEmpty))
+              : ListView.separated(
+                  itemCount: logs.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (context, index) =>
+                      _AuditEntryTile(log: logs[index], l10n: l10n),
+                ),
         ),
       ),
     );

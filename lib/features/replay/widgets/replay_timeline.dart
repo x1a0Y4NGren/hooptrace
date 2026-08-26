@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -77,22 +76,43 @@ class ReplayTimelinePanel extends StatelessWidget {
     }
 
     if (embedded) {
-      return DoodleSurface(
+      return Container(
         key: const Key('replay-timeline-pane'),
         padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: editorialThemeOf(context).surface,
+          border: Border(
+            top: BorderSide(
+              color: editorialThemeOf(context).arenaAccent,
+              width: 4,
+            ),
+          ),
+        ),
         child: content(inlineEvents: true),
       );
     }
-    return DoodleSurface(
+    return Container(
       key: const Key('replay-timeline-pane'),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: editorialThemeOf(context).surface,
+        border: Border(
+          top: BorderSide(
+            color: editorialThemeOf(context).arenaAccent,
+            width: 4,
+          ),
+        ),
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compactHeight = constraints.maxHeight < 280;
           final compactWidth = constraints.maxWidth < 360;
           final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
           final scrollable = compactHeight || compactWidth || largeText;
-          final child = content(inlineEvents: scrollable);
+          final child = Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: content(inlineEvents: scrollable),
+          );
           return scrollable
               ? SingleChildScrollView(
                   key: const Key('replay-timeline-scroll'),

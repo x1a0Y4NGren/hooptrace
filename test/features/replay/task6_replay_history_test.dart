@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:hooptrace/app/widgets/doodle_components.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
@@ -87,7 +87,7 @@ void main() {
   );
 
   testWidgets(
-    'history matches use paper cards without changing action boundaries',
+    'history matches use editorial score rows without changing action boundaries',
     (tester) async {
       final controller = HistoryController(
         matches: [
@@ -116,7 +116,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.byType(DoodleSurface), findsOneWidget);
+      expect(find.byType(EditorialScaffold), findsOneWidget);
+      expect(find.byKey(const Key('history-date-2026-08-25')), findsOneWidget);
       expect(find.byKey(const Key('history-match-paper')), findsOneWidget);
       expect(find.byKey(const Key('history-actions-paper')), findsOneWidget);
       expect(tester.takeException(), isNull);

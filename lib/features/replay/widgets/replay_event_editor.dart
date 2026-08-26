@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -75,241 +76,241 @@ class _ReplayEventEditorSheetState extends State<ReplayEventEditorSheet> {
     final event = widget.event;
     final bottom = MediaQuery.viewInsetsOf(context).bottom + 20;
     return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              l10n.replayEditorTitle,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              key: const Key('replay-editor-note'),
-              controller: _note,
-              decoration: InputDecoration(
-                labelText: l10n.replayEditorNote,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (_richEditor) ...[
-              DropdownButtonFormField<TeamSide?>(
-                key: const Key('replay-editor-side'),
-                initialValue: _side,
-                decoration: InputDecoration(
-                  labelText: l10n.replayEditorSide,
-                  border: const OutlineInputBorder(),
-                ),
-                items: [
-                  DropdownMenuItem<TeamSide?>(
-                    value: null,
-                    child: Text(l10n.replayMatchSide),
-                  ),
-                  DropdownMenuItem<TeamSide?>(
-                    value: TeamSide.red,
-                    child: Text(l10n.replayFilterRed),
-                  ),
-                  DropdownMenuItem<TeamSide?>(
-                    value: TeamSide.blue,
-                    child: Text(l10n.replayFilterBlue),
-                  ),
-                ],
-                onChanged: _busy
-                    ? null
-                    : (value) => setState(() => _side = value),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<EventKind>(
-                key: const Key('replay-editor-kind'),
-                initialValue: _type,
-                decoration: InputDecoration(
-                  labelText: l10n.replayEditorEventKind,
-                  border: const OutlineInputBorder(),
-                ),
-                items: [
-                  for (final kind in EventKind.values)
-                    DropdownMenuItem<EventKind>(
-                      value: kind,
-                      child: Text(_eventKindLabel(kind, l10n)),
-                    ),
-                ],
-                onChanged: _busy
-                    ? null
-                    : (value) => setState(() => _type = value ?? _type),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      key: const Key('replay-editor-points'),
-                      controller: _points,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: l10n.replayEditorPoints,
-                        border: const OutlineInputBorder(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<ShotOutcome?>(
-                      key: const Key('replay-editor-outcome'),
-                      initialValue: _outcome,
-                      decoration: InputDecoration(
-                        labelText: l10n.replayEditorOutcome,
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: [
-                        DropdownMenuItem<ShotOutcome?>(
-                          value: null,
-                          child: Text(l10n.replayAuditValueNone),
-                        ),
-                        DropdownMenuItem<ShotOutcome?>(
-                          value: ShotOutcome.made,
-                          child: Text(l10n.replayFilterMade),
-                        ),
-                        DropdownMenuItem<ShotOutcome?>(
-                          value: ShotOutcome.missed,
-                          child: Text(l10n.replayFilterMissed),
-                        ),
-                        DropdownMenuItem<ShotOutcome?>(
-                          value: ShotOutcome.notApplicable,
-                          child: Text(l10n.replayFilterOther),
-                        ),
-                      ],
-                      onChanged: _busy
-                          ? null
-                          : (value) => setState(() => _outcome = value),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+      child: EditorialSheet(
+        title: l10n.replayEditorTitle,
+        padding: EdgeInsets.fromLTRB(20, 20, 20, bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               TextField(
-                key: const Key('replay-editor-custom-label'),
-                controller: _customLabel,
+                key: const Key('replay-editor-note'),
+                controller: _note,
                 decoration: InputDecoration(
-                  labelText: l10n.replayEditorCustomLabel,
+                  labelText: l10n.replayEditorNote,
                   border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                key: const Key('replay-editor-clock'),
-                controller: _clock,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: l10n.replayEditorClock,
-                  border: const OutlineInputBorder(),
+              if (_richEditor) ...[
+                DropdownButtonFormField<TeamSide?>(
+                  key: const Key('replay-editor-side'),
+                  initialValue: _side,
+                  decoration: InputDecoration(
+                    labelText: l10n.replayEditorSide,
+                    border: const OutlineInputBorder(),
+                  ),
+                  items: [
+                    DropdownMenuItem<TeamSide?>(
+                      value: null,
+                      child: Text(l10n.replayMatchSide),
+                    ),
+                    DropdownMenuItem<TeamSide?>(
+                      value: TeamSide.red,
+                      child: Text(l10n.replayFilterRed),
+                    ),
+                    DropdownMenuItem<TeamSide?>(
+                      value: TeamSide.blue,
+                      child: Text(l10n.replayFilterBlue),
+                    ),
+                  ],
+                  onChanged: _busy
+                      ? null
+                      : (value) => setState(() => _side = value),
                 ),
-              ),
-              if (event.shotPoint != null) ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<EventKind>(
+                  key: const Key('replay-editor-kind'),
+                  initialValue: _type,
+                  decoration: InputDecoration(
+                    labelText: l10n.replayEditorEventKind,
+                    border: const OutlineInputBorder(),
+                  ),
+                  items: [
+                    for (final kind in EventKind.values)
+                      DropdownMenuItem<EventKind>(
+                        value: kind,
+                        child: Text(_eventKindLabel(kind, l10n)),
+                      ),
+                  ],
+                  onChanged: _busy
+                      ? null
+                      : (value) => setState(() => _type = value ?? _type),
+                ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     Expanded(
                       child: TextField(
-                        key: const Key('replay-editor-x'),
-                        controller: _x,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
+                        key: const Key('replay-editor-points'),
+                        controller: _points,
+                        keyboardType: TextInputType.number,
                         decoration: InputDecoration(
-                          labelText: l10n.replayEditorLocationX,
+                          labelText: l10n.replayEditorPoints,
                           border: const OutlineInputBorder(),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: TextField(
-                        key: const Key('replay-editor-y'),
-                        controller: _y,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
+                      child: DropdownButtonFormField<ShotOutcome?>(
+                        key: const Key('replay-editor-outcome'),
+                        initialValue: _outcome,
                         decoration: InputDecoration(
-                          labelText: l10n.replayEditorLocationY,
+                          labelText: l10n.replayEditorOutcome,
                           border: const OutlineInputBorder(),
                         ),
+                        items: [
+                          DropdownMenuItem<ShotOutcome?>(
+                            value: null,
+                            child: Text(l10n.replayAuditValueNone),
+                          ),
+                          DropdownMenuItem<ShotOutcome?>(
+                            value: ShotOutcome.made,
+                            child: Text(l10n.replayFilterMade),
+                          ),
+                          DropdownMenuItem<ShotOutcome?>(
+                            value: ShotOutcome.missed,
+                            child: Text(l10n.replayFilterMissed),
+                          ),
+                          DropdownMenuItem<ShotOutcome?>(
+                            value: ShotOutcome.notApplicable,
+                            child: Text(l10n.replayFilterOther),
+                          ),
+                        ],
+                        onChanged: _busy
+                            ? null
+                            : (value) => setState(() => _outcome = value),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              key: const Key('replay-editor-reason'),
-              controller: _reason,
-              decoration: InputDecoration(
-                labelText: l10n.replayEditorReason,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            if (_error != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      key: event.isDeleted
-                          ? const Key('replay-editor-restore')
-                          : const Key('replay-editor-delete'),
-                      onPressed: _busy
-                          ? null
-                          : event.isDeleted
-                          ? _restoreEvent
-                          : _deleteEvent,
-                      icon: Icon(
-                        event.isDeleted
-                            ? Icons.restore_outlined
-                            : Icons.delete_outline,
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('replay-editor-custom-label'),
+                  controller: _customLabel,
+                  decoration: InputDecoration(
+                    labelText: l10n.replayEditorCustomLabel,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('replay-editor-clock'),
+                  controller: _clock,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: l10n.replayEditorClock,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                if (event.shotPoint != null) ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          key: const Key('replay-editor-x'),
+                          controller: _x,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: l10n.replayEditorLocationX,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
                       ),
-                      label: Text(
-                        event.isDeleted
-                            ? l10n.replayEditorRestore
-                            : l10n.replayEditorDelete,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          key: const Key('replay-editor-y'),
+                          controller: _y,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: l10n.replayEditorLocationY,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+              const SizedBox(height: 12),
+              TextField(
+                key: const Key('replay-editor-reason'),
+                controller: _reason,
+                decoration: InputDecoration(
+                  labelText: l10n.replayEditorReason,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: OutlinedButton.icon(
+                        key: event.isDeleted
+                            ? const Key('replay-editor-restore')
+                            : const Key('replay-editor-delete'),
+                        onPressed: _busy
+                            ? null
+                            : event.isDeleted
+                            ? _restoreEvent
+                            : _deleteEvent,
+                        icon: Icon(
+                          event.isDeleted
+                              ? Icons.restore_outlined
+                              : Icons.delete_outline,
+                        ),
+                        label: Text(
+                          event.isDeleted
+                              ? l10n.replayEditorRestore
+                              : l10n.replayEditorDelete,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: FilledButton.icon(
-                      key: const Key('replay-editor-save'),
-                      onPressed: _busy ? null : _save,
-                      icon: _busy
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(
-                        _richEditor
-                            ? l10n.replayEditorSave
-                            : l10n.replayEditorSaveNote,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: FilledButton.icon(
+                        key: const Key('replay-editor-save'),
+                        onPressed: _busy ? null : _save,
+                        icon: _busy
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined),
+                        label: Text(
+                          _richEditor
+                              ? l10n.replayEditorSave
+                              : l10n.replayEditorSaveNote,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

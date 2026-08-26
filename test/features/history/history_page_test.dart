@@ -307,6 +307,20 @@ void main() {
 
     final l10n = AppLocalizations.of(tester.element(find.byType(HistoryPage)))!;
     expect(tester.takeException(), isNull);
+    for (var i = 0; i < 3; i++) {
+      if (find
+          .byKey(const Key('history-match-english-scale'))
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pump();
+    }
+    await tester.ensureVisible(
+      find.byKey(const Key('history-match-english-scale')),
+    );
+    await tester.pumpAndSettle();
     expect(find.text(l10n.historyRule), findsOneWidget);
     expect(find.text(l10n.pregameElevenPoint), findsOneWidget);
     expect(find.text(l10n.historyDuration), findsOneWidget);

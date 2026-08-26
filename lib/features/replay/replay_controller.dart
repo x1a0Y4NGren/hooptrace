@@ -354,9 +354,14 @@ class ReplayController extends ChangeNotifier {
   }
 
   void selectLocation(String locationId) {
-    if (!_isEditing) return;
     final event = _data.events
-        .where((item) => item.locationId == locationId)
+        .where(
+          (item) =>
+              item.locationId == locationId ||
+              (item.locationId == null &&
+                  item.shotPoint != null &&
+                  'replay-shot-${item.id}' == locationId),
+        )
         .firstOrNull;
     if (event != null) selectEvent(event.id);
   }
