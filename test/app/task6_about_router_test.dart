@@ -9,7 +9,6 @@ import 'package:hooptrace/app/provider_router.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/project/project_details_page.dart';
-import 'package:hooptrace/features/settings/settings_page.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -87,15 +86,24 @@ void main() {
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.ensureVisible(about);
-    await tester.pump();
-    final page = tester.widget<SettingsPage>(find.byType(SettingsPage));
-    expect(page.onOpenProject, isNotNull);
-    page.onOpenProject!();
+    await Scrollable.ensureVisible(
+      tester.element(about),
+      alignment: 0.5,
+      duration: Duration.zero,
+    );
+    await tester.pumpAndSettle();
+    final visibleAbout = about.hitTestable();
+    expect(visibleAbout, findsOneWidget);
+    await tester.tap(visibleAbout);
     await tester.pumpAndSettle();
 
     expect(find.byType(ProjectDetailsPage), findsOneWidget);
     expect(find.text('About'), findsOneWidget);
+    final aboutRoute = GoRouterState.of(
+      tester.element(find.byType(ProjectDetailsPage)),
+    );
+    expect(aboutRoute.matchedLocation, '/about');
+    expect(aboutRoute.uri.path, '/about');
   });
 }
 

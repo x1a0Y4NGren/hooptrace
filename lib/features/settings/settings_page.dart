@@ -289,6 +289,7 @@ class _SettingsPageState extends State<SettingsPage> {
           onTap: _configureDirectory,
         ),
         _SettingTile(
+          key: const Key('settings-backup-now-row'),
           icon: Icons.backup,
           title: l10n.settingsBackupNowTitle,
           subtitle: _lastBackupLabel(backup, l10n),
@@ -912,10 +913,12 @@ class _SettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final editorial = editorialThemeOf(context);
-    return ConstrainedBox(
+    final actionable = onTap != null;
+    final tile = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 64),
       child: InkWell(
         onTap: enabled ? onTap : null,
+        excludeFromSemantics: actionable,
         child: Container(
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: editorial.rule)),
@@ -946,17 +949,31 @@ class _SettingTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (onTap != null) ...[
+              if (actionable) ...[
                 const SizedBox(width: 8),
-                const SizedBox.square(
+                SizedBox.square(
                   dimension: 48,
-                  child: Icon(Icons.arrow_forward, size: 20),
+                  child: Icon(
+                    enabled ? Icons.arrow_forward : Icons.block,
+                    key: enabled ? null : const Key('setting-disabled-cue'),
+                    size: 20,
+                  ),
                 ),
               ],
             ],
           ),
         ),
       ),
+    );
+    if (!actionable) return tile;
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: enabled,
+      label: '$title. $subtitle',
+      onTap: enabled ? onTap : null,
+      excludeSemantics: true,
+      child: tile,
     );
   }
 }

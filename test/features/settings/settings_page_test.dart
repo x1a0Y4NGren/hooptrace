@@ -1,6 +1,8 @@
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
@@ -97,6 +99,92 @@ void main() {
     expect(find.text('Experimental'), findsNothing);
     expect(find.text('Developer diagnostics'), findsNothing);
   });
+
+  testWidgets(
+    'action rows expose disabled state and keep a single enabled tap owner',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
+      final automaticBackup = AutomaticBackupService(
+        database,
+        codec,
+        storage: _Storage(),
+      );
+      final controller = SettingsController(
+        exports: ExportCoordinator(
+          database,
+          codec,
+          gateway: _Gateway(),
+          automaticBackup: automaticBackup,
+        ),
+        automaticBackup: automaticBackup,
+      );
+      addTearDown(controller.dispose);
+      var aboutCalls = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsPage(
+            controller: controller,
+            onOpenProject: () => aboutCalls += 1,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final backupNow = find.byKey(const Key('settings-backup-now-row'));
+      await tester.scrollUntilVisible(backupNow, 300);
+      await tester.ensureVisible(backupNow);
+      final disabledSemantics = tester.getSemantics(backupNow);
+      expect(disabledSemantics.flagsCollection.isButton, isTrue);
+      expect(disabledSemantics.flagsCollection.isEnabled, ui.Tristate.isFalse);
+      expect(
+        disabledSemantics.getSemanticsData().hasAction(ui.SemanticsAction.tap),
+        isFalse,
+      );
+      expect(
+        find.descendant(
+          of: backupNow,
+          matching: find.byKey(const Key('setting-disabled-cue')),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: backupNow,
+          matching: find.byIcon(Icons.arrow_forward),
+        ),
+        findsNothing,
+      );
+      expect(tester.getSize(backupNow).height, greaterThanOrEqualTo(48));
+
+      final about = find.byKey(const Key('settings-about-row'));
+      await tester.scrollUntilVisible(about, 300);
+      await tester.ensureVisible(about);
+      expect(tester.getSemantics(about).flagsCollection.isButton, isTrue);
+      expect(
+        tester.getSemantics(about).flagsCollection.isEnabled,
+        ui.Tristate.isTrue,
+      );
+      _expectSingleTapOwner(tester, about);
+      await tester.tap(about);
+      expect(aboutCalls, 1);
+    },
+  );
 
   testWidgets('settings exposes usable local export and backup controls', (
     tester,
@@ -609,6 +697,25 @@ class _Gateway implements ExportGateway {
   }) async {
     shareCalls++;
   }
+}
+
+void _expectSingleTapOwner(WidgetTester tester, Finder target) {
+  final targetNode = tester.getSemantics(target);
+  final tapNodes = <SemanticsNode>[];
+
+  void visit(SemanticsNode node) {
+    if (node.getSemanticsData().hasAction(ui.SemanticsAction.tap)) {
+      tapNodes.add(node);
+    }
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(targetNode);
+  expect(tapNodes, hasLength(1));
+  expect(tapNodes.single, same(targetNode));
 }
 
 class _Storage implements AutomaticBackupStorage {
