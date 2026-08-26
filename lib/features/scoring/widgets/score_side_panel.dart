@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
@@ -55,6 +54,7 @@ class ScoreSidePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final disabledColor = editorialThemeOf(context).mutedInk;
     final color = teamColorForScheme(
       side,
       Theme.of(context).colorScheme,
@@ -104,15 +104,19 @@ class ScoreSidePanel extends StatelessWidget {
                   alignment: Alignment.topRight,
                   children: [
                     Positioned.fill(
-                      child: OutlinedButton(
-                        key: Key('${side.name}-foul'),
-                        onPressed: foulEnabled ? onFoul : null,
-                        style: _editorialRailButtonStyle(
-                          color,
-                          height: buttonHeight,
-                          padding: EdgeInsets.zero,
+                      child: Opacity(
+                        opacity: foulEnabled ? 1 : 0.48,
+                        child: OutlinedButton(
+                          key: Key('${side.name}-foul'),
+                          onPressed: foulEnabled ? onFoul : null,
+                          style: _editorialRailButtonStyle(
+                            color,
+                            disabledColor: disabledColor,
+                            height: buttonHeight,
+                            padding: EdgeInsets.zero,
+                          ),
+                          child: _CompactActionLabel(l10n.scoringFoul),
                         ),
-                        child: _CompactActionLabel(l10n.scoringFoul),
                       ),
                     ),
                     if (foulStamp)
@@ -132,6 +136,7 @@ class ScoreSidePanel extends StatelessWidget {
                     onPressed: onMiss,
                     style: _editorialRailButtonStyle(
                       color,
+                      disabledColor: disabledColor,
                       height: buttonHeight,
                       padding: EdgeInsets.zero,
                     ),
@@ -306,6 +311,7 @@ class ScoreSidePanel extends StatelessWidget {
                               onPressed: onMiss,
                               style: _editorialRailButtonStyle(
                                 color,
+                                disabledColor: disabledColor,
                                 height: buttonHeight,
                               ),
                               icon: const Icon(Icons.close, size: 18),
@@ -320,18 +326,22 @@ class ScoreSidePanel extends StatelessWidget {
                             alignment: Alignment.topRight,
                             children: [
                               Positioned.fill(
-                                child: OutlinedButton.icon(
-                                  key: Key('${side.name}-foul'),
-                                  onPressed: foulEnabled ? onFoul : null,
-                                  style: _editorialRailButtonStyle(
-                                    color,
-                                    height: buttonHeight,
+                                child: Opacity(
+                                  opacity: foulEnabled ? 1 : 0.48,
+                                  child: OutlinedButton.icon(
+                                    key: Key('${side.name}-foul'),
+                                    onPressed: foulEnabled ? onFoul : null,
+                                    style: _editorialRailButtonStyle(
+                                      color,
+                                      disabledColor: disabledColor,
+                                      height: buttonHeight,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.flag_outlined,
+                                      size: 18,
+                                    ),
+                                    label: Text(l10n.scoringFoul),
                                   ),
-                                  icon: const Icon(
-                                    Icons.flag_outlined,
-                                    size: 18,
-                                  ),
-                                  label: Text(l10n.scoringFoul),
                                 ),
                               ),
                               if (foulStamp)
@@ -401,6 +411,7 @@ class _ScoreActionState extends State<_ScoreAction> {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final team = widget.teamLabel;
     final remaining = widget.locationRemainingSeconds;
+    final disabledColor = editorialThemeOf(context).mutedInk;
     final semantic = widget.locationActive && remaining != null
         ? l10n.scoringLocationPendingSemantics(widget.points, remaining, team)
         : l10n.scoringScoreSemantics(widget.points, team);
@@ -428,16 +439,20 @@ class _ScoreActionState extends State<_ScoreAction> {
         label: semantic,
         button: true,
         enabled: widget.enabled,
-        child: FilledButton(
-          key: Key('${widget.side.name}-score-${widget.points}'),
-          style: _editorialRailButtonStyle(
-            widget.color,
-            height: widget.height,
-            padding: widget.compact ? EdgeInsets.zero : null,
-            emphasizedBorder: widget.locationActive && widget.reduceMotion,
+        child: Opacity(
+          opacity: widget.enabled ? 1 : 0.48,
+          child: FilledButton(
+            key: Key('${widget.side.name}-score-${widget.points}'),
+            style: _editorialRailButtonStyle(
+              widget.color,
+              disabledColor: disabledColor,
+              height: widget.height,
+              padding: widget.compact ? EdgeInsets.zero : null,
+              emphasizedBorder: widget.locationActive && widget.reduceMotion,
+            ),
+            onPressed: widget.enabled ? widget.onPressed : null,
+            child: FittedBox(fit: BoxFit.scaleDown, child: label),
           ),
-          onPressed: widget.enabled ? widget.onPressed : null,
-          child: FittedBox(fit: BoxFit.scaleDown, child: label),
         ),
       ),
     );
@@ -477,6 +492,7 @@ class _ScoreActionState extends State<_ScoreAction> {
 
 ButtonStyle _editorialRailButtonStyle(
   Color color, {
+  required Color disabledColor,
   required double height,
   EdgeInsetsGeometry? padding,
   bool emphasizedBorder = false,
@@ -488,9 +504,14 @@ ButtonStyle _editorialRailButtonStyle(
     ),
     elevation: const WidgetStatePropertyAll(0),
     backgroundColor: const WidgetStatePropertyAll(HoopTraceColors.ink),
-    foregroundColor: WidgetStatePropertyAll(color),
-    side: WidgetStatePropertyAll(
-      BorderSide(color: color, width: emphasizedBorder ? 3 : 1.5),
+    foregroundColor: WidgetStateProperty.resolveWith(
+      (states) => states.contains(WidgetState.disabled) ? disabledColor : color,
+    ),
+    side: WidgetStateProperty.resolveWith(
+      (states) => BorderSide(
+        color: states.contains(WidgetState.disabled) ? disabledColor : color,
+        width: emphasizedBorder ? 3 : 1.5,
+      ),
     ),
     shape: const WidgetStatePropertyAll(
       BeveledRectangleBorder(

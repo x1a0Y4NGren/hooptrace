@@ -305,6 +305,7 @@ class _ScoringPageState extends State<ScoringPage>
 
   void _startEraser(ScoringShotLocation location, int generation) {
     if (!_isCurrentAction(generation, _controller)) return;
+    if (_motionMode != ScoringMotionMode.standard) return;
     final id = location.id;
     _eraserControllers[id]?.dispose();
     final animation = AnimationController(
@@ -1438,7 +1439,7 @@ class _ScoringPageState extends State<ScoringPage>
     bool destructive = false,
   }) {
     final editorial = editorialThemeOf(sheetContext);
-    return EditorialIndexRow(
+    final row = EditorialIndexRow(
       key: key,
       index: index,
       title: label,
@@ -1447,6 +1448,27 @@ class _ScoringPageState extends State<ScoringPage>
         color: destructive ? editorial.danger : editorial.mutedInk,
       ),
       onTap: enabled ? () => unawaited(onTap()) : null,
+    );
+    if (enabled) return row;
+
+    final theme = Theme.of(sheetContext);
+    final disabledEditorial = editorial.copyWith(
+      ink: editorial.mutedInk,
+      rule: editorial.mutedInk,
+    );
+    final disabledExtensions = Map<Object, ThemeExtension<dynamic>>.of(
+      theme.extensions,
+    )..[HoopTraceEditorialTheme] = disabledEditorial;
+    return Semantics(
+      button: true,
+      enabled: false,
+      child: Opacity(
+        opacity: 0.48,
+        child: Theme(
+          data: theme.copyWith(extensions: disabledExtensions.values),
+          child: row,
+        ),
+      ),
     );
   }
 

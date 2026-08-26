@@ -196,8 +196,22 @@ void main() {
     expect(side.sample(.5).trail, hasLength(6));
   });
 
-  test('impact painter emits one compact spread', () {
+  testWidgets('impact overlay has one compact composition spread owner', (
+    tester,
+  ) async {
     final coordinator = ScoringMotionCoordinator();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringMotionOverlay(
+          coordinator: coordinator,
+          assetBuilder: (context, active, color) => SizedBox(
+            key: Key(
+              active.inImpact ? 'impact-spread-owner' : 'flight-ball-owner',
+            ),
+          ),
+        ),
+      ),
+    );
     coordinator.submit(
       ScoringMotionEvent(
         receipt: receipt('one-spread'),
@@ -207,17 +221,25 @@ void main() {
       ),
     );
     coordinator.advance(const Duration(milliseconds: 480));
+    await tester.pump();
     final canvas = TestRecordingCanvas();
-    ScoringMotionPainter(
-      coordinator,
-      ballColor: Colors.blue,
-    ).paint(canvas, const Size(400, 400));
+    final customPaint = tester.widget<CustomPaint>(
+      find.descendant(
+        of: find.byType(ScoringMotionOverlay),
+        matching: find.byType(CustomPaint),
+      ),
+    );
+    (customPaint.painter! as ScoringMotionPainter).paint(
+      canvas,
+      const Size(400, 400),
+    );
 
+    expect(find.byKey(const Key('impact-spread-owner')), findsOneWidget);
     expect(
       canvas.invocations.where(
         (call) => call.invocation.memberName == #drawCircle,
       ),
-      hasLength(1),
+      isEmpty,
     );
     coordinator.dispose();
   });

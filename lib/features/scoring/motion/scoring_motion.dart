@@ -673,11 +673,7 @@ class ScoringMotionPainter extends CustomPainter {
       }
     }
     if (active.inImpact) {
-      canvas.drawCircle(
-        sample.position,
-        14,
-        paint..color = ballColor.withValues(alpha: .58),
-      );
+      // The compact splash composition is the sole impact spread owner.
       return;
     }
     canvas.drawCircle(sample.position, 7, paint..color = ballColor);

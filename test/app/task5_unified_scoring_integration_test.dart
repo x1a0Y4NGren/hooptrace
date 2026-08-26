@@ -10,7 +10,6 @@ import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
-import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -136,10 +135,6 @@ void main() {
       await tester.pump();
       final courtRect = tester.getRect(find.byKey(const Key('scoring-court')));
       final tapLocal = Offset(courtRect.width * 0.25, courtRect.height * 0.25);
-      final expectedPoint = HalfCourtGeometry.pointFromLocal(
-        tapLocal,
-        courtRect.size,
-      );
       await tester.tapAt(courtRect.topLeft + tapLocal);
       await _pumpUntil(
         tester,
@@ -148,8 +143,10 @@ void main() {
       var locations = await database.select(database.shotLocations).get();
       expect(locations, hasLength(1));
       expect(locations.single.eventId, activeEvents.single.id);
-      expect(locations.single.x, closeTo(expectedPoint.x, 0.001));
-      expect(locations.single.y, closeTo(expectedPoint.y, 0.001));
+      // The 15:14 court is horizontally letterboxed inside the 706.7x544
+      // viewport: (176.675 - 61.921) / 582.857 = 0.1969.
+      expect(locations.single.x, closeTo(0.1969, 0.001));
+      expect(locations.single.y, closeTo(0.25, 0.001));
       expect(locations.single.isConfirmed, isTrue);
       await _tapAction(tester, find.byKey(const Key('scoring-undo')));
       await _pumpUntil(
@@ -336,10 +333,6 @@ void main() {
         finalCourt.width * 0.75,
         finalCourt.height * 0.25,
       );
-      final expectedFinalPoint = HalfCourtGeometry.pointFromLocal(
-        finalTapLocal,
-        finalCourt.size,
-      );
       await tester.tapAt(finalCourt.topLeft + finalTapLocal);
       await _pumpUntil(
         tester,
@@ -353,8 +346,10 @@ void main() {
       final finalLocation = locations.singleWhere(
         (location) => location.eventId == latestScore.id,
       );
-      expect(finalLocation.x, closeTo(expectedFinalPoint.x, 0.001));
-      expect(finalLocation.y, closeTo(expectedFinalPoint.y, 0.001));
+      // The target-state hint shortens the court viewport; hand-derived
+      // 15:14 letterboxing maps this 75% tap to normalized x = 0.8221.
+      expect(finalLocation.x, closeTo(0.8221, 0.001));
+      expect(finalLocation.y, closeTo(0.25, 0.001));
       expect(finalLocation.isConfirmed, isTrue);
 
       await _tapAction(tester, find.byKey(const Key('scoring-more')));

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Tristate;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -176,6 +177,62 @@ void main() {
       tester.widget<CourtView>(find.byType(CourtView)).eraserMarkers,
       isEmpty,
     );
+  });
+
+  testWidgets('reduced-motion undo skips the transient eraser projection', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'task4-eraser-reduced');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          motionPreference: MotionPreference.reduced,
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.tap(find.byKey(const Key('blue-score-2')));
+    await tester.pump();
+    expect(controller.state.shotLocations, hasLength(1));
+
+    await tester.tap(find.byKey(const Key('scoring-undo')));
+    await tester.pump();
+
+    final court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(controller.state.shotLocations, isEmpty);
+    expect(court.transientMarkers, isEmpty);
+    expect(court.eraserMarkers, isEmpty);
+  });
+
+  testWidgets('system-disabled undo skips the transient eraser projection', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'task4-eraser-disabled');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: ScoringPage(controller: controller),
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.tap(find.byKey(const Key('red-score-3')));
+    await tester.pump();
+    expect(controller.state.shotLocations, hasLength(1));
+
+    await tester.tap(find.byKey(const Key('scoring-undo')));
+    await tester.pump();
+
+    final court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(controller.state.shotLocations, isEmpty);
+    expect(court.transientMarkers, isEmpty);
+    expect(court.eraserMarkers, isEmpty);
   });
 
   testWidgets('system-disabled scoring reveals receipt without a flight', (
@@ -1472,22 +1529,62 @@ void main() {
         );
         final background = score.style?.backgroundColor?.resolve(const {});
         final foreground = score.style?.foregroundColor?.resolve(const {});
-        final disabledForeground = score.style?.foregroundColor?.resolve(const {
-          WidgetState.disabled,
-        });
         expect(background, isNotNull);
         expect(foreground, isNotNull);
-        expect(disabledForeground, isNotNull);
         expect(
           _contrastRatio(foreground!, background!),
           greaterThanOrEqualTo(4.5),
         );
-        expect(
-          _contrastRatio(disabledForeground!, background),
-          greaterThanOrEqualTo(4.5),
-        );
       }
     }
+  });
+
+  testWidgets('disabled rail actions use local muted styling and semantics', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: ScoreSidePanel(
+          side: TeamSide.blue,
+          name: 'Blue',
+          score: 0,
+          fouls: 0,
+          scoreEnabled: false,
+          foulEnabled: false,
+          onScore: (_) {},
+          onFoul: () {},
+        ),
+      ),
+    );
+
+    final muted = const HoopTraceEditorialTheme.light().mutedInk;
+    for (final key in const [Key('blue-score-1'), Key('blue-foul')]) {
+      final target = find.byKey(key);
+      final button = tester.widget<ButtonStyleButton>(target);
+      expect(
+        button.style?.foregroundColor?.resolve(const {WidgetState.disabled}),
+        muted,
+      );
+      expect(
+        button.style?.side?.resolve(const {WidgetState.disabled})?.color,
+        muted,
+      );
+      expect(
+        tester
+            .widget<Opacity>(
+              find.ancestor(of: target, matching: find.byType(Opacity)).first,
+            )
+            .opacity,
+        lessThan(1),
+      );
+      expect(
+        tester.getSemantics(target).flagsCollection.isEnabled,
+        Tristate.isFalse,
+      );
+    }
+    semantics.dispose();
   });
 
   testWidgets('scoring page shows court-first landscape controls', (
@@ -2571,6 +2668,7 @@ void main() {
   testWidgets('More replay opens only after score-first location is resolved', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     var openCount = 0;
     final controller = ScoringController(matchId: 'match-1');
 
@@ -2605,6 +2703,28 @@ void main() {
           .onTap,
       isNull,
     );
+    final replay = find.byKey(const Key('more-replay'));
+    expect(
+      tester.getSemantics(replay).flagsCollection.isEnabled,
+      Tristate.isFalse,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.ancestor(of: replay, matching: find.byType(Opacity)).first,
+          )
+          .opacity,
+      lessThan(1),
+    );
+    final editorial = const HoopTraceEditorialTheme.light();
+    final rowTheme = tester.widget<Theme>(
+      find.ancestor(of: replay, matching: find.byType(Theme)).first,
+    );
+    final disabledEditorial = rowTheme.data
+        .extension<HoopTraceEditorialTheme>();
+    expect(disabledEditorial?.ink, editorial.mutedInk);
+    expect(disabledEditorial?.rule, editorial.mutedInk);
+    semantics.dispose();
   });
 
   testWidgets('top Undo awaits soft-delete for a command-backed score', (
