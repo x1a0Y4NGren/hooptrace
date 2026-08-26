@@ -75,7 +75,7 @@ class ScoringMotionPath {
     required Rect safeWorkspace,
   }) {
     final distance = (destination - source).distance;
-    final arc = (distance * .22).clamp(56.0, 160.0).toDouble();
+    final arc = (distance * .14).clamp(32.0, 96.0).toDouble();
     final topRoom = math.min(source.dy, destination.dy) - safeWorkspace.top;
     Offset c1;
     Offset c2;
@@ -123,17 +123,17 @@ class ScoringMotionPath {
     final distance = metric.length * p;
     final tangent = metric.getTangentForOffset(distance);
     final resolved = tangent ?? ui.Tangent(destination, destination - source);
-    final count = math.max(1, math.min(12, (p * 12).ceil()));
+    final count = math.max(1, math.min(6, (p * 12).ceil()));
     final trail = <ScoringTrailNode>[];
     for (var i = 0; i < count; i++) {
-      final trailProgress = (p - (i * .035)).clamp(0.0, 1.0).toDouble();
+      final trailProgress = (p - (i * .045)).clamp(0.0, 1.0).toDouble();
       final trailTangent = metric.getTangentForOffset(
         metric.length * trailProgress,
       );
       trail.add(
         ScoringTrailNode(
           position: trailTangent?.position ?? resolved.position,
-          opacity: math.max(.08, .72 * (1 - (i / count))),
+          opacity: math.max(.06, .48 * (1 - (i / count))),
         ),
       );
     }
@@ -546,10 +546,10 @@ class ScoringMotionOverlay extends StatelessWidget {
   ) {
     if (assetBuilder != null) return assetBuilder!(context, active, color);
     return Positioned(
-      left: active.sample.position.dx - (active.inImpact ? 45 : 30),
-      top: active.sample.position.dy - (active.inImpact ? 45 : 30),
-      width: active.inImpact ? 90 : 60,
-      height: active.inImpact ? 90 : 60,
+      left: active.sample.position.dx - (active.inImpact ? 28 : 18),
+      top: active.sample.position.dy - (active.inImpact ? 28 : 18),
+      width: active.inImpact ? 56 : 36,
+      height: active.inImpact ? 56 : 36,
       child: ScoringMotionLottieAsset(
         key: ValueKey('${active.event.id}-${active.assetName}'),
         coordinator: coordinator,
@@ -667,7 +667,7 @@ class ScoringMotionPainter extends CustomPainter {
       for (final node in sample.trail) {
         canvas.drawCircle(
           node.position,
-          5,
+          3.5,
           paint..color = ballColor.withValues(alpha: node.opacity),
         );
       }
@@ -675,17 +675,12 @@ class ScoringMotionPainter extends CustomPainter {
     if (active.inImpact) {
       canvas.drawCircle(
         sample.position,
-        18,
-        paint..color = ballColor.withValues(alpha: .26),
-      );
-      canvas.drawCircle(
-        sample.position,
-        11,
-        paint..color = ballColor.withValues(alpha: .72),
+        14,
+        paint..color = ballColor.withValues(alpha: .58),
       );
       return;
     }
-    canvas.drawCircle(sample.position, 8, paint..color = ballColor);
+    canvas.drawCircle(sample.position, 7, paint..color = ballColor);
   }
 
   @override

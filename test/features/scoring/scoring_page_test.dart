@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/app_database.dart';
@@ -617,11 +618,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('scoring-more-sheet')), findsOneWidget);
-    final sheetMaterial = tester.widget<Material>(
-      find.byKey(const Key('scoring-more-sheet')),
-    );
-    expect(sheetMaterial.shape, isA<RoundedRectangleBorder>());
-    expect(find.byType(Divider), findsWidgets);
+    expect(find.byType(EditorialSheet), findsOneWidget);
+    expect(find.byType(EditorialIndexRow), findsNWidgets(12));
+    for (final section in const [
+      'shooting',
+      'free-throws',
+      'match-state',
+      'notes-records',
+      'match',
+    ]) {
+      expect(find.byKey(Key('more-section-$section')), findsOneWidget);
+    }
+    expect(find.byKey(const Key('more-destructive-section')), findsOneWidget);
     expect(find.byKey(const Key('more-blue-miss')), findsOneWidget);
     expect(find.byKey(const Key('more-red-miss')), findsOneWidget);
     expect(find.text('投篮'), findsOneWidget);
@@ -629,6 +637,53 @@ void main() {
     expect(find.text('比赛状态'), findsOneWidget);
     expect(find.text('记录'), findsOneWidget);
     expect(find.text('比赛'), findsOneWidget);
+  });
+
+  testWidgets('landscape scoring uses narrow black editorial action rails', (
+    tester,
+  ) async {
+    for (final size in const [Size(731, 411), Size(1095, 616)]) {
+      await tester.binding.setSurfaceSize(size);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: const ScoringPage(matchId: 'editorial-action-rails'),
+        ),
+      );
+
+      final editorial = const HoopTraceEditorialTheme.light();
+      final blueRail = tester.widget<Material>(
+        find.byKey(const Key('blue-action-rail')),
+      );
+      final redRail = tester.widget<Material>(
+        find.byKey(const Key('red-action-rail')),
+      );
+      expect(blueRail.color, editorial.inverseSurface);
+      expect(redRail.color, editorial.inverseSurface);
+
+      final maximumRailWidth = size.width < 900 ? 128.0 : 188.0;
+      expect(
+        tester.getSize(find.byKey(const Key('blue-side-panel'))).width,
+        lessThanOrEqualTo(maximumRailWidth),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('red-side-panel'))).width,
+        lessThanOrEqualTo(maximumRailWidth),
+      );
+
+      for (final side in const ['blue', 'red']) {
+        final button = tester.widget<FilledButton>(
+          find.byKey(Key('$side-score-1')),
+        );
+        expect(
+          button.style?.shape?.resolve(const {}),
+          isA<BeveledRectangleBorder>(),
+        );
+        expect(button.style?.elevation?.resolve(const {}), 0);
+      }
+      expect(tester.takeException(), isNull);
+    }
+    await tester.binding.setSurfaceSize(null);
   });
 
   testWidgets('court-first draft starts as a gray point with side prompt', (
@@ -808,10 +863,11 @@ void main() {
       await tester.tap(find.byKey(const Key('scoring-more')));
       await tester.pumpAndSettle();
 
-      final possession = tester.widget<ListTile>(
+      final possession = tester.widget<EditorialIndexRow>(
         find.byKey(const Key('more-possession-blue')),
       );
       expect(possession.onTap, isNotNull);
+      await tester.ensureVisible(find.byKey(const Key('more-possession-blue')));
       await tester.tap(find.byKey(const Key('more-possession-blue')));
       await tester.pump();
       await tester.runAsync(
@@ -2300,7 +2356,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(
       tester.getSize(find.byType(ScoreSidePanel).first).width,
-      greaterThan(132),
+      inInclusiveRange(112, 128),
     );
     expect(
       tester.getSize(find.byKey(const Key('scoring-court'))).height,
@@ -2544,7 +2600,9 @@ void main() {
 
     expect(openCount, 1);
     expect(
-      tester.widget<ListTile>(find.byKey(const Key('more-replay'))).onTap,
+      tester
+          .widget<EditorialIndexRow>(find.byKey(const Key('more-replay')))
+          .onTap,
       isNull,
     );
   });

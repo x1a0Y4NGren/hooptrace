@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -54,10 +55,15 @@ class ScoreSidePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    final color = teamColorForScheme(side, Theme.of(context).colorScheme);
+    final color = teamColorForScheme(
+      side,
+      Theme.of(context).colorScheme,
+      background: HoopTraceColors.ink,
+    );
 
-    return ColoredBox(
-      color: color.withValues(alpha: 0.08),
+    return Material(
+      key: Key('${side.name}-action-rail'),
+      color: HoopTraceColors.ink,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxHeight < 560;
@@ -101,8 +107,9 @@ class ScoreSidePanel extends StatelessWidget {
                       child: OutlinedButton(
                         key: Key('${side.name}-foul'),
                         onPressed: foulEnabled ? onFoul : null,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(48, buttonHeight),
+                        style: _editorialRailButtonStyle(
+                          color,
+                          height: buttonHeight,
                           padding: EdgeInsets.zero,
                         ),
                         child: _CompactActionLabel(l10n.scoringFoul),
@@ -123,8 +130,9 @@ class ScoreSidePanel extends StatelessWidget {
                   child: OutlinedButton(
                     key: Key('${side.name}-miss'),
                     onPressed: onMiss,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(48, buttonHeight),
+                    style: _editorialRailButtonStyle(
+                      color,
+                      height: buttonHeight,
                       padding: EdgeInsets.zero,
                     ),
                     child: _CompactActionLabel(l10n.scoringMissed),
@@ -155,8 +163,12 @@ class ScoreSidePanel extends StatelessWidget {
                         '$score',
                         style: Theme.of(context).textTheme.displayMedium
                             ?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: HoopTraceColors.offWhite,
+                              fontFamily: HoopTraceTypography.displayFamily,
                               fontWeight: FontWeight.w900,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
                             ),
                       ),
                     ),
@@ -164,7 +176,9 @@ class ScoreSidePanel extends StatelessWidget {
                   Text(
                     '${l10n.scoringFoul} $fouls',
                     textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelSmall,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: HoopTraceColors.offWhite,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Expanded(
@@ -239,10 +253,13 @@ class ScoreSidePanel extends StatelessWidget {
                               '$score',
                               style: Theme.of(context).textTheme.displayLarge
                                   ?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
+                                    color: HoopTraceColors.offWhite,
+                                    fontFamily:
+                                        HoopTraceTypography.displayFamily,
                                     fontWeight: FontWeight.w900,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
                                   ),
                             ),
                           ),
@@ -250,7 +267,8 @@ class ScoreSidePanel extends StatelessWidget {
                         Text(
                           '${l10n.scoringFoul} $fouls',
                           textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.labelLarge,
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(color: HoopTraceColors.offWhite),
                         ),
                       ],
                     ),
@@ -286,6 +304,10 @@ class ScoreSidePanel extends StatelessWidget {
                             child: OutlinedButton.icon(
                               key: Key('${side.name}-miss'),
                               onPressed: onMiss,
+                              style: _editorialRailButtonStyle(
+                                color,
+                                height: buttonHeight,
+                              ),
                               icon: const Icon(Icons.close, size: 18),
                               label: Text(l10n.scoringMissed),
                             ),
@@ -301,6 +323,10 @@ class ScoreSidePanel extends StatelessWidget {
                                 child: OutlinedButton.icon(
                                   key: Key('${side.name}-foul'),
                                   onPressed: foulEnabled ? onFoul : null,
+                                  style: _editorialRailButtonStyle(
+                                    color,
+                                    height: buttonHeight,
+                                  ),
                                   icon: const Icon(
                                     Icons.flag_outlined,
                                     size: 18,
@@ -375,7 +401,6 @@ class _ScoreActionState extends State<_ScoreAction> {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final team = widget.teamLabel;
     final remaining = widget.locationRemainingSeconds;
-    final foreground = _teamForegroundColor(widget.color);
     final semantic = widget.locationActive && remaining != null
         ? l10n.scoringLocationPendingSemantics(widget.points, remaining, team)
         : l10n.scoringScoreSemantics(widget.points, team);
@@ -405,15 +430,11 @@ class _ScoreActionState extends State<_ScoreAction> {
         enabled: widget.enabled,
         child: FilledButton(
           key: Key('${widget.side.name}-score-${widget.points}'),
-          style: FilledButton.styleFrom(
-            backgroundColor: widget.color,
-            foregroundColor: foreground,
-            disabledForegroundColor: foreground,
-            minimumSize: Size(48, widget.height),
+          style: _editorialRailButtonStyle(
+            widget.color,
+            height: widget.height,
             padding: widget.compact ? EdgeInsets.zero : null,
-            side: widget.locationActive && widget.reduceMotion
-                ? BorderSide(color: widget.color, width: 2)
-                : null,
+            emphasizedBorder: widget.locationActive && widget.reduceMotion,
           ),
           onPressed: widget.enabled ? widget.onPressed : null,
           child: FittedBox(fit: BoxFit.scaleDown, child: label),
@@ -454,11 +475,29 @@ class _ScoreActionState extends State<_ScoreAction> {
   }
 }
 
-Color _teamForegroundColor(Color background) {
-  final luminance = background.computeLuminance();
-  final blackContrast = (luminance + 0.05) / 0.05;
-  final whiteContrast = 1.05 / (luminance + 0.05);
-  return blackContrast >= whiteContrast ? Colors.black : Colors.white;
+ButtonStyle _editorialRailButtonStyle(
+  Color color, {
+  required double height,
+  EdgeInsetsGeometry? padding,
+  bool emphasizedBorder = false,
+}) {
+  return ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(Size(48, height)),
+    padding: WidgetStatePropertyAll(
+      padding ?? const EdgeInsets.symmetric(horizontal: 8),
+    ),
+    elevation: const WidgetStatePropertyAll(0),
+    backgroundColor: const WidgetStatePropertyAll(HoopTraceColors.ink),
+    foregroundColor: WidgetStatePropertyAll(color),
+    side: WidgetStatePropertyAll(
+      BorderSide(color: color, width: emphasizedBorder ? 3 : 1.5),
+    ),
+    shape: const WidgetStatePropertyAll(
+      BeveledRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(7)),
+      ),
+    ),
+  );
 }
 
 class _CompactActionLabel extends StatelessWidget {
@@ -487,7 +526,7 @@ class _FoulStamp extends StatelessWidget {
       key: const Key('scoring-foul-stamp'),
       decoration: BoxDecoration(
         color: HoopTraceColors.orange.withValues(alpha: 0.94),
-        borderRadius: BorderRadius.circular(5),
+        border: Border.all(color: HoopTraceColors.offWhite, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),

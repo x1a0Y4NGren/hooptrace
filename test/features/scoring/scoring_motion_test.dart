@@ -174,28 +174,52 @@ void main() {
     expect(sample.tangent.vector.distance.isFinite, isTrue);
   });
 
-  test('geometry midpoint is deterministic for top and side arcs', () {
+  test('broadcast flight uses a compact arc and a restrained trail', () {
     final top = ScoringMotionPath.build(
       source: const Offset(100, 300),
       destination: const Offset(300, 100),
       safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
     );
     expect(top.control1.dx, 100);
-    expect(top.control1.dy, closeTo(237.77460, .00001));
+    expect(top.control1.dy, closeTo(260.40202, .00001));
     expect(top.control2.dx, 300);
-    expect(top.control2.dy, closeTo(37.77460, .00001));
-    expect(top.sample(.5).position.dx, closeTo(182.73, .01));
-    expect(top.sample(.5).position.dy, closeTo(171.23, .01));
+    expect(top.control2.dy, closeTo(60.40202, .00001));
+    expect(top.sample(.5).trail, hasLength(6));
 
     final side = ScoringMotionPath.build(
       source: const Offset(20, 100),
       destination: const Offset(100, 120),
       safeWorkspace: const Rect.fromLTWH(0, 80, 120, 120),
     );
-    expect(side.control1, const Offset(76, 100));
+    expect(side.control1, const Offset(52, 100));
     expect(side.control2, const Offset(120, 120));
-    expect(side.sample(.5).position.dx, closeTo(66.88, .01));
-    expect(side.sample(.5).position.dy, closeTo(104.54, .01));
+    expect(side.sample(.5).trail, hasLength(6));
+  });
+
+  test('impact painter emits one compact spread', () {
+    final coordinator = ScoringMotionCoordinator();
+    coordinator.submit(
+      ScoringMotionEvent(
+        receipt: receipt('one-spread'),
+        sourceButton: const Offset(20, 20),
+        courtBounds: const Rect.fromLTWH(0, 0, 400, 400),
+        safeWorkspace: const Rect.fromLTWH(0, 0, 400, 400),
+      ),
+    );
+    coordinator.advance(const Duration(milliseconds: 480));
+    final canvas = TestRecordingCanvas();
+    ScoringMotionPainter(
+      coordinator,
+      ballColor: Colors.blue,
+    ).paint(canvas, const Size(400, 400));
+
+    expect(
+      canvas.invocations.where(
+        (call) => call.invocation.memberName == #drawCircle,
+      ),
+      hasLength(1),
+    );
+    coordinator.dispose();
   });
 
   test(

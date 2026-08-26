@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
@@ -22,7 +22,7 @@ import 'package:hooptrace/features/scoring/motion/scoring_motion.dart';
 const scoringResumeClockKey = Key('scoring-resume-clock');
 
 double _landscapeSideWidth(double availableWidth) =>
-    (availableWidth * 0.2).clamp(132.0, 220.0);
+    (availableWidth * 0.17).clamp(112.0, 188.0);
 
 bool _usesPortraitScoringLayout(BoxConstraints constraints) =>
     constraints.maxWidth < 600 &&
@@ -1035,7 +1035,7 @@ class _ScoringPageState extends State<ScoringPage>
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      showDragHandle: true,
+      showDragHandle: false,
       sheetAnimationStyle: const AnimationStyle(
         duration: Duration(milliseconds: 240),
         reverseDuration: Duration(milliseconds: 180),
@@ -1076,248 +1076,309 @@ class _ScoringPageState extends State<ScoringPage>
               }
             }
 
-            final visual = Theme.of(
-              sheetBuilderContext,
-            ).extension<HoopTraceVisualTheme>();
+            final editorial = editorialThemeOf(sheetBuilderContext);
             return SafeArea(
-              child: Material(
-                key: const Key('scoring-more-sheet'),
-                color:
-                    visual?.paper ??
-                    Theme.of(sheetBuilderContext).colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(20),
-                  ),
-                  side: BorderSide(
-                    color:
-                        visual?.divider ??
-                        Theme.of(sheetBuilderContext).dividerColor,
-                  ),
-                ),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 620),
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              labels.more,
-                              style: Theme.of(sheetBuilderContext)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    color: visual?.ink,
-                                    fontWeight: FontWeight.w900,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 620),
+                child: EditorialSheet(
+                  key: const Key('scoring-more-sheet'),
+                  title: labels.more,
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  actions: [
+                    OutlinedButton.icon(
+                      key: const Key('more-close'),
+                      onPressed: () => Navigator.of(sheetContext).pop(),
+                      icon: const Icon(Icons.close),
+                      label: Text(labels.cancel),
+                    ),
+                  ],
+                  child: Flexible(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.zero,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (inlineFailure != null)
+                            Container(
+                              key: const Key('more-inline-error'),
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Theme.of(
+                                  sheetBuilderContext,
+                                ).colorScheme.errorContainer,
+                                border: Border(
+                                  left: BorderSide(
+                                    color: editorial.danger,
+                                    width: 4,
                                   ),
-                            ),
-                            IconButton(
-                              key: const Key('more-close'),
-                              tooltip: labels.cancel,
-                              onPressed: () => Navigator.of(sheetContext).pop(),
-                              constraints: const BoxConstraints(
-                                minWidth: 48,
-                                minHeight: 48,
-                              ),
-                              icon: const Icon(Icons.close),
-                            ),
-                          ],
-                        ),
-                        Divider(color: visual?.divider),
-                        if (inlineFailure != null)
-                          Container(
-                            key: const Key('more-inline-error'),
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                sheetBuilderContext,
-                              ).colorScheme.errorContainer,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(child: Text(inlineFailure!)),
-                                OutlinedButton(
-                                  key: const Key('more-inline-retry'),
-                                  onPressed: inlineRetry == null
-                                      ? null
-                                      : () => unawaited(runMore(inlineRetry!)),
-                                  child: Text(labels.retry),
                                 ),
-                              ],
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(child: Text(inlineFailure!)),
+                                  OutlinedButton(
+                                    key: const Key('more-inline-retry'),
+                                    onPressed: inlineRetry == null
+                                        ? null
+                                        : () =>
+                                              unawaited(runMore(inlineRetry!)),
+                                    child: Text(labels.retry),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          _moreSection(
+                            sheetBuilderContext,
+                            key: const Key('more-section-shooting'),
+                            title: labels.shots,
+                            children: [
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '01',
+                                key: const Key('more-blue-miss'),
+                                icon: Icons.close,
+                                label: labels.missed(TeamSide.blue),
+                                enabled:
+                                    _controller.courtFirstShotDraft != null ||
+                                    _controller.state.pendingLocation == null,
+                                onTap: () => runMore(
+                                  () => _recordMiss(
+                                    TeamSide.blue,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '02',
+                                key: const Key('more-red-miss'),
+                                icon: Icons.close,
+                                label: labels.missed(TeamSide.red),
+                                enabled:
+                                    _controller.courtFirstShotDraft != null ||
+                                    _controller.state.pendingLocation == null,
+                                onTap: () => runMore(
+                                  () => _recordMiss(
+                                    TeamSide.red,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          _moreSection(
+                            sheetBuilderContext,
+                            key: const Key('more-section-free-throws'),
+                            title: labels.freeThrows,
+                            children: [
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '01',
+                                key: const Key('more-blue-free-throw-made'),
+                                icon: Icons.check,
+                                label: labels.freeThrow(TeamSide.blue, true),
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _recordFreeThrow(
+                                    TeamSide.blue,
+                                    true,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '02',
+                                key: const Key('more-blue-free-throw-miss'),
+                                icon: Icons.close,
+                                label: labels.freeThrow(TeamSide.blue, false),
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _recordFreeThrow(
+                                    TeamSide.blue,
+                                    false,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '03',
+                                key: const Key('more-red-free-throw-made'),
+                                icon: Icons.check,
+                                label: labels.freeThrow(TeamSide.red, true),
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _recordFreeThrow(
+                                    TeamSide.red,
+                                    true,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '04',
+                                key: const Key('more-red-free-throw-miss'),
+                                icon: Icons.close,
+                                label: labels.freeThrow(TeamSide.red, false),
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _recordFreeThrow(
+                                    TeamSide.red,
+                                    false,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          _moreSection(
+                            sheetBuilderContext,
+                            key: const Key('more-section-match-state'),
+                            title: labels.matchStatus,
+                            children: [
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '01',
+                                key: const Key('more-possession-blue'),
+                                icon: Icons.swap_horiz,
+                                label: labels.possession(TeamSide.blue),
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _recordPossession(
+                                    TeamSide.blue,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '02',
+                                key: const Key('more-possession-red'),
+                                icon: Icons.swap_horiz,
+                                label: labels.possession(TeamSide.red),
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _recordPossession(
+                                    TeamSide.red,
+                                    rethrowFailure: true,
+                                  ),
+                                ),
+                              ),
+                              if (_controller.timerEnabled && clock != null)
+                                if (clock.isRunning)
+                                  _moreAction(
+                                    sheetBuilderContext,
+                                    index: '03',
+                                    key: const Key('more-pause'),
+                                    icon: Icons.pause,
+                                    label: labels.pause,
+                                    enabled: _ordinaryActionsEnabled,
+                                    onTap: () => runMore(
+                                      () => _pause(rethrowFailure: true),
+                                    ),
+                                  )
+                                else
+                                  _moreAction(
+                                    sheetBuilderContext,
+                                    index: '03',
+                                    key: const Key('more-resume'),
+                                    icon: Icons.play_arrow,
+                                    label: labels.resume,
+                                    enabled: _ordinaryActionsEnabled,
+                                    onTap: () => runMore(
+                                      () => _resume(rethrowFailure: true),
+                                    ),
+                                  ),
+                            ],
+                          ),
+                          _moreSection(
+                            sheetBuilderContext,
+                            key: const Key('more-section-notes-records'),
+                            title: labels.records,
+                            children: [
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '01',
+                                key: const Key('more-note'),
+                                icon: Icons.notes,
+                                label: labels.note,
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _enterNote(rethrowFailure: true),
+                                ),
+                              ),
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '02',
+                                key: const Key('more-custom'),
+                                icon: Icons.add_circle_outline,
+                                label: labels.custom,
+                                enabled: _ordinaryActionsEnabled,
+                                onTap: () => runMore(
+                                  () => _enterCustom(rethrowFailure: true),
+                                ),
+                              ),
+                            ],
+                          ),
+                          _moreSection(
+                            sheetBuilderContext,
+                            key: const Key('more-section-match'),
+                            title: labels.match,
+                            children: [
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '01',
+                                key: const Key('more-replay'),
+                                icon: Icons.query_stats,
+                                label: labels.replay,
+                                enabled:
+                                    widget.onOpenReplay != null &&
+                                    _ordinaryActionsEnabled &&
+                                    _controller
+                                            .state
+                                            .locationSupplementWindow ==
+                                        null,
+                                onTap: () => runMore(() async => _openReplay()),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            key: const Key('more-destructive-section'),
+                            margin: const EdgeInsets.only(top: 20),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                top: BorderSide(
+                                  color: editorial.danger,
+                                  width: 3,
+                                ),
+                                bottom: BorderSide(color: editorial.danger),
+                              ),
+                            ),
+                            child: _moreAction(
+                              sheetBuilderContext,
+                              index: '02',
+                              key: const Key('more-finish'),
+                              icon: Icons.flag,
+                              label: labels.finish,
+                              enabled:
+                                  widget.onFinishDecision != null &&
+                                  _controller.state.decision?.canFinish ==
+                                      true &&
+                                  _ordinaryActionsEnabled,
+                              destructive: true,
+                              onTap: () => runMore(
+                                () => _confirmFinishDecision(
+                                  rethrowFailure: true,
+                                ),
+                              ),
                             ),
                           ),
-                        _moreHeading(labels.shots),
-                        _moreAction(
-                          key: const Key('more-blue-miss'),
-                          icon: Icons.close,
-                          label: labels.missed(TeamSide.blue),
-                          enabled:
-                              _controller.courtFirstShotDraft != null ||
-                              _controller.state.pendingLocation == null,
-                          onTap: () => runMore(
-                            () => _recordMiss(
-                              TeamSide.blue,
-                              rethrowFailure: true,
-                            ),
-                          ),
-                        ),
-                        _moreAction(
-                          key: const Key('more-red-miss'),
-                          icon: Icons.close,
-                          label: labels.missed(TeamSide.red),
-                          enabled:
-                              _controller.courtFirstShotDraft != null ||
-                              _controller.state.pendingLocation == null,
-                          onTap: () => runMore(
-                            () =>
-                                _recordMiss(TeamSide.red, rethrowFailure: true),
-                          ),
-                        ),
-                        _moreHeading(labels.freeThrows),
-                        _moreAction(
-                          key: const Key('more-blue-free-throw-made'),
-                          icon: Icons.check,
-                          label: labels.freeThrow(TeamSide.blue, true),
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () => runMore(
-                            () => _recordFreeThrow(
-                              TeamSide.blue,
-                              true,
-                              rethrowFailure: true,
-                            ),
-                          ),
-                        ),
-                        _moreAction(
-                          key: const Key('more-blue-free-throw-miss'),
-                          icon: Icons.close,
-                          label: labels.freeThrow(TeamSide.blue, false),
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () => runMore(
-                            () => _recordFreeThrow(
-                              TeamSide.blue,
-                              false,
-                              rethrowFailure: true,
-                            ),
-                          ),
-                        ),
-                        _moreAction(
-                          key: const Key('more-red-free-throw-made'),
-                          icon: Icons.check,
-                          label: labels.freeThrow(TeamSide.red, true),
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () => runMore(
-                            () => _recordFreeThrow(
-                              TeamSide.red,
-                              true,
-                              rethrowFailure: true,
-                            ),
-                          ),
-                        ),
-                        _moreAction(
-                          key: const Key('more-red-free-throw-miss'),
-                          icon: Icons.close,
-                          label: labels.freeThrow(TeamSide.red, false),
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () => runMore(
-                            () => _recordFreeThrow(
-                              TeamSide.red,
-                              false,
-                              rethrowFailure: true,
-                            ),
-                          ),
-                        ),
-                        _moreHeading(labels.matchStatus),
-                        _moreAction(
-                          key: const Key('more-possession-blue'),
-                          icon: Icons.swap_horiz,
-                          label: labels.possession(TeamSide.blue),
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () => runMore(
-                            () => _recordPossession(
-                              TeamSide.blue,
-                              rethrowFailure: true,
-                            ),
-                          ),
-                        ),
-                        _moreAction(
-                          key: const Key('more-possession-red'),
-                          icon: Icons.swap_horiz,
-                          label: labels.possession(TeamSide.red),
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () => runMore(
-                            () => _recordPossession(
-                              TeamSide.red,
-                              rethrowFailure: true,
-                            ),
-                          ),
-                        ),
-                        if (_controller.timerEnabled && clock != null)
-                          if (clock.isRunning)
-                            _moreAction(
-                              key: const Key('more-pause'),
-                              icon: Icons.pause,
-                              label: labels.pause,
-                              enabled: _ordinaryActionsEnabled,
-                              onTap: () =>
-                                  runMore(() => _pause(rethrowFailure: true)),
-                            )
-                          else
-                            _moreAction(
-                              key: const Key('more-resume'),
-                              icon: Icons.play_arrow,
-                              label: labels.resume,
-                              enabled: _ordinaryActionsEnabled,
-                              onTap: () =>
-                                  runMore(() => _resume(rethrowFailure: true)),
-                            ),
-                        _moreHeading(labels.records),
-                        _moreAction(
-                          key: const Key('more-note'),
-                          icon: Icons.notes,
-                          label: labels.note,
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () =>
-                              runMore(() => _enterNote(rethrowFailure: true)),
-                        ),
-                        _moreAction(
-                          key: const Key('more-custom'),
-                          icon: Icons.add_circle_outline,
-                          label: labels.custom,
-                          enabled: _ordinaryActionsEnabled,
-                          onTap: () =>
-                              runMore(() => _enterCustom(rethrowFailure: true)),
-                        ),
-                        _moreHeading(labels.match),
-                        _moreAction(
-                          key: const Key('more-replay'),
-                          icon: Icons.query_stats,
-                          label: labels.replay,
-                          enabled:
-                              widget.onOpenReplay != null &&
-                              _ordinaryActionsEnabled &&
-                              _controller.state.locationSupplementWindow ==
-                                  null,
-                          onTap: () => runMore(() async => _openReplay()),
-                        ),
-                        _moreAction(
-                          key: const Key('more-finish'),
-                          icon: Icons.flag,
-                          label: labels.finish,
-                          enabled:
-                              widget.onFinishDecision != null &&
-                              _controller.state.decision?.canFinish == true &&
-                              _ordinaryActionsEnabled,
-                          onTap: () => runMore(
-                            () => _confirmFinishDecision(rethrowFailure: true),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -1333,24 +1394,58 @@ class _ScoringPageState extends State<ScoringPage>
       _controller.state.pendingLocation == null &&
       _controller.state.courtFirstShotDraft == null;
 
-  Widget _moreHeading(String text) => Padding(
-    padding: const EdgeInsets.only(top: 8, bottom: 2),
-    child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
-  );
+  Widget _moreSection(
+    BuildContext sheetContext, {
+    required Key key,
+    required String title,
+    required List<Widget> children,
+  }) {
+    final editorial = editorialThemeOf(sheetContext);
+    return Container(
+      key: key,
+      margin: const EdgeInsets.only(top: 16),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: editorial.ink, width: 2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+              title.toUpperCase(),
+              style: Theme.of(sheetContext).textTheme.labelLarge?.copyWith(
+                color: editorial.mutedInk,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
 
-  Widget _moreAction({
+  Widget _moreAction(
+    BuildContext sheetContext, {
+    required String index,
     required Key key,
     required IconData icon,
     required String label,
     required bool enabled,
     required Future<bool> Function() onTap,
+    bool destructive = false,
   }) {
-    return ListTile(
+    final editorial = editorialThemeOf(sheetContext);
+    return EditorialIndexRow(
       key: key,
-      enabled: enabled,
-      minTileHeight: 48,
-      leading: Icon(icon),
-      title: Text(label),
+      index: index,
+      title: label,
+      trailing: Icon(
+        icon,
+        color: destructive ? editorial.danger : editorial.mutedInk,
+      ),
       onTap: enabled ? () => unawaited(onTap()) : null,
     );
   }
@@ -1851,13 +1946,24 @@ class _Scoreboard extends StatelessWidget {
       required IconData icon,
       required VoidCallback onPressed,
     }) {
-      return IconButton(
-        key: key,
-        tooltip: tooltip,
-        onPressed: onPressed,
-        color: Colors.white,
-        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-        icon: Icon(icon),
+      return Tooltip(
+        message: tooltip,
+        child: OutlinedButton(
+          key: key,
+          onPressed: onPressed,
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(48, 48),
+            padding: EdgeInsets.zero,
+            foregroundColor: Colors.white,
+            backgroundColor: HoopTraceColors.ink,
+            elevation: 0,
+            side: const BorderSide(color: Color(0xFF777D82)),
+            shape: const BeveledRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(7)),
+            ),
+          ),
+          child: Icon(icon),
+        ),
       );
     }
 
@@ -2018,11 +2124,14 @@ class _ScoreLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final label = side == TeamSide.blue ? '$name $score' : '$score $name';
     final scoreText = AnimatedSwitcher(
-      duration:
-          Theme.of(
-            context,
-          ).extension<HoopTraceMotionTheme>()?.scoreTransition ??
-          const Duration(milliseconds: 180),
+      duration: editorialMotionDuration(
+        context,
+        standard:
+            Theme.of(
+              context,
+            ).extension<HoopTraceMotionTheme>()?.scoreTransition ??
+            const Duration(milliseconds: 180),
+      ),
       transitionBuilder: (child, animation) => SlideTransition(
         position: Tween<Offset>(
           begin: const Offset(0, 0.65),
@@ -2036,7 +2145,9 @@ class _ScoreLabel extends StatelessWidget {
         maxLines: 1,
         style: Theme.of(context).textTheme.titleLarge?.copyWith(
           color: color,
+          fontFamily: HoopTraceTypography.displayFamily,
           fontWeight: FontWeight.w900,
+          fontFeatures: const [FontFeature.tabularFigures()],
         ),
       ),
     );
