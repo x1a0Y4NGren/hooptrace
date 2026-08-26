@@ -136,6 +136,7 @@ class _HomeHero extends StatelessWidget {
                     ? _StartHero(onStartScoring: onStartScoring)
                     : _ActiveHero(
                         detail: active,
+                        onStartScoring: onStartScoring,
                         onContinue: onContinue,
                         onAbandon: onAbandon,
                       ),
@@ -197,11 +198,13 @@ class _StartHero extends StatelessWidget {
 class _ActiveHero extends StatelessWidget {
   const _ActiveHero({
     required this.detail,
+    required this.onStartScoring,
     required this.onContinue,
     required this.onAbandon,
   });
 
   final MatchDetail detail;
+  final VoidCallback onStartScoring;
   final VoidCallback onContinue;
   final Future<void> Function() onAbandon;
 
@@ -280,6 +283,17 @@ class _ActiveHero extends StatelessWidget {
           onPressed: onContinue,
           icon: const Icon(Icons.arrow_forward),
           label: Text(l10n.homeResumeMatch),
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          key: homeStartScoringKey,
+          onPressed: onStartScoring,
+          style: TextButton.styleFrom(
+            foregroundColor: editorial.canvas,
+            minimumSize: const Size.fromHeight(48),
+          ),
+          icon: const Icon(Icons.add),
+          label: Text(l10n.startScoring),
         ),
         const SizedBox(height: 8),
         OutlinedButton(
