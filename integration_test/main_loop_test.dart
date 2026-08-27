@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:hooptrace/main.dart' as app;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -16,8 +17,14 @@ void main() {
     final runId = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     final redName = '集成红-$runId';
     final blueName = '集成蓝-$runId';
+    final database = AppDatabase.inMemory();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.runAsync(database.close);
+    });
 
-    app.main();
+    await tester.pumpWidget(HoopTraceApp(database: database));
     await _pumpUntilFound(
       tester,
       find.byKey(homeStartScoringKey),
