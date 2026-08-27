@@ -56,7 +56,8 @@ flutter build apk --debug
 - [ ] CI 的 golden/widget 测试、Drift schema 测试、API 36 主流程及 Android 命令 p95
       基准均通过；日志保留 `TASK15_QUERY_BENCHMARK` 和
       `TASK15_COMMAND_BENCHMARK` 结果。
-- [ ] CI 在两份独立源码树中逐字节核验未签名 Release APK，并通过 macOS iOS
+- [ ] CI 从两份全新源码快照在固定构建路径顺序重建，并逐字节核验完整的未签名
+      Release APK；同时通过 macOS iOS
       `flutter build ios --release --no-codesign`。
 - [ ] `THIRD_PARTY_NOTICES.md` 可由当前锁定依赖确定性生成且无 diff。
 - [ ] CI 生成的 Debug APK artifact 可以下载并安装。

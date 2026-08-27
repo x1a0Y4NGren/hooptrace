@@ -52,7 +52,32 @@ export ANDROID_SDK_ROOT="$android_sdk_root"
 bash "$repo_root/tool/release/prepare_android_toolchain.sh"
 
 scratch="$(mktemp -d)"
-trap 'rm -rf "$scratch"' EXIT
+# Flutter 3.41.9 embeds the absolute URI of its generated Dart plugin
+# registrant in libapp.so, and native plugin build IDs also include their build
+# directory. Build both clean archives sequentially at one documented path so
+# those otherwise-unavoidable toolchain inputs are identical.
+canonical_source="${HOOPTRACE_REPRODUCIBLE_ROOT:-/tmp/hooptrace-reproducible-source}"
+canonical_name="$(basename "$canonical_source")"
+if [[ "$canonical_source" != /* ]]; then
+  echo "HOOPTRACE_REPRODUCIBLE_ROOT must be an absolute path." >&2
+  exit 2
+fi
+if [[ "$canonical_name" != "hooptrace-reproducible-source" ]]; then
+  echo "HOOPTRACE_REPRODUCIBLE_ROOT must end in hooptrace-reproducible-source." >&2
+  exit 2
+fi
+if [[ -e "$canonical_source" ]]; then
+  echo "The canonical reproducibility workspace already exists: $canonical_source" >&2
+  exit 2
+fi
+owns_canonical=false
+cleanup() {
+  if [[ "$owns_canonical" == true && -e "$canonical_source" ]]; then
+    rm -rf -- "$canonical_source"
+  fi
+  rm -rf -- "$scratch"
+}
+trap cleanup EXIT
 reference_toolchain="$scratch/reference-toolchain"
 mkdir -p "$reference_toolchain"
 
@@ -156,31 +181,37 @@ assert_lock_unchanged() {
 }
 
 build_once() {
-  local destination="$1"
-  mkdir -p "$destination"
-  git -C "$repo_root" archive --format=tar HEAD | tar -xf - -C "$destination"
-  capture_build_toolchain "$destination/toolchain"
-  assert_lock_unchanged "$destination"
+  local label="$1"
+  local apk_destination="$2"
+  mkdir -p "$canonical_source"
+  owns_canonical=true
+  git -C "$repo_root" archive --format=tar HEAD | tar -xf - -C "$canonical_source"
+  capture_build_toolchain "$scratch/toolchain-$label"
+  assert_lock_unchanged "$canonical_source"
   (
-    cd "$destination"
+    cd "$canonical_source"
     export SOURCE_DATE_EPOCH="$source_date_epoch"
     flutter pub get --enforce-lockfile
-    assert_lock_unchanged "$destination"
+    assert_lock_unchanged "$canonical_source"
     dart --packages=.dart_tool/package_config.json tool/release/verify_sqlite_source.dart
     # Do not use --no-pub here. Flutter's release-mode dependency injection
     # regenerates GeneratedPluginRegistrant without dev-only plugins.
     HOOPTRACE_ALLOW_UNSIGNED_RELEASE=true \
       flutter build apk --release
   )
-  test -s "$destination/build/app/outputs/flutter-apk/app-release.apk"
-  assert_lock_unchanged "$destination"
+  local built_apk="$canonical_source/build/app/outputs/flutter-apk/app-release.apk"
+  test -s "$built_apk"
+  assert_lock_unchanged "$canonical_source"
+  cp "$built_apk" "$apk_destination"
+  rm -rf -- "$canonical_source"
+  owns_canonical=false
 }
 
-build_once "$scratch/source-a"
-build_once "$scratch/source-b"
+apk_a="$scratch/app-release-a.apk"
+apk_b="$scratch/app-release-b.apk"
+build_once "a" "$apk_a"
+build_once "b" "$apk_b"
 
-apk_a="$scratch/source-a/build/app/outputs/flutter-apk/app-release.apk"
-apk_b="$scratch/source-b/build/app/outputs/flutter-apk/app-release.apk"
 if ! cmp --silent "$apk_a" "$apk_b"; then
   sha256sum "$apk_a" "$apk_b"
   diagnostics="$repo_root/build/reproducible-diagnostics"
@@ -228,6 +259,7 @@ cat > "$output/REPRODUCIBILITY.txt" <<EOF
 commit=$(git -C "$repo_root" rev-parse HEAD)
 sourceDateEpoch=$source_date_epoch
 pubspecLockSha256=$lock_sha256
+canonicalBuildRoot=$canonical_source
 apkComparison=byte-identical
 sameRunner=true
 EOF

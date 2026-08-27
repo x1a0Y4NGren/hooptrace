@@ -5,13 +5,18 @@
 HoopTrace's reproducibility gate compares two unsigned release APKs produced on
 one clean CI runner from the same committed source, lockfile, Flutter revision,
 Temurin Java version, Android SDK/build-tools/NDK, vendored SQLite amalgamation,
-and `SOURCE_DATE_EPOCH`. A passing `cmp` proves those independent source-tree
-builds are byte-identical before upstream signing. Cross-runner or cross-OS
+and `SOURCE_DATE_EPOCH`. Each build starts from a fresh `git archive`; the two
+archives are built sequentially at the fixed
+`/tmp/hooptrace-reproducible-source` path because pinned Flutter 3.41.9 embeds
+its build path in Dart and native libraries. A passing `cmp` proves the complete
+APKs are byte-identical before upstream signing. Cross-runner or cross-OS
 reproducibility is a separate comparison using the recorded toolchain files.
 
 HoopTrace 的可复现性门槛会固定源码提交、锁文件、Flutter revision、Java、
 Android SDK/build-tools/NDK、仓库内 SQLite amalgamation 与 `SOURCE_DATE_EPOCH`，
-在同一干净 CI runner 上分别构建两份未签名 APK；只有逐字节完全一致才通过。
+在同一干净 CI runner 上从两份全新的 `git archive` 顺序构建未签名 APK。由于
+固定的 Flutter 3.41.9 会把构建路径写入 Dart 与原生库，两次构建均使用固定的
+`/tmp/hooptrace-reproducible-source`；只有完整 APK 逐字节完全一致才通过。
 跨 runner 或跨操作系统的结论必须使用输出中的工具链记录另行比较。
 
 ```bash
@@ -30,17 +35,19 @@ build therefore does not fetch a `sqlite3` GitHub release binary. The matching
 下载 `sqlite3` GitHub Release 原生库。对应的 `sqlite3.h`、公有领域声明和官方
 源码归档 URL 与其放在同一目录。
 
-CI runs this in two independent `git archive` source trees on one runner and
-publishes the verified unsigned artifact with `PUBSPEC_LOCK_SHA256`,
+CI runs this from two fresh `git archive` exports, deleting and recreating the
+fixed build root between runs, and publishes the verified unsigned artifact
+with `PUBSPEC_LOCK_SHA256`,
 `RUNNER_IDENTITY.txt`, `REPRODUCIBILITY.txt`, and the toolchain snapshots. The
 script re-hashes `pubspec.lock` after each locked dependency resolution and
 checks the runner fingerprint before each build; `sameRunner=true` therefore
 describes this single invocation only. The artifact is evidence, not an install
 channel and not an official signed release.
 
-CI 会在同一 runner 的两份独立 `git archive` 源码树中执行该流程，并随产物保存
-锁文件哈希、runner 身份、复现结论和工具链快照；脚本会在每次锁定依赖解析后
-重新计算 `pubspec.lock`，并在每次构建前核对 runner 指纹。`sameRunner=true`
+CI 会在同一 runner 上顺序解包两份全新的 `git archive`，每次构建间删除并重建
+固定构建根目录，并随产物保存锁文件哈希、runner 身份、复现结论和工具链快照；
+脚本会在每次锁定依赖解析后重新计算 `pubspec.lock`，并在每次构建前核对 runner
+指纹。`sameRunner=true`
 只表示这一次脚本调用，不代表跨 runner 复现。产物只是短期证据，不是安装渠道，
 也不是正式签名发行包。
 

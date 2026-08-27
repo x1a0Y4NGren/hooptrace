@@ -72,8 +72,11 @@ old app data and install 1.0. Do not claim that a v0.1 backup can be restored.
 
 Run `bash tool/release/verify_unsigned_reproducible_android.sh` from a clean,
 committed revision. It exports that exact revision into two independent temporary
-source trees, builds both with a shared `SOURCE_DATE_EPOCH`, byte-compares the
-APKs, and writes the verified artifact and checksum to `build/reproducible/`.
+source snapshots, rebuilds both sequentially at the fixed
+`/tmp/hooptrace-reproducible-source` path with a shared `SOURCE_DATE_EPOCH`,
+byte-compares the complete APKs, and writes the verified artifact and checksum
+to `build/reproducible/`.
 
-在干净且已提交的版本上运行上述脚本；它会创建两份独立源码树、构建并逐字节
-比较 APK，最后把验证通过的产物和校验和写入 `build/reproducible/`。
+在干净且已提交的版本上运行上述脚本；它会生成两份全新的源码快照，在固定的
+`/tmp/hooptrace-reproducible-source` 中顺序重建并逐字节比较完整 APK，最后把
+验证通过的产物和校验和写入 `build/reproducible/`。
