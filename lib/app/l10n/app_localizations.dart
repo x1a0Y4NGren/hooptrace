@@ -3141,7 +3141,7 @@ abstract class AppLocalizations {
   /// No description provided for @scoringPendingPauseExitBody.
   ///
   /// In zh, this message translates to:
-  /// **'当前球场上还有未完成的灰色落点。离开主页或结束比赛会丢弃这次草稿。'**
+  /// **'当前球场上还有未完成的灰色落点。返回主页或结束比赛会丢弃这次草稿。'**
   String get scoringPendingPauseExitBody;
 
   /// No description provided for @scoringDiscardDraft.

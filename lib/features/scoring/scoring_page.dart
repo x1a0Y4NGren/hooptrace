@@ -82,6 +82,7 @@ class _ScoringPageState extends State<ScoringPage>
   bool _leaveBusy = false;
   bool _decisionBusy = false;
   bool _interactionPaused = false;
+  bool _pauseTransitionBusy = false;
   bool _pausedPanelVisible = false;
   bool _pausedPanelScheduled = false;
   Timer? _clockTicker;
@@ -525,7 +526,9 @@ class _ScoringPageState extends State<ScoringPage>
     return PopScope<void>(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) unawaited(_requestLeave());
+        if (!didPop && !_interactionPaused && !_pauseTransitionBusy) {
+          unawaited(_requestLeave());
+        }
       },
       child: page,
     );
@@ -1113,6 +1116,7 @@ class _ScoringPageState extends State<ScoringPage>
           actions: [
             TextButton(
               key: const Key('match-controls-return'),
+              style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
               onPressed: () => Navigator.of(
                 dialogContext,
               ).pop(_MatchControlAction.returnToScoring),
@@ -1154,8 +1158,11 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<void> _pauseFromMatchControls() async {
-    if (_interactionPaused) return;
-    setState(() => _interactionPaused = true);
+    if (_interactionPaused || _pauseTransitionBusy) return;
+    setState(() {
+      _interactionPaused = true;
+      _pauseTransitionBusy = true;
+    });
     var accepted = true;
     if (!_controller.isManuallyPaused) {
       try {
@@ -1173,9 +1180,13 @@ class _ScoringPageState extends State<ScoringPage>
     }
     if (!mounted) return;
     if (!accepted) {
-      setState(() => _interactionPaused = false);
+      setState(() {
+        _interactionPaused = false;
+        _pauseTransitionBusy = false;
+      });
       return;
     }
+    setState(() => _pauseTransitionBusy = false);
     await _showPausedPanel();
   }
 
@@ -1188,41 +1199,58 @@ class _ScoringPageState extends State<ScoringPage>
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => PopScope<void>(
-          canPop: false,
-          child: AlertDialog(
-            key: const Key('scoring-paused-panel'),
-            icon: const Icon(Icons.pause_circle_outline, size: 40),
-            title: Text(labels.matchPausedTitle),
-            content: Text(labels.matchPausedBody),
-            actions: [
-              TextButton(
-                key: const Key('paused-return-home'),
-                onPressed: () =>
-                    unawaited(_returnHomeFromPausedPanel(dialogContext)),
-                child: Text(labels.returnHome),
-              ),
-              FilledButton(
-                key: const Key('paused-continue'),
-                onPressed: () => unawaited(
-                  _resumeFromPausedPanel().then((accepted) {
-                    if (accepted && dialogContext.mounted) {
-                      Navigator.of(dialogContext).pop();
-                    }
-                  }),
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) => PopScope<void>(
+            canPop: false,
+            child: AlertDialog(
+              key: const Key('scoring-paused-panel'),
+              icon: const Icon(Icons.pause_circle_outline, size: 40),
+              title: Text(labels.matchPausedTitle),
+              content: Text(labels.matchPausedBody),
+              actions: [
+                TextButton(
+                  key: const Key('paused-return-home'),
+                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                  onPressed: _pauseTransitionBusy
+                      ? null
+                      : () => unawaited(
+                          _returnHomeFromPausedPanel(dialogContext),
+                        ),
+                  child: Text(labels.returnHome),
                 ),
-                child: Text(labels.continueMatch),
-              ),
-              OutlinedButton(
-                key: const Key('paused-finish'),
-                onPressed:
-                    widget.onFinishDecision == null ||
-                        _controller.state.decision?.canFinish == false
-                    ? null
-                    : () => unawaited(_finishFromPausedPanel(dialogContext)),
-                child: Text(labels.finish),
-              ),
-            ],
+                FilledButton(
+                  key: const Key('paused-continue'),
+                  onPressed: _pauseTransitionBusy
+                      ? null
+                      : () {
+                          setState(() => _pauseTransitionBusy = true);
+                          setDialogState(() {});
+                          unawaited(
+                            _resumeFromPausedPanel().then((accepted) {
+                              if (!mounted) return;
+                              setState(() => _pauseTransitionBusy = false);
+                              if (accepted && dialogContext.mounted) {
+                                Navigator.of(dialogContext).pop();
+                              } else if (dialogContext.mounted) {
+                                setDialogState(() {});
+                              }
+                            }),
+                          );
+                        },
+                  child: Text(labels.continueMatch),
+                ),
+                OutlinedButton(
+                  key: const Key('paused-finish'),
+                  onPressed:
+                      _pauseTransitionBusy ||
+                          widget.onFinishDecision == null ||
+                          _controller.state.decision?.canFinish == false
+                      ? null
+                      : () => unawaited(_finishFromPausedPanel(dialogContext)),
+                  child: Text(labels.finish),
+                ),
+              ],
+            ),
           ),
         ),
       );

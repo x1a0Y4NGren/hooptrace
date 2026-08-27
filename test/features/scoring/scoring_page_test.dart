@@ -722,6 +722,49 @@ void main() {
     expect(find.byKey(const Key('match-controls-return')), findsOneWidget);
     expect(find.byKey(const Key('match-controls-pause')), findsOneWidget);
     expect(find.byKey(const Key('match-controls-finish')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('match-controls-return'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('match-controls-return')))
+          .style
+          ?.minimumSize
+          ?.resolve({})
+          ?.height,
+      greaterThanOrEqualTo(48),
+    );
+  });
+
+  testWidgets('system back is blocked while pause is being committed', (
+    tester,
+  ) async {
+    final pauseGate = Completer<void>();
+    var leaveCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'pause-in-flight-back',
+          onRequestLeave: () async => leaveCalls++,
+          onPauseMatch: () => pauseGate.future,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pump();
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(leaveCalls, 0);
+    expect(find.byType(ScoringPage), findsOneWidget);
+
+    pauseGate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
   });
 
   testWidgets('timer-free pause blocks back and preserves a gray court draft', (
@@ -742,6 +785,19 @@ void main() {
     await tester.tap(find.byKey(const Key('match-controls-pause')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('paused-return-home'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('paused-return-home')))
+          .style
+          ?.minimumSize
+          ?.resolve({})
+          ?.height,
+      greaterThanOrEqualTo(48),
+    );
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
@@ -937,6 +993,40 @@ void main() {
 
     expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
     expect(find.text('操作失败，请重试。'), findsOneWidget);
+  });
+
+  testWidgets('double continue submits only one resume command', (
+    tester,
+  ) async {
+    final resumeGate = Completer<void>();
+    var resumeCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'resume-double-tap',
+          onResumePausedMatch: () {
+            resumeCalls++;
+            return resumeGate.future;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+
+    final continueButton = find.byKey(const Key('paused-continue'));
+    await tester.tap(continueButton);
+    await tester.pump();
+    await tester.tap(continueButton, warnIfMissed: false);
+    await tester.pump();
+    expect(resumeCalls, 1);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    resumeGate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
   });
 
   testWidgets('pause and resume each emit committed feedback once', (

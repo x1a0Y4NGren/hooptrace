@@ -69,6 +69,18 @@ void main() {
         );
         expect(_contrast(foreground!, background!), greaterThanOrEqualTo(4.5));
 
+        final foulButton = tester.widget<OutlinedButton>(
+          find.byKey(const Key('blue-foul')),
+        );
+        final foulBackground = foulButton.style!.backgroundColor!.resolve({})!;
+        final foulForeground = foulButton.style!.foregroundColor!.resolve({})!;
+        final foulBorder = foulButton.style!.side!.resolve({})!;
+        expect(foulBorder.color, palette.arenaAccent);
+        expect(
+          _contrast(foulForeground, foulBackground),
+          greaterThanOrEqualTo(4.5),
+        );
+
         final identityLines = tester.widgetList<Container>(
           find.byKey(const Key('blue-action-identity-line')),
         );

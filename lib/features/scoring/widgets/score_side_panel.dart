@@ -144,9 +144,9 @@ class ScoreSidePanel extends StatelessWidget {
                           key: Key('${side.name}-foul'),
                           onPressed: foulEnabled ? onFoul : null,
                           style: _editorialRailButtonStyle(
-                            editorial.arenaAccent,
+                            editorial.ink,
                             backgroundColor: buttonSurface,
-                            ruleColor: editorial.rule,
+                            ruleColor: editorial.arenaAccent,
                             disabledColor: disabledColor,
                             height: buttonHeight,
                             padding: EdgeInsets.zero,
@@ -284,9 +284,9 @@ class ScoreSidePanel extends StatelessWidget {
                                 key: Key('${side.name}-foul'),
                                 onPressed: foulEnabled ? onFoul : null,
                                 style: _editorialRailButtonStyle(
-                                  editorial.arenaAccent,
+                                  editorial.ink,
                                   backgroundColor: buttonSurface,
-                                  ruleColor: editorial.rule,
+                                  ruleColor: editorial.arenaAccent,
                                   disabledColor: disabledColor,
                                   height: buttonHeight,
                                 ),

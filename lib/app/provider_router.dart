@@ -31,7 +31,6 @@ import 'package:hooptrace/features/project/project_details_page.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
-import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
@@ -382,9 +381,6 @@ class _ScoringRoute extends ConsumerWidget {
         onResumeClock: canResumeClock
             ? () => _resumeScoring(context, ref, matchId)
             : null,
-        onPauseMatch: () => _pauseScoringFromControls(ref, matchId, controller),
-        onResumePausedMatch: () =>
-            _resumeScoringFromControls(ref, matchId, controller),
         onReturnHomePaused: () async => context.go('/'),
         onContinueDecision: projection.decision?.canContinue == true
             ? () => _continueScoringDecision(ref, matchId)
@@ -1118,35 +1114,6 @@ Future<void> _resumeScoring(
       ).showSnackBar(SnackBar(content: Text(l10n.routeResumeFailed)));
     }
   }
-}
-
-Future<void> _pauseScoringFromControls(
-  WidgetRef ref,
-  String matchId,
-  ScoringController controller,
-) async {
-  final projection = await ref
-      .read(matchCommandServiceProvider)
-      .pause(
-        PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
-      );
-  controller.replaceCommittedProjection(projection);
-}
-
-Future<void> _resumeScoringFromControls(
-  WidgetRef ref,
-  String matchId,
-  ScoringController controller,
-) async {
-  final projection = await ref
-      .read(matchCommandServiceProvider)
-      .resume(
-        ResumeMatchCommand(
-          matchId: matchId,
-          occurredAt: DateTime.now().toUtc(),
-        ),
-      );
-  controller.replaceCommittedProjection(projection);
 }
 
 Future<void> _continueScoringDecision(WidgetRef ref, String matchId) async {

@@ -10,6 +10,11 @@ import 'package:hooptrace/app/l10n/rule_template_localizations.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 
 void main() {
+  test('Chinese draft warning says returning home', () {
+    final l10n = AppLocalizationsZh();
+    expect(l10n.scoringPendingPauseExitBody, contains('返回主页'));
+    expect(l10n.scoringPendingPauseExitBody, isNot(contains('离开主页')));
+  });
   test('task 6 semantic copy is exact and ARB keys remain in parity', () {
     final en = AppLocalizationsEn();
     final zh = AppLocalizationsZh();

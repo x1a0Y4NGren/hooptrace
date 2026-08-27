@@ -1579,7 +1579,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scoringReturnHome => '返回主页';
 
   @override
-  String get scoringPendingPauseExitBody => '当前球场上还有未完成的灰色落点。离开主页或结束比赛会丢弃这次草稿。';
+  String get scoringPendingPauseExitBody => '当前球场上还有未完成的灰色落点。返回主页或结束比赛会丢弃这次草稿。';
 
   @override
   String get scoringDiscardDraft => '丢弃草稿';

@@ -505,7 +505,7 @@
   "scoringMatchPausedTitle": "比赛已暂停",
   "scoringMatchPausedBody": "计分操作已锁定。继续比赛后可接着记录。",
   "scoringReturnHome": "返回主页",
-  "scoringPendingPauseExitBody": "当前球场上还有未完成的灰色落点。离开主页或结束比赛会丢弃这次草稿。",
+  "scoringPendingPauseExitBody": "当前球场上还有未完成的灰色落点。返回主页或结束比赛会丢弃这次草稿。",
   "scoringDiscardDraft": "丢弃草稿",
   "scoringResume": "恢复",
   "scoringBlueFreeThrowMade": "蓝罚中",

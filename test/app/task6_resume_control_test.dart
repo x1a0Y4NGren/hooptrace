@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,6 +13,120 @@ import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 void main() {
+  testWidgets('production rapid pause cannot bypass a queued score', (
+    tester,
+  ) async {
+    final database = AppDatabase.inMemory();
+    _closeAfterWidgetTest(tester, database);
+    const matchId = 'task6-queued-score-pause';
+    await _startMatch(database, matchId, timerEnabled: true);
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    addTearDown(() {
+      if (!release.isCompleted) release.complete();
+    });
+    var armed = false;
+    var beforeCommitCalls = 0;
+    final gatedService = MatchCommandService(
+      database,
+      failureInjector: (point) async {
+        if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+          beforeCommitCalls++;
+          if (!entered.isCompleted) {
+            entered.complete();
+            await release.future;
+          }
+        }
+      },
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          matchCommandServiceProvider.overrideWithValue(gatedService),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+
+    armed = true;
+    await tester.tap(find.byKey(const Key('blue-score-1')));
+    await tester.pump();
+    await entered.future;
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pump();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+
+    release.complete();
+    await tester.pumpAndSettle();
+    expect(beforeCommitCalls, 1);
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+  });
+
+  testWidgets('production double continue submits one resume command', (
+    tester,
+  ) async {
+    final database = AppDatabase.inMemory();
+    _closeAfterWidgetTest(tester, database);
+    const matchId = 'task6-double-resume';
+    await _startMatch(database, matchId, timerEnabled: true);
+    final normalService = MatchCommandService(database);
+    await normalService.pause(
+      PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+    );
+    final entered = Completer<void>();
+    final release = Completer<void>();
+    addTearDown(() {
+      if (!release.isCompleted) release.complete();
+    });
+    var beforeCommitCalls = 0;
+    final gatedService = MatchCommandService(
+      database,
+      failureInjector: (point) async {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          beforeCommitCalls++;
+          if (!entered.isCompleted) {
+            entered.complete();
+            await release.future;
+          }
+        }
+      },
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          matchCommandServiceProvider.overrideWithValue(gatedService),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+
+    final continueButton = find.byKey(const Key('paused-continue'));
+    await tester.tap(continueButton);
+    await tester.pump();
+    await entered.future;
+    await tester.tap(continueButton, warnIfMissed: false);
+    await tester.pump();
+    expect(beforeCommitCalls, 1);
+
+    release.complete();
+    await _pumpUntilGone(tester, find.byKey(const Key('scoring-paused-panel')));
+    expect(beforeCommitCalls, 1);
+  });
+
   testWidgets('paused scoring shows blocking panel and resumes explicitly', (
     tester,
   ) async {
