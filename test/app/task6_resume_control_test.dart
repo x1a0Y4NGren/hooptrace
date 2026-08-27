@@ -11,7 +11,7 @@ import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 void main() {
-  testWidgets('paused scoring shows resume control and hides it after resume', (
+  testWidgets('paused scoring shows blocking panel and resumes explicitly', (
     tester,
   ) async {
     final database = AppDatabase.inMemory();
@@ -24,12 +24,12 @@ void main() {
     );
 
     await _enterScoring(tester, database);
-    await _openMore(tester);
-    expect(find.byKey(const Key('more-resume')), findsOneWidget);
-    expect(find.byKey(const Key('more-pause')), findsNothing);
-
-    await tester.ensureVisible(find.byKey(const Key('more-resume')));
-    await tester.tap(find.byKey(const Key('more-resume')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('paused-continue')));
     await tester.pump(const Duration(milliseconds: 100));
     expect((await service.readClock(matchId))?.isRunning, isTrue);
     await _pumpUntilGone(tester, find.byKey(const Key('scoring-more-sheet')));
@@ -68,15 +68,16 @@ void main() {
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
     await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
-    await _openMore(tester);
-    expect(find.byKey(const Key('more-resume')), findsOneWidget);
-
-    await tester.ensureVisible(find.byKey(const Key('more-resume')));
-    await tester.tap(find.byKey(const Key('more-resume')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('paused-continue')));
     await tester.pump();
     expect(find.byType(ScoringPage), findsOneWidget);
-    expect(find.byKey(const Key('more-inline-error')), findsOneWidget);
-    expect(find.byKey(const Key('more-resume')), findsOneWidget);
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(find.text('操作失败，请重试。'), findsOneWidget);
   });
 
   testWidgets(
@@ -108,10 +109,16 @@ void main() {
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
       await tester.tap(find.byKey(const Key('home-resume')));
       await _pumpUntilFound(tester, find.byType(ScoringPage));
-      await _openMore(tester);
-      await tester.ensureVisible(find.byKey(const Key('more-resume')));
-      await tester.tap(find.byKey(const Key('more-resume')));
-      await _pumpUntilGone(tester, find.byKey(const Key('scoring-more-sheet')));
+      await _pumpUntilFound(
+        tester,
+        find.byKey(const Key('scoring-paused-panel')),
+      );
+      expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('paused-continue')));
+      await _pumpUntilGone(
+        tester,
+        find.byKey(const Key('scoring-paused-panel')),
+      );
 
       expect(platform.hapticCalls, 1);
       expect(platform.eventCounts, [greaterThanOrEqualTo(2)]);
@@ -156,12 +163,15 @@ void main() {
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
     await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
-    await _openMore(tester);
-    await tester.ensureVisible(find.byKey(const Key('more-resume')));
-    await tester.tap(find.byKey(const Key('more-resume')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('paused-continue')));
     await tester.pump(const Duration(milliseconds: 100));
 
-    expect(find.byKey(const Key('more-inline-error')), findsOneWidget);
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
     expect(platform.hapticCalls, 0);
   });
 

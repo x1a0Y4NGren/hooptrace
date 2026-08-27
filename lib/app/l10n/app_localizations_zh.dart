@@ -1555,6 +1555,36 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scoringPause => '暂停';
 
   @override
+  String get scoringFinishShort => '结束';
+
+  @override
+  String get scoringMatchControlsTitle => '结束或暂停比赛？';
+
+  @override
+  String get scoringMatchControlsBody => '你可以暂时离开比赛，也可以确认当前比分并结束比赛。';
+
+  @override
+  String get scoringReturnToScoring => '返回计分';
+
+  @override
+  String get scoringPauseMatch => '暂停比赛';
+
+  @override
+  String get scoringMatchPausedTitle => '比赛已暂停';
+
+  @override
+  String get scoringMatchPausedBody => '计分操作已锁定。继续比赛后可接着记录。';
+
+  @override
+  String get scoringReturnHome => '返回主页';
+
+  @override
+  String get scoringPendingPauseExitBody => '当前球场上还有未完成的灰色落点。离开主页或结束比赛会丢弃这次草稿。';
+
+  @override
+  String get scoringDiscardDraft => '丢弃草稿';
+
+  @override
   String get scoringResume => '恢复';
 
   @override

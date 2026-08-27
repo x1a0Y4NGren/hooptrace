@@ -62,6 +62,48 @@ void main() {
     expect(await database.select(database.activeSessions).get(), isEmpty);
   });
 
+  testWidgets('production manual finish commits and opens canonical replay', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1095, 616));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final database = createTestDatabase();
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 200));
+      await database.close();
+    });
+    await _seedOpenMatch(MatchCommandService(database), 'route-manual-finish');
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [appDatabaseProvider.overrideWithValue(database)],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await _tapVisible(tester, find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    expect(find.byKey(const Key('scoring-decision-dock')), findsNothing);
+
+    await _tapVisible(tester, find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('match-controls-finish')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Red 1 : 0 Blue'), findsOneWidget);
+    await _tapVisible(tester, find.byKey(const Key('scoring-finish-confirm')));
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await _pumpUntilFound(tester, find.text(l10n.replayFinished));
+
+    final match = await database.select(database.matches).getSingle();
+    expect(match.lifecycle, MatchLifecycle.finished.name);
+    expect(await database.select(database.activeSessions).get(), isEmpty);
+    expect(
+      _routerFrom(tester).routeInformationProvider.value.uri.path,
+      '/matches/route-manual-finish/replay',
+    );
+  });
+
   testWidgets('production decision continue keeps the match active', (
     tester,
   ) async {

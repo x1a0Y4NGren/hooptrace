@@ -1621,6 +1621,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scoringPause => 'Pause';
 
   @override
+  String get scoringFinishShort => 'Finish';
+
+  @override
+  String get scoringMatchControlsTitle => 'Pause or finish the match?';
+
+  @override
+  String get scoringMatchControlsBody =>
+      'Pause to step away, or confirm the current score and finish the match.';
+
+  @override
+  String get scoringReturnToScoring => 'Return to scoring';
+
+  @override
+  String get scoringPauseMatch => 'Pause match';
+
+  @override
+  String get scoringMatchPausedTitle => 'Match paused';
+
+  @override
+  String get scoringMatchPausedBody =>
+      'Scoring is locked. Continue the match when you are ready to record again.';
+
+  @override
+  String get scoringReturnHome => 'Return home';
+
+  @override
+  String get scoringPendingPauseExitBody =>
+      'An unfinished gray court marker is still active. Returning home or finishing will discard this draft.';
+
+  @override
+  String get scoringDiscardDraft => 'Discard draft';
+
+  @override
   String get scoringResume => 'Resume';
 
   @override

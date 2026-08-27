@@ -3090,6 +3090,66 @@ abstract class AppLocalizations {
   /// **'暂停'**
   String get scoringPause;
 
+  /// No description provided for @scoringFinishShort.
+  ///
+  /// In zh, this message translates to:
+  /// **'结束'**
+  String get scoringFinishShort;
+
+  /// No description provided for @scoringMatchControlsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'结束或暂停比赛？'**
+  String get scoringMatchControlsTitle;
+
+  /// No description provided for @scoringMatchControlsBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'你可以暂时离开比赛，也可以确认当前比分并结束比赛。'**
+  String get scoringMatchControlsBody;
+
+  /// No description provided for @scoringReturnToScoring.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回计分'**
+  String get scoringReturnToScoring;
+
+  /// No description provided for @scoringPauseMatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂停比赛'**
+  String get scoringPauseMatch;
+
+  /// No description provided for @scoringMatchPausedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'比赛已暂停'**
+  String get scoringMatchPausedTitle;
+
+  /// No description provided for @scoringMatchPausedBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'计分操作已锁定。继续比赛后可接着记录。'**
+  String get scoringMatchPausedBody;
+
+  /// No description provided for @scoringReturnHome.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回主页'**
+  String get scoringReturnHome;
+
+  /// No description provided for @scoringPendingPauseExitBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前球场上还有未完成的灰色落点。离开主页或结束比赛会丢弃这次草稿。'**
+  String get scoringPendingPauseExitBody;
+
+  /// No description provided for @scoringDiscardDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'丢弃草稿'**
+  String get scoringDiscardDraft;
+
   /// No description provided for @scoringResume.
   ///
   /// In zh, this message translates to:
