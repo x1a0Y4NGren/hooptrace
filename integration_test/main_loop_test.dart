@@ -24,7 +24,11 @@ void main() {
       description: 'the Home start-scoring action',
     );
 
-    await tester.tap(find.byKey(homeStartScoringKey));
+    await _tapWhenHitTestable(
+      tester,
+      find.byKey(homeStartScoringKey),
+      description: 'the Home start-scoring action',
+    );
     await _pumpUntilFound(
       tester,
       find.byType(PregamePage),
@@ -39,7 +43,11 @@ void main() {
     await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     await tester.pump(const Duration(milliseconds: 300));
     await tester.ensureVisible(find.byKey(const Key('pregame-start-match')));
-    await tester.tap(find.byKey(const Key('pregame-start-match')));
+    await _tapWhenHitTestable(
+      tester,
+      find.byKey(const Key('pregame-start-match')),
+      description: 'the Pregame start-match action',
+    );
     await _pumpUntilFound(
       tester,
       find.byType(ScoringPage),
