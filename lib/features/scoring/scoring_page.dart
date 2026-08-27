@@ -1164,6 +1164,7 @@ class _ScoringPageState extends State<ScoringPage>
       _pauseTransitionBusy = true;
     });
     var accepted = true;
+    var failurePresented = false;
     if (!_controller.isManuallyPaused) {
       try {
         final pause = widget.onPauseMatch;
@@ -1171,11 +1172,12 @@ class _ScoringPageState extends State<ScoringPage>
           await pause();
           _notifyCommitted();
         } else {
-          accepted = await _pause();
+          accepted = await _pause(
+            onFailurePresented: () => failurePresented = true,
+          );
         }
       } on Object {
         accepted = false;
-        if (mounted) _showActionRejected(_labels(context).failureRetry);
       }
     }
     if (!mounted) return;
@@ -1184,7 +1186,9 @@ class _ScoringPageState extends State<ScoringPage>
         _interactionPaused = false;
         _pauseTransitionBusy = false;
       });
-      _showActionRejected(_labels(context).failureRetry);
+      if (!failurePresented) {
+        _showActionRejected(_labels(context).failureRetry);
+      }
       return;
     }
     setState(() => _pauseTransitionBusy = false);
@@ -1286,21 +1290,22 @@ class _ScoringPageState extends State<ScoringPage>
                         : () => unawaited(runReturnHome()),
                     child: Text(labels.returnHome),
                   ),
-                  FilledButton(
-                    key: Key(
-                      inlineFailure == null
-                          ? 'paused-continue'
-                          : 'paused-retry',
+                  if (inlineFailure == null || inlineRetry != null)
+                    FilledButton(
+                      key: Key(
+                        inlineFailure == null
+                            ? 'paused-continue'
+                            : 'paused-retry',
+                      ),
+                      onPressed: _pauseTransitionBusy
+                          ? null
+                          : () => unawaited(runResume()),
+                      child: Text(
+                        inlineFailure == null
+                            ? labels.continueMatch
+                            : labels.retry,
+                      ),
                     ),
-                    onPressed: _pauseTransitionBusy
-                        ? null
-                        : () => unawaited(runResume()),
-                    child: Text(
-                      inlineFailure == null
-                          ? labels.continueMatch
-                          : labels.retry,
-                    ),
-                  ),
                   OutlinedButton(
                     key: const Key('paused-finish'),
                     onPressed:
@@ -1858,7 +1863,10 @@ class _ScoringPageState extends State<ScoringPage>
     );
   }
 
-  Future<bool> _pause({bool rethrowFailure = false}) async {
+  Future<bool> _pause({
+    bool rethrowFailure = false,
+    VoidCallback? onFailurePresented,
+  }) async {
     final generation = _actionGeneration;
     final controller = _controller;
     try {
@@ -1869,6 +1877,7 @@ class _ScoringPageState extends State<ScoringPage>
     } on MatchCommandFailure catch (failure) {
       if (!_isCurrentAction(generation, controller)) return false;
       if (rethrowFailure) throw _moreFailure(failure);
+      onFailurePresented?.call();
       _showCommandFailure(failure);
       return false;
     }
@@ -2254,7 +2263,9 @@ class _ScoringPageState extends State<ScoringPage>
       final result = await controller.retryCommandWithReceipt(failure);
       if (!_isCurrentAction(generation, controller)) return false;
       if (result.accepted) {
-        if (controller.courtFirstShotDraft != null) {
+        if (failure.command is! PauseMatchCommand &&
+            failure.command is! ResumeMatchCommand &&
+            controller.courtFirstShotDraft != null) {
           controller.cancelCourtFirstShot();
         }
         final receipt = result.receipt;
@@ -2279,11 +2290,13 @@ class _ScoringPageState extends State<ScoringPage>
     final controller = _controller;
     return _MoreActionFailure(
       message: _labels(context).failureRetry,
-      retry: () => _retryMoreCommand(
-        failure,
-        generation: generation,
-        controller: controller,
-      ),
+      retry: failure.canRetry
+          ? () => _retryMoreCommand(
+              failure,
+              generation: generation,
+              controller: controller,
+            )
+          : null,
     );
   }
 
@@ -2321,7 +2334,7 @@ class _MoreActionFailure implements Exception {
   const _MoreActionFailure({required this.message, required this.retry});
 
   final String message;
-  final Future<bool> Function() retry;
+  final Future<bool> Function()? retry;
 }
 
 class _Scoreboard extends StatelessWidget {

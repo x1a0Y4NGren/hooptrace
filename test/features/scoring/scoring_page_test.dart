@@ -45,6 +45,49 @@ class _BusyPauseController extends ScoringController {
   Future<bool> pauseCommitted() async => false;
 }
 
+class _FailingPauseController extends ScoringController {
+  _FailingPauseController() : super(matchId: 'failing-pause-controller');
+
+  var retryWithReceiptCalls = 0;
+
+  late final MatchCommandFailure failure = MatchCommandFailure(
+    command: PauseMatchCommand(
+      matchId: state.matchId,
+      occurredAt: DateTime.utc(2026, 8, 27, 12),
+    ),
+    message: 'retryable pause failure',
+    canRetry: true,
+  );
+
+  @override
+  Future<bool> pauseCommitted() => Future<bool>.error(failure);
+
+  @override
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return const ScoringCommandRetryResult(accepted: true);
+  }
+}
+
+class _NonRetryableResumeController extends ScoringController {
+  _NonRetryableResumeController()
+    : super(matchId: 'non-retryable-resume-controller');
+
+  late final MatchCommandFailure failure = MatchCommandFailure(
+    command: ResumeMatchCommand(
+      matchId: state.matchId,
+      occurredAt: DateTime.utc(2026, 8, 27, 12),
+    ),
+    message: 'resume validation failed',
+    canRetry: false,
+  );
+
+  @override
+  Future<bool> resumeCommitted() => Future<bool>.error(failure);
+}
+
 class _FailingScoreController extends ScoringController {
   _FailingScoreController(String matchId) : super(matchId: matchId);
 
@@ -997,6 +1040,51 @@ void main() {
       expect(find.byKey(const Key('scoring-action-rejected')), findsOneWidget);
     },
   );
+
+  testWidgets('pause retry keeps the court-first draft', (tester) async {
+    final controller = _FailingPauseController();
+    controller.beginOrMoveCourtFirstShot(CourtPoint(x: 0.42, y: 0.61));
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+
+    expect(controller.courtFirstShotDraft, isNotNull);
+    expect(find.byType(SnackBarAction), findsOneWidget);
+    tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+    await tester.pumpAndSettle();
+
+    expect(controller.retryWithReceiptCalls, 1);
+    expect(controller.courtFirstShotDraft, isNotNull);
+  });
+
+  testWidgets('non-retryable resume failure stays inline without retry', (
+    tester,
+  ) async {
+    final controller = _NonRetryableResumeController();
+    expect(await controller.pauseCommitted(), isTrue);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          onReturnHomePaused: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(find.byKey(const Key('paused-resume-failure')), findsOneWidget);
+    expect(find.byKey(const Key('paused-retry')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('resume failure keeps the blocking paused panel', (tester) async {
     await tester.pumpWidget(
