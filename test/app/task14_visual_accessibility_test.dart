@@ -11,7 +11,11 @@ import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 
+import '../support/golden_fonts.dart';
+
 void main() {
+  setUpAll(loadHoopTraceGoldenFonts);
+
   testWidgets('English pregame defaults are localized before first paint', (
     tester,
   ) async {

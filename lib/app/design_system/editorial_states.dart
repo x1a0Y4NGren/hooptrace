@@ -8,6 +8,7 @@ class EditorialSheet extends StatelessWidget {
   const EditorialSheet({
     required this.child,
     this.title,
+    this.titleTrailing,
     this.actions = const [],
     this.padding = const EdgeInsets.all(HoopTraceSpacing.page),
     super.key,
@@ -15,6 +16,7 @@ class EditorialSheet extends StatelessWidget {
 
   final Widget child;
   final String? title;
+  final Widget? titleTrailing;
   final List<Widget> actions;
   final EdgeInsetsGeometry padding;
 
@@ -34,10 +36,16 @@ class EditorialSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (title != null) ...[
-                EditorialMasthead(
-                  title: title!,
-                  compact: true,
-                  showRule: false,
+                Stack(
+                  alignment: Alignment.centerRight,
+                  children: [
+                    EditorialMasthead(
+                      title: title!,
+                      compact: true,
+                      showRule: false,
+                    ),
+                    ?titleTrailing,
+                  ],
                 ),
                 const SizedBox(height: 16),
               ],

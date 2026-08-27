@@ -230,6 +230,7 @@ void main() {
           controller.state.pendingLocation?.eventId,
           'task8-stale-first-event',
         );
+        final staleEventId = controller.state.pendingLocation!.eventId;
 
         now = openedAt.add(const Duration(seconds: 1));
         final second = await service.record(
@@ -251,7 +252,10 @@ void main() {
           controller.locationSupplementWindow?.eventId,
           'task8-stale-second-event',
         );
-        await controller.confirmPendingLocation(CourtPoint(x: 0.2, y: 0.3));
+        await controller.confirmPendingLocation(
+          CourtPoint(x: 0.2, y: 0.3),
+          staleEventId,
+        );
         expect(await database.select(database.shotLocations).get(), isEmpty);
       });
     },

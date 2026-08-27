@@ -713,10 +713,30 @@ class ScoringController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> confirmPendingLocation([CourtPoint? point]) async {
+  /// Confirms the current location interaction.
+  ///
+  /// Existing callers may omit [expectedEventId] to confirm the current
+  /// score-first supplement. Interaction surfaces that retain a draft across
+  /// projection replacement should pass its event ID so only that identity is
+  /// accepted.
+  Future<void> confirmPendingLocation([
+    CourtPoint? point,
+    String? expectedEventId,
+  ]) async {
     if (_disposed) return;
     final pending = _state.pendingLocation;
-    if (pending == null) return;
+    if (pending == null) {
+      final window = _state.locationSupplementWindow;
+      if (window != null &&
+          (expectedEventId == null || expectedEventId == window.eventId)) {
+        await attachSupplementLocation(
+          point ?? CourtPoint(x: 0.5, y: 0.58),
+          eventId: expectedEventId,
+        );
+      }
+      return;
+    }
+    if (expectedEventId != null && expectedEventId != pending.eventId) return;
     final confirmedPoint = point ?? pending.point;
     final window = _state.locationSupplementWindow;
     if (window != null && window.eventId == pending.eventId) {

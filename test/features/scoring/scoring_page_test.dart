@@ -859,6 +859,111 @@ void main() {
     );
   });
 
+  testWidgets('idle scoring creates no periodic supplement timer', (
+    tester,
+  ) async {
+    var periodicTimers = 0;
+
+    await runZoned(
+      () => tester.pumpWidget(
+        const MaterialApp(home: ScoringPage(matchId: 'idle-no-wake')),
+      ),
+      zoneSpecification: ZoneSpecification(
+        createPeriodicTimer: (self, parent, zone, duration, callback) {
+          periodicTimers++;
+          return parent.createPeriodicTimer(zone, duration, callback);
+        },
+      ),
+    );
+
+    expect(periodicTimers, 0);
+  });
+
+  testWidgets('active location affordance does not oscillate', (tester) async {
+    final anchor = DateTime.utc(2026, 8, 27, 9);
+    final controller = ScoringController(
+      matchId: 'steady-location-affordance',
+      nowUtc: () => anchor,
+    )..addScore(side: TeamSide.red, points: 2);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(controller: controller, clockNowUtc: () => anchor),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    final affordance = find.byKey(const Key('red-score-2-location-affordance'));
+    final firstDecoration = tester
+        .widget<AnimatedContainer>(affordance)
+        .decoration;
+    expect(tester.binding.transientCallbackCount, 0);
+
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(
+      tester.widget<AnimatedContainer>(affordance).decoration,
+      firstDecoration,
+    );
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(find.byKey(const Key('red-score-2-location')), findsOneWidget);
+  });
+
+  testWidgets('supplement countdown expires at ten seconds', (tester) async {
+    final anchor = DateTime.utc(2026, 8, 27, 9);
+    var now = anchor;
+    final controller = ScoringController(
+      matchId: 'supplement-countdown-expiry',
+      nowUtc: () => now,
+    )..addScore(side: TeamSide.blue, points: 3);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(controller: controller, clockNowUtc: () => now),
+      ),
+    );
+    expect(find.textContaining('10秒'), findsOneWidget);
+
+    now = anchor.add(const Duration(seconds: 9, milliseconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('1秒'), findsOneWidget);
+    expect(controller.locationSupplementWindow, isNotNull);
+
+    now = anchor.add(const Duration(seconds: 10));
+    await tester.pump(const Duration(seconds: 1));
+    expect(controller.locationSupplementWindow, isNull);
+    expect(find.byKey(const Key('blue-score-3-location')), findsNothing);
+  });
+
+  for (final mode in <({bool disabled, bool reduced, Duration duration})>[
+    (disabled: false, reduced: true, duration: Duration(milliseconds: 120)),
+    (disabled: true, reduced: false, duration: Duration.zero),
+  ]) {
+    testWidgets('location reveal uses ${mode.duration.inMilliseconds}ms when '
+        '${mode.disabled ? 'animations are disabled' : 'motion is reduced'}', (
+      tester,
+    ) async {
+      final controller = ScoringController(
+        matchId: 'location-reveal-${mode.duration.inMilliseconds}',
+      )..addScore(side: TeamSide.red, points: 1);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              disableAnimations: mode.disabled,
+              accessibleNavigation: mode.reduced,
+            ),
+            child: ScoringPage(controller: controller),
+          ),
+        ),
+      );
+
+      final reveal = tester.widget<AnimatedContainer>(
+        find.byKey(const Key('red-score-1-location-affordance')),
+      );
+      expect(reveal.duration, mode.duration);
+    });
+  }
+
   testWidgets(
     'score-first location window allows a foul and keeps its window',
     (tester) async {
@@ -877,7 +982,12 @@ void main() {
         final windowEventId = controller.locationSupplementWindow!.eventId;
 
         await tester.pumpWidget(
-          MaterialApp(home: ScoringPage(controller: controller)),
+          MaterialApp(
+            home: ScoringPage(
+              controller: controller,
+              clockNowUtc: () => anchor,
+            ),
+          ),
         );
         expect(
           tester
@@ -1044,6 +1154,47 @@ void main() {
     );
   });
 
+  testWidgets('compact More sheet peeks the first action in the next section', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(731, 411));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+    tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'compact-more-peek')),
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-more')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(find.byKey(const Key('more-close'))).shortestSide,
+      greaterThanOrEqualTo(48),
+    );
+    final scrollViewport = tester.getRect(
+      find.descendant(
+        of: find.byKey(const Key('scoring-more-sheet')),
+        matching: find.byType(SingleChildScrollView),
+      ),
+    );
+    final nextAction = tester.getRect(
+      find.byKey(const Key('more-blue-free-throw-made')),
+    );
+    final visibleHeight =
+        nextAction.bottom.clamp(scrollViewport.top, scrollViewport.bottom) -
+        nextAction.top.clamp(scrollViewport.top, scrollViewport.bottom);
+
+    expect(nextAction.height, greaterThanOrEqualTo(48));
+    expect(
+      visibleHeight,
+      greaterThanOrEqualTo(48),
+      reason: 'The first action after the next section label must be visible.',
+    );
+  });
+
   testWidgets(
     'unified scoring remains operable across landscape and portrait sizes',
     (tester) async {
@@ -1174,7 +1325,9 @@ void main() {
     }
   });
 
-  testWidgets('reduced motion uses a static location outline', (tester) async {
+  testWidgets('disabled motion uses an immediate static location outline', (
+    tester,
+  ) async {
     final controller = ScoringController(matchId: 'unified-reduced-motion')
       ..addScore(side: TeamSide.blue, points: 2);
     await tester.pumpWidget(
@@ -1187,7 +1340,15 @@ void main() {
     );
     await tester.pump();
     expect(find.byKey(const Key('blue-score-2-location')), findsOneWidget);
-    expect(find.byType(AnimatedContainer), findsNothing);
+    expect(
+      tester
+          .widget<AnimatedContainer>(
+            find.byKey(const Key('blue-score-2-location-affordance')),
+          )
+          .duration,
+      Duration.zero,
+    );
+    expect(tester.binding.transientCallbackCount, 0);
     expect(find.textContaining('2 秒'), findsNothing);
   });
 
@@ -2996,6 +3157,7 @@ void main() {
         MaterialApp(
           home: ScoringPage(
             controller: controller,
+            clockNowUtc: () => anchor,
             onRequestLeave: () async => leaveCalls++,
           ),
         ),

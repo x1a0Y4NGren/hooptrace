@@ -133,6 +133,51 @@ void main() {
           'space. Raster metrics: $metrics',
     );
   });
+
+  testWidgets('golden font pipeline renders real Chinese body glyphs', (
+    tester,
+  ) async {
+    const bodyGlyph = Key('chinese-body-glyph');
+    final bodyStyle = buildHoopTraceTheme().textTheme.bodyMedium!.copyWith(
+      color: Colors.black,
+      fontSize: 40,
+      height: 1,
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: RepaintBoundary(
+            key: bodyGlyph,
+            child: ColoredBox(
+              color: Colors.white,
+              child: SizedBox.square(
+                dimension: 64,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Text('中', style: bodyStyle),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final metrics = _measureDarkGlyph(
+      await _captureRaster(tester, find.byKey(bodyGlyph)),
+    );
+    expect(
+      metrics.backgroundRatioInsideBounds,
+      greaterThan(0.15),
+      reason:
+          'A production-theme Chinese glyph must preserve the counters and '
+          'stroke spacing of Noto Sans SC. Ahem/tofu renders as a filled '
+          'test block. Raster metrics: $metrics',
+    );
+  });
 }
 
 final class _Raster {

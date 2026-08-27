@@ -700,13 +700,12 @@ void main() {
     },
   );
 
-  test('confirming a pending location locks and records the court point', () {
+  test('score-first confirmation locks and records the court point', () async {
     final controller = ScoringController(matchId: 'match-1');
     final point = CourtPoint(x: 0.25, y: 0.75);
 
     controller.addScore(side: TeamSide.blue, points: 2);
-    expect(controller.beginLocateLastUnlocatedShot(), isTrue);
-    controller.confirmPendingLocation(point);
+    await controller.confirmPendingLocation(point);
 
     expect(controller.state.pendingLocation, isNull);
     expect(controller.state.shotLocations, hasLength(1));

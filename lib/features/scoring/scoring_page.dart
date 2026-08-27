@@ -75,7 +75,6 @@ class _ScoringPageState extends State<ScoringPage>
   bool _ownsController = false;
   bool _leaveBusy = false;
   bool _decisionBusy = false;
-  bool _pulseOn = false;
   Timer? _clockTicker;
   Timer? _supplementTicker;
   final GlobalKey _motionWorkspaceKey = GlobalKey();
@@ -358,24 +357,42 @@ class _ScoringPageState extends State<ScoringPage>
 
   void _startTickers() {
     _clockTicker?.cancel();
-    _supplementTicker?.cancel();
     if (widget.clockTick > Duration.zero && _controller.timerEnabled) {
       _clockTicker = Timer.periodic(widget.clockTick, (_) {
         if (mounted) setState(() {});
       });
     }
-    // 450ms is a soft pulse (2.2Hz), also slow enough for touch users.
-    _supplementTicker = Timer.periodic(const Duration(milliseconds: 450), (_) {
-      if (!mounted) return;
-      final window = _controller.locationSupplementWindow;
-      if (window == null) {
-        if (_pulseOn) setState(() => _pulseOn = false);
-        return;
-      }
-      final now = _nowUtc();
+    _syncSupplementTicker();
+  }
+
+  void _syncSupplementTicker() {
+    _supplementTicker?.cancel();
+    _supplementTicker = null;
+    final window = _controller.locationSupplementWindow;
+    if (!mounted || _disposed || window == null) return;
+
+    final now = _nowUtc();
+    if (!now.isBefore(window.expiresAtUtc)) {
       _controller.expireSupplementWindow(atUtc: now);
-      if (mounted) setState(() => _pulseOn = !_pulseOn);
-    });
+      return;
+    }
+
+    final remainingMilliseconds = window.expiresAtUtc
+        .difference(now)
+        .inMilliseconds;
+    final displayedSeconds = (remainingMilliseconds / 1000).ceil().clamp(1, 10);
+    final nextDisplayBoundaryMilliseconds =
+        remainingMilliseconds - (displayedSeconds - 1) * 1000;
+    _supplementTicker = Timer(
+      Duration(milliseconds: nextDisplayBoundaryMilliseconds.clamp(1, 1000)),
+      () {
+        _supplementTicker = null;
+        if (!mounted || _disposed) return;
+        final expired = _controller.expireSupplementWindow(atUtc: _nowUtc());
+        if (!expired && mounted) setState(() {});
+        _syncSupplementTicker();
+      },
+    );
   }
 
   DateTime _nowUtc() => (widget.clockNowUtc?.call() ?? DateTime.now()).toUtc();
@@ -402,6 +419,7 @@ class _ScoringPageState extends State<ScoringPage>
       _hiddenShotLocationIds.remove(id);
       _transientMarkers.remove(id);
     }
+    _syncSupplementTicker();
     if (mounted && !_disposed) setState(() {});
   }
 
@@ -564,6 +582,14 @@ class _ScoringPageState extends State<ScoringPage>
         (MediaQuery.maybeOf(context)?.disableAnimations ?? false) ||
         (MediaQuery.maybeAccessibleNavigationOf(context) ?? false) ||
         _motionMode != ScoringMotionMode.standard;
+    final motion = Theme.of(context).extension<HoopTraceMotionTheme>();
+    final locationRevealDuration = switch (_motionMode) {
+      ScoringMotionMode.disabled => Duration.zero,
+      ScoringMotionMode.reduced =>
+        motion?.reducedReveal ?? const Duration(milliseconds: 120),
+      ScoringMotionMode.standard =>
+        motion?.state ?? const Duration(milliseconds: 180),
+    };
     final draft = state.courtFirstShotDraft;
     return ScoreSidePanel(
       key: Key('${side.name}-side-panel'),
@@ -578,7 +604,7 @@ class _ScoringPageState extends State<ScoringPage>
       foulEnabled: draft == null && state.pendingLocation == null,
       locationPoints: activeLocation ? window.points : null,
       locationRemainingSeconds: activeLocation ? remaining : null,
-      locationPulse: activeLocation && _pulseOn,
+      locationRevealDuration: locationRevealDuration,
       reduceMotion: reduceMotion,
       scoreButtonKeys: _scoreButtonKeys[side],
       foulStamp: _foulStampSide == side,
@@ -1030,6 +1056,8 @@ class _ScoringPageState extends State<ScoringPage>
   Future<void> _showMore() async {
     final labels = _labels(context);
     final clock = _displayClock();
+    final workspace = _motionWorkspaceKey.currentContext?.findRenderObject();
+    final compactHeight = workspace is RenderBox && workspace.size.height < 500;
     final sheetDuration =
         Theme.of(context).extension<HoopTraceMotionTheme>()?.sheet ??
         Duration.zero;
@@ -1084,15 +1112,33 @@ class _ScoringPageState extends State<ScoringPage>
                 child: EditorialSheet(
                   key: const Key('scoring-more-sheet'),
                   title: labels.more,
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                  actions: [
-                    OutlinedButton.icon(
-                      key: const Key('more-close'),
-                      onPressed: () => Navigator.of(sheetContext).pop(),
-                      icon: const Icon(Icons.close),
-                      label: Text(labels.cancel),
-                    ),
-                  ],
+                  titleTrailing: compactHeight
+                      ? Tooltip(
+                          message: labels.cancel,
+                          child: OutlinedButton(
+                            key: const Key('more-close'),
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size.square(48),
+                              padding: EdgeInsets.zero,
+                            ),
+                            child: const Icon(Icons.close),
+                          ),
+                        )
+                      : null,
+                  padding: compactHeight
+                      ? const EdgeInsets.fromLTRB(16, 8, 16, 8)
+                      : const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                  actions: compactHeight
+                      ? const []
+                      : [
+                          OutlinedButton.icon(
+                            key: const Key('more-close'),
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(Icons.close),
+                            label: Text(labels.cancel),
+                          ),
+                        ],
                   child: Flexible(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.zero,

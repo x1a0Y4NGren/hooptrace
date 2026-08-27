@@ -20,7 +20,7 @@ class ScoreSidePanel extends StatelessWidget {
     this.foulEnabled = true,
     this.locationPoints,
     this.locationRemainingSeconds,
-    this.locationPulse = false,
+    this.locationRevealDuration = Duration.zero,
     this.reduceMotion = false,
     this.scoreButtonKeys,
     this.foulStamp = false,
@@ -42,7 +42,7 @@ class ScoreSidePanel extends StatelessWidget {
   final bool foulEnabled;
   final int? locationPoints;
   final int? locationRemainingSeconds;
-  final bool locationPulse;
+  final Duration locationRevealDuration;
   final bool reduceMotion;
 
   /// Optional geometry handles for the live scoring overlay. Public semantic
@@ -92,7 +92,7 @@ class ScoreSidePanel extends StatelessWidget {
                   locationRemainingSeconds: locationPoints == points
                       ? locationRemainingSeconds
                       : null,
-                  locationPulse: locationPulse && locationPoints == points,
+                  locationRevealDuration: locationRevealDuration,
                   reduceMotion: reduceMotion,
                   geometryKey: scoreButtonKeys?[points],
                   onPressed: () => onScore(points),
@@ -328,8 +328,7 @@ class ScoreSidePanel extends StatelessWidget {
                             locationRemainingSeconds: locationPoints == points
                                 ? locationRemainingSeconds
                                 : null,
-                            locationPulse:
-                                locationPulse && locationPoints == points,
+                            locationRevealDuration: locationRevealDuration,
                             reduceMotion: reduceMotion,
                             geometryKey: scoreButtonKeys?[points],
                             onPressed: () => onScore(points),
@@ -410,7 +409,7 @@ class _ScoreAction extends StatefulWidget {
     required this.enabled,
     required this.locationActive,
     required this.locationRemainingSeconds,
-    required this.locationPulse,
+    required this.locationRevealDuration,
     required this.reduceMotion,
     this.geometryKey,
     required this.onPressed,
@@ -426,7 +425,7 @@ class _ScoreAction extends StatefulWidget {
   final bool enabled;
   final bool locationActive;
   final int? locationRemainingSeconds;
-  final bool locationPulse;
+  final Duration locationRevealDuration;
   final bool reduceMotion;
   final GlobalKey? geometryKey;
   final VoidCallback onPressed;
@@ -481,7 +480,7 @@ class _ScoreActionState extends State<_ScoreAction> {
               disabledColor: disabledColor,
               height: widget.height,
               padding: widget.compact ? EdgeInsets.zero : null,
-              emphasizedBorder: widget.locationActive && widget.reduceMotion,
+              emphasizedBorder: widget.locationActive,
             ),
             onPressed: widget.enabled ? widget.onPressed : null,
             child: FittedBox(fit: BoxFit.scaleDown, child: label),
@@ -507,14 +506,19 @@ class _ScoreActionState extends State<_ScoreAction> {
         child: button,
       ),
     );
-    if (!widget.locationPulse || widget.reduceMotion) return feedback;
+    if (!widget.locationActive) return feedback;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+      key: Key(
+        '${widget.side.name}-score-${widget.points}-location-affordance',
+      ),
+      duration: widget.locationRevealDuration,
       curve: Curves.easeOut,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
         border: Border.all(
-          color: widget.color.withValues(alpha: 0.35),
+          color: widget.locationActive
+              ? widget.color.withValues(alpha: 0.35)
+              : Colors.transparent,
           width: 2,
         ),
       ),
