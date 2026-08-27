@@ -214,6 +214,21 @@ class MatchScoringState {
   final MatchDecision? decision;
   final List<MatchRuleWarning> ruleWarnings;
 
+  /// Whether the match is currently in the user-controlled paused state.
+  ///
+  /// Pause/resume is stored as a pair of system semantic events rather than
+  /// inferred from the clock: untimed matches can therefore be paused too.
+  /// Other pause-typed records (for example rule decisions) and deleted rows
+  /// deliberately do not participate in this state.
+  bool get isManuallyPaused {
+    for (final event in events.reversed) {
+      if (event.isDeleted || event.type != EventKind.pause) continue;
+      if (event.customLabel == 'pause') return true;
+      if (event.customLabel == 'resume') return false;
+    }
+    return false;
+  }
+
   MatchScoringState copyWith({
     List<MatchEvent>? events,
     ScoreState? score,
@@ -338,6 +353,8 @@ class ScoringController extends ChangeNotifier {
   TeamSide? get currentPossession => _state.currentPossession;
 
   bool get timerEnabled => _state.timerEnabled;
+
+  bool get isManuallyPaused => _state.isManuallyPaused;
 
   CourtFirstShotDraft? get courtFirstShotDraft => _state.courtFirstShotDraft;
 
@@ -1111,8 +1128,9 @@ class ScoringController extends ChangeNotifier {
 
   Future<bool> pauseCommitted() {
     if (_disposed ||
-        _state.pendingLocation != null ||
-        _state.detailedShotDraft != null) {
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty) {
       return Future<bool>.value(false);
     }
     final service = _commandService;
@@ -1128,8 +1146,9 @@ class ScoringController extends ChangeNotifier {
 
   Future<bool> resumeCommitted() {
     if (_disposed ||
-        _state.pendingLocation != null ||
-        _state.detailedShotDraft != null) {
+        _exclusiveBusy ||
+        _drainingQueue ||
+        _commandQueue.isNotEmpty) {
       return Future<bool>.value(false);
     }
     final service = _commandService;

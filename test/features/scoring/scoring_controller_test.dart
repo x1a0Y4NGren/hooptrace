@@ -4,9 +4,11 @@ import 'dart:convert';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
+import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/rules/rule_engine.dart';
+import 'package:hooptrace/core/domain/scoring/score_state.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
@@ -15,6 +17,109 @@ import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  test(
+    'manual pause state only follows active pause and resume semantic events',
+    () {
+      MatchEvent event({
+        required String id,
+        required EventKind type,
+        String? label,
+        bool isDeleted = false,
+      }) {
+        return MatchEvent(
+          id: id,
+          matchId: 'pause-state',
+          type: type,
+          side: null,
+          points: 0,
+          occurredAt: DateTime.utc(2026, 8, 27, 12),
+          customLabel: label,
+          isDeleted: isDeleted,
+        );
+      }
+
+      MatchScoringState state(List<MatchEvent> events) {
+        return MatchScoringState(
+          matchId: 'pause-state',
+          redName: 'Red',
+          blueName: 'Blue',
+          events: events,
+          score: const ScoreState.zero(),
+          shotLocations: const [],
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: 'Free',
+            scoreButtons: [1, 2, 3],
+          ),
+        );
+      }
+
+      final pause = event(id: 'pause', type: EventKind.pause, label: 'pause');
+      final resume = event(
+        id: 'resume',
+        type: EventKind.pause,
+        label: 'resume',
+      );
+
+      expect(state([pause]).isManuallyPaused, isTrue);
+      expect(
+        state([
+          pause,
+          event(id: 'foul', type: EventKind.foul, label: 'resume'),
+          event(
+            id: 'decision',
+            type: EventKind.pause,
+            label: 'decision:targetReached',
+          ),
+        ]).isManuallyPaused,
+        isTrue,
+      );
+      expect(state([pause, resume]).isManuallyPaused, isFalse);
+      expect(
+        state([
+          pause,
+          event(
+            id: 'deleted-resume',
+            type: EventKind.pause,
+            label: 'resume',
+            isDeleted: true,
+          ),
+        ]).isManuallyPaused,
+        isTrue,
+      );
+      expect(
+        state([
+          event(
+            id: 'deleted-pause',
+            type: EventKind.pause,
+            label: 'pause',
+            isDeleted: true,
+          ),
+          event(id: 'custom-pause', type: EventKind.custom, label: 'pause'),
+        ]).isManuallyPaused,
+        isFalse,
+      );
+    },
+  );
+
+  test('local untimed pause and resume preserve a court-first draft', () async {
+    final controller = ScoringController(matchId: 'local-pause-state');
+    final point = CourtPoint(x: 0.35, y: 0.65);
+    expect(controller.beginOrMoveCourtFirstShot(point), isTrue);
+
+    expect(await controller.pauseCommitted(), isTrue);
+    expect(controller.isManuallyPaused, isTrue);
+    expect(controller.courtFirstShotDraft?.point, point);
+
+    expect(await controller.resumeCommitted(), isTrue);
+    expect(controller.isManuallyPaused, isFalse);
+    expect(controller.courtFirstShotDraft?.point, point);
+    expect(controller.state.events.map((event) => event.customLabel), [
+      'pause',
+      'resume',
+    ]);
+  });
+
   test('retryCommand rejects a failure from another match', () async {
     final controller = ScoringController(matchId: 'current-match');
     final command = RecordMatchEventCommand(

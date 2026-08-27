@@ -752,10 +752,86 @@ void main() {
         service,
       );
 
+      expect(controller.isManuallyPaused, isFalse);
       expect(await controller.pauseCommitted(), isTrue);
+      expect(controller.isManuallyPaused, isTrue);
       expect(await controller.resumeCommitted(), isTrue);
+      expect(controller.isManuallyPaused, isFalse);
       final events = await database.select(database.matchEvents).get();
       expect(events.map((event) => event.customLabel), ['pause', 'resume']);
+    });
+  });
+
+  test(
+    'pause and resume preserve legacy pending location without a timer',
+    () async {
+      await withTestDatabase((database) async {
+        final now = DateTime.now().toUtc();
+        final service = MatchCommandService(database, now: () => now);
+        final started = await service.start(
+          _startCommand(matchId: 'task8-pause-pending', timerEnabled: false),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.red, points: 2),
+          isTrue,
+        );
+        expect(controller.beginLocateLastUnlocatedShot(), isTrue);
+        final pending = controller.state.pendingLocation!;
+
+        expect(await controller.pauseCommitted(), isTrue);
+        expect(controller.isManuallyPaused, isTrue);
+        expect(controller.state.pendingLocation?.eventId, pending.eventId);
+        expect(controller.state.pendingLocation?.point, pending.point);
+
+        expect(await controller.resumeCommitted(), isTrue);
+        expect(controller.isManuallyPaused, isFalse);
+        expect(controller.state.pendingLocation?.eventId, pending.eventId);
+        expect(controller.state.pendingLocation?.point, pending.point);
+      });
+    },
+  );
+
+  test('failed pause and resume commands do not change pause state', () async {
+    await withTestDatabase((database) async {
+      var failNext = false;
+      final service = MatchCommandService(
+        database,
+        failureInjector: (point) {
+          if (failNext && point == MatchCommandFailurePoint.beforeCommit) {
+            failNext = false;
+            throw StateError('pause transition failed');
+          }
+        },
+      );
+      final started = await service.start(
+        _startCommand(matchId: 'task8-pause-failure', timerEnabled: false),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+
+      failNext = true;
+      await expectLater(
+        controller.pauseCommitted(),
+        throwsA(isA<MatchCommandFailure>()),
+      );
+      expect(controller.isManuallyPaused, isFalse);
+
+      expect(await controller.pauseCommitted(), isTrue);
+      expect(controller.isManuallyPaused, isTrue);
+
+      failNext = true;
+      await expectLater(
+        controller.resumeCommitted(),
+        throwsA(isA<MatchCommandFailure>()),
+      );
+      expect(controller.isManuallyPaused, isTrue);
     });
   });
 
@@ -953,58 +1029,58 @@ void main() {
     },
   );
 
-  test(
-    'detailed draft rejects undo pause and resume without touching projection',
-    () async {
-      await withTestDatabase((database) async {
-        var commandCalls = 0;
-        final service = MatchCommandService(
-          database,
-          failureInjector: (point) {
-            if (point == MatchCommandFailurePoint.beforeCommit) {
-              commandCalls++;
-            }
-          },
-        );
-        final started = await service.start(
-          _startCommand(
-            matchId: 'task8-draft-exclusive',
-            recordingMode: RecordingMode.detailed,
-            trackingCoverage: TrackingCoverage.locations,
-          ),
-        );
-        commandCalls = 0;
-        final controller = ScoringController.fromCommittedProjection(
-          started,
-          service,
-        );
-        expect(
-          await controller.recordScoreCommitted(side: TeamSide.blue, points: 1),
-          isTrue,
-        );
-        commandCalls = 0;
-        expect(
-          controller.beginDetailedShot(
-            CourtPoint(x: 0.3, y: 0.7),
-            side: TeamSide.red,
-          ),
-          isTrue,
-        );
+  test('detailed draft blocks undo but survives pause and resume', () async {
+    await withTestDatabase((database) async {
+      var commandCalls = 0;
+      final service = MatchCommandService(
+        database,
+        failureInjector: (point) {
+          if (point == MatchCommandFailurePoint.beforeCommit) {
+            commandCalls++;
+          }
+        },
+      );
+      final started = await service.start(
+        _startCommand(
+          matchId: 'task8-draft-exclusive',
+          recordingMode: RecordingMode.detailed,
+          trackingCoverage: TrackingCoverage.locations,
+        ),
+      );
+      commandCalls = 0;
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+      expect(
+        await controller.recordScoreCommitted(side: TeamSide.blue, points: 1),
+        isTrue,
+      );
+      commandCalls = 0;
+      expect(
+        controller.beginDetailedShot(
+          CourtPoint(x: 0.3, y: 0.7),
+          side: TeamSide.red,
+        ),
+        isTrue,
+      );
 
-        expect(await controller.undoLastEventCommitted(), isFalse);
-        expect(await controller.pauseCommitted(), isFalse);
-        expect(await controller.resumeCommitted(), isFalse);
-        expect(commandCalls, 0);
-        expect(controller.state.events, hasLength(1));
-        expect(controller.state.score.blueScore, 1);
-        expect(controller.detailedShotDraft, isNotNull);
-        expect(controller.detailedShotDraft!.point.x, 0.3);
-        expect(controller.detailedShotDraft!.point.y, 0.7);
-        expect(controller.detailedShotDraft!.side, TeamSide.red);
-        expect(await database.select(database.matchEvents).get(), hasLength(1));
-      });
-    },
-  );
+      expect(await controller.undoLastEventCommitted(), isFalse);
+      expect(await controller.pauseCommitted(), isTrue);
+      expect(controller.isManuallyPaused, isTrue);
+      expect(controller.detailedShotDraft, isNotNull);
+      expect(await controller.resumeCommitted(), isTrue);
+      expect(controller.isManuallyPaused, isFalse);
+      expect(commandCalls, 2);
+      expect(controller.state.events, hasLength(3));
+      expect(controller.state.score.blueScore, 1);
+      expect(controller.detailedShotDraft, isNotNull);
+      expect(controller.detailedShotDraft!.point.x, 0.3);
+      expect(controller.detailedShotDraft!.point.y, 0.7);
+      expect(controller.detailedShotDraft!.side, TeamSide.red);
+      expect(await database.select(database.matchEvents).get(), hasLength(3));
+    });
+  });
 
   test(
     'generic command adapter enforces match identity and miss coverage',
