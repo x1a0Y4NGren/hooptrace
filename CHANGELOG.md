@@ -4,16 +4,26 @@
 
 ## [Unreleased]
 
-### 1.0 release candidate / 1.0 发布候选
+## [1.0.0] - 2026-08-28
+
+### Added
 
 - 完成离线单挑计分、可恢复比赛、规则/球权、分页历史、复盘审计和真实数据覆盖分析。
 - 提供版本化备份的安全替换/确定性合并、用户授权目录自动备份及保留策略。
 - 完成简体中文/英文、系统/浅色/深色主题、自适应布局、无障碍和 Android 16 适配。
 - 建立性能基准、API 36 集成验证、未签名可复现构建和 iOS 无签名编译门槛。
+- 新增球场优先与得分优先的统一落点记录、10 秒补点、逐步撤回、暂停和显式结束流程。
 
-The 1.0 entry will be dated only after the signed release tag and all RC gates
-are complete. Until then, this section describes the release candidate and is
-not a published version.
+### Changed
+
+- 全应用升级为“黑场编辑部”视觉系统，统一首页、赛前、计分、回放、历史、球员、规则与设置。
+- 计分页采用对称四行操作列、严格居中的计时控制和高对比度操作索引。
+- 投篮落点加入离线“飞球—拖尾—颜料落点”反馈，并支持精简动效和系统关闭动画。
+
+### Fixed
+
+- 修复比赛结束后的返回死路、失效页面上下文、弹窗生命周期及快速操作竞态。
+- 修复 Windows 检出时固定 SQLite 源码换行变化导致的发布哈希误报。
 
 ## [0.1.0] - 2026-08-21
 
@@ -31,5 +41,6 @@ not a published version.
 - 计分页顶部信息在小屏横屏和长球员名称下保持稳定布局。
 - 未配置正式密钥时，上游 Release 构建明确失败；未签名构建必须显式选择。
 
-[Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/x1a0Y4NGren/hooptrace/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v0.1.0
