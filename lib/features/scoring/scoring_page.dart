@@ -85,6 +85,7 @@ class _ScoringPageState extends State<ScoringPage>
   bool _pauseTransitionBusy = false;
   bool _pausedPanelVisible = false;
   bool _pausedPanelScheduled = false;
+  VoidCallback? _dismissPausedPanel;
   Timer? _clockTicker;
   Timer? _supplementTicker;
   final GlobalKey _motionWorkspaceKey = GlobalKey();
@@ -441,6 +442,17 @@ class _ScoringPageState extends State<ScoringPage>
         !_interactionPaused) {
       _interactionPaused = true;
       _schedulePersistedPausePanel();
+    }
+    if (_interactionPaused &&
+        _pausedPanelVisible &&
+        !_pauseTransitionBusy &&
+        !_controller.state.isManuallyPaused) {
+      _interactionPaused = false;
+      final dismiss = _dismissPausedPanel;
+      _dismissPausedPanel = null;
+      if (dismiss != null) {
+        SchedulerBinding.instance.addPostFrameCallback((_) => dismiss());
+      }
     }
     if (mounted && !_disposed) setState(() {});
   }
@@ -1199,62 +1211,71 @@ class _ScoringPageState extends State<ScoringPage>
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (dialogContext, setDialogState) => PopScope<void>(
-            canPop: false,
-            child: AlertDialog(
-              key: const Key('scoring-paused-panel'),
-              icon: const Icon(Icons.pause_circle_outline, size: 40),
-              title: Text(labels.matchPausedTitle),
-              content: Text(labels.matchPausedBody),
-              actions: [
-                TextButton(
-                  key: const Key('paused-return-home'),
-                  style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-                  onPressed: _pauseTransitionBusy
-                      ? null
-                      : () => unawaited(
-                          _returnHomeFromPausedPanel(dialogContext),
-                        ),
-                  child: Text(labels.returnHome),
-                ),
-                FilledButton(
-                  key: const Key('paused-continue'),
-                  onPressed: _pauseTransitionBusy
-                      ? null
-                      : () {
-                          setState(() => _pauseTransitionBusy = true);
-                          setDialogState(() {});
-                          unawaited(
-                            _resumeFromPausedPanel().then((accepted) {
-                              if (!mounted) return;
-                              setState(() => _pauseTransitionBusy = false);
-                              if (accepted && dialogContext.mounted) {
-                                Navigator.of(dialogContext).pop();
-                              } else if (dialogContext.mounted) {
-                                setDialogState(() {});
-                              }
-                            }),
-                          );
-                        },
-                  child: Text(labels.continueMatch),
-                ),
-                OutlinedButton(
-                  key: const Key('paused-finish'),
-                  onPressed:
-                      _pauseTransitionBusy ||
-                          widget.onFinishDecision == null ||
-                          _controller.state.decision?.canFinish == false
-                      ? null
-                      : () => unawaited(_finishFromPausedPanel(dialogContext)),
-                  child: Text(labels.finish),
-                ),
-              ],
+        builder: (dialogContext) {
+          _dismissPausedPanel = () {
+            if (dialogContext.mounted) Navigator.of(dialogContext).pop();
+          };
+          return StatefulBuilder(
+            builder: (dialogContext, setDialogState) => PopScope<void>(
+              canPop: false,
+              child: AlertDialog(
+                key: const Key('scoring-paused-panel'),
+                icon: const Icon(Icons.pause_circle_outline, size: 40),
+                title: Text(labels.matchPausedTitle),
+                content: Text(labels.matchPausedBody),
+                actions: [
+                  TextButton(
+                    key: const Key('paused-return-home'),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    onPressed: _pauseTransitionBusy
+                        ? null
+                        : () => unawaited(
+                            _returnHomeFromPausedPanel(dialogContext),
+                          ),
+                    child: Text(labels.returnHome),
+                  ),
+                  FilledButton(
+                    key: const Key('paused-continue'),
+                    onPressed: _pauseTransitionBusy
+                        ? null
+                        : () {
+                            setState(() => _pauseTransitionBusy = true);
+                            setDialogState(() {});
+                            unawaited(
+                              _resumeFromPausedPanel().then((accepted) {
+                                if (!mounted) return;
+                                setState(() => _pauseTransitionBusy = false);
+                                if (accepted && dialogContext.mounted) {
+                                  Navigator.of(dialogContext).pop();
+                                } else if (dialogContext.mounted) {
+                                  setDialogState(() {});
+                                }
+                              }),
+                            );
+                          },
+                    child: Text(labels.continueMatch),
+                  ),
+                  OutlinedButton(
+                    key: const Key('paused-finish'),
+                    onPressed:
+                        _pauseTransitionBusy ||
+                            widget.onFinishDecision == null ||
+                            _controller.state.decision?.canFinish == false
+                        ? null
+                        : () =>
+                              unawaited(_finishFromPausedPanel(dialogContext)),
+                    child: Text(labels.finish),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       );
     } finally {
+      _dismissPausedPanel = null;
       _pausedPanelVisible = false;
       if (mounted && _interactionPaused) _schedulePersistedPausePanel();
     }

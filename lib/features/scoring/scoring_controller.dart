@@ -1127,10 +1127,7 @@ class ScoringController extends ChangeNotifier {
   }
 
   Future<bool> pauseCommitted() {
-    if (_disposed ||
-        _exclusiveBusy ||
-        _drainingQueue ||
-        _commandQueue.isNotEmpty) {
+    if (_disposed || _exclusiveBusy) {
       return Future<bool>.value(false);
     }
     final service = _commandService;
@@ -1141,7 +1138,7 @@ class ScoringController extends ChangeNotifier {
       matchId: _state.matchId,
       occurredAt: _nowUtc().toUtc(),
     );
-    return _runExclusive(command, () => service.pause(command));
+    return _enqueueCommand(command, () => service.pause(command));
   }
 
   Future<bool> resumeCommitted() {

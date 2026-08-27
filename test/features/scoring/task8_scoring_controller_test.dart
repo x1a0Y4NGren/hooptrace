@@ -915,6 +915,55 @@ void main() {
     },
   );
 
+  test('pause is serialized after an in-flight scoring command', () async {
+    await withTestDatabase((database) async {
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      var armed = false;
+      var beforeCommitCalls = 0;
+      final service = MatchCommandService(
+        database,
+        failureInjector: (point) async {
+          if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+            beforeCommitCalls++;
+            if (!entered.isCompleted) {
+              entered.complete();
+              await release.future;
+            }
+          }
+        },
+      );
+      final started = await service.start(
+        _startCommand(matchId: 'task8-score-then-pause'),
+      );
+      armed = true;
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+
+      final score = controller.recordScoreCommitted(
+        side: TeamSide.blue,
+        points: 2,
+      );
+      await entered.future;
+      final pause = controller.pauseCommitted();
+      release.complete();
+
+      expect(await score, isTrue);
+      expect(await pause, isTrue);
+      expect(beforeCommitCalls, 2);
+      expect(controller.state.score.blueScore, 2);
+      expect(controller.isManuallyPaused, isTrue);
+      final events = await database.select(database.matchEvents).get();
+      expect(events.map((event) => event.type), [
+        EventKind.fieldGoal.name,
+        EventKind.pause.name,
+      ]);
+      expect(events.last.customLabel, 'pause');
+    });
+  });
+
   test('retry is a false no-op after controller disposal', () async {
     await withTestDatabase((database) async {
       var failureInjectorCalls = 0;

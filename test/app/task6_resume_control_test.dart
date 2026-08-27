@@ -13,7 +13,7 @@ import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 
 void main() {
-  testWidgets('production rapid pause cannot bypass a queued score', (
+  testWidgets('production rapid pause queues behind an in-flight score', (
     tester,
   ) async {
     final database = AppDatabase.inMemory();
@@ -63,9 +63,122 @@ void main() {
     expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
 
     release.complete();
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+    expect(beforeCommitCalls, 2);
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    final events = await database.select(database.matchEvents).get();
+    expect(events.map((event) => event.type), [
+      EventKind.fieldGoal.name,
+      EventKind.pause.name,
+    ]);
+    expect(events.last.customLabel, 'pause');
+  });
+
+  testWidgets('successful resume retry dismisses the blocking paused panel', (
+    tester,
+  ) async {
+    final database = AppDatabase.inMemory();
+    _closeAfterWidgetTest(tester, database);
+    const matchId = 'task6-resume-retry-success';
+    await _startMatch(database, matchId, timerEnabled: true);
+    final normalService = MatchCommandService(database);
+    await normalService.pause(
+      PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+    );
+    var failuresRemaining = 1;
+    final retryService = MatchCommandService(
+      database,
+      failureInjector: (point) {
+        if (point == MatchCommandFailurePoint.beforeCommit &&
+            failuresRemaining-- > 0) {
+          throw StateError('fail first resume');
+        }
+      },
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          matchCommandServiceProvider.overrideWithValue(retryService),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+
+    await tester.tap(find.byKey(const Key('paused-continue')));
     await tester.pumpAndSettle();
-    expect(beforeCommitCalls, 1);
-    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    final retry = tester.widget<SnackBarAction>(
+      find.widgetWithText(SnackBarAction, '重试'),
+    );
+    retry.onPressed();
+    retry.onPressed();
+    await _pumpUntilGone(tester, find.byKey(const Key('scoring-paused-panel')));
+
+    expect((await normalService.readClock(matchId))?.isRunning, isTrue);
+    final events = await database.select(database.matchEvents).get();
+    expect(events.map((event) => event.customLabel), ['pause', 'resume']);
+    expect(find.byType(ScoringPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed resume retry remains blocked and retryable', (
+    tester,
+  ) async {
+    final database = AppDatabase.inMemory();
+    _closeAfterWidgetTest(tester, database);
+    const matchId = 'task6-resume-retry-fails-again';
+    await _startMatch(database, matchId, timerEnabled: true);
+    final normalService = MatchCommandService(database);
+    await normalService.pause(
+      PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+    );
+    final failingService = MatchCommandService(
+      database,
+      failureInjector: (point) {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          throw StateError('resume remains unavailable');
+        }
+      },
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          matchCommandServiceProvider.overrideWithValue(failingService),
+        ],
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await tester.pumpAndSettle();
+    tester
+        .widget<SnackBarAction>(find.widgetWithText(SnackBarAction, '重试'))
+        .onPressed();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(find.widgetWithText(SnackBarAction, '重试'), findsOneWidget);
+    expect((await normalService.readClock(matchId))?.isRunning, isFalse);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('production double continue submits one resume command', (
