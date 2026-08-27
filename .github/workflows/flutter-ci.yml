@@ -134,6 +134,15 @@ jobs:
       - name: Build twice from independent source trees and compare
         run: bash tool/release/verify_unsigned_reproducible_android.sh
 
+      - name: Upload reproducibility failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hooptrace-reproducibility-failures
+          path: build/reproducible-diagnostics
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: Upload verified unsigned release APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

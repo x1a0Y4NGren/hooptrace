@@ -183,7 +183,28 @@ apk_a="$scratch/source-a/build/app/outputs/flutter-apk/app-release.apk"
 apk_b="$scratch/source-b/build/app/outputs/flutter-apk/app-release.apk"
 if ! cmp --silent "$apk_a" "$apk_b"; then
   sha256sum "$apk_a" "$apk_b"
+  diagnostics="$repo_root/build/reproducible-diagnostics"
+  rm -rf "$diagnostics"
+  mkdir -p "$diagnostics/unpacked-a" "$diagnostics/unpacked-b"
+  cp "$apk_a" "$diagnostics/app-release-a.apk"
+  cp "$apk_b" "$diagnostics/app-release-b.apk"
+  unzip -q "$apk_a" -d "$diagnostics/unpacked-a"
+  unzip -q "$apk_b" -d "$diagnostics/unpacked-b"
+  (
+    cd "$diagnostics/unpacked-a"
+    find . -type f -print0 | sort -z | xargs -0 sha256sum
+  ) > "$diagnostics/entries-a.sha256"
+  (
+    cd "$diagnostics/unpacked-b"
+    find . -type f -print0 | sort -z | xargs -0 sha256sum
+  ) > "$diagnostics/entries-b.sha256"
+  diff -u \
+    "$diagnostics/entries-a.sha256" \
+    "$diagnostics/entries-b.sha256" \
+    > "$diagnostics/entry-diff.txt" || true
+  rm -rf "$diagnostics/unpacked-a" "$diagnostics/unpacked-b"
   echo "Unsigned release APKs differ between clean source builds." >&2
+  echo "Diagnostics written to $diagnostics." >&2
   exit 1
 fi
 
