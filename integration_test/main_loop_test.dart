@@ -73,59 +73,52 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('scoring-more')));
-    await tester.pumpAndSettle();
-    final replayAction = find.byKey(const Key('more-replay'));
-    final sheetScrollable = find.descendant(
-      of: find.byKey(const Key('scoring-more-sheet')),
-      matching: find.byType(Scrollable),
-    );
+    await tester.tap(find.byKey(const Key('scoring-finish')));
     await _pumpUntilFound(
       tester,
-      sheetScrollable,
-      description: 'the scoring More sheet scrollable',
+      find.byKey(const Key('match-controls-pause')),
+      description: 'the scoring match controls',
     );
-    await tester.ensureVisible(replayAction);
-    final viewport = tester.binding.renderViews.first.size;
-    await tester.dragFrom(
-      Offset(viewport.width / 2, viewport.height / 2),
-      const Offset(0, -400),
-    );
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      replayAction,
-      500,
-      scrollable: sheetScrollable,
-    );
-    await _tapWhenHitTestable(
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await _pumpUntilFound(
       tester,
-      replayAction,
-      description: 'the Replay action in the scoring More sheet',
+      find.byKey(const Key('scoring-paused-panel')),
+      description: 'the blocking paused-match panel',
     );
+    expect(find.byKey(const Key('paused-return-home')), findsOneWidget);
+    expect(find.byKey(const Key('paused-continue')), findsOneWidget);
+    expect(find.byKey(const Key('paused-finish')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await _pumpUntilGone(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+      description: 'the paused-match panel after continuing',
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('match-controls-finish')),
+      description: 'the scoring finish action',
+    );
+    await tester.tap(find.byKey(const Key('match-controls-finish')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-finish-confirm')),
+      description: 'the scoring finish confirmation',
+    );
+    await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
     await _pumpUntilFound(
       tester,
       find.byType(ReplayPage),
-      description: 'ReplayPage after tapping the More-sheet Replay action',
+      description: 'ReplayPage after finishing from ScoringPage',
     );
-    final activeReplayL10n = AppLocalizations.of(
+    final finishedReplayL10n = AppLocalizations.of(
       tester.element(find.byType(ReplayPage)),
     )!;
     expect(find.text(redName), findsAtLeastNWidgets(1));
     expect(find.text(blueName), findsAtLeastNWidgets(1));
-    expect(find.text(activeReplayL10n.replayInProgress), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('replay-finish-match')));
-    await _pumpUntilFound(
-      tester,
-      find.byKey(const Key('replay-finish-confirm')),
-      description: 'the finish-match confirmation action',
-    );
-    await tester.tap(find.byKey(const Key('replay-finish-confirm')));
-    await _pumpUntilFound(
-      tester,
-      find.text(activeReplayL10n.replayFinished),
-      description: 'the finished Replay state',
-    );
+    expect(find.text(finishedReplayL10n.replayFinished), findsOneWidget);
     expect(find.text(redName), findsAtLeastNWidgets(1));
     expect(find.text(blueName), findsAtLeastNWidgets(1));
     expect(find.byKey(const Key('replay-finish-match')), findsNothing);
@@ -178,6 +171,27 @@ Future<void> _pumpUntilFound(
     );
   }
   fail('Timed out waiting for ${description ?? finder} ($finder).');
+}
+
+Future<void> _pumpUntilGone(
+  WidgetTester tester,
+  Finder finder, {
+  String? description,
+  int attempts = 150,
+}) async {
+  for (var attempt = 0; attempt < attempts; attempt++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (finder.evaluate().isEmpty) {
+      await tester.pump(const Duration(milliseconds: 250));
+      return;
+    }
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 10)),
+    );
+  }
+  fail(
+    'Timed out waiting for ${description ?? finder} to disappear ($finder).',
+  );
 }
 
 Future<void> _tapWhenHitTestable(
