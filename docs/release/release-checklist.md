@@ -9,7 +9,8 @@
 - [ ] 同步 `lib/app/app_metadata.dart` 中用于备份清单的版本号。
 - [ ] 将 `CHANGELOG.md` 的 Unreleased 内容归入目标版本和发布日期。
 - [ ] 确认 Android Application ID 仍为 `io.github.x1a0y4ngren.hooptrace`。
-- [ ] 确认应用显示名、图标、MIT License、README 和 PRIVACY 均为最终版本。
+- [ ] 同步 README 中的当前正式版本、下载与更新说明链接、功能描述和真实界面截图；不得保留上个版本或发布候选文案。
+- [ ] 确认应用显示名、图标、MIT License 和 PRIVACY 均为最终版本。
 - [ ] 搜索源码中的 `TODO`、模板标识、测试域名和调试开关并逐项评估。
 
 ## 2. 依赖、隐私与权限
