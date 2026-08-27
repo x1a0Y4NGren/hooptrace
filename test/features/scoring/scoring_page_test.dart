@@ -1089,7 +1089,7 @@ void main() {
     });
   });
 
-  testWidgets('landscape scoring uses narrow black editorial action rails', (
+  testWidgets('landscape scoring uses narrow paper editorial action rails', (
     tester,
   ) async {
     for (final size in const [Size(731, 411), Size(1095, 616)]) {
@@ -1108,8 +1108,10 @@ void main() {
       final redRail = tester.widget<Material>(
         find.byKey(const Key('red-action-rail')),
       );
-      expect(blueRail.color, editorial.inverseSurface);
-      expect(redRail.color, editorial.inverseSurface);
+      expect(blueRail.color, editorial.canvas);
+      expect(redRail.color, editorial.canvas);
+      expect(blueRail.color, isNot(editorial.inverseSurface));
+      expect(redRail.color, isNot(editorial.inverseSurface));
 
       final maximumRailWidth = size.width < 900 ? 128.0 : 188.0;
       expect(
