@@ -68,6 +68,15 @@ jobs:
       - name: Run unit and widget tests
         run: flutter test --reporter expanded
 
+      - name: Upload golden failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hooptrace-golden-failures
+          path: test/**/failures/**
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Run deterministic performance benchmarks
         run: flutter test --reporter expanded test/performance/task15_query_benchmarks_test.dart
 
