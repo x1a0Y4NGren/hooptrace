@@ -88,13 +88,24 @@ void main() {
     await normalService.pause(
       PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
     );
-    var failuresRemaining = 1;
+    final retryEntered = Completer<void>();
+    final retryRelease = Completer<void>();
+    addTearDown(() {
+      if (!retryRelease.isCompleted) retryRelease.complete();
+    });
+    var resumeAttempts = 0;
     final retryService = MatchCommandService(
       database,
-      failureInjector: (point) {
-        if (point == MatchCommandFailurePoint.beforeCommit &&
-            failuresRemaining-- > 0) {
-          throw StateError('fail first resume');
+      failureInjector: (point) async {
+        if (point == MatchCommandFailurePoint.beforeCommit) {
+          resumeAttempts++;
+          if (resumeAttempts == 1) {
+            throw StateError('fail first resume');
+          }
+          if (resumeAttempts == 2) {
+            retryEntered.complete();
+            await retryRelease.future;
+          }
         }
       },
     );
@@ -118,11 +129,38 @@ void main() {
     await tester.tap(find.byKey(const Key('paused-continue')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
-    final retry = tester.widget<SnackBarAction>(
-      find.widgetWithText(SnackBarAction, '重试'),
+    expect(find.byType(SnackBarAction), findsNothing);
+    expect(find.byKey(const Key('paused-resume-failure')), findsOneWidget);
+    final retry = find.byKey(const Key('paused-retry')).hitTestable();
+    expect(retry, findsOneWidget);
+    await tester.tap(retry);
+    await tester.pump();
+    await retryEntered.future;
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('paused-return-home')))
+          .onPressed,
+      isNull,
     );
-    retry.onPressed();
-    retry.onPressed();
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('paused-retry')))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('paused-finish')))
+          .onPressed,
+      isNull,
+    );
+    await tester.tap(
+      find.byKey(const Key('paused-retry')),
+      warnIfMissed: false,
+    );
+    await tester.pump();
+    expect(resumeAttempts, 2);
+    retryRelease.complete();
     await _pumpUntilGone(tester, find.byKey(const Key('scoring-paused-panel')));
 
     expect((await normalService.readClock(matchId))?.isRunning, isTrue);
@@ -170,13 +208,14 @@ void main() {
 
     await tester.tap(find.byKey(const Key('paused-continue')));
     await tester.pumpAndSettle();
-    tester
-        .widget<SnackBarAction>(find.widgetWithText(SnackBarAction, '重试'))
-        .onPressed();
+    expect(find.byType(SnackBarAction), findsNothing);
+    await tester.tap(find.byKey(const Key('paused-retry')).hitTestable());
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
-    expect(find.widgetWithText(SnackBarAction, '重试'), findsOneWidget);
+    expect(find.byKey(const Key('paused-resume-failure')), findsOneWidget);
+    expect(find.byKey(const Key('paused-retry')).hitTestable(), findsOneWidget);
+    expect(find.byType(SnackBarAction), findsNothing);
     expect((await normalService.readClock(matchId))?.isRunning, isFalse);
     expect(tester.takeException(), isNull);
   });
@@ -231,6 +270,19 @@ void main() {
     await tester.tap(continueButton);
     await tester.pump();
     await entered.future;
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('paused-return-home')))
+          .onPressed,
+      isNull,
+    );
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('paused-finish')))
+          .onPressed,
+      isNull,
+    );
     await tester.tap(continueButton, warnIfMissed: false);
     await tester.pump();
     expect(beforeCommitCalls, 1);
@@ -238,6 +290,49 @@ void main() {
     release.complete();
     await _pumpUntilGone(tester, find.byKey(const Key('scoring-paused-panel')));
     expect(beforeCommitCalls, 1);
+  });
+
+  testWidgets('external resume does not pop the finish confirmation route', (
+    tester,
+  ) async {
+    final database = AppDatabase.inMemory();
+    _closeAfterWidgetTest(tester, database);
+    const matchId = 'task6-paused-confirm-route';
+    await _startMatch(database, matchId, timerEnabled: true);
+    final service = MatchCommandService(database);
+    await service.pause(
+      PauseMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+    );
+    final container = ProviderContainer(
+      overrides: [appDatabaseProvider.overrideWithValue(database)],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const HoopTraceApp(),
+      ),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await tester.tap(find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+    await tester.tap(find.byKey(const Key('paused-finish')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-finish-confirm')), findsOneWidget);
+
+    final projection = await service.resume(
+      ResumeMatchCommand(matchId: matchId, occurredAt: DateTime.now().toUtc()),
+    );
+    container
+        .read(scoringControllerProvider(matchId))
+        ?.replaceCommittedProjection(projection);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-finish-confirm')), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('paused scoring shows blocking panel and resumes explicitly', (

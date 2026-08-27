@@ -38,6 +38,13 @@ class _GatedSupplementController extends ScoringController {
   }) => result;
 }
 
+class _BusyPauseController extends ScoringController {
+  _BusyPauseController() : super(matchId: 'busy-pause-controller');
+
+  @override
+  Future<bool> pauseCommitted() async => false;
+}
+
 class _FailingScoreController extends ScoringController {
   _FailingScoreController(String matchId) : super(matchId: matchId);
 
@@ -974,6 +981,22 @@ void main() {
     await tester.pump();
     expect(find.text('蓝方 1'), findsOneWidget);
   });
+
+  testWidgets(
+    'busy pause rejection reports feedback instead of failing silently',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: _BusyPauseController())),
+      );
+      await tester.tap(find.byKey(const Key('scoring-finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('match-controls-pause')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+      expect(find.byKey(const Key('scoring-action-rejected')), findsOneWidget);
+    },
+  );
 
   testWidgets('resume failure keeps the blocking paused panel', (tester) async {
     await tester.pumpWidget(

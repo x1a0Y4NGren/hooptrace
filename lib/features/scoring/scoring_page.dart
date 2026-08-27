@@ -85,7 +85,6 @@ class _ScoringPageState extends State<ScoringPage>
   bool _pauseTransitionBusy = false;
   bool _pausedPanelVisible = false;
   bool _pausedPanelScheduled = false;
-  VoidCallback? _dismissPausedPanel;
   Timer? _clockTicker;
   Timer? _supplementTicker;
   final GlobalKey _motionWorkspaceKey = GlobalKey();
@@ -442,17 +441,6 @@ class _ScoringPageState extends State<ScoringPage>
         !_interactionPaused) {
       _interactionPaused = true;
       _schedulePersistedPausePanel();
-    }
-    if (_interactionPaused &&
-        _pausedPanelVisible &&
-        !_pauseTransitionBusy &&
-        !_controller.state.isManuallyPaused) {
-      _interactionPaused = false;
-      final dismiss = _dismissPausedPanel;
-      _dismissPausedPanel = null;
-      if (dismiss != null) {
-        SchedulerBinding.instance.addPostFrameCallback((_) => dismiss());
-      }
     }
     if (mounted && !_disposed) setState(() {});
   }
@@ -1196,6 +1184,7 @@ class _ScoringPageState extends State<ScoringPage>
         _interactionPaused = false;
         _pauseTransitionBusy = false;
       });
+      _showActionRejected(_labels(context).failureRetry);
       return;
     }
     setState(() => _pauseTransitionBusy = false);
@@ -1208,21 +1197,84 @@ class _ScoringPageState extends State<ScoringPage>
     try {
       if (!mounted || !_interactionPaused) return;
       final labels = _labels(context);
+      String? inlineFailure;
+      Future<bool> Function()? inlineRetry;
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) {
-          _dismissPausedPanel = () {
-            if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-          };
-          return StatefulBuilder(
-            builder: (dialogContext, setDialogState) => PopScope<void>(
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            void setTransitionBusy(bool busy) {
+              if (mounted) setState(() => _pauseTransitionBusy = busy);
+              if (dialogContext.mounted) setDialogState(() {});
+            }
+
+            Future<void> runResume() async {
+              if (_pauseTransitionBusy) return;
+              setTransitionBusy(true);
+              var accepted = false;
+              try {
+                accepted =
+                    await (inlineRetry?.call() ??
+                        _resumeFromPausedPanel(rethrowFailure: true));
+                if (!accepted && mounted && dialogContext.mounted) {
+                  inlineFailure = labels.failureRetry;
+                }
+              } on _MoreActionFailure catch (failure) {
+                if (mounted && dialogContext.mounted) {
+                  inlineFailure = failure.message;
+                  inlineRetry = failure.retry;
+                }
+              } finally {
+                if (mounted && dialogContext.mounted) {
+                  setTransitionBusy(false);
+                }
+              }
+              if (!accepted || !mounted || !dialogContext.mounted) return;
+              setState(() => _interactionPaused = false);
+              Navigator.of(dialogContext).pop();
+            }
+
+            Future<void> runReturnHome() async {
+              if (_pauseTransitionBusy) return;
+              setTransitionBusy(true);
+              await _returnHomeFromPausedPanel(dialogContext);
+              if (mounted && dialogContext.mounted) setTransitionBusy(false);
+            }
+
+            Future<void> runFinish() async {
+              if (_pauseTransitionBusy) return;
+              setTransitionBusy(true);
+              await _finishFromPausedPanel(dialogContext);
+              if (mounted && dialogContext.mounted) setTransitionBusy(false);
+            }
+
+            return PopScope<void>(
               canPop: false,
               child: AlertDialog(
                 key: const Key('scoring-paused-panel'),
                 icon: const Icon(Icons.pause_circle_outline, size: 40),
                 title: Text(labels.matchPausedTitle),
-                content: Text(labels.matchPausedBody),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(labels.matchPausedBody),
+                    if (inlineFailure != null) ...[
+                      const SizedBox(height: 12),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          inlineFailure!,
+                          key: const Key('paused-resume-failure'),
+                          style: TextStyle(
+                            color: Theme.of(dialogContext).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
                 actions: [
                   TextButton(
                     key: const Key('paused-return-home'),
@@ -1231,31 +1283,23 @@ class _ScoringPageState extends State<ScoringPage>
                     ),
                     onPressed: _pauseTransitionBusy
                         ? null
-                        : () => unawaited(
-                            _returnHomeFromPausedPanel(dialogContext),
-                          ),
+                        : () => unawaited(runReturnHome()),
                     child: Text(labels.returnHome),
                   ),
                   FilledButton(
-                    key: const Key('paused-continue'),
+                    key: Key(
+                      inlineFailure == null
+                          ? 'paused-continue'
+                          : 'paused-retry',
+                    ),
                     onPressed: _pauseTransitionBusy
                         ? null
-                        : () {
-                            setState(() => _pauseTransitionBusy = true);
-                            setDialogState(() {});
-                            unawaited(
-                              _resumeFromPausedPanel().then((accepted) {
-                                if (!mounted) return;
-                                setState(() => _pauseTransitionBusy = false);
-                                if (accepted && dialogContext.mounted) {
-                                  Navigator.of(dialogContext).pop();
-                                } else if (dialogContext.mounted) {
-                                  setDialogState(() {});
-                                }
-                              }),
-                            );
-                          },
-                    child: Text(labels.continueMatch),
+                        : () => unawaited(runResume()),
+                    child: Text(
+                      inlineFailure == null
+                          ? labels.continueMatch
+                          : labels.retry,
+                    ),
                   ),
                   OutlinedButton(
                     key: const Key('paused-finish'),
@@ -1264,18 +1308,16 @@ class _ScoringPageState extends State<ScoringPage>
                             widget.onFinishDecision == null ||
                             _controller.state.decision?.canFinish == false
                         ? null
-                        : () =>
-                              unawaited(_finishFromPausedPanel(dialogContext)),
+                        : () => unawaited(runFinish()),
                     child: Text(labels.finish),
                   ),
                 ],
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       );
     } finally {
-      _dismissPausedPanel = null;
       _pausedPanelVisible = false;
       if (mounted && _interactionPaused) _schedulePersistedPausePanel();
     }
@@ -1307,7 +1349,7 @@ class _ScoringPageState extends State<ScoringPage>
     if (dialogContext.mounted) Navigator.of(dialogContext).pop();
   }
 
-  Future<bool> _resumeFromPausedPanel() async {
+  Future<bool> _resumeFromPausedPanel({bool rethrowFailure = false}) async {
     var accepted = true;
     if (_controller.isManuallyPaused || widget.onResumePausedMatch != null) {
       try {
@@ -1316,16 +1358,38 @@ class _ScoringPageState extends State<ScoringPage>
           await resume();
           _notifyCommitted();
         } else {
-          accepted = await _resume();
+          accepted = await _resume(rethrowFailure: rethrowFailure);
         }
+      } on _MoreActionFailure {
+        rethrow;
       } on Object {
         accepted = false;
-        if (mounted) _showActionRejected(_labels(context).failureRetry);
+        if (!mounted) return false;
+        if (rethrowFailure) {
+          throw _MoreActionFailure(
+            message: _labels(context).failureRetry,
+            retry: () => _retryPausedCallback(widget.onResumePausedMatch),
+          );
+        }
+        _showActionRejected(_labels(context).failureRetry);
       }
     }
-    if (!mounted || !accepted) return false;
-    setState(() => _interactionPaused = false);
-    return true;
+    return mounted && accepted;
+  }
+
+  Future<bool> _retryPausedCallback(Future<void> Function()? resume) async {
+    if (resume == null || !mounted) return false;
+    try {
+      await resume();
+      if (!mounted) return false;
+      _notifyCommitted();
+      return true;
+    } on Object {
+      throw _MoreActionFailure(
+        message: _labels(context).failureRetry,
+        retry: () => _retryPausedCallback(resume),
+      );
+    }
   }
 
   Future<bool> _discardDraftBeforeLeaving() async {
@@ -2233,7 +2297,9 @@ class _ScoringPageState extends State<ScoringPage>
       final accepted = await controller.retryCommand(failure);
       if (!_isCurrentAction(generation, controller)) return false;
       if (accepted) {
-        if (controller.courtFirstShotDraft != null) {
+        if (failure.command is! PauseMatchCommand &&
+            failure.command is! ResumeMatchCommand &&
+            controller.courtFirstShotDraft != null) {
           controller.cancelCourtFirstShot();
         }
         _notifyCommitted();
