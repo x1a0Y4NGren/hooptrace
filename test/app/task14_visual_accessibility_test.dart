@@ -107,7 +107,7 @@ void main() {
 
       await expectLater(
         find.byKey(const Key('task14-golden-root')),
-        matchesGoldenFile('goldens/${goldenCase.name}.png'),
+        matchesGoldenFile(hoopTraceGoldenFile(goldenCase.name)),
       );
       expect(tester.takeException(), isNull);
     });

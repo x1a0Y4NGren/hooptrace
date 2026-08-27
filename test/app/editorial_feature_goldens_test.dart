@@ -80,7 +80,7 @@ void main() {
           );
           await expectLater(
             find.byKey(const Key('editorial-feature-golden-root')),
-            matchesGoldenFile('goldens/$name.png'),
+            matchesGoldenFile(hoopTraceGoldenFile(name)),
           );
           expect(tester.takeException(), isNull);
         });

@@ -2,6 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+String hoopTraceGoldenFile(String name) =>
+    Platform.isLinux ? 'goldens/${name}_linux.png' : 'goldens/$name.png';
+
 Future<void> loadHoopTraceGoldenFonts() async {
   await (FontLoader(
     'Noto Sans SC',
