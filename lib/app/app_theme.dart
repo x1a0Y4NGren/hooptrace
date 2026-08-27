@@ -1,157 +1,173 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
-class HoopTraceColors {
-  const HoopTraceColors._();
+import 'package:hooptrace/app/design_system/editorial_motion.dart';
+import 'package:hooptrace/app/design_system/editorial_theme.dart';
+import 'package:hooptrace/app/design_system/editorial_tokens.dart';
 
-  static const offWhite = Color(0xFFFFF8E8);
-  static const cream = Color(0xFFF4EADB);
-  static const orange = Color(0xFFFF7A1A);
-  static const orangeLight = Color(0xFFFFA65C);
-  static const red = Color(0xFFD94735);
-  static const redLight = Color(0xFFFF8A78);
-  static const redAccessible = Color(0xFFB3261E);
-  static const blue = Color(0xFF2F67D8);
-  static const blueLight = Color(0xFF89AEFF);
-  static const blueAccessible = Color(0xFF1D4ED8);
-  static const ink = Color(0xFF2B2520);
-  static const charcoal = Color(0xFF171513);
-  static const charcoalSurface = Color(0xFF24201D);
-  static const charcoalContainer = Color(0xFF302A25);
-  static const darkInk = Color(0xFFFFF8E8);
-}
-
-/// Shared spacing tokens keep the scoring, replay and settings surfaces
-/// aligned without making every feature invent its own rhythm.
-class HoopTraceSpacing {
-  const HoopTraceSpacing._();
-
-  static const page = 16.0;
-  static const section = 24.0;
-  static const card = 12.0;
-  static const compact = 8.0;
-}
-
-class HoopTraceRadii {
-  const HoopTraceRadii._();
-
-  static const card = 16.0;
-  static const control = 12.0;
-  static const pill = 999.0;
-}
-
-class HoopTraceTypography {
-  const HoopTraceTypography._();
-
-  static const body = 16.0;
-  static const label = 14.0;
-  static const title = 20.0;
-}
-
-/// Semantic state colors are kept separate from the palette so stateful
-/// controls do not need to know whether the app is using a light or dark
-/// surface.
-class HoopTraceStatusColors {
-  const HoopTraceStatusColors._();
-
-  static const positive = Color(0xFF2F7D4A);
-  static const warning = Color(0xFFB56A00);
-  static const negative = HoopTraceColors.red;
-  static const info = HoopTraceColors.blue;
-}
-
-/// Team accents are selected for the surface they sit on, rather than using
-/// the same saturated brand color in both light and dark themes.
-Color teamColorForScheme(
-  TeamSide side,
-  ColorScheme scheme, {
-  Color? background,
-}) {
-  final lightAccent = background == null
-      ? scheme.brightness == Brightness.dark
-      : background.computeLuminance() < 0.35;
-  if (lightAccent) {
-    return side == TeamSide.red
-        ? HoopTraceColors.redLight
-        : HoopTraceColors.blueLight;
-  }
-  return side == TeamSide.red
-      ? HoopTraceColors.redAccessible
-      : HoopTraceColors.blueAccessible;
-}
+export 'package:hooptrace/app/design_system/editorial_color_helpers.dart';
+export 'package:hooptrace/app/design_system/editorial_motion.dart';
+export 'package:hooptrace/app/design_system/editorial_theme.dart';
+export 'package:hooptrace/app/design_system/editorial_tokens.dart';
 
 ThemeData buildHoopTraceTheme({Brightness brightness = Brightness.light}) {
   final isDark = brightness == Brightness.dark;
+  final editorial = isDark
+      ? const HoopTraceEditorialTheme.dark()
+      : const HoopTraceEditorialTheme.light();
   final colorScheme =
       ColorScheme.fromSeed(
-        seedColor: HoopTraceColors.orange,
+        seedColor: editorial.arenaAccent,
         brightness: brightness,
-        primary: isDark ? HoopTraceColors.orangeLight : HoopTraceColors.orange,
-        surface: isDark ? HoopTraceColors.charcoal : HoopTraceColors.offWhite,
+        primary: editorial.arenaAccent,
+        surface: editorial.surface,
       ).copyWith(
-        onSurface: isDark ? HoopTraceColors.darkInk : HoopTraceColors.ink,
-        surfaceContainerLowest: isDark
-            ? HoopTraceColors.charcoal
-            : HoopTraceColors.offWhite,
+        onPrimary: const Color(0xFF101112),
+        onSurface: editorial.ink,
+        surfaceContainerLowest: editorial.canvas,
+        surfaceContainerLow: editorial.surface,
         surfaceContainer: isDark
-            ? HoopTraceColors.charcoalSurface
-            : HoopTraceColors.cream,
+            ? const Color(0xFF202326)
+            : const Color(0xFFE8E7E2),
+        surfaceContainerHigh: isDark
+            ? const Color(0xFF292C2F)
+            : const Color(0xFFDEDDD8),
         surfaceContainerHighest: isDark
-            ? HoopTraceColors.charcoalContainer
-            : HoopTraceColors.cream,
-        onPrimary: HoopTraceColors.charcoal,
-        error: isDark ? HoopTraceColors.redLight : HoopTraceColors.red,
-        onError: isDark ? HoopTraceColors.charcoal : Colors.white,
+            ? const Color(0xFF32363A)
+            : const Color(0xFFD3D2CD),
+        outline: editorial.rule,
+        outlineVariant: editorial.rule,
+        error: editorial.danger,
+        onError: editorial.foregroundOnTeam,
+        inverseSurface: editorial.inverseSurface,
+        onInverseSurface: editorial.canvas,
       );
   final baseTextTheme = ThemeData(
     brightness: brightness,
     colorScheme: colorScheme,
   ).textTheme;
-  final textTheme = baseTextTheme
+  final fallbackTextTheme = baseTextTheme.apply(
+    fontFamilyFallback: const ['Noto Sans SC'],
+  );
+  final textTheme = fallbackTextTheme
       .copyWith(
-        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+        bodyLarge: fallbackTextTheme.bodyLarge?.copyWith(
           fontSize: HoopTraceTypography.body,
+          height: 1.45,
         ),
-        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+        bodyMedium: fallbackTextTheme.bodyMedium?.copyWith(
           fontSize: HoopTraceTypography.label,
+          height: 1.45,
         ),
-        labelLarge: baseTextTheme.labelLarge?.copyWith(
+        labelLarge: fallbackTextTheme.labelLarge?.copyWith(
           fontSize: HoopTraceTypography.label,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.4,
         ),
-        titleLarge: baseTextTheme.titleLarge?.copyWith(
+        titleLarge: fallbackTextTheme.titleLarge?.copyWith(
           fontSize: HoopTraceTypography.title,
+          fontWeight: FontWeight.w700,
         ),
       )
-      .apply(
-        bodyColor: colorScheme.onSurface,
-        displayColor: colorScheme.onSurface,
+      .apply(bodyColor: editorial.ink, displayColor: editorial.ink);
+
+  ButtonStyle buttonStyle({required bool filled}) => ButtonStyle(
+    minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+    padding: const WidgetStatePropertyAll(
+      EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+    ),
+    shape: WidgetStatePropertyAll(
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+    ),
+    backgroundColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.disabled)) return editorial.surface;
+      return filled ? editorial.arenaAccent : Colors.transparent;
+    }),
+    foregroundColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.disabled)) return editorial.mutedInk;
+      return filled ? const Color(0xFF101112) : editorial.ink;
+    }),
+    side: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return BorderSide(color: editorial.focus, width: 2);
+      }
+      return BorderSide(
+        color: states.contains(WidgetState.disabled)
+            ? editorial.rule
+            : (filled ? editorial.arenaAccent : editorial.ink),
       );
+    }),
+    overlayColor: WidgetStatePropertyAll(
+      editorial.arenaAccent.withValues(alpha: 0.14),
+    ),
+  );
 
   return ThemeData(
     useMaterial3: true,
+    brightness: brightness,
     colorScheme: colorScheme,
-    scaffoldBackgroundColor: colorScheme.surface,
-    canvasColor: colorScheme.surface,
+    scaffoldBackgroundColor: editorial.canvas,
+    canvasColor: editorial.canvas,
+    focusColor: editorial.focus,
+    disabledColor: editorial.mutedInk,
     textTheme: textTheme,
     appBarTheme: AppBarTheme(
-      backgroundColor: colorScheme.surface,
-      foregroundColor: colorScheme.onSurface,
+      backgroundColor: editorial.canvas,
+      foregroundColor: editorial.ink,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
+      shape: Border(bottom: BorderSide(color: editorial.rule)),
     ),
-    listTileTheme: ListTileThemeData(
-      minVerticalPadding: HoopTraceSpacing.compact,
+    cardTheme: CardThemeData(
+      color: editorial.surface,
+      elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(HoopTraceRadii.control),
+        borderRadius: BorderRadius.circular(4),
+        side: BorderSide(color: editorial.rule),
       ),
+    ),
+    listTileTheme: const ListTileThemeData(
+      minVerticalPadding: HoopTraceSpacing.compact,
+      minTileHeight: 48,
+      shape: RoundedRectangleBorder(),
     ),
     inputDecorationTheme: InputDecorationTheme(
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(HoopTraceRadii.control),
+      filled: true,
+      fillColor: editorial.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: BorderSide(color: editorial.rule),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(4),
+        borderSide: BorderSide(color: editorial.focus, width: 2),
       ),
     ),
-    dividerTheme: DividerThemeData(
-      color: colorScheme.onSurface.withValues(alpha: isDark ? 0.18 : 0.12),
+    dividerTheme: DividerThemeData(color: editorial.rule, thickness: 1),
+    filledButtonTheme: FilledButtonThemeData(style: buttonStyle(filled: true)),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: buttonStyle(filled: false),
     ),
+    iconButtonTheme: IconButtonThemeData(
+      style: ButtonStyle(
+        minimumSize: const WidgetStatePropertyAll(Size(48, 48)),
+        foregroundColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.disabled)
+              ? editorial.mutedInk
+              : editorial.ink,
+        ),
+        shape: WidgetStatePropertyAll(
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        ),
+      ),
+    ),
+    extensions: [
+      editorial,
+      isDark
+          ? const HoopTraceMotionTheme.dark()
+          : const HoopTraceMotionTheme.light(),
+    ],
   );
 }

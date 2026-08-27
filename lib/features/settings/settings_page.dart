@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -8,6 +9,7 @@ import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/backup_merge_service.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/core/settings/language_preferences.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/core/settings/theme_preferences.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 
@@ -91,43 +93,59 @@ class _SettingsPageState extends State<SettingsPage> {
     final controller = widget.controller;
     final backup = controller.backupState;
     final l10n = _localizations(context);
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.settings)),
-      body: SafeArea(
-        child: Column(
-          children: [
-            if (controller.busy) const LinearProgressIndicator(minHeight: 2),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                children: [
-                  _SettingsSection(
-                    title: l10n.settingsDefaultSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.tune,
-                        title: l10n.settingsDefaultRuleTitle,
-                        subtitle: l10n.settingsDefaultRuleSubtitle,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsRulesSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.tune,
-                        title: l10n.settingsRulesTemplateTitle,
-                        subtitle: l10n.settingsRulesTemplateSubtitle,
-                        onTap: widget.onOpenRules,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsFeedbackSection,
-                    children: [
-                      SwitchListTile(
+    return EditorialScaffold(
+      masthead: EditorialMasthead(
+        title: l10n.settings,
+        compact: true,
+        leading: Navigator.canPop(context)
+            ? EditorialTapTarget(
+                onPressed: () => Navigator.maybePop(context),
+                label: MaterialLocalizations.of(context).backButtonTooltip,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                child: const Icon(Icons.arrow_back),
+              )
+            : null,
+      ),
+      body: Column(
+        children: [
+          if (controller.busy) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: HoopTraceSpacing.section),
+              children: [
+                _SettingsSection(
+                  title: l10n.settingsAppearanceSection,
+                  children: [
+                    _ThemeSettingTile(
+                      icon: Icons.palette_outlined,
+                      title: l10n.settingsThemeTitle,
+                      subtitle: l10n.settingsThemeSubtitle,
+                      controller: widget.themeController,
+                      l10n: l10n,
+                    ),
+                    _MotionSettingTile(
+                      icon: Icons.motion_photos_on_outlined,
+                      title: l10n.settingsMotionTitle,
+                      subtitle: l10n.settingsMotionSubtitle,
+                      preference: controller.feedbackState.motion,
+                      enabled: !controller.busy,
+                      l10n: l10n,
+                      onChanged: _setMotionPreference,
+                    ),
+                    _MotionPreview(
+                      preference: controller.feedbackState.motion,
+                      l10n: l10n,
+                    ),
+                  ],
+                ),
+                _SettingsSection(
+                  title: l10n.settingsFeedbackSection,
+                  children: [
+                    _RuledControl(
+                      child: SwitchListTile(
                         key: const Key('scoring-feedback-haptic-switch'),
                         minTileHeight: 64,
+                        contentPadding: EdgeInsets.zero,
                         secondary: const Icon(Icons.vibration),
                         title: Text(l10n.settingsHapticTitle),
                         subtitle: Text(
@@ -140,9 +158,12 @@ class _SettingsPageState extends State<SettingsPage> {
                             ? null
                             : _setHapticFeedbackEnabled,
                       ),
-                      SwitchListTile(
+                    ),
+                    _RuledControl(
+                      child: SwitchListTile(
                         key: const Key('scoring-feedback-sound-switch'),
                         minTileHeight: 64,
+                        contentPadding: EdgeInsets.zero,
                         secondary: const Icon(Icons.volume_up_outlined),
                         title: Text(l10n.settingsSoundTitle),
                         subtitle: Text(
@@ -155,182 +176,155 @@ class _SettingsPageState extends State<SettingsPage> {
                             ? null
                             : _setSoundFeedbackEnabled,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                if (widget.languageController != null)
                   _SettingsSection(
-                    title: l10n.settingsAppearanceSection,
+                    title: l10n.settingsLanguageSection,
                     children: [
-                      if (widget.languageController != null)
-                        _LanguageSettingTile(
-                          icon: Icons.language_outlined,
-                          title: l10n.settingsLanguageTitle,
-                          subtitle: l10n.settingsLanguageSubtitle,
-                          controller: widget.languageController,
-                          l10n: l10n,
-                        ),
-                      _ThemeSettingTile(
-                        icon: Icons.palette_outlined,
-                        title: l10n.settingsThemeTitle,
-                        subtitle: l10n.settingsThemeSubtitle,
-                        controller: widget.themeController,
+                      _LanguageSettingTile(
+                        icon: Icons.language_outlined,
+                        title: l10n.settingsLanguageTitle,
+                        subtitle: l10n.settingsLanguageSubtitle,
+                        controller: widget.languageController,
                         l10n: l10n,
                       ),
                     ],
                   ),
-                  _SettingsSection(
-                    title: l10n.settingsStatisticsSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.query_stats,
-                        title: l10n.settingsStatisticsSection,
-                        subtitle: l10n.settingsStatisticsSubtitle,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsBackupSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.archive_outlined,
-                        title: l10n.settingsExportBackupTitle,
-                        subtitle: l10n.settingsExportBackupSubtitle,
-                        enabled: !controller.busy,
-                        onTap: () => _run(
-                          () => controller.shareJsonBackup(
-                            subject: l10n.exportFullBackupSubject,
-                          ),
-                          success: l10n.settingsExportBackupSuccess,
-                        ),
-                      ),
-                      _SettingTile(
-                        icon: Icons.settings_backup_restore,
-                        title: l10n.settingsRestoreTitle,
-                        subtitle: controller.canRestoreBackup
-                            ? l10n.settingsRestoreSubtitleMerge
-                            : l10n.settingsRestoreSubtitleBlocked,
-                        enabled: !controller.busy,
-                        onTap: _chooseRestoreMode,
-                      ),
-                      _SettingTile(
-                        icon: Icons.table_view_outlined,
-                        title: l10n.settingsExportCsvTitle,
-                        subtitle: l10n.settingsExportCsvSubtitle,
-                        enabled: !controller.busy,
-                        onTap: () => _run(
-                          () => controller.shareCsvExports(
-                            subject: l10n.exportCsvSubject,
-                          ),
-                          success: l10n.settingsExportCsvSuccess,
-                        ),
-                      ),
-                      SwitchListTile(
-                        key: const Key('automatic-backup-switch'),
-                        secondary: const Icon(Icons.backup_outlined),
-                        title: Text(l10n.settingsAutomaticBackupTitle),
-                        subtitle: Text(
-                          backup.enabled
-                              ? l10n.settingsAutomaticBackupEnabled
-                              : l10n.settingsAutomaticBackupDisabled,
-                        ),
-                        value: backup.enabled,
-                        onChanged: controller.busy
-                            ? null
-                            : _setAutomaticBackupEnabled,
-                      ),
-                      _SettingTile(
-                        icon: Icons.folder_outlined,
-                        title: l10n.settingsBackupDirectoryTitle,
-                        subtitle:
-                            backup.directoryLabel ??
-                            backup.directory ??
-                            l10n.settingsBackupDirectoryUnselected,
-                        enabled: !controller.busy,
-                        onTap: _configureDirectory,
-                      ),
-                      _SettingTile(
-                        icon: Icons.backup,
-                        title: l10n.settingsBackupNowTitle,
-                        subtitle: _lastBackupLabel(backup, l10n),
-                        enabled: !controller.busy && backup.isConfigured,
-                        onTap: _runBackupNow,
-                      ),
-                      ListTile(
-                        key: const Key('backup-retention-limit'),
-                        minTileHeight: 64,
-                        leading: const Icon(Icons.delete_sweep_outlined),
-                        title: Text(l10n.settingsBackupRetentionTitle),
-                        subtitle: Text(l10n.settingsBackupRetentionSubtitle),
-                        trailing: DropdownButton<int>(
-                          key: const Key('backup-retention-dropdown'),
-                          value: backup.retentionLimit,
-                          items: _retentionOptions(backup.retentionLimit)
-                              .map(
-                                (value) => DropdownMenuItem<int>(
-                                  value: value,
-                                  child: Text('$value'),
-                                ),
-                              )
-                              .toList(growable: false),
-                          onChanged: controller.busy
-                              ? null
-                              : (value) {
-                                  if (value != null) {
-                                    unawaited(_setRetentionLimit(value));
-                                  }
-                                },
-                        ),
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsPrivacySection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.lock_outline,
-                        title: l10n.settingsPrivacyTitle,
-                        subtitle: l10n.settingsPrivacySubtitle,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsExperimentalSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.science_outlined,
-                        title: l10n.settingsExperimentalTitle,
-                        subtitle: l10n.settingsExperimentalSubtitle,
-                        enabled: false,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsDiagnosticsSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.monitor_heart_outlined,
-                        title: l10n.settingsDiagnosticsTitle,
-                        subtitle: l10n.settingsDiagnosticsSubtitle,
-                        enabled: false,
-                      ),
-                    ],
-                  ),
-                  _SettingsSection(
-                    title: l10n.settingsProjectSection,
-                    children: [
-                      _SettingTile(
-                        icon: Icons.info_outline,
-                        title: l10n.settingsAboutTitle,
-                        subtitle: l10n.settingsAboutSubtitle,
-                        onTap: widget.onOpenProject,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                _dataManagementSection(
+                  controller: controller,
+                  backup: backup,
+                  l10n: l10n,
+                ),
+                _SettingsSection(
+                  title: l10n.settingsAboutSection,
+                  children: [
+                    _SettingTile(
+                      key: const Key('settings-about-row'),
+                      icon: Icons.info_outline,
+                      title: l10n.settingsAboutTitle,
+                      subtitle: l10n.settingsAboutSubtitle,
+                      onTap: widget.onOpenProject,
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _dataManagementSection({
+    required SettingsController controller,
+    required AutomaticBackupState backup,
+    required AppLocalizations l10n,
+  }) {
+    return _SettingsSection(
+      title: l10n.settingsDataSection,
+      children: [
+        _SettingTile(
+          icon: Icons.tune,
+          title: l10n.settingsRulesTemplateTitle,
+          subtitle: l10n.settingsRulesTemplateSubtitle,
+          onTap: widget.onOpenRules,
+        ),
+        _SettingTile(
+          icon: Icons.archive_outlined,
+          title: l10n.settingsExportBackupTitle,
+          subtitle: l10n.settingsExportBackupSubtitle,
+          enabled: !controller.busy,
+          onTap: () => _run(
+            () => controller.shareJsonBackup(
+              subject: l10n.exportFullBackupSubject,
+            ),
+            success: l10n.settingsExportBackupSuccess,
+          ),
+        ),
+        _SettingTile(
+          icon: Icons.settings_backup_restore,
+          title: l10n.settingsRestoreTitle,
+          subtitle: controller.canRestoreBackup
+              ? l10n.settingsRestoreSubtitleMerge
+              : l10n.settingsRestoreSubtitleBlocked,
+          enabled: !controller.busy,
+          onTap: _chooseRestoreMode,
+        ),
+        _SettingTile(
+          icon: Icons.table_view_outlined,
+          title: l10n.settingsExportCsvTitle,
+          subtitle: l10n.settingsExportCsvSubtitle,
+          enabled: !controller.busy,
+          onTap: () => _run(
+            () => controller.shareCsvExports(subject: l10n.exportCsvSubject),
+            success: l10n.settingsExportCsvSuccess,
+          ),
+        ),
+        _RuledControl(
+          child: SwitchListTile(
+            key: const Key('automatic-backup-switch'),
+            minTileHeight: 64,
+            contentPadding: EdgeInsets.zero,
+            secondary: const Icon(Icons.backup_outlined),
+            title: Text(l10n.settingsAutomaticBackupTitle),
+            subtitle: Text(
+              backup.enabled
+                  ? l10n.settingsAutomaticBackupEnabled
+                  : l10n.settingsAutomaticBackupDisabled,
+            ),
+            value: backup.enabled,
+            onChanged: controller.busy ? null : _setAutomaticBackupEnabled,
+          ),
+        ),
+        _SettingTile(
+          icon: Icons.folder_outlined,
+          title: l10n.settingsBackupDirectoryTitle,
+          subtitle:
+              backup.directoryLabel ??
+              backup.directory ??
+              l10n.settingsBackupDirectoryUnselected,
+          enabled: !controller.busy,
+          onTap: _configureDirectory,
+        ),
+        _SettingTile(
+          key: const Key('settings-backup-now-row'),
+          icon: Icons.backup,
+          title: l10n.settingsBackupNowTitle,
+          subtitle: _lastBackupLabel(backup, l10n),
+          enabled: !controller.busy && backup.isConfigured,
+          onTap: _runBackupNow,
+        ),
+        _SettingsControlRow(
+          key: const Key('backup-retention-limit'),
+          icon: Icons.delete_sweep_outlined,
+          title: l10n.settingsBackupRetentionTitle,
+          subtitle: l10n.settingsBackupRetentionSubtitle,
+          control: DropdownButton<int>(
+            key: const Key('backup-retention-dropdown'),
+            value: backup.retentionLimit,
+            items: _retentionOptions(backup.retentionLimit)
+                .map(
+                  (value) => DropdownMenuItem<int>(
+                    value: value,
+                    child: Text('$value'),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: controller.busy
+                ? null
+                : (value) {
+                    if (value != null) unawaited(_setRetentionLimit(value));
+                  },
+          ),
+        ),
+        _SettingTile(
+          icon: Icons.lock_outline,
+          title: l10n.settingsPrivacyTitle,
+          subtitle: l10n.settingsPrivacySubtitle,
+        ),
+      ],
     );
   }
 
@@ -488,6 +482,14 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _setMotionPreference(MotionPreference preference) async {
+    try {
+      await widget.controller.setMotionPreference(preference);
+    } on Object catch (error) {
+      if (mounted) _showMessage(_friendlyError(error, _localizations(context)));
+    }
+  }
+
   Future<void> _runBackupNow() async {
     final l10n = _localizations(context);
     try {
@@ -578,6 +580,181 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 }
 
+class _MotionSettingTile extends StatelessWidget {
+  const _MotionSettingTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.preference,
+    required this.enabled,
+    required this.l10n,
+    required this.onChanged,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final MotionPreference preference;
+  final bool enabled;
+  final AppLocalizations l10n;
+  final ValueChanged<MotionPreference> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsControlRow(
+      key: const Key('motion-preference-tile'),
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      enabled: enabled,
+      control: DropdownButtonHideUnderline(
+        child: DropdownButton<MotionPreference>(
+          key: const Key('motion-preference-dropdown'),
+          value: preference,
+          items: MotionPreference.values
+              .map(
+                (value) => DropdownMenuItem<MotionPreference>(
+                  value: value,
+                  child: Text(_motionPreferenceLabel(value, l10n)),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: enabled
+              ? (value) {
+                  if (value != null) onChanged(value);
+                }
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+String _motionPreferenceLabel(
+  MotionPreference preference,
+  AppLocalizations l10n,
+) {
+  return switch (preference) {
+    MotionPreference.standard => l10n.settingsMotionStandard,
+    MotionPreference.reduced => l10n.settingsMotionReduced,
+  };
+}
+
+class _MotionPreview extends StatefulWidget {
+  const _MotionPreview({required this.preference, required this.l10n});
+
+  final MotionPreference preference;
+  final AppLocalizations l10n;
+
+  @override
+  State<_MotionPreview> createState() => _MotionPreviewState();
+}
+
+class _MotionPreviewState extends State<_MotionPreview> {
+  bool _settled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleReveal();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MotionPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.preference != widget.preference) {
+      _settled = false;
+      _scheduleReveal();
+    }
+  }
+
+  void _scheduleReveal() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_settled) setState(() => _settled = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.maybeOf(context);
+    final systemDisabled = media?.disableAnimations == true;
+    final reduced =
+        widget.preference == MotionPreference.reduced ||
+        media?.accessibleNavigation == true;
+    final motion = Theme.of(context).extension<HoopTraceMotionTheme>();
+    final duration = systemDisabled
+        ? Duration.zero
+        : reduced
+        ? (motion?.reducedReveal ?? const Duration(milliseconds: 120))
+        : (motion?.state ?? const Duration(milliseconds: 180));
+    final settled = systemDisabled || _settled;
+    final editorial = editorialThemeOf(context);
+    return Semantics(
+      label: widget.l10n.settingsMotionPreview,
+      container: true,
+      excludeSemantics: true,
+      child: AnimatedContainer(
+        key: const Key('motion-preview'),
+        duration: duration,
+        curve: Curves.easeOutCubic,
+        constraints: const BoxConstraints(minHeight: 72),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: settled
+              ? editorial.teamBlue.withValues(alpha: 0.12)
+              : editorial.surface,
+          border: Border(
+            left: BorderSide(color: editorial.teamBlue, width: 4),
+            bottom: BorderSide(color: editorial.rule),
+          ),
+        ),
+        child: AnimatedSlide(
+          offset: reduced || settled ? Offset.zero : const Offset(-0.06, 0),
+          duration: duration,
+          curve: Curves.easeOutCubic,
+          child: AnimatedScale(
+            scale: reduced || settled ? 1 : 0.96,
+            duration: duration,
+            child: Row(
+              children: [
+                Icon(
+                  settled ? Icons.check_circle_outline : Icons.circle_outlined,
+                  color: editorial.teamBlue,
+                  size: 24,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        reduced
+                            ? widget.l10n.settingsMotionPreviewReduced
+                            : widget.l10n.settingsMotionPreviewStandard,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: editorial.ink,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.l10n.settingsMotionHelp,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: editorial.mutedInk,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LanguageSettingTile extends StatelessWidget {
   const _LanguageSettingTile({
     required this.icon,
@@ -596,19 +773,17 @@ class _LanguageSettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final languageController = controller;
-    return ListTile(
+    return _SettingsControlRow(
       key: const Key('language-preference-tile'),
-      minTileHeight: 64,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: languageController == null
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      control: languageController == null
           ? null
           : DropdownButtonHideUnderline(
               child: DropdownButton<AppLanguagePreference>(
                 key: const Key('language-preference-dropdown'),
                 value: languageController.preference,
-                isDense: true,
                 items: AppLanguagePreference.values
                     .map(
                       (preference) => DropdownMenuItem<AppLanguagePreference>(
@@ -656,19 +831,17 @@ class _ThemeSettingTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeController = controller;
-    return ListTile(
+    return _SettingsControlRow(
       key: const Key('theme-preference-tile'),
-      minTileHeight: 64,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: themeController == null
+      icon: icon,
+      title: title,
+      subtitle: subtitle,
+      control: themeController == null
           ? null
           : DropdownButtonHideUnderline(
               child: DropdownButton<AppThemePreference>(
                 key: const Key('theme-preference-dropdown'),
                 value: themeController.preference,
-                isDense: true,
                 items: AppThemePreference.values
                     .map(
                       (preference) => DropdownMenuItem<AppThemePreference>(
@@ -708,19 +881,12 @@ class _SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: HoopTraceSpacing.section),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-            child: Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
+          EditorialSectionRule(label: title),
+          const SizedBox(height: 4),
           ...children,
         ],
       ),
@@ -735,6 +901,7 @@ class _SettingTile extends StatelessWidget {
     required this.subtitle,
     this.enabled = true,
     this.onTap,
+    super.key,
   });
 
   final IconData icon;
@@ -745,14 +912,174 @@ class _SettingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      minTileHeight: 64,
+    final editorial = editorialThemeOf(context);
+    final actionable = onTap != null;
+    final tile = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 64),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        excludeFromSemantics: actionable,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: editorial.rule)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(width: 48, child: Icon(icon)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: enabled ? editorial.ink : editorial.mutedInk,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: editorial.mutedInk,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (actionable) ...[
+                const SizedBox(width: 8),
+                SizedBox.square(
+                  dimension: 48,
+                  child: Icon(
+                    enabled ? Icons.arrow_forward : Icons.block,
+                    key: enabled ? null : const Key('setting-disabled-cue'),
+                    size: 20,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+    if (!actionable) return tile;
+    return Semantics(
+      container: true,
+      button: true,
       enabled: enabled,
-      leading: Icon(icon),
-      title: Text(title),
-      subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
-      trailing: onTap == null ? null : const Icon(Icons.chevron_right),
+      label: '$title. $subtitle',
       onTap: enabled ? onTap : null,
+      excludeSemantics: true,
+      child: tile,
+    );
+  }
+}
+
+class _RuledControl extends StatelessWidget {
+  const _RuledControl({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      border: Border(bottom: BorderSide(color: editorialThemeOf(context).rule)),
+    ),
+    child: child,
+  );
+}
+
+class _SettingsControlRow extends StatelessWidget {
+  const _SettingsControlRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    this.control,
+    this.enabled = true,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget? control;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 560 || scale >= 1.6;
+        final copy = Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: 48, height: 48, child: Icon(icon)),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: enabled ? editorial.ink : editorial.mutedInk,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: editorial.mutedInk,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+        final target = control == null
+            ? null
+            : ConstrainedBox(
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                child: control,
+              );
+        return Container(
+          constraints: const BoxConstraints(minHeight: 64),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: editorial.rule)),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: stacked
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    copy,
+                    if (target != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 48, top: 4),
+                        child: Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: target,
+                        ),
+                      ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: copy),
+                    if (target != null) ...[const SizedBox(width: 12), target],
+                  ],
+                ),
+        );
+      },
     );
   }
 }

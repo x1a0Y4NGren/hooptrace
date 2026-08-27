@@ -37,7 +37,9 @@ void main() {
     );
   });
 
-  testWidgets('paused keep-running resumes before leaving', (tester) async {
+  testWidgets('paused continue resumes before returning to scoring', (
+    tester,
+  ) async {
     final database = AppDatabase.inMemory();
     _closeAfterWidgetTest(tester, database);
     const matchId = 'task6-paused-keep';
@@ -48,14 +50,17 @@ void main() {
     );
 
     await _enterScoring(tester, database);
-    await tester.tap(find.byKey(const Key('scoring-leave')));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('leave-keep-running')));
-    await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await _pumpUntilFound(tester, find.byType(ScoringPage));
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
     expect((await service.readClock(matchId))?.isRunning, isTrue);
   });
 
-  testWidgets('paused pause-and-leave leaves without retrying pause', (
+  testWidgets('paused return home leaves without retrying pause', (
     tester,
   ) async {
     final database = AppDatabase.inMemory();
@@ -68,9 +73,11 @@ void main() {
     );
 
     await _enterScoring(tester, database);
-    await tester.tap(find.byKey(const Key('scoring-leave')));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('leave-pause-and-leave')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('scoring-paused-panel')),
+    );
+    await tester.tap(find.byKey(const Key('paused-return-home')));
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
     expect((await service.readClock(matchId))?.isRunning, isFalse);
   });

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/features/history/history_controller.dart';
 import 'package:hooptrace/features/history/history_page.dart';
@@ -39,7 +40,7 @@ void main() {
     expect(find.text('最近比赛'), findsOneWidget);
     expect(find.text('烈火'), findsOneWidget);
     expect(find.text('深海'), findsOneWidget);
-    expect(find.text('11 : 7'), findsOneWidget);
+    expect(find.text('7 : 11'), findsOneWidget);
     expect(find.textContaining('胜者：烈火'), findsOneWidget);
     expect(find.text('11 分制'), findsOneWidget);
     expect(find.text('12:08'), findsOneWidget);
@@ -223,16 +224,20 @@ void main() {
     final source = _RetryHistorySource();
     final controller = HistoryController(matches: const [], dataSource: source);
     await tester.pumpWidget(
-      MaterialApp(
-        home: HistoryPage(controller: controller, onMatchTap: (_) {}),
-      ),
+      _localizedApp(HistoryPage(controller: controller, onMatchTap: (_) {})),
     );
 
     await controller.loadNextPage();
     await tester.pump();
     expect(find.byKey(const Key('history-load-error')), findsOneWidget);
+    final errorState = tester.widget<EditorialErrorState>(
+      find.byType(EditorialErrorState),
+    );
+    final l10n = AppLocalizations.of(tester.element(find.byType(HistoryPage)))!;
+    expect(errorState.actionLabel, l10n.historyRetry);
+    expect(errorState.onAction, isNotNull);
 
-    await tester.tap(find.byKey(const Key('history-retry')));
+    await tester.tap(find.text(l10n.historyRetry));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('history-match-recovered')), findsOneWidget);
   });
@@ -307,6 +312,20 @@ void main() {
 
     final l10n = AppLocalizations.of(tester.element(find.byType(HistoryPage)))!;
     expect(tester.takeException(), isNull);
+    for (var i = 0; i < 3; i++) {
+      if (find
+          .byKey(const Key('history-match-english-scale'))
+          .evaluate()
+          .isNotEmpty) {
+        break;
+      }
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pump();
+    }
+    await tester.ensureVisible(
+      find.byKey(const Key('history-match-english-scale')),
+    );
+    await tester.pumpAndSettle();
     expect(find.text(l10n.historyRule), findsOneWidget);
     expect(find.text(l10n.pregameElevenPoint), findsOneWidget);
     expect(find.text(l10n.historyDuration), findsOneWidget);

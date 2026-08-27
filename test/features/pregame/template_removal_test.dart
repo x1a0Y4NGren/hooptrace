@@ -22,6 +22,7 @@ void main() {
         ),
       ),
     );
+    await tester.ensureVisible(find.byKey(const Key('pregame-rule-template')));
     await tester.tap(find.byKey(const Key('pregame-rule-template')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('15 point game').last);

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
+
+export 'court_painter.dart' show EraserShotMarker, TransientShotMarker;
 
 enum CourtViewMode { readOnly, editable }
 
@@ -16,10 +19,15 @@ class CourtView extends StatelessWidget {
     required this.shotLocations,
     this.pendingLocation,
     this.detailedShotDraft,
+    this.highlightedShotLocationId,
     this.locationPrompt,
     this.onPendingLocationChanged,
     this.onCourtPointTap,
     this.onShotLocationTap,
+    this.geometryKey,
+    this.hiddenShotLocationIds = const <String>{},
+    this.transientMarkers = const <TransientShotMarker>[],
+    this.eraserMarkers = const <EraserShotMarker>[],
     this.mode = CourtViewMode.editable,
     super.key,
   });
@@ -27,10 +35,17 @@ class CourtView extends StatelessWidget {
   final List<ScoringShotLocation> shotLocations;
   final PendingShotLocation? pendingLocation;
   final DetailedShotDraft? detailedShotDraft;
+
+  /// Presentation-only stable location identity used by replay selection.
+  final String? highlightedShotLocationId;
   final String? locationPrompt;
   final ValueChanged<CourtPoint>? onPendingLocationChanged;
   final ValueChanged<CourtPoint>? onCourtPointTap;
   final ValueChanged<String>? onShotLocationTap;
+  final GlobalKey? geometryKey;
+  final Set<String> hiddenShotLocationIds;
+  final List<TransientShotMarker> transientMarkers;
+  final List<EraserShotMarker> eraserMarkers;
   final CourtViewMode mode;
 
   @override
@@ -105,10 +120,22 @@ class CourtView extends StatelessWidget {
                 onTapDown: (details) => handleTap(details.localPosition),
                 onPanUpdate: (details) => handlePosition(details.localPosition),
                 child: CustomPaint(
+                  key: geometryKey,
                   painter: CourtPainter(
                     shotLocations: shotLocations,
                     pendingLocation: pendingLocation,
                     detailedShotDraft: detailedShotDraft,
+                    highlightedShotLocationId: highlightedShotLocationId,
+                    hiddenShotLocationIds: hiddenShotLocationIds,
+                    transientMarkers: transientMarkers,
+                    eraserMarkers: eraserMarkers,
+                    surfaceColor: editorialThemeOf(context).surface,
+                    lineColor: editorialThemeOf(context).ink,
+                    accentColor: editorialThemeOf(context).arenaAccent,
+                    eraserColor: editorialThemeOf(context).ink,
+                    teamBlueColor: editorialThemeOf(context).teamBlue,
+                    teamRedColor: editorialThemeOf(context).teamRed,
+                    markerRingColor: editorialThemeOf(context).ink,
                   ),
                   child: const SizedBox.expand(),
                 ),

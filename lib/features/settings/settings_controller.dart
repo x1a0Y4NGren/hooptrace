@@ -123,6 +123,18 @@ class SettingsController extends ChangeNotifier {
     });
   }
 
+  /// Persists motion without coupling settings UI to the scoring database
+  /// projection. Scoring reads this preference through its read-only seam.
+  Future<bool> setMotionPreference(MotionPreference preference) {
+    return _perform(() async {
+      final service = feedback;
+      _feedbackState = service == null
+          ? _feedbackState.copyWith(motion: preference)
+          : await service.setMotionPreference(preference);
+      return true;
+    });
+  }
+
   Future<String> runBackupNow() {
     return _perform(() async {
       final destination = await automaticBackup.runNow();

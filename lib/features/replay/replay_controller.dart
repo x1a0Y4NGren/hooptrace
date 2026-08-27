@@ -342,7 +342,10 @@ class ReplayController extends ChangeNotifier {
   }
 
   void selectEvent(String eventId) {
-    if (!_isEditing || !_data.events.any((event) => event.id == eventId)) {
+    // Selection is a read-only review affordance as well as the entry point
+    // for editing.  Editing remains gated by [_isEditing] in the mutation
+    // methods and in [pendingShotLocation].
+    if (!_data.events.any((event) => event.id == eventId)) {
       return;
     }
     _selectedEventId = eventId;
@@ -353,7 +356,13 @@ class ReplayController extends ChangeNotifier {
   void selectLocation(String locationId) {
     if (!_isEditing) return;
     final event = _data.events
-        .where((item) => item.locationId == locationId)
+        .where(
+          (item) =>
+              item.locationId == locationId ||
+              (item.locationId == null &&
+                  item.shotPoint != null &&
+                  'replay-shot-${item.id}' == locationId),
+        )
         .firstOrNull;
     if (event != null) selectEvent(event.id);
   }

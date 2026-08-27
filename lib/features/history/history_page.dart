@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/l10n/rule_template_localizations.dart';
@@ -74,7 +74,8 @@ class _HistoryPageState extends State<HistoryPage> {
       context: context,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
+        builder: (context, setSheetState) => EditorialSheet(
+          title: l10n.historyAdvancedTitle,
           padding: EdgeInsets.fromLTRB(
             16,
             16,
@@ -86,11 +87,6 @@ class _HistoryPageState extends State<HistoryPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(
-                  l10n.historyAdvancedTitle,
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
                 TextFormField(
                   initialValue: ruleName,
                   onChanged: (value) => ruleName = value,
@@ -208,101 +204,142 @@ class _HistoryPageState extends State<HistoryPage> {
   Widget build(BuildContext context) {
     final matches = controller.matches;
     final l10n = _historyL10n(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.historyTitle),
-        actions: [
-          if (widget.onHome != null)
-            IconButton(
-              onPressed: widget.onHome,
-              tooltip: l10n.historyHomeTooltip,
-              icon: const Icon(Icons.home_outlined),
-            ),
-          const SizedBox(width: 8),
-        ],
+    final groups = _groupMatchesByLocalDate(matches);
+    return EditorialScaffold(
+      masthead: EditorialMasthead(
+        title: l10n.historyTitle,
+        trailing: widget.onHome == null
+            ? null
+            : IconButton(
+                onPressed: widget.onHome,
+                tooltip: l10n.historyHomeTooltip,
+                icon: const Icon(Icons.home_outlined),
+              ),
       ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            _HistoryToolbar(
-              searchController: _searchController,
-              filter: controller.filters.lifecycle,
-              onSearchChanged: controller.updateSearch,
-              onReset: () {
-                controller.resetFilters();
-                _searchController.clear();
-              },
-              onAdvanced: () => _showAdvancedFilters(context),
-              onFilterChanged: (filter) => controller.updateFilters(
-                controller.filters.copyWith(lifecycle: filter),
-              ),
-            ),
-            if (widget.activeMatch != null && widget.onResumeActive != null)
-              _RecoveryBanner(
-                match: widget.activeMatch!,
-                onResume: widget.onResumeActive!,
-              ),
-            if (widget.importedIncompleteLoadError)
-              _ImportedIncompleteLoadError(
-                onRetry: widget.onRetryImportedIncomplete,
-              ),
-            for (final imported in widget.importedIncompleteMatches)
-              if (widget.onResumeImportedIncomplete != null)
-                _ImportedIncompleteBanner(
-                  match: imported,
-                  onResume: () =>
-                      widget.onResumeImportedIncomplete!(imported.matchId),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide =
+              constraints.maxWidth >= 720 &&
+              MediaQuery.textScalerOf(context).scale(1) < 1.5;
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _HistoryToolbar(
+                  searchController: _searchController,
+                  filter: controller.filters.lifecycle,
+                  onSearchChanged: controller.updateSearch,
+                  onReset: () {
+                    controller.resetFilters();
+                    _searchController.clear();
+                  },
+                  onAdvanced: () => _showAdvancedFilters(context),
+                  onFilterChanged: (filter) => controller.updateFilters(
+                    controller.filters.copyWith(lifecycle: filter),
+                  ),
                 ),
-            Expanded(
-              child: matches.isEmpty && controller.isLoadingPage
-                  ? const Center(child: CircularProgressIndicator())
-                  : matches.isEmpty && controller.loadError != null
-                  ? _HistoryLoadError(onRetry: controller.refresh)
-                  : matches.isEmpty
-                  ? const _EmptyHistory()
-                  : LayoutBuilder(
-                      builder: (context, constraints) {
-                        final wide = constraints.maxWidth >= 720;
-                        return ListView.separated(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: wide ? 28 : 16,
-                            vertical: 12,
-                          ),
-                          itemCount:
-                              matches.length +
-                              (controller.dataSource != null &&
-                                      controller.hasMore
-                                  ? 1
-                                  : 0),
-                          separatorBuilder: (_, _) => const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            if (index == matches.length) {
-                              return _LoadMoreButton(
-                                loading: controller.isLoadingPage,
-                                error: controller.loadError,
-                                onPressed: controller.isLoadingPage
-                                    ? null
-                                    : controller.loadNextPage,
-                              );
-                            }
-                            final match = matches[index];
-                            return _HistoryMatchRow(
-                              match: match,
-                              wide: wide,
-                              onTap: () => widget.onMatchTap(match.matchId),
-                              onArchive: widget.onArchive,
-                              onUnarchive: widget.onUnarchive,
-                              onDelete: widget.onDelete,
-                            );
-                          },
-                        );
-                      },
+              ),
+              if (widget.activeMatch != null && widget.onResumeActive != null)
+                SliverToBoxAdapter(
+                  child: _RecoveryBanner(
+                    match: widget.activeMatch!,
+                    onResume: widget.onResumeActive!,
+                  ),
+                ),
+              if (widget.importedIncompleteLoadError)
+                SliverToBoxAdapter(
+                  child: _ImportedIncompleteLoadError(
+                    onRetry: widget.onRetryImportedIncomplete,
+                  ),
+                ),
+              for (final imported in widget.importedIncompleteMatches)
+                if (widget.onResumeImportedIncomplete != null)
+                  SliverToBoxAdapter(
+                    child: _ImportedIncompleteBanner(
+                      match: imported,
+                      onResume: () =>
+                          widget.onResumeImportedIncomplete!(imported.matchId),
                     ),
-            ),
-          ],
-        ),
+                  ),
+              if (matches.isEmpty && controller.isLoadingPage)
+                const SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (matches.isEmpty && controller.loadError != null)
+                SliverToBoxAdapter(
+                  child: _HistoryLoadError(onRetry: controller.refresh),
+                )
+              else if (matches.isEmpty)
+                const SliverToBoxAdapter(child: _EmptyHistory())
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 24),
+                  sliver: SliverList.list(
+                    children: [
+                      for (final group in groups) ...[
+                        _HistoryDateHeader(date: group.date),
+                        for (final match in group.matches)
+                          _HistoryMatchRow(
+                            match: match,
+                            wide: wide,
+                            onTap: () => widget.onMatchTap(match.matchId),
+                            onArchive: widget.onArchive,
+                            onUnarchive: widget.onUnarchive,
+                            onDelete: widget.onDelete,
+                          ),
+                      ],
+                      if (controller.dataSource != null && controller.hasMore)
+                        _LoadMoreButton(
+                          loading: controller.isLoadingPage,
+                          error: controller.loadError,
+                          onPressed: controller.isLoadingPage
+                              ? null
+                              : controller.loadNextPage,
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+class _HistoryDateGroup {
+  const _HistoryDateGroup({required this.date, required this.matches});
+
+  final DateTime date;
+  final List<HistoryMatchSummary> matches;
+}
+
+List<_HistoryDateGroup> _groupMatchesByLocalDate(
+  List<HistoryMatchSummary> matches,
+) {
+  final groups = <DateTime, List<HistoryMatchSummary>>{};
+  for (final match in matches) {
+    final local = match.playedAt.toLocal();
+    final date = DateTime(local.year, local.month, local.day);
+    groups.putIfAbsent(date, () => []).add(match);
+  }
+  return groups.entries
+      .map((entry) => _HistoryDateGroup(date: entry.key, matches: entry.value))
+      .toList(growable: false);
+}
+
+class _HistoryDateHeader extends StatelessWidget {
+  const _HistoryDateHeader({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _formatDateOnly(date);
+    return Padding(
+      key: Key('history-date-$label'),
+      padding: const EdgeInsets.only(top: 20, bottom: 4),
+      child: EditorialSectionRule(label: label),
     );
   }
 }
@@ -328,7 +365,7 @@ class _HistoryToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = _historyL10n(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      padding: const EdgeInsets.only(top: 4),
       child: Column(
         children: [
           TextField(
@@ -379,10 +416,13 @@ class _HistoryToolbar extends StatelessWidget {
   }
 
   Widget _filterChip(String label, HistoryLifecycleFilter value) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: filter == value,
-      onSelected: (_) => onFilterChanged(value),
+    return SizedBox(
+      height: 48,
+      child: ChoiceChip(
+        label: Text(label),
+        selected: filter == value,
+        onSelected: (_) => onFilterChanged(value),
+      ),
     );
   }
 }
@@ -396,20 +436,55 @@ class _RecoveryBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _historyL10n(context);
-    return Card(
+    final editorial = editorialThemeOf(context);
+    final compact =
+        MediaQuery.sizeOf(context).width < 600 ||
+        MediaQuery.textScalerOf(context).scale(1) >= 1.5;
+    final details = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.historyActiveMatch,
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${match.blueName} ${match.blueScore} : ${match.redScore} ${match.redName}',
+        ),
+      ],
+    );
+    final action = SizedBox(
+      height: 48,
+      child: FilledButton(onPressed: onResume, child: Text(l10n.historyResume)),
+    );
+    return Container(
       key: const Key('history-active-recovery'),
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: ListTile(
-        leading: const Icon(Icons.play_circle_outline),
-        title: Text(l10n.historyActiveMatch),
-        subtitle: Text(
-          '${match.redName} ${match.redScore} : ${match.blueScore} ${match.blueName}',
-        ),
-        trailing: FilledButton(
-          onPressed: onResume,
-          child: Text(l10n.historyResume),
-        ),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: editorial.surface,
+        border: Border(top: BorderSide(color: editorial.arenaAccent, width: 4)),
       ),
+      child: compact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                details,
+                const SizedBox(height: 12),
+                Align(alignment: Alignment.centerLeft, child: action),
+              ],
+            )
+          : Row(
+              children: [
+                Icon(Icons.play_circle_outline, color: editorial.arenaAccent),
+                const SizedBox(width: 12),
+                Expanded(child: details),
+                const SizedBox(width: 12),
+                action,
+              ],
+            ),
     );
   }
 }
@@ -426,30 +501,38 @@ class _ImportedIncompleteBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _historyL10n(context);
-    return Card(
+    final editorial = editorialThemeOf(context);
+    return Container(
       key: Key('history-imported-${match.matchId}'),
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Semantics(
-              header: true,
-              child: Text(
-                l10n.historyImportedIncompleteTitle,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: editorial.surface,
+        border: Border(top: BorderSide(color: editorial.arenaAccent, width: 4)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              l10n.historyImportedIncompleteTitle,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${match.redName} ${match.redScore} : ${match.blueScore} ${match.blueName}',
-            ),
-            const SizedBox(height: 4),
-            Text(l10n.historyImportedIncompleteBody),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${match.blueName} ${match.blueScore} : ${match.redScore} ${match.redName}',
+          ),
+          const SizedBox(height: 4),
+          Text(l10n.historyImportedIncompleteBody),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              height: 48,
               child: FilledButton.icon(
                 key: Key('history-resume-imported-${match.matchId}'),
                 onPressed: onResume,
@@ -457,8 +540,8 @@ class _ImportedIncompleteBanner extends StatelessWidget {
                 label: Text(l10n.historyResumeImportedIncomplete),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -502,34 +585,12 @@ class _EmptyHistory extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = _historyL10n(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.history_toggle_off,
-              size: 48,
-              color: HoopTraceColors.orange.withValues(alpha: 0.75),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              l10n.historyEmpty,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              l10n.historyEmptyDescription,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.72),
-              ),
-            ),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: EditorialEmptyState(
+        title: l10n.historyEmpty,
+        message: l10n.historyEmptyDescription,
+        icon: Icons.history_toggle_off,
       ),
     );
   }
@@ -545,23 +606,12 @@ class _HistoryLoadError extends StatelessWidget {
     final l10n = _historyL10n(context);
     return Center(
       key: const Key('history-load-error'),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48),
-            const SizedBox(height: 12),
-            Text(l10n.historyLoadError, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              key: const Key('history-retry'),
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: Text(l10n.historyRetry),
-            ),
-          ],
-        ),
+      child: EditorialErrorState(
+        title: l10n.historyLoadError,
+        message: l10n.actionFailedRetry,
+        actionLabel: l10n.historyRetry,
+        onAction: onRetry,
+        icon: Icons.error_outline,
       ),
     );
   }
@@ -590,19 +640,28 @@ class _HistoryMatchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final actions =
         onArchive != null || onUnarchive != null || onDelete != null;
-    return InkWell(
-      key: Key('history-match-${match.matchId}'),
-      onTap: onTap,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minHeight: wide ? 88 : 142),
-        child: SizedBox(
+    final editorial = editorialThemeOf(context);
+    return Semantics(
+      button: true,
+      label:
+          '${match.blueName} ${match.blueScore} : ${match.redScore} ${match.redName}',
+      child: InkWell(
+        key: Key('history-match-${match.matchId}'),
+        onTap: onTap,
+        child: Container(
+          constraints: BoxConstraints(minHeight: wide ? 80 : 104),
           width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: editorial.surface,
+            border: Border(bottom: BorderSide(color: editorial.rule)),
+          ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: wide
                 ? Row(
                     children: [
-                      SizedBox(width: 128, child: _date(context)),
+                      SizedBox(width: 64, child: _time(context)),
                       Expanded(flex: 4, child: _teamsAndScore(context)),
                       Expanded(flex: 2, child: _winner(context)),
                       Expanded(
@@ -632,7 +691,7 @@ class _HistoryMatchRow extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _date(context)),
+                          Expanded(child: _time(context)),
                           if (actions) _boundedActions(context),
                           const Icon(Icons.chevron_right),
                         ],
@@ -751,12 +810,12 @@ class _HistoryMatchRow extends StatelessWidget {
   Widget _boundedActions(BuildContext context) =>
       SizedBox(width: 48, height: 48, child: _actions(context));
 
-  Widget _date(BuildContext context) => Row(
+  Widget _time(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
       Flexible(
         child: Text(
-          _formatDate(match.playedAt),
+          _formatTime(match.playedAt.toLocal()),
           maxLines: 1,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
             color: Theme.of(
@@ -780,12 +839,12 @@ class _HistoryMatchRow extends StatelessWidget {
     children: [
       Expanded(
         child: Text(
-          match.redName,
+          match.blueName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: teamColorForScheme(
-              TeamSide.red,
+              TeamSide.blue,
               Theme.of(context).colorScheme,
             ),
             fontWeight: FontWeight.w700,
@@ -795,7 +854,7 @@ class _HistoryMatchRow extends StatelessWidget {
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Text(
-          '${match.redScore} : ${match.blueScore}',
+          '${match.blueScore} : ${match.redScore}',
           style: Theme.of(
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
@@ -803,13 +862,13 @@ class _HistoryMatchRow extends StatelessWidget {
       ),
       Expanded(
         child: Text(
-          match.blueName,
+          match.redName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           textAlign: TextAlign.end,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: teamColorForScheme(
-              TeamSide.blue,
+              TeamSide.red,
               Theme.of(context).colorScheme,
             ),
             fontWeight: FontWeight.w700,
@@ -909,12 +968,10 @@ class _Meta extends StatelessWidget {
   );
 }
 
-String _formatDate(DateTime date) {
-  final month = date.month.toString().padLeft(2, '0');
-  final day = date.day.toString().padLeft(2, '0');
+String _formatTime(DateTime date) {
   final hour = date.hour.toString().padLeft(2, '0');
   final minute = date.minute.toString().padLeft(2, '0');
-  return '${date.year}-$month-$day  $hour:$minute';
+  return '$hour:$minute';
 }
 
 AppLocalizations _historyL10n(BuildContext context) =>

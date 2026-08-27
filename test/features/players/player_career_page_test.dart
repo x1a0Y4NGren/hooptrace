@@ -1,6 +1,11 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/domain/analytics/player_career_aggregate.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
@@ -9,9 +14,122 @@ import 'package:hooptrace/features/players/player_career_controller.dart';
 import 'package:hooptrace/features/players/player_career_page.dart';
 
 void main() {
+  testWidgets('career avatar foreground meets normal-text contrast', (
+    tester,
+  ) async {
+    final controller = PlayerCareerController(
+      playerId: 'career-contrast',
+      loader: (_) =>
+          Stream.value(const PlayerCareerAggregate.empty('career-contrast')),
+    );
+    addTearDown(controller.dispose);
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(brightness: brightness),
+          home: PlayerCareerPage(
+            controller: controller,
+            player: Player(
+              id: 'career-contrast',
+              nickname: 'Orange',
+              createdAt: DateTime.utc(2026, 1, 1),
+            ),
+            opponents: const [],
+          ),
+        ),
+      );
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final avatar = tester.widget<CircleAvatar>(
+        find.byKey(const Key('career-avatar-career-contrast')),
+      );
+      final editorial = editorialThemeOf(
+        tester.element(find.byKey(const Key('career-avatar-career-contrast'))),
+      );
+      expect(avatar.backgroundColor, editorial.inverseSurface);
+      expect(avatar.backgroundColor, isNot(editorial.arenaAccent));
+      expect(
+        _contrastRatio(avatar.foregroundColor!, avatar.backgroundColor!),
+        greaterThanOrEqualTo(4.5),
+        reason: '$brightness career avatar contrast',
+      );
+      final initial = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('career-avatar-career-contrast')),
+          matching: find.byType(Text),
+        ),
+      );
+      expect(initial.data, 'O');
+      expect(initial.style?.fontFamily, isNull);
+    }
+  });
+  testWidgets('career analytics stays usable across visual matrix', (
+    tester,
+  ) async {
+    final controller = PlayerCareerController(
+      playerId: 'matrix-player',
+      loader: (_) =>
+          Stream.value(const PlayerCareerAggregate.empty('matrix-player')),
+    );
+    addTearDown(controller.dispose);
+    const locales = [Locale('zh'), Locale('en')];
+    const sizes = [
+      Size(390, 844),
+      Size(731, 411),
+      Size(1095, 616),
+      Size(1920, 1080),
+    ];
+    for (final brightness in Brightness.values) {
+      for (final locale in locales) {
+        for (final size in sizes) {
+          await tester.binding.setSurfaceSize(size);
+          await tester.pumpWidget(
+            MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: MaterialApp(
+                theme: buildHoopTraceTheme(brightness: brightness),
+                locale: locale,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                ],
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: PlayerCareerPage(
+                  controller: controller,
+                  player: Player(
+                    id: 'matrix-player',
+                    nickname: 'Matrix',
+                    createdAt: DateTime.utc(2026, 1, 1),
+                  ),
+                  opponents: const [],
+                ),
+              ),
+            ),
+          );
+          expect(tester.takeException(), isNull);
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          expect(find.byType(EditorialMasthead), findsOneWidget);
+          expect(find.byType(ScoreNumeral), findsNothing);
+          expect(
+            tester
+                .getSize(find.byKey(const Key('career-window-sevenDays')))
+                .height,
+            greaterThanOrEqualTo(48),
+          );
+        }
+      }
+    }
+    await tester.binding.setSurfaceSize(null);
+  });
+
   testWidgets(
     'career page leads with growth and supports time/opponent filters',
     (tester) async {
+      final semanticsHandle = tester.ensureSemantics();
       final controller = PlayerCareerController(
         playerId: 'p1',
         loader: (_) => Stream.value(
@@ -74,11 +192,66 @@ void main() {
       expect(find.text('对手'), findsOneWidget);
       expect(find.textContaining('油漆区'), findsOneWidget);
       expect(find.text('飞鱼'), findsWidgets);
+      expect(find.byType(EditorialMasthead), findsOneWidget);
+      expect(find.byType(ScoreNumeral), findsAtLeastNWidgets(3));
+      expect(find.byType(EditorialSectionRule), findsAtLeastNWidgets(3));
+      final identitySemantics = find.byWidgetPredicate(
+        (widget) => widget is Semantics && widget.properties.label == '飞鱼',
+      );
+      expect(identitySemantics, findsOneWidget);
+      expect(tester.getSemantics(identitySemantics).label, '飞鱼');
+      final allTime = find.byKey(const Key('career-window-allTime'));
+      final sevenDays = find.byKey(const Key('career-window-sevenDays'));
+      expect(
+        tester.getSemantics(allTime).flagsCollection.isSelected,
+        ui.Tristate.isTrue,
+      );
+      expect(
+        tester.getSemantics(sevenDays).flagsCollection.isSelected,
+        ui.Tristate.isFalse,
+      );
+      _expectSingleTapOwner(tester, allTime);
+      _expectSingleTapOwner(tester, sevenDays);
+      expect(
+        tester.widget<Text>(find.text('01  8/1')).style?.fontFamily,
+        HoopTraceTypography.displayFamily,
+      );
+      expect(
+        tester.widget<Text>(find.text('57%')).style?.fontFamily,
+        HoopTraceTypography.displayFamily,
+      );
+      expect(
+        tester.widget<Text>(find.text('4')).style?.fontFamily,
+        HoopTraceTypography.displayFamily,
+      );
+      final shotLine = find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains('投篮 3/6') &&
+            widget.text.toPlainText().contains('罚球 1/1'),
+      );
+      expect(shotLine, findsOneWidget);
+      final shotSpan = tester.widget<RichText>(shotLine).text as TextSpan;
+      expect(
+        shotSpan.children!
+            .whereType<TextSpan>()
+            .where((span) => span.text == '3/6' || span.text == '1/1')
+            .every(
+              (span) =>
+                  span.style?.fontFamily == HoopTraceTypography.displayFamily,
+            ),
+        isTrue,
+      );
 
       await tester.tap(find.text('近 7 天'));
       await tester.pump();
       expect(controller.query.window, PlayerCareerWindow.sevenDays);
+      expect(
+        tester.getSemantics(sevenDays).flagsCollection.isSelected,
+        ui.Tristate.isTrue,
+      );
       expect(tester.takeException(), isNull);
+      semanticsHandle.dispose();
     },
   );
 
@@ -166,6 +339,20 @@ void main() {
     await tester.pump();
 
     expect(find.textContaining('+2.0'), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('+2.0')).style?.fontFamily,
+      HoopTraceTypography.displayFamily,
+    );
+    final deltaSemantics = find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          widget.properties.label?.contains('+2.0') == true,
+    );
+    expect(deltaSemantics, findsOneWidget);
+    expect(
+      tester.getSemantics(deltaSemantics).label,
+      tester.widget<Semantics>(deltaSemantics).properties.label,
+    );
     expect(find.textContaining('场均分差'), findsNothing);
     expect(tester.takeException(), isNull);
   });
@@ -296,4 +483,70 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('career error state exposes retry and reloads the query', (
+    tester,
+  ) async {
+    var loads = 0;
+    final controller = PlayerCareerController(
+      playerId: 'p1',
+      loader: (_) {
+        loads++;
+        return Stream<PlayerCareerAggregate>.error(StateError('offline'));
+      },
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PlayerCareerPage(
+          controller: controller,
+          player: Player(
+            id: 'p1',
+            nickname: '小北',
+            createdAt: DateTime.utc(2026, 1, 1),
+          ),
+          opponents: const [],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(EditorialErrorState), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(loads, 2);
+  });
+}
+
+double _contrastRatio(Color foreground, Color background) {
+  final foregroundLuminance = foreground.computeLuminance();
+  final backgroundLuminance = background.computeLuminance();
+  final lighter = foregroundLuminance > backgroundLuminance
+      ? foregroundLuminance
+      : backgroundLuminance;
+  final darker = foregroundLuminance > backgroundLuminance
+      ? backgroundLuminance
+      : foregroundLuminance;
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+void _expectSingleTapOwner(WidgetTester tester, Finder target) {
+  final targetNode = tester.getSemantics(target);
+  final tapNodes = <SemanticsNode>[];
+
+  void visit(SemanticsNode node) {
+    if (node.getSemanticsData().hasAction(ui.SemanticsAction.tap)) {
+      tapNodes.add(node);
+    }
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(targetNode);
+  expect(tapNodes, hasLength(1));
+  expect(tapNodes.single, same(targetNode));
 }

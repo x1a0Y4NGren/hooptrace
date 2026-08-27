@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
@@ -30,148 +30,129 @@ class _PlayerListPageState extends State<PlayerListPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.playersTitle)),
-      floatingActionButton: FloatingActionButton(
-        onPressed: widget.onCreate,
-        tooltip: l10n.playersCreate,
-        child: const Icon(Icons.person_add_alt_1),
+    final canPop = Navigator.of(context).canPop();
+    return EditorialScaffold(
+      maxContentWidth: 960,
+      masthead: EditorialMasthead(
+        title: l10n.playersTitle,
+        leading: canPop
+            ? EditorialTapTarget(
+                onPressed: () => Navigator.maybePop(context),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                label: MaterialLocalizations.of(context).backButtonTooltip,
+                child: const Icon(Icons.arrow_back),
+              )
+            : null,
+        trailing: EditorialTapTarget(
+          key: const Key('player-create'),
+          onPressed: widget.onCreate,
+          tooltip: l10n.playersCreate,
+          label: l10n.playersCreate,
+          child: const Icon(Icons.person_add_alt_1),
+        ),
       ),
-      body: SafeArea(
-        child: StreamBuilder<List<Player>>(
-          key: ValueKey(_streamKey),
-          stream: widget.repository.watchAll(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return _PlayerLoadError(
-                onRetry: () => setState(() => _streamKey++),
-              );
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final players = snapshot.data!;
-            if (players.isEmpty) {
-              return _PlayerEmptyState(onCreate: widget.onCreate);
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-              itemCount: players.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final player = players[index];
-                return Card(
-                  margin: EdgeInsets.zero,
-                  child: Semantics(
-                    button: true,
-                    label:
-                        '${player.nickname}, ${_playerSummary(player, l10n)}',
-                    child: ListTile(
-                      minTileHeight: 64,
-                      leading: CircleAvatar(
-                        backgroundColor: _sideColor(player.preferredSide),
-                        foregroundColor: Colors.white,
-                        child: Text(player.nickname.characters.first),
-                      ),
-                      title: Text(player.nickname),
-                      subtitle: Text(_playerSummary(player, l10n)),
-                      trailing: widget.onViewAnalytics == null
-                          ? Tooltip(
-                              message: l10n.playersEdit,
-                              child: Icon(Icons.chevron_right),
-                            )
-                          : IconButton(
-                              key: ValueKey('player-analytics-${player.id}'),
-                              tooltip: l10n.playerAnalyticsTooltip,
-                              icon: const Icon(Icons.insights_outlined),
-                              onPressed: () => widget.onViewAnalytics!(player),
-                            ),
-                      onTap: () => widget.onEdit(player),
-                    ),
-                  ),
-                );
-              },
+      body: StreamBuilder<List<Player>>(
+        key: ValueKey(_streamKey),
+        stream: widget.repository.watchAll(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _StateViewport(
+              child: EditorialErrorState(
+                title: l10n.playersLoadError,
+                message: l10n.playersLoadErrorBody,
+                actionLabel: l10n.retryAction,
+                onAction: () => setState(() => _streamKey++),
+              ),
             );
-          },
-        ),
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final players = snapshot.data!;
+          if (players.isEmpty) {
+            return _StateViewport(
+              child: EditorialEmptyState(
+                title: l10n.playersEmptyTitle,
+                message: l10n.playersEmptyBody,
+                actionLabel: l10n.playersCreate,
+                onAction: widget.onCreate,
+                icon: Icons.people_outline,
+              ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.only(bottom: HoopTraceSpacing.section),
+            itemCount: players.length,
+            itemBuilder: (context, index) {
+              final player = players[index];
+              final sideColor = _sideColor(context, player.preferredSide);
+              return EditorialIndexRow(
+                key: ValueKey('player-row-${player.id}'),
+                index: '${index + 1}'.padLeft(2, '0'),
+                title: player.nickname,
+                subtitle: _playerSummary(player, l10n),
+                onTap: () => widget.onEdit(player),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      key: ValueKey('player-avatar-${player.id}'),
+                      radius: 18,
+                      backgroundColor: sideColor,
+                      foregroundColor: accessibleForegroundFor(sideColor),
+                      child: Text(
+                        player.nickname.characters.first,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    if (widget.onViewAnalytics != null) ...[
+                      const SizedBox(width: 4),
+                      EditorialTapTarget(
+                        key: ValueKey('player-analytics-${player.id}'),
+                        tooltip: l10n.playerAnalyticsTooltip,
+                        label:
+                            '${player.nickname}, ${l10n.playerAnalyticsTooltip}',
+                        onPressed: () => widget.onViewAnalytics!(player),
+                        child: const Icon(Icons.insights_outlined, size: 20),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }
 }
 
-class _PlayerEmptyState extends StatelessWidget {
-  const _PlayerEmptyState({required this.onCreate});
+class _StateViewport extends StatelessWidget {
+  const _StateViewport({required this.child});
 
-  final VoidCallback onCreate;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.people_outline, size: 56),
-            const SizedBox(height: 16),
-            Text(
-              l10n.playersEmptyTitle,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(l10n.playersEmptyBody),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: onCreate,
-              icon: const Icon(Icons.add),
-              label: Text(l10n.playersCreate),
-            ),
-          ],
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(child: child),
         ),
       ),
     );
   }
 }
 
-class _PlayerLoadError extends StatelessWidget {
-  const _PlayerLoadError({required this.onRetry});
-
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l10n.playersLoadError,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(l10n.playersLoadErrorBody),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: Text(l10n.retryAction),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+Color _sideColor(BuildContext context, TeamSide? side) {
+  final editorial = editorialThemeOf(context);
+  return switch (side) {
+    TeamSide.red => editorial.teamRed,
+    TeamSide.blue => editorial.teamBlue,
+    null => editorial.ink,
+  };
 }
-
-Color _sideColor(TeamSide? side) => switch (side) {
-  TeamSide.red => HoopTraceColors.red,
-  TeamSide.blue => HoopTraceColors.blue,
-  null => HoopTraceColors.orange,
-};
 
 String _playerSummary(Player player, AppLocalizations l10n) {
   final side = switch (player.preferredSide) {

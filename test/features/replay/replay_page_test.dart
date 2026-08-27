@@ -63,10 +63,10 @@ void main() {
     expect(court.pendingLocation, isNull);
     expect(court.onPendingLocationChanged, isNull);
 
-    await tester.ensureVisible(find.byKey(const Key('replay-kind-fouls')));
+    await tester.tap(find.byKey(const Key('replay-compact-filter-action')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('replay-kind-fouls')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('replay-event-event-1')), findsNothing);
     expect(find.byKey(const Key('replay-event-event-2')), findsOneWidget);
   });
@@ -309,10 +309,14 @@ void main() {
       );
       await tester.pump();
       expect(tester.takeException(), isNull);
-      expect(
-        tester.getSize(find.byKey(const Key('replay-kind-all'))).height,
-        greaterThanOrEqualTo(48),
+      final compactFilter = find.byKey(
+        const Key('replay-compact-filter-action'),
       );
+      final inlineFilter = find.byKey(const Key('replay-kind-all'));
+      final filter = compactFilter.evaluate().isNotEmpty
+          ? compactFilter
+          : inlineFilter;
+      expect(tester.getSize(filter).height, greaterThanOrEqualTo(48));
     }
     await tester.binding.setSurfaceSize(null);
   });

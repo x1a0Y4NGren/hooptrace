@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooptrace/app/app_providers.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/match_view_data_mapper.dart';
@@ -185,6 +186,10 @@ GoRouter buildProviderAppRouter() {
         builder: (context, state) => const _SettingsRoute(),
       ),
       GoRoute(
+        path: '/about',
+        builder: (context, state) => const ProjectDetailsPage(),
+      ),
+      GoRoute(
         path: '/project',
         builder: (context, state) => const ProjectDetailsPage(),
       ),
@@ -204,6 +209,7 @@ class _HomeRoute extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final active = ref.watch(activeMatchProvider);
+    final latestFinished = ref.watch(latestFinishedMatchProvider).valueOrNull;
     return active.when(
       loading: () => const _RouteLoading(),
       error: (error, stackTrace) => _RouteMessage(
@@ -212,6 +218,7 @@ class _HomeRoute extends ConsumerWidget {
       ),
       data: (detail) => HomePage(
         activeMatch: detail,
+        latestFinishedMatch: latestFinished,
         onStartScoring: () {
           if (detail != null) {
             ScaffoldMessenger.of(context)
@@ -231,8 +238,9 @@ class _HomeRoute extends ConsumerWidget {
             : () => _abandon(context, ref, detail.match.id),
         onOpenHistory: () => context.push('/history'),
         onOpenPlayers: () => context.push('/players'),
+        onOpenRules: () => context.push('/settings/rules'),
         onOpenSettings: () => context.push('/settings'),
-        onOpenProject: () => context.push('/project'),
+        onOpenProject: () => context.push('/about'),
       ),
     );
   }
@@ -373,10 +381,11 @@ class _ScoringRoute extends ConsumerWidget {
         onResumeClock: canResumeClock
             ? () => _resumeScoring(context, ref, matchId)
             : null,
+        onReturnHomePaused: () async => context.go('/'),
         onContinueDecision: projection.decision?.canContinue == true
             ? () => _continueScoringDecision(ref, matchId)
             : null,
-        onFinishDecision: projection.decision?.canFinish == true
+        onFinishDecision: projection.decision?.canFinish != false
             ? (redScore, blueScore) => _finishScoringDecision(
                 context,
                 ref,
@@ -386,6 +395,8 @@ class _ScoringRoute extends ConsumerWidget {
               )
             : null,
         onActionCommitted: feedback.emitCommitted,
+        motionPreferenceListenable: feedback.motionPreferenceListenable,
+        motionPreferenceLoader: () async => (await feedback.load()).motion,
       );
     }
     return const _RouteLoading();
@@ -577,7 +588,7 @@ class _SettingsRoute extends ConsumerWidget {
       controller: ref.watch(settingsControllerProvider),
       themeController: ref.watch(themePreferencesControllerProvider),
       languageController: ref.watch(languagePreferencesControllerProvider),
-      onOpenProject: () => context.push('/project'),
+      onOpenProject: () => context.push('/about'),
       onOpenRules: () => context.push('/settings/rules'),
       onDataRestored: () => context.go('/'),
     );
@@ -904,35 +915,110 @@ class _ActiveMatchGatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.routeActiveMatchTitle)),
-      body: SafeArea(
-        child: Center(
-          child: Card(
-            margin: const EdgeInsets.all(24),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '${detail.match.redName} ${detail.redScore} : ${detail.blueScore} ${detail.match.blueName}',
+    final editorial = editorialThemeOf(context);
+    return EditorialScaffold(
+      maxContentWidth: 880,
+      masthead: EditorialMasthead(
+        title: l10n.routeActiveMatchTitle,
+        compact: true,
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          EditorialSectionRule(label: l10n.homeActiveMatch),
+          const SizedBox(height: 12),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _ActiveGateTeam(
+                    key: const Key('active-gate-blue-team'),
+                    name: detail.match.blueName,
+                    score: detail.blueScore,
+                    identityColor: editorial.teamBlue,
+                    alignment: CrossAxisAlignment.start,
                   ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: onContinue,
-                    child: Text(l10n.routeContinueMatch),
+                ),
+                VerticalDivider(width: 25, color: editorial.rule),
+                Expanded(
+                  child: _ActiveGateTeam(
+                    key: const Key('active-gate-red-team'),
+                    name: detail.match.redName,
+                    score: detail.redScore,
+                    identityColor: editorial.teamRed,
+                    alignment: CrossAxisAlignment.end,
                   ),
-                  OutlinedButton(
-                    key: homeAbandonKey,
-                    onPressed: () => onAbandon(),
-                    child: Text(l10n.routeAbandonMatch),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: onContinue,
+            icon: const Icon(Icons.arrow_forward),
+            label: Text(l10n.routeContinueMatch),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            key: homeAbandonKey,
+            onPressed: () => onAbandon(),
+            child: Text(l10n.routeAbandonMatch),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActiveGateTeam extends StatelessWidget {
+  const _ActiveGateTeam({
+    required this.name,
+    required this.score,
+    required this.identityColor,
+    required this.alignment,
+    super.key,
+  });
+
+  final String name;
+  final int score;
+  final Color identityColor;
+  final CrossAxisAlignment alignment;
+
+  @override
+  Widget build(BuildContext context) {
+    final alignEnd = alignment == CrossAxisAlignment.end;
+    final identity = Container(width: 4, height: 32, color: identityColor);
+    final nameLabel = Expanded(
+      child: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+        style: Theme.of(
+          context,
+        ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+      ),
+    );
+    final scoreLabel = ScoreNumeral(value: score, fontSize: 40);
+    return Semantics(
+      container: true,
+      child: Row(
+        children: alignEnd
+            ? [
+                scoreLabel,
+                const SizedBox(width: 8),
+                nameLabel,
+                const SizedBox(width: 8),
+                identity,
+              ]
+            : [
+                identity,
+                const SizedBox(width: 8),
+                nameLabel,
+                const SizedBox(width: 8),
+                scoreLabel,
+              ],
       ),
     );
   }

@@ -6,6 +6,45 @@ import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_event_filter.dart';
 
 void main() {
+  test(
+    'location selection stays edit-only while event review stays available',
+    () {
+      final controller = ReplayController(
+        data: ReplayMatchData(
+          matchId: 'selection-contract',
+          redName: 'Red',
+          blueName: 'Blue',
+          redScore: 2,
+          blueScore: 0,
+          duration: const Duration(seconds: 12),
+          events: [
+            ReplayEventData(
+              id: 'event-1',
+              kind: ReplayEventKind.score,
+              side: TeamSide.red,
+              points: 2,
+              elapsed: const Duration(seconds: 12),
+              locationId: 'location-1',
+              shotPoint: CourtPoint(x: 0.3, y: 0.4),
+            ),
+          ],
+        ),
+        onMoveShotLocation: (_, _, _) async {},
+      );
+
+      controller.selectLocation('location-1');
+      expect(controller.selectedEventId, isNull);
+
+      controller.selectEvent('event-1');
+      expect(controller.selectedEventId, 'event-1');
+
+      controller.clearSelection();
+      controller.setEditing(true);
+      controller.selectLocation('location-1');
+      expect(controller.selectedEventId, 'event-1');
+    },
+  );
+
   test('maps located scores and filters timeline without mutating data', () {
     final controller = ReplayController(
       data: ReplayMatchData(

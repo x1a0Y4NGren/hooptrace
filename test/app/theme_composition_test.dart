@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/core/settings/language_preferences.dart';
 import 'package:hooptrace/core/settings/theme_preferences.dart';
+import 'package:hooptrace/features/home/home_page.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -57,7 +59,7 @@ void main() {
 
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(materialApp.locale, const Locale('zh'));
-    expect(find.text('\u5f00\u59cb\u8ba1\u5206'), findsOneWidget);
+    expect(find.byKey(homeStartScoringKey), findsOneWidget);
     expect(materialApp.supportedLocales, contains(const Locale('en')));
     expect(materialApp.supportedLocales, contains(const Locale('zh')));
   });
@@ -75,23 +77,34 @@ void main() {
 
     await tester.pumpWidget(HoopTraceApp(database: database));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    final settingsShortcut = find.byKey(const Key('home-settings-shortcut'));
+    await tester.scrollUntilVisible(
+      settingsShortcut,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(settingsShortcut);
     await tester.pumpAndSettle();
 
     final languageDropdown = find.byKey(
       const Key('language-preference-dropdown'),
     );
     expect(languageDropdown, findsOneWidget);
-    await tester.scrollUntilVisible(
-      languageDropdown,
-      300,
-      scrollable: find.byType(Scrollable).first,
+    await Scrollable.ensureVisible(
+      tester.element(languageDropdown),
+      alignment: 0.5,
     );
+    await tester.pumpAndSettle();
     await tester.tap(languageDropdown);
     await tester.pumpAndSettle();
     await tester.tap(find.text('English').last);
     await tester.pumpAndSettle();
-    expect(find.text('Appearance'), findsOneWidget);
+    expect(
+      tester
+          .widgetList<EditorialSectionRule>(find.byType(EditorialSectionRule))
+          .map((rule) => rule.label),
+      contains('Appearance'),
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(HoopTraceApp(database: database));
@@ -99,7 +112,7 @@ void main() {
 
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(materialApp.locale, const Locale('en'));
-    expect(find.text('Start'), findsOneWidget);
+    expect(find.byKey(homeStartScoringKey), findsOneWidget);
   });
 
   testWidgets('a saved English choice gates localized startup content', (
@@ -132,7 +145,7 @@ void main() {
 
     await language.load();
     await tester.pumpAndSettle();
-    expect(find.text('Start'), findsOneWidget);
+    expect(find.byKey(homeStartScoringKey), findsOneWidget);
   });
 
   testWidgets('unsupported system locale falls back before title generation', (

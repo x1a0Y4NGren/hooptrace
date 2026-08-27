@@ -1,11 +1,111 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
+import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/replay/widgets/replay_timeline.dart';
 
 void main() {
+  testWidgets(
+    'full compact ReplayPage keeps the first event inside its real viewport',
+    (tester) async {
+      const insets = EdgeInsets.fromLTRB(8, 16, 12, 18);
+      await _pumpCompactReplayPage(
+        tester,
+        locale: const Locale('en'),
+        viewPadding: insets,
+      );
+
+      final pane = tester.getRect(
+        find.byKey(const Key('replay-timeline-pane')),
+      );
+      final viewport = tester.getRect(
+        find.byKey(const Key('replay-timeline-scroll')),
+      );
+      final first = tester.getRect(find.byKey(const Key('replay-event-first')));
+      expect(pane.contains(viewport.topLeft), isTrue);
+      expect(pane.contains(viewport.bottomRight), isTrue);
+      expect(first.left, greaterThanOrEqualTo(viewport.left));
+      expect(first.top, greaterThanOrEqualTo(viewport.top));
+      expect(first.right, lessThanOrEqualTo(viewport.right));
+      expect(first.bottom, lessThanOrEqualTo(viewport.bottom));
+      expect(
+        first.height,
+        greaterThanOrEqualTo(48),
+        reason: 'the visible first event must retain a usable minimum target',
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final testCase in const [
+    (locale: Locale('en'), label: 'Replay filters'),
+    (locale: Locale('zh'), label: '筛选'),
+  ]) {
+    testWidgets(
+      'compact ReplayPage exposes a localized 48dp ${testCase.locale.languageCode} filter action',
+      (tester) async {
+        const insets = EdgeInsets.fromLTRB(8, 16, 12, 18);
+        await _pumpCompactReplayPage(
+          tester,
+          locale: testCase.locale,
+          viewPadding: insets,
+        );
+
+        final filter = find.byKey(const Key('replay-compact-filter-action'));
+        final rect = tester.getRect(filter);
+        final safeViewport = Rect.fromLTRB(
+          insets.left,
+          insets.top,
+          731 - insets.right,
+          411 - insets.bottom,
+        );
+        expect(filter.hitTestable(), findsOneWidget);
+        expect(rect.width, greaterThanOrEqualTo(48));
+        expect(rect.height, greaterThanOrEqualTo(48));
+        expect(safeViewport.contains(rect.center), isTrue);
+        expect(tester.getSemantics(filter).label, testCase.label);
+      },
+    );
+  }
+
+  testWidgets('compact filter action names the filter control, not All', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        theme: buildHoopTraceTheme(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 300,
+            height: 300,
+            child: ReplayTimelinePanel(
+              controller: _compactController(),
+              onEventTap: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final filter = find.byKey(const Key('replay-compact-filter-action'));
+    expect(tester.getSemantics(filter).label, 'Replay filters');
+    expect(tester.getSize(filter).shortestSide, greaterThanOrEqualTo(48));
+  });
+
   testWidgets('outcome and point chips can be tapped again to clear filters', (
     tester,
   ) async {
@@ -128,3 +228,59 @@ void main() {
     ]);
   });
 }
+
+Future<void> _pumpCompactReplayPage(
+  WidgetTester tester, {
+  required Locale locale,
+  required EdgeInsets viewPadding,
+}) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(731, 411);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPhysicalSize);
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: locale,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: buildHoopTraceTheme(brightness: Brightness.dark),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(2),
+          padding: viewPadding,
+          viewPadding: viewPadding,
+        ),
+        child: child!,
+      ),
+      home: ReplayPage(controller: _compactController()),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+ReplayController _compactController() => ReplayController(
+  data: ReplayMatchData(
+    matchId: 'compact-first-event',
+    redName: 'Red',
+    blueName: 'Blue',
+    redScore: 2,
+    blueScore: 0,
+    duration: const Duration(minutes: 1),
+    events: [
+      ReplayEventData(
+        id: 'first',
+        side: TeamSide.red,
+        kind: ReplayEventKind.score,
+        points: 2,
+        outcome: ShotOutcome.made,
+        elapsed: Duration.zero,
+        occurredAt: DateTime.utc(2026, 8, 1),
+      ),
+    ],
+  ),
+);

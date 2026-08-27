@@ -697,6 +697,12 @@ abstract class AppLocalizations {
   /// **'事件时间线'**
   String get replayTimeline;
 
+  /// No description provided for @replayFilters.
+  ///
+  /// In zh, this message translates to:
+  /// **'筛选'**
+  String get replayFilters;
+
   /// No description provided for @replayNoEvents.
   ///
   /// In zh, this message translates to:
@@ -1548,6 +1554,12 @@ abstract class AppLocalizations {
   /// **'无法读取分析数据'**
   String get playerAnalyticsLoadError;
 
+  /// No description provided for @playerAnalyticsLoadErrorBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取生涯分析，请重试以刷新本地比赛数据。'**
+  String get playerAnalyticsLoadErrorBody;
+
   /// No description provided for @playerAnalyticsNotFound.
   ///
   /// In zh, this message translates to:
@@ -1680,6 +1692,12 @@ abstract class AppLocalizations {
   /// **'外观'**
   String get settingsAppearanceSection;
 
+  /// No description provided for @settingsLanguageSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'语言'**
+  String get settingsLanguageSection;
+
   /// No description provided for @settingsLanguageTitle.
   ///
   /// In zh, this message translates to:
@@ -1733,6 +1751,60 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'深色'**
   String get settingsThemeDark;
+
+  /// No description provided for @settingsMotionTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'动效'**
+  String get settingsMotionTitle;
+
+  /// No description provided for @settingsMotionSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择界面动效程度'**
+  String get settingsMotionSubtitle;
+
+  /// No description provided for @settingsMotionStandard.
+  ///
+  /// In zh, this message translates to:
+  /// **'标准动效'**
+  String get settingsMotionStandard;
+
+  /// No description provided for @settingsMotionReduced.
+  ///
+  /// In zh, this message translates to:
+  /// **'减少动效'**
+  String get settingsMotionReduced;
+
+  /// No description provided for @settingsMotionHelp.
+  ///
+  /// In zh, this message translates to:
+  /// **'减少动效会缩短过渡并移除装饰性动画。'**
+  String get settingsMotionHelp;
+
+  /// No description provided for @settingsMotionPreview.
+  ///
+  /// In zh, this message translates to:
+  /// **'动效预览'**
+  String get settingsMotionPreview;
+
+  /// No description provided for @settingsMotionPreviewStandard.
+  ///
+  /// In zh, this message translates to:
+  /// **'预览：标准动效'**
+  String get settingsMotionPreviewStandard;
+
+  /// No description provided for @settingsMotionPreviewReduced.
+  ///
+  /// In zh, this message translates to:
+  /// **'预览：减少动效'**
+  String get settingsMotionPreviewReduced;
+
+  /// No description provided for @settingsDataSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据'**
+  String get settingsDataSection;
 
   /// No description provided for @settingsStatisticsSection.
   ///
@@ -1937,6 +2009,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'关于 HoopTrace'**
   String get settingsAboutTitle;
+
+  /// No description provided for @settingsAboutSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'关于'**
+  String get settingsAboutSection;
 
   /// No description provided for @settingsAboutSubtitle.
   ///
@@ -2376,6 +2454,12 @@ abstract class AppLocalizations {
   /// **'无法打开球员档案'**
   String get playerOpenError;
 
+  /// No description provided for @playerOpenErrorBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法打开该球员档案，请检查本地数据后重试。'**
+  String get playerOpenErrorBody;
+
   /// No description provided for @playerNicknameLabel.
   ///
   /// In zh, this message translates to:
@@ -2436,6 +2520,18 @@ abstract class AppLocalizations {
   /// **'规则模板'**
   String get rulesTitle;
 
+  /// No description provided for @rulesEmptyTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无规则模板'**
+  String get rulesEmptyTitle;
+
+  /// No description provided for @rulesEmptyBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'创建自定义规则模板，为下一场比赛设定计分方式。'**
+  String get rulesEmptyBody;
+
   /// No description provided for @rulesCreate.
   ///
   /// In zh, this message translates to:
@@ -2448,11 +2544,23 @@ abstract class AppLocalizations {
   /// **'规则模板读取失败'**
   String get rulesLoadError;
 
+  /// No description provided for @rulesLoadErrorBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取规则模板，请检查本地数据后重试。'**
+  String get rulesLoadErrorBody;
+
   /// No description provided for @rulesBuiltIn.
   ///
   /// In zh, this message translates to:
   /// **'内置'**
   String get rulesBuiltIn;
+
+  /// No description provided for @rulesCustom.
+  ///
+  /// In zh, this message translates to:
+  /// **'自定义'**
+  String get rulesCustom;
 
   /// No description provided for @ruleBuiltInFreeScoring.
   ///
@@ -2981,6 +3089,66 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'暂停'**
   String get scoringPause;
+
+  /// No description provided for @scoringFinishShort.
+  ///
+  /// In zh, this message translates to:
+  /// **'结束'**
+  String get scoringFinishShort;
+
+  /// No description provided for @scoringMatchControlsTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'结束或暂停比赛？'**
+  String get scoringMatchControlsTitle;
+
+  /// No description provided for @scoringMatchControlsBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'你可以暂时离开比赛，也可以确认当前比分并结束比赛。'**
+  String get scoringMatchControlsBody;
+
+  /// No description provided for @scoringReturnToScoring.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回计分'**
+  String get scoringReturnToScoring;
+
+  /// No description provided for @scoringPauseMatch.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂停比赛'**
+  String get scoringPauseMatch;
+
+  /// No description provided for @scoringMatchPausedTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'比赛已暂停'**
+  String get scoringMatchPausedTitle;
+
+  /// No description provided for @scoringMatchPausedBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'计分操作已锁定。继续比赛后可接着记录。'**
+  String get scoringMatchPausedBody;
+
+  /// No description provided for @scoringReturnHome.
+  ///
+  /// In zh, this message translates to:
+  /// **'返回主页'**
+  String get scoringReturnHome;
+
+  /// No description provided for @scoringPendingPauseExitBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前球场上还有未完成的灰色落点。返回主页或结束比赛会丢弃这次草稿。'**
+  String get scoringPendingPauseExitBody;
+
+  /// No description provided for @scoringDiscardDraft.
+  ///
+  /// In zh, this message translates to:
+  /// **'丢弃草稿'**
+  String get scoringDiscardDraft;
 
   /// No description provided for @scoringResume.
   ///
@@ -3719,6 +3887,12 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'记录'**
   String get scoringRecordsGroup;
+
+  /// No description provided for @scoringNotesCustomRecordsGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'备注/自定义记录'**
+  String get scoringNotesCustomRecordsGroup;
 
   /// No description provided for @scoringMatchGroup.
   ///

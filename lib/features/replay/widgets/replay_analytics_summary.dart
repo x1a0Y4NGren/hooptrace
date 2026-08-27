@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/analytics/match_analytics.dart';
@@ -119,13 +119,11 @@ class ReplayAnalyticsSummary extends StatelessWidget {
               runSpacing: 8,
               children: analytics.scoringRuns
                   .map(
-                    (run) => Chip(
-                      avatar: CircleAvatar(
-                        backgroundColor: run.side == TeamSide.red
-                            ? HoopTraceColors.red
-                            : HoopTraceColors.blue,
-                      ),
-                      label: Text('${_sideName(run.side)} +${run.points}'),
+                    (run) => _AnalyticsIndexTag(
+                      color: run.side == TeamSide.red
+                          ? editorialThemeOf(context).teamRed
+                          : editorialThemeOf(context).teamBlue,
+                      label: '${_sideName(run.side)} +${run.points}',
                     ),
                   )
                   .toList(),
@@ -139,10 +137,9 @@ class ReplayAnalyticsSummary extends StatelessWidget {
               runSpacing: 8,
               children: analytics.zoneDistribution.entries
                   .map(
-                    (entry) => Chip(
-                      label: Text(
-                        '${_zoneLabel(entry.key, l10n)} · ${entry.value}',
-                      ),
+                    (entry) => _AnalyticsIndexTag(
+                      color: editorialThemeOf(context).rule,
+                      label: '${_zoneLabel(entry.key, l10n)} · ${entry.value}',
                     ),
                   )
                   .toList(),
@@ -246,7 +243,7 @@ class _AnalyticsHeading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: HoopTraceColors.orange),
+        Icon(icon, size: 20, color: editorialThemeOf(context).arenaAccent),
         const SizedBox(width: 8),
         Text(
           title,
@@ -287,8 +284,10 @@ class _AnalyticsMetric extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 128, minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          top: BorderSide(color: editorialThemeOf(context).rule),
+          bottom: BorderSide(color: editorialThemeOf(context).rule),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -307,6 +306,24 @@ class _AnalyticsMetric extends StatelessWidget {
   }
 }
 
+class _AnalyticsIndexTag extends StatelessWidget {
+  const _AnalyticsIndexTag({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(minHeight: 48),
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    decoration: BoxDecoration(
+      border: Border(left: BorderSide(color: color, width: 4)),
+    ),
+    alignment: Alignment.centerLeft,
+    child: Text(label),
+  );
+}
+
 class _ScoringFlowItem extends StatelessWidget {
   const _ScoringFlowItem({
     required this.entry,
@@ -320,9 +337,10 @@ class _ScoringFlowItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
     final color = entry.side == TeamSide.red
-        ? HoopTraceColors.red
-        : HoopTraceColors.blue;
+        ? editorial.teamRed
+        : editorial.teamBlue;
     return Semantics(
       label: l10n.replayAnalyticsScoreSemantics(
         sideName,
@@ -372,9 +390,10 @@ class _KeyPossessionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
     final color = possession.side == TeamSide.red
-        ? HoopTraceColors.red
-        : HoopTraceColors.blue;
+        ? editorial.teamRed
+        : editorial.teamBlue;
     return Container(
       constraints: const BoxConstraints(minHeight: 48),
       padding: const EdgeInsets.symmetric(vertical: 8),

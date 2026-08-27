@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:ui' show Tristate;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
+import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
@@ -13,13 +17,692 @@ import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
+import 'package:hooptrace/features/scoring/motion/scoring_motion.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 import '../../test_helpers/test_database.dart';
 
+class _GatedSupplementController extends ScoringController {
+  _GatedSupplementController(this.result)
+    : super(matchId: 'gated-supplement-controller');
+
+  final Future<ShotLocationCommitReceipt?> result;
+
+  @override
+  Future<ShotLocationCommitReceipt?> attachSupplementLocationWithReceipt(
+    CourtPoint point, {
+    DateTime? requestedAtUtc,
+    String? eventId,
+  }) => result;
+}
+
+class _BusyPauseController extends ScoringController {
+  _BusyPauseController() : super(matchId: 'busy-pause-controller');
+
+  @override
+  Future<bool> pauseCommitted() async => false;
+}
+
+class _FailingPauseController extends ScoringController {
+  _FailingPauseController() : super(matchId: 'failing-pause-controller');
+
+  var retryWithReceiptCalls = 0;
+
+  late final MatchCommandFailure failure = MatchCommandFailure(
+    command: PauseMatchCommand(
+      matchId: state.matchId,
+      occurredAt: DateTime.utc(2026, 8, 27, 12),
+    ),
+    message: 'retryable pause failure',
+    canRetry: true,
+  );
+
+  @override
+  Future<bool> pauseCommitted() => Future<bool>.error(failure);
+
+  @override
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return const ScoringCommandRetryResult(accepted: true);
+  }
+}
+
+class _NonRetryableResumeController extends ScoringController {
+  _NonRetryableResumeController()
+    : super(matchId: 'non-retryable-resume-controller');
+
+  late final MatchCommandFailure failure = MatchCommandFailure(
+    command: ResumeMatchCommand(
+      matchId: state.matchId,
+      occurredAt: DateTime.utc(2026, 8, 27, 12),
+    ),
+    message: 'resume validation failed',
+    canRetry: false,
+  );
+
+  @override
+  Future<bool> resumeCommitted() => Future<bool>.error(failure);
+}
+
+class _FailingScoreController extends ScoringController {
+  _FailingScoreController(String matchId) : super(matchId: matchId);
+
+  var retryWithReceiptCalls = 0;
+
+  late final MatchCommandFailure failure = MatchCommandFailure(
+    command: RecordMatchEventCommand(
+      matchId: state.matchId,
+      side: TeamSide.red,
+      points: 1,
+      occurredAt: DateTime.utc(2026, 8, 25, 12),
+    ),
+    message: 'retryable score failure',
+    canRetry: true,
+  );
+
+  @override
+  Future<bool> recordScoreCommitted({
+    required TeamSide side,
+    required int points,
+    DateTime? occurredAt,
+  }) => Future<bool>.error(failure);
+
+  @override
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return const ScoringCommandRetryResult(accepted: true);
+  }
+}
+
+class _RetryTrackingController extends ScoringController {
+  _RetryTrackingController(String matchId) : super(matchId: matchId);
+
+  var retryWithReceiptCalls = 0;
+
+  @override
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return const ScoringCommandRetryResult(accepted: true);
+  }
+}
+
+class _GatedRetryController extends _FailingScoreController {
+  _GatedRetryController(super.matchId, this.retryResult);
+
+  final Future<ScoringCommandRetryResult> retryResult;
+
+  @override
+  Future<ScoringCommandRetryResult> retryCommandWithReceipt(
+    MatchCommandFailure failure,
+  ) async {
+    retryWithReceiptCalls++;
+    return retryResult;
+  }
+}
+
 void main() {
+  testWidgets(
+    'court-first receipt queues one hero and reveals durable marker after impact',
+    (tester) async {
+      final controller = ScoringController(matchId: 'task4-hero-success');
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('scoring-court'))),
+      );
+      await tester.tap(find.byKey(const Key('blue-score-2')));
+      await tester.pump();
+
+      final overlay = tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay.coordinator.pendingCount, 1);
+      expect(controller.state.shotLocations, hasLength(1));
+      var court = tester.widget<CourtView>(find.byType(CourtView));
+      expect(court.hiddenShotLocationIds, hasLength(1));
+      expect(court.transientMarkers, hasLength(1));
+      await tester.pump(const Duration(milliseconds: 470));
+      expect(overlay.coordinator.active, isNotNull);
+      expect(
+        tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+        hasLength(1),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+      court = tester.widget<CourtView>(find.byType(CourtView));
+      expect(court.hiddenShotLocationIds, isEmpty);
+      expect(court.transientMarkers, isEmpty);
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(overlay.coordinator.active, isNull);
+      expect(overlay.coordinator.pendingCount, 0);
+    },
+  );
+
+  testWidgets('undo cancels the active location motion with a timed eraser', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'task4-eraser-active');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.tap(find.byKey(const Key('blue-score-2')));
+    await tester.pump();
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .active,
+      isNotNull,
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-undo')));
+    await tester.pump();
+    var court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(court.eraserMarkers, hasLength(1));
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .active,
+      isNull,
+    );
+    final startProgress = court.eraserMarkers.single.progress;
+    await tester.pump(const Duration(milliseconds: 100));
+    court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(court.eraserMarkers.single.progress, greaterThan(startProgress));
+    expect(court.eraserMarkers.single.progress, closeTo(0.5, 0.15));
+    await tester.pump(const Duration(milliseconds: 90));
+    expect(
+      tester.widget<CourtView>(find.byType(CourtView)).eraserMarkers,
+      isEmpty,
+    );
+  });
+
+  testWidgets('reduced-motion undo skips the transient eraser projection', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'task4-eraser-reduced');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          motionPreference: MotionPreference.reduced,
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.tap(find.byKey(const Key('blue-score-2')));
+    await tester.pump();
+    expect(controller.state.shotLocations, hasLength(1));
+
+    await tester.tap(find.byKey(const Key('scoring-undo')));
+    await tester.pump();
+
+    final court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(controller.state.shotLocations, isEmpty);
+    expect(court.transientMarkers, isEmpty);
+    expect(court.eraserMarkers, isEmpty);
+  });
+
+  testWidgets('system-disabled undo skips the transient eraser projection', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'task4-eraser-disabled');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: ScoringPage(controller: controller),
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.tap(find.byKey(const Key('red-score-3')));
+    await tester.pump();
+    expect(controller.state.shotLocations, hasLength(1));
+
+    await tester.tap(find.byKey(const Key('scoring-undo')));
+    await tester.pump();
+
+    final court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(controller.state.shotLocations, isEmpty);
+    expect(court.transientMarkers, isEmpty);
+    expect(court.eraserMarkers, isEmpty);
+  });
+
+  testWidgets('system-disabled scoring reveals receipt without a flight', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'task4-hero-disabled');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: ScoringPage(controller: controller),
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.tap(find.byKey(const Key('red-score-3')));
+    await tester.pump();
+    final overlay = tester.widget<ScoringMotionOverlay>(
+      find.byType(ScoringMotionOverlay),
+    );
+    expect(overlay.coordinator.active, isNull);
+    expect(overlay.coordinator.pendingCount, 0);
+    expect(controller.state.shotLocations, hasLength(1));
+  });
+
+  testWidgets(
+    'scoring reacts to shared motion preference changes after mount',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      final feedback = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+      );
+      final controller = ScoringController(matchId: 'reactive-motion');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            motionPreferenceListenable: feedback.motionPreferenceListenable,
+          ),
+        ),
+      );
+
+      ScoringMotionOverlay overlay() => tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay().coordinator.mode, ScoringMotionMode.standard);
+
+      await feedback.setMotionPreference(MotionPreference.reduced);
+      await tester.pump();
+      expect(overlay().coordinator.mode, ScoringMotionMode.reduced);
+
+      await feedback.setMotionPreference(MotionPreference.standard);
+      await tester.pump();
+      expect(overlay().coordinator.mode, ScoringMotionMode.standard);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: MaterialApp(
+            home: ScoringPage(
+              controller: controller,
+              motionPreferenceListenable: feedback.motionPreferenceListenable,
+            ),
+          ),
+        ),
+      );
+      expect(overlay().coordinator.mode, ScoringMotionMode.disabled);
+      await feedback.setMotionPreference(MotionPreference.reduced);
+      await tester.pump();
+      expect(overlay().coordinator.mode, ScoringMotionMode.disabled);
+    },
+  );
+
+  testWidgets('scoring detaches a replaced motion preference listenable', (
+    tester,
+  ) async {
+    final previous = ValueNotifier(MotionPreference.standard);
+    final replacement = ValueNotifier(MotionPreference.standard);
+    addTearDown(previous.dispose);
+    addTearDown(replacement.dispose);
+
+    Widget page(ValueListenable<MotionPreference> listenable) {
+      return MaterialApp(
+        home: ScoringPage(
+          controller: ScoringController(matchId: 'replace-motion'),
+          motionPreferenceListenable: listenable,
+        ),
+      );
+    }
+
+    await tester.pumpWidget(page(previous));
+    await tester.pumpWidget(page(replacement));
+    previous.value = MotionPreference.reduced;
+    await tester.pump();
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .mode,
+      ScoringMotionMode.standard,
+    );
+    replacement.value = MotionPreference.reduced;
+    await tester.pump();
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .mode,
+      ScoringMotionMode.reduced,
+    );
+  });
+
+  testWidgets(
+    'reactive scoring seam loads persisted preference on first mount',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(database.close);
+      await database
+          .into(database.appSettings)
+          .insert(
+            AppSetting(
+              key: scoringFeedbackPreferencesKey,
+              valueJson:
+                  '{"version":1,"haptic":true,"sound":false,"motion":"reduced"}',
+              updatedAt: DateTime.utc(2026, 8, 26),
+            ),
+          );
+      final feedback = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: ScoringController(matchId: 'persisted-motion'),
+            motionPreferenceListenable: feedback.motionPreferenceListenable,
+            motionPreferenceLoader: () async => (await feedback.load()).motion,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+            .coordinator
+            .mode,
+        ScoringMotionMode.reduced,
+      );
+    },
+  );
+
+  testWidgets(
+    'score press compresses for 90ms but reduced motion stays static',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: ScoringPage(matchId: 'press-feedback')),
+      );
+      final button = find.byKey(const Key('red-score-1'));
+      final scaleFinder = find.ancestor(
+        of: button,
+        matching: find.byType(AnimatedScale),
+      );
+      expect(tester.getSize(button).shortestSide, greaterThanOrEqualTo(48));
+      expect(tester.widget<AnimatedScale>(scaleFinder).scale, 1);
+      final gesture = await tester.startGesture(tester.getCenter(button));
+      await tester.pump();
+      expect(
+        tester.widget<AnimatedScale>(scaleFinder).scale,
+        closeTo(.96, .01),
+      );
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.widget<AnimatedScale>(scaleFinder).scale, 1);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: const MaterialApp(
+            home: ScoringPage(matchId: 'press-feedback-disabled'),
+          ),
+        ),
+      );
+      final disabledScaleFinder = find.ancestor(
+        of: find.byKey(const Key('red-score-1')),
+        matching: find.byType(AnimatedScale),
+      );
+      final disabledGesture = await tester.startGesture(
+        tester.getCenter(find.byKey(const Key('red-score-1'))),
+      );
+      await tester.pump();
+      expect(tester.widget<AnimatedScale>(disabledScaleFinder).scale, 1);
+      await disabledGesture.up();
+    },
+  );
+
+  testWidgets(
+    'foul stamp uses a one-shot entrance and reduced mode is static',
+    (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(home: ScoringPage(matchId: 'foul-stamp-motion')),
+      );
+      await tester.tap(find.byKey(const Key('red-foul')));
+      await tester.pump();
+      expect(find.byKey(const Key('scoring-foul-stamp')), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byKey(const Key('scoring-foul-stamp')),
+          matching: find.byType(TweenAnimationBuilder<double>),
+        ),
+        findsOneWidget,
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+      await tester.tap(find.byKey(const Key('red-foul')));
+      await tester.pump();
+      expect(find.byKey(const Key('scoring-foul-stamp')), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 240));
+      expect(find.byKey(const Key('scoring-foul-stamp')), findsNothing);
+
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: const MaterialApp(
+            home: ScoringPage(matchId: 'foul-stamp-disabled'),
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('red-foul')));
+      await tester.pump();
+      expect(find.byKey(const Key('scoring-foul-stamp')), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byKey(const Key('scoring-foul-stamp')),
+          matching: find.byType(TweenAnimationBuilder<double>),
+        ),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('score switch animates only the numeric value', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'score-switch-motion')),
+    );
+    expect(find.byKey(const ValueKey<int>(0)), findsAtLeastNWidgets(2));
+    expect(find.text('0 红方'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('red-score-1')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey<int>(1)), findsOneWidget);
+    expect(find.text('1 红方'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 180));
+    expect(find.byKey(const ValueKey<int>(1)), findsOneWidget);
+  });
+
+  testWidgets('a supplement receipt from a replaced controller is ignored', (
+    tester,
+  ) async {
+    final result = Completer<ShotLocationCommitReceipt?>();
+    final oldController = _GatedSupplementController(result.future);
+    await oldController.recordScoreCommitted(side: TeamSide.red, points: 2);
+    var committed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: oldController,
+          onActionCommitted: () => committed++,
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pump();
+    tester.binding.handleMetricsChanged();
+    await tester.pump();
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .pendingCount,
+      0,
+    );
+
+    final replacement = ScoringController(matchId: 'replacement-controller');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: replacement)),
+    );
+    result.complete(
+      ShotLocationCommitReceipt(
+        eventId: 'old-event',
+        shotLocationId: 'old-shot',
+        side: TeamSide.red,
+        points: 2,
+        point: CourtPoint(x: 0.4, y: 0.4),
+        source: ShotLocationCommitSource.supplement,
+      ),
+    );
+    await tester.pump();
+
+    expect(committed, 0);
+    expect(
+      tester
+          .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+          .coordinator
+          .pendingCount,
+      0,
+    );
+    expect(
+      tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+      isEmpty,
+    );
+  });
+
+  testWidgets('a stale SnackBar retry cannot target a replacement controller', (
+    tester,
+  ) async {
+    final oldController = _FailingScoreController('same-match-id');
+    final replacement = _RetryTrackingController('same-match-id');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: oldController)),
+    );
+    await tester.tap(find.byKey(const Key('red-score-1')));
+    await tester.pump();
+    expect(find.byType(SnackBarAction), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: replacement)),
+    );
+    final retry = tester.widget<SnackBarAction>(find.byType(SnackBarAction));
+    retry.onPressed();
+    await tester.pump();
+
+    expect(oldController.retryWithReceiptCalls, 0);
+    expect(replacement.retryWithReceiptCalls, 0);
+    expect(replacement.state.events, isEmpty);
+  });
+
+  testWidgets(
+    'successful retry action is consumed while an in-flight duplicate is ignored',
+    (tester) async {
+      final retryResult = Completer<ScoringCommandRetryResult>();
+      final controller = _GatedRetryController(
+        'in-flight-retry',
+        retryResult.future,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+      await tester.tap(find.byKey(const Key('red-score-1')));
+      await tester.pump();
+      expect(find.byType(SnackBarAction), findsOneWidget);
+
+      final retryAction = tester.widget<SnackBarAction>(
+        find.byType(SnackBarAction),
+      );
+      retryAction.onPressed();
+      retryAction.onPressed();
+      expect(controller.retryWithReceiptCalls, 1);
+
+      retryResult.complete(const ScoringCommandRetryResult(accepted: true));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+
+      expect(controller.retryWithReceiptCalls, 1);
+      expect(find.byType(SnackBarAction), findsNothing);
+      retryAction.onPressed();
+      await tester.pump();
+      expect(controller.retryWithReceiptCalls, 1);
+    },
+  );
+
+  testWidgets('failed retry keeps a retry action available', (tester) async {
+    final retryResult = Completer<ScoringCommandRetryResult>();
+    final retryFailure = MatchCommandFailure(
+      command: RecordMatchEventCommand(
+        matchId: 'failed-retry',
+        side: TeamSide.red,
+        points: 1,
+        occurredAt: DateTime.utc(2026, 8, 25, 12),
+      ),
+      message: 'retry failed once',
+      canRetry: true,
+    );
+    final controller = _GatedRetryController(
+      'failed-retry',
+      retryResult.future,
+    );
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+    await tester.tap(find.byKey(const Key('red-score-1')));
+    await tester.pump();
+    final firstRetry = tester.widget<SnackBarAction>(
+      find.byType(SnackBarAction),
+    );
+    firstRetry.onPressed();
+    retryResult.completeError(retryFailure);
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+
+    expect(controller.retryWithReceiptCalls, 1);
+    expect(find.byType(SnackBarAction), findsOneWidget);
+    tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump();
+    expect(controller.retryWithReceiptCalls, 2);
+    expect(find.byType(SnackBarAction), findsOneWidget);
+  });
+
   testWidgets('unified scoring keeps secondary actions behind More', (
     tester,
   ) async {
@@ -42,13 +725,618 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('scoring-more-sheet')), findsOneWidget);
+    expect(find.byType(EditorialSheet), findsOneWidget);
+    expect(find.byType(EditorialIndexRow), findsNWidgets(11));
+    for (final section in const [
+      'shooting',
+      'free-throws',
+      'match-state',
+      'notes-records',
+      'match',
+    ]) {
+      expect(find.byKey(Key('more-section-$section')), findsOneWidget);
+    }
+    expect(find.byKey(const Key('more-destructive-section')), findsNothing);
+    expect(find.byKey(const Key('more-finish')), findsNothing);
     expect(find.byKey(const Key('more-blue-miss')), findsOneWidget);
     expect(find.byKey(const Key('more-red-miss')), findsOneWidget);
     expect(find.text('投篮'), findsOneWidget);
     expect(find.text('罚球'), findsOneWidget);
     expect(find.text('比赛状态'), findsOneWidget);
-    expect(find.text('记录'), findsOneWidget);
+    expect(find.text('备注/自定义记录'), findsOneWidget);
     expect(find.text('比赛'), findsOneWidget);
+  });
+
+  testWidgets('visible finish control opens the explicit match control panel', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(731, 411));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'visible-match-controls',
+          onFinishDecision: (_, _) async {},
+        ),
+      ),
+    );
+
+    final finish = find.byKey(const Key('scoring-finish'));
+    expect(finish, findsOneWidget);
+    expect(tester.getSize(finish).height, greaterThanOrEqualTo(48));
+    await tester.tap(finish);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-match-controls')), findsOneWidget);
+    expect(find.text('结束或暂停比赛？'), findsOneWidget);
+    expect(find.byKey(const Key('match-controls-return')), findsOneWidget);
+    expect(find.byKey(const Key('match-controls-pause')), findsOneWidget);
+    expect(find.byKey(const Key('match-controls-finish')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('match-controls-return'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('match-controls-return')))
+          .style
+          ?.minimumSize
+          ?.resolve({})
+          ?.height,
+      greaterThanOrEqualTo(48),
+    );
+  });
+
+  testWidgets('system back is blocked while pause is being committed', (
+    tester,
+  ) async {
+    final pauseGate = Completer<void>();
+    var leaveCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'pause-in-flight-back',
+          onRequestLeave: () async => leaveCalls++,
+          onPauseMatch: () => pauseGate.future,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pump();
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(leaveCalls, 0);
+    expect(find.byType(ScoringPage), findsOneWidget);
+
+    pauseGate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+  });
+
+  testWidgets('timer-free pause blocks back and preserves a gray court draft', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'local-pause-with-draft');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pump();
+    expect(controller.courtFirstShotDraft, isNotNull);
+
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('paused-return-home'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    expect(
+      tester
+          .widget<TextButton>(find.byKey(const Key('paused-return-home')))
+          .style
+          ?.minimumSize
+          ?.resolve({})
+          ?.height,
+      greaterThanOrEqualTo(48),
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(controller.courtFirstShotDraft, isNotNull);
+
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+    expect(controller.courtFirstShotDraft, isNotNull);
+  });
+
+  testWidgets('paused home warns before discarding a gray court draft', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'paused-home-draft');
+    var homeCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          onReturnHomePaused: () async => homeCalls++,
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('paused-return-home')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('paused-draft-discard')), findsOneWidget);
+    expect(homeCalls, 0);
+    await tester.tap(find.byKey(const Key('paused-draft-stay')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(controller.courtFirstShotDraft, isNotNull);
+
+    await tester.tap(find.byKey(const Key('paused-return-home')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('paused-draft-discard')));
+    await tester.pumpAndSettle();
+    expect(homeCalls, 1);
+    expect(controller.courtFirstShotDraft, isNull);
+  });
+
+  testWidgets('route pause callbacks preserve drafts and resume durably', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final now = DateTime.utc(2026, 8, 27, 9);
+      final service = MatchCommandService(database, now: () => now);
+      final start = await service.start(
+        _startPageCommand(
+          'route-pause-draft',
+          timerEnabled: true,
+          clockMode: ClockMode.countUp,
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+      );
+      var pauseCalls = 0;
+      var resumeCalls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            clockNowUtc: () => now.add(const Duration(seconds: 1)),
+            onPauseMatch: () async {
+              pauseCalls++;
+              final projection = await service.pause(
+                PauseMatchCommand(
+                  matchId: start.match.id,
+                  occurredAt: now.add(const Duration(seconds: 1)),
+                ),
+              );
+              controller.replaceCommittedProjection(projection);
+            },
+            onResumePausedMatch: () async {
+              resumeCalls++;
+              final projection = await service.resume(
+                ResumeMatchCommand(
+                  matchId: start.match.id,
+                  occurredAt: now.add(const Duration(seconds: 2)),
+                ),
+              );
+              controller.replaceCommittedProjection(projection);
+            },
+          ),
+        ),
+      );
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('scoring-court'))),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('scoring-finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('match-controls-pause')));
+      await tester.pumpAndSettle();
+
+      expect(pauseCalls, 1);
+      expect(controller.courtFirstShotDraft, isNotNull);
+      expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('paused-continue')));
+      await tester.pumpAndSettle();
+      expect(resumeCalls, 1);
+      expect(controller.courtFirstShotDraft, isNotNull);
+      expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+    });
+  });
+
+  testWidgets('a persisted pause restores the blocking paused panel', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final now = DateTime.utc(2026, 8, 27, 10);
+      final service = MatchCommandService(database, now: () => now);
+      final start = await service.start(
+        _startPageCommand(
+          'restore-paused-panel',
+          timerEnabled: true,
+          clockMode: ClockMode.countUp,
+        ),
+      );
+      final paused = await service.pause(
+        PauseMatchCommand(
+          matchId: start.match.id,
+          occurredAt: now.add(const Duration(seconds: 1)),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        paused,
+        service,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            onResumePausedMatch: () async {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+      expect(find.text('比赛已暂停'), findsOneWidget);
+    });
+  });
+
+  testWidgets('pause failure does not enter the paused panel', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'pause-failure-panel',
+          onPauseMatch: () => Future<void>.error(StateError('offline')),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+    expect(find.text('操作失败，请重试。'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('blue-score-1')));
+    await tester.pump();
+    expect(find.text('蓝方 1'), findsOneWidget);
+  });
+
+  testWidgets(
+    'busy pause rejection reports feedback instead of failing silently',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: _BusyPauseController())),
+      );
+      await tester.tap(find.byKey(const Key('scoring-finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('match-controls-pause')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+      expect(find.byKey(const Key('scoring-action-rejected')), findsOneWidget);
+    },
+  );
+
+  testWidgets('pause retry keeps the court-first draft', (tester) async {
+    final controller = _FailingPauseController();
+    controller.beginOrMoveCourtFirstShot(CourtPoint(x: 0.42, y: 0.61));
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+
+    expect(controller.courtFirstShotDraft, isNotNull);
+    expect(find.byType(SnackBarAction), findsOneWidget);
+    tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+    await tester.pumpAndSettle();
+
+    expect(controller.retryWithReceiptCalls, 1);
+    expect(controller.courtFirstShotDraft, isNotNull);
+  });
+
+  testWidgets('non-retryable resume failure stays inline without retry', (
+    tester,
+  ) async {
+    final controller = _NonRetryableResumeController();
+    expect(await controller.pauseCommitted(), isTrue);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          onReturnHomePaused: () async {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(find.byKey(const Key('paused-resume-failure')), findsOneWidget);
+    expect(find.byKey(const Key('paused-retry')), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('resume failure keeps the blocking paused panel', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'resume-failure-panel',
+          onResumePausedMatch: () => Future<void>.error(StateError('offline')),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+    expect(find.text('操作失败，请重试。'), findsOneWidget);
+  });
+
+  testWidgets('double continue submits only one resume command', (
+    tester,
+  ) async {
+    final resumeGate = Completer<void>();
+    var resumeCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'resume-double-tap',
+          onResumePausedMatch: () {
+            resumeCalls++;
+            return resumeGate.future;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+
+    final continueButton = find.byKey(const Key('paused-continue'));
+    await tester.tap(continueButton);
+    await tester.pump();
+    await tester.tap(continueButton, warnIfMissed: false);
+    await tester.pump();
+    expect(resumeCalls, 1);
+    expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
+
+    resumeGate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+  });
+
+  testWidgets('pause and resume each emit committed feedback once', (
+    tester,
+  ) async {
+    var committed = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          matchId: 'pause-feedback-once',
+          onPauseMatch: () async {},
+          onResumePausedMatch: () async {},
+          onActionCommitted: () => committed++,
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-pause')));
+    await tester.pumpAndSettle();
+    expect(committed, 1);
+    await tester.tap(find.byKey(const Key('paused-continue')));
+    await tester.pumpAndSettle();
+    expect(committed, 2);
+  });
+
+  testWidgets('ordinary in-progress match can finish with its current score', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'manual-finish');
+    await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+    var redScore = -1;
+    var blueScore = -1;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          onFinishDecision: (red, blue) async {
+            redScore = red;
+            blueScore = blue;
+          },
+        ),
+      ),
+    );
+
+    expect(controller.state.decision, isNull);
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-finish')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-finish-confirm')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
+    await tester.pumpAndSettle();
+    expect(redScore, 2);
+    expect(blueScore, 0);
+  });
+
+  testWidgets('canceling final confirmation keeps the gray court draft', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'finish-cancel-draft');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          onFinishDecision: (_, _) async {},
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-finish')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('未完成的灰色落点'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('scoring-finish-cancel')));
+    await tester.pumpAndSettle();
+    expect(controller.courtFirstShotDraft, isNotNull);
+  });
+
+  testWidgets('failed finish keeps the gray court draft for retry', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'finish-failure-draft');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(
+          controller: controller,
+          onFinishDecision: (_, _) => Future<void>.error(StateError('offline')),
+        ),
+      ),
+    );
+    await tester.tapAt(
+      tester.getCenter(find.byKey(const Key('scoring-court'))),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('scoring-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('match-controls-finish')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(controller.courtFirstShotDraft, isNotNull);
+    expect(find.text('操作失败，请重试。'), findsOneWidget);
+  });
+
+  testWidgets('an explicit rule gate disables finish in match controls', (
+    tester,
+  ) async {
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database);
+      final start = await service.start(
+        _startPageCommand('finish-rule-gate', targetScore: 1, winByTwo: true),
+      );
+      final projection = await service.record(
+        RecordMatchEventCommand(
+          matchId: start.match.id,
+          type: EventKind.fieldGoal,
+          side: TeamSide.red,
+          points: 1,
+          outcome: ShotOutcome.made,
+          occurredAt: DateTime.utc(2026, 8, 27, 9, 1),
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        projection,
+        service,
+      );
+      expect(controller.state.decision?.canFinish, isFalse);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            onFinishDecision: (_, _) async {},
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('scoring-finish')));
+      await tester.pumpAndSettle();
+
+      final finish = tester.widget<FilledButton>(
+        find.byKey(const Key('match-controls-finish')),
+      );
+      expect(finish.onPressed, isNull);
+    });
+  });
+
+  testWidgets('landscape scoring uses narrow paper editorial action rails', (
+    tester,
+  ) async {
+    for (final size in const [Size(731, 411), Size(1095, 616)]) {
+      await tester.binding.setSurfaceSize(size);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: const ScoringPage(matchId: 'editorial-action-rails'),
+        ),
+      );
+
+      final editorial = const HoopTraceEditorialTheme.light();
+      final blueRail = tester.widget<Material>(
+        find.byKey(const Key('blue-action-rail')),
+      );
+      final redRail = tester.widget<Material>(
+        find.byKey(const Key('red-action-rail')),
+      );
+      expect(blueRail.color, editorial.canvas);
+      expect(redRail.color, editorial.canvas);
+      expect(blueRail.color, isNot(editorial.inverseSurface));
+      expect(redRail.color, isNot(editorial.inverseSurface));
+
+      final maximumRailWidth = size.width < 900 ? 128.0 : 188.0;
+      expect(
+        tester.getSize(find.byKey(const Key('blue-side-panel'))).width,
+        lessThanOrEqualTo(maximumRailWidth),
+      );
+      expect(
+        tester.getSize(find.byKey(const Key('red-side-panel'))).width,
+        lessThanOrEqualTo(maximumRailWidth),
+      );
+
+      for (final side in const ['blue', 'red']) {
+        final button = tester.widget<FilledButton>(
+          find.byKey(Key('$side-score-1')),
+        );
+        expect(
+          button.style?.shape?.resolve(const {}),
+          isA<BeveledRectangleBorder>(),
+        );
+        expect(button.style?.elevation?.resolve(const {}), 0);
+      }
+      expect(tester.takeException(), isNull);
+    }
+    await tester.binding.setSurfaceSize(null);
   });
 
   testWidgets('court-first draft starts as a gray point with side prompt', (
@@ -148,10 +1436,129 @@ void main() {
     await tester.tapAt(
       tester.getCenter(find.byKey(const Key('scoring-court'))),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(controller.locationSupplementWindow, isNull);
     expect(controller.state.shotLocations, hasLength(1));
+    final overlay = tester.widget<ScoringMotionOverlay>(
+      find.byType(ScoringMotionOverlay),
+    );
+    expect(overlay.coordinator.pendingCount, 1);
+    expect(
+      tester.widget<CourtView>(find.byType(CourtView)).transientMarkers,
+      hasLength(1),
+    );
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(
+      tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+      isEmpty,
+    );
   });
+
+  testWidgets('idle scoring creates no periodic supplement timer', (
+    tester,
+  ) async {
+    var periodicTimers = 0;
+
+    await runZoned(
+      () => tester.pumpWidget(
+        const MaterialApp(home: ScoringPage(matchId: 'idle-no-wake')),
+      ),
+      zoneSpecification: ZoneSpecification(
+        createPeriodicTimer: (self, parent, zone, duration, callback) {
+          periodicTimers++;
+          return parent.createPeriodicTimer(zone, duration, callback);
+        },
+      ),
+    );
+
+    expect(periodicTimers, 0);
+  });
+
+  testWidgets('active location affordance does not oscillate', (tester) async {
+    final anchor = DateTime.utc(2026, 8, 27, 9);
+    final controller = ScoringController(
+      matchId: 'steady-location-affordance',
+      nowUtc: () => anchor,
+    )..addScore(side: TeamSide.red, points: 2);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(controller: controller, clockNowUtc: () => anchor),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    final affordance = find.byKey(const Key('red-score-2-location-affordance'));
+    final firstDecoration = tester
+        .widget<AnimatedContainer>(affordance)
+        .decoration;
+    expect(tester.binding.transientCallbackCount, 0);
+
+    await tester.pump(const Duration(milliseconds: 500));
+
+    expect(
+      tester.widget<AnimatedContainer>(affordance).decoration,
+      firstDecoration,
+    );
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(find.byKey(const Key('red-score-2-location')), findsOneWidget);
+  });
+
+  testWidgets('supplement countdown expires at ten seconds', (tester) async {
+    final anchor = DateTime.utc(2026, 8, 27, 9);
+    var now = anchor;
+    final controller = ScoringController(
+      matchId: 'supplement-countdown-expiry',
+      nowUtc: () => now,
+    )..addScore(side: TeamSide.blue, points: 3);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScoringPage(controller: controller, clockNowUtc: () => now),
+      ),
+    );
+    expect(find.textContaining('10秒'), findsOneWidget);
+
+    now = anchor.add(const Duration(seconds: 9, milliseconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.textContaining('1秒'), findsOneWidget);
+    expect(controller.locationSupplementWindow, isNotNull);
+
+    now = anchor.add(const Duration(seconds: 10));
+    await tester.pump(const Duration(seconds: 1));
+    expect(controller.locationSupplementWindow, isNull);
+    expect(find.byKey(const Key('blue-score-3-location')), findsNothing);
+  });
+
+  for (final mode in <({bool disabled, bool reduced, Duration duration})>[
+    (disabled: false, reduced: true, duration: Duration(milliseconds: 120)),
+    (disabled: true, reduced: false, duration: Duration.zero),
+  ]) {
+    testWidgets('location reveal uses ${mode.duration.inMilliseconds}ms when '
+        '${mode.disabled ? 'animations are disabled' : 'motion is reduced'}', (
+      tester,
+    ) async {
+      final controller = ScoringController(
+        matchId: 'location-reveal-${mode.duration.inMilliseconds}',
+      )..addScore(side: TeamSide.red, points: 1);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: MediaQueryData(
+              disableAnimations: mode.disabled,
+              accessibleNavigation: mode.reduced,
+            ),
+            child: ScoringPage(controller: controller),
+          ),
+        ),
+      );
+
+      final reveal = tester.widget<AnimatedContainer>(
+        find.byKey(const Key('red-score-1-location-affordance')),
+      );
+      expect(reveal.duration, mode.duration);
+    });
+  }
 
   testWidgets(
     'score-first location window allows a foul and keeps its window',
@@ -171,7 +1578,12 @@ void main() {
         final windowEventId = controller.locationSupplementWindow!.eventId;
 
         await tester.pumpWidget(
-          MaterialApp(home: ScoringPage(controller: controller)),
+          MaterialApp(
+            home: ScoringPage(
+              controller: controller,
+              clockNowUtc: () => anchor,
+            ),
+          ),
         );
         expect(
           tester
@@ -214,10 +1626,11 @@ void main() {
       await tester.tap(find.byKey(const Key('scoring-more')));
       await tester.pumpAndSettle();
 
-      final possession = tester.widget<ListTile>(
+      final possession = tester.widget<EditorialIndexRow>(
         find.byKey(const Key('more-possession-blue')),
       );
       expect(possession.onTap, isNotNull);
+      await tester.ensureVisible(find.byKey(const Key('more-possession-blue')));
       await tester.tap(find.byKey(const Key('more-possession-blue')));
       await tester.pump();
       await tester.runAsync(
@@ -305,6 +1718,79 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('English More sheet exposes Notes and Custom Records', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const ScoringPage(matchId: 'english-more-copy'),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('scoring-more')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('NOTES/CUSTOM RECORDS', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('more-note'), skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('more-custom'), skipOffstage: false),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('compact More sheet peeks the first action in the next section', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(731, 411));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+    tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
+    addTearDown(tester.view.resetPadding);
+    addTearDown(tester.view.resetViewPadding);
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'compact-more-peek')),
+    );
+
+    await tester.tap(find.byKey(const Key('scoring-more')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.getSize(find.byKey(const Key('more-close'))).shortestSide,
+      greaterThanOrEqualTo(48),
+    );
+    final scrollViewport = tester.getRect(
+      find.descendant(
+        of: find.byKey(const Key('scoring-more-sheet')),
+        matching: find.byType(SingleChildScrollView),
+      ),
+    );
+    final nextAction = tester.getRect(
+      find.byKey(const Key('more-blue-free-throw-made')),
+    );
+    final visibleHeight =
+        nextAction.bottom.clamp(scrollViewport.top, scrollViewport.bottom) -
+        nextAction.top.clamp(scrollViewport.top, scrollViewport.bottom);
+
+    expect(nextAction.height, greaterThanOrEqualTo(48));
+    expect(
+      visibleHeight,
+      greaterThanOrEqualTo(48),
+      reason: 'The first action after the next section label must be visible.',
+    );
+  });
+
   testWidgets(
     'unified scoring remains operable across landscape and portrait sizes',
     (tester) async {
@@ -390,6 +1876,7 @@ void main() {
     final timer = tester.getRect(find.text('无计时'));
     final undo = tester.getRect(find.byKey(const Key('scoring-undo')));
     final more = tester.getRect(find.byKey(const Key('scoring-more')));
+    final finish = tester.getRect(find.byKey(const Key('scoring-finish')));
     final red = tester.getRect(find.text('0 红方'));
     final blueColumn = tester.getRect(find.byKey(const Key('blue-score-1')));
     final redColumn = tester.getRect(find.byKey(const Key('red-score-1')));
@@ -398,10 +1885,12 @@ void main() {
     expect(blue.center.dx, closeTo(blueColumn.center.dx, 0.5));
     expect(red.center.dx, closeTo(redColumn.center.dx, 0.5));
     expect(blue.center.dx, lessThan(leave.center.dx));
-    expect(leave.center.dx, lessThan(timer.center.dx));
-    expect(timer.center.dx, lessThan(undo.center.dx));
-    expect(undo.center.dx, lessThan(more.center.dx));
-    expect(more.center.dx, lessThan(red.center.dx));
+    expect(leave.center.dx, lessThan(undo.center.dx));
+    expect(undo.center.dx, lessThan(timer.center.dx));
+    expect(timer.center.dx, lessThan(more.center.dx));
+    expect(more.center.dx, lessThan(finish.center.dx));
+    expect(finish.center.dx, lessThan(red.center.dx));
+    expect(finish.overlaps(red), isFalse);
   });
 
   testWidgets('portrait scoreboard aligns teams without overlapping controls', (
@@ -421,6 +1910,7 @@ void main() {
       tester.getRect(find.byKey(const Key('scoring-leave'))),
       tester.getRect(find.byKey(const Key('scoring-undo'))),
       tester.getRect(find.byKey(const Key('scoring-more'))),
+      tester.getRect(find.byKey(const Key('scoring-finish'))),
     ];
     final blueColumn = tester.getRect(find.byKey(const Key('blue-score-1')));
     final redColumn = tester.getRect(find.byKey(const Key('red-score-1')));
@@ -435,7 +1925,25 @@ void main() {
     }
   });
 
-  testWidgets('reduced motion uses a static location outline', (tester) async {
+  testWidgets('finish control stays clear of the red score at 600x400', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(600, 400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(home: ScoringPage(matchId: 'finish-spacing-600')),
+    );
+
+    final finish = tester.getRect(find.byKey(const Key('scoring-finish')));
+    final red = tester.getRect(find.text('0 红方'));
+    expect(finish.overlaps(red), isFalse);
+    expect(finish.right, lessThan(red.left));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('disabled motion uses an immediate static location outline', (
+    tester,
+  ) async {
     final controller = ScoringController(matchId: 'unified-reduced-motion')
       ..addScore(side: TeamSide.blue, points: 2);
     await tester.pumpWidget(
@@ -448,7 +1956,15 @@ void main() {
     );
     await tester.pump();
     expect(find.byKey(const Key('blue-score-2-location')), findsOneWidget);
-    expect(find.byType(AnimatedContainer), findsNothing);
+    expect(
+      tester
+          .widget<AnimatedContainer>(
+            find.byKey(const Key('blue-score-2-location-affordance')),
+          )
+          .duration,
+      Duration.zero,
+    );
+    expect(tester.binding.transientCallbackCount, 0);
     expect(find.textContaining('2 秒'), findsNothing);
   });
 
@@ -489,7 +2005,17 @@ void main() {
 
       expect(controller.courtFirstShotDraft, isNotNull);
       expect(find.byType(SnackBarAction), findsOneWidget);
-      tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
+      expect(
+        tester
+            .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+            .coordinator
+            .pendingCount,
+        0,
+      );
+      final retryAction = tester.widget<SnackBarAction>(
+        find.byType(SnackBarAction),
+      );
+      retryAction.onPressed();
       await tester.pump();
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 30)),
@@ -497,6 +2023,67 @@ void main() {
       await tester.pump();
       expect(controller.courtFirstShotDraft, isNull);
       expect(await database.select(database.matchEvents).get(), hasLength(1));
+      final overlay = tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay.coordinator.pendingCount, 1);
+      expect(overlay.coordinator.active, isNotNull);
+      expect(
+        tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+        hasLength(1),
+      );
+
+      expect(find.byType(SnackBarAction), findsNothing);
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(overlay.coordinator.pendingCount, 0);
+
+      await tester.tap(find.byKey(const Key('scoring-undo')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('scoring-undo')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+
+      final eventRows = await database.select(database.matchEvents).get();
+      final locationRows = await database.select(database.shotLocations).get();
+      expect(eventRows, hasLength(1));
+      expect(eventRows.single.isDeleted, isTrue);
+      expect(locationRows, hasLength(1));
+      expect(locationRows.single.isConfirmed, isFalse);
+      expect(controller.state.score.blueScore, 0);
+      expect(
+        controller.state.events.where((event) => !event.isDeleted),
+        isEmpty,
+      );
+
+      retryAction.onPressed();
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+      expect(overlay.coordinator.pendingCount, 0);
+      expect(
+        tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+        isEmpty,
+      );
+      expect(
+        (await database.select(database.matchEvents).get()).single.isDeleted,
+        isTrue,
+      );
+      expect(
+        (await database.select(database.shotLocations).get())
+            .single
+            .isConfirmed,
+        isFalse,
+      );
+      expect(controller.state.score.blueScore, 0);
     });
   });
 
@@ -537,6 +2124,13 @@ void main() {
 
       expect(controller.locationSupplementWindow, isNotNull);
       expect(find.byType(SnackBarAction), findsOneWidget);
+      expect(
+        tester
+            .widget<ScoringMotionOverlay>(find.byType(ScoringMotionOverlay))
+            .coordinator
+            .pendingCount,
+        0,
+      );
       tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
       await tester.pump();
       await tester.runAsync(
@@ -654,7 +2248,7 @@ void main() {
     });
   });
 
-  testWidgets('More finish failure keeps confirmation flow retryable', (
+  testWidgets('top finish failure keeps confirmation flow retryable', (
     tester,
   ) async {
     await withTestDatabase((database) async {
@@ -692,19 +2286,21 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byKey(const Key('scoring-more')));
+      await tester.tap(find.byKey(const Key('scoring-finish')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const Key('more-finish')));
-      await tester.tap(find.byKey(const Key('more-finish')));
+      await tester.tap(find.byKey(const Key('match-controls-finish')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('more-inline-retry')), findsOneWidget);
-      await tester.ensureVisible(find.byKey(const Key('more-inline-retry')));
-      await tester.tap(find.byKey(const Key('more-inline-retry')));
+      expect(find.text('操作失败，请重试。'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('scoring-finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('match-controls-finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
       await tester.pumpAndSettle();
       expect(finishCalls, 2);
-      expect(find.byKey(const Key('scoring-more-sheet')), findsNothing);
+      expect(find.byKey(const Key('scoring-match-controls')), findsNothing);
     });
   });
 
@@ -744,22 +2340,62 @@ void main() {
         );
         final background = score.style?.backgroundColor?.resolve(const {});
         final foreground = score.style?.foregroundColor?.resolve(const {});
-        final disabledForeground = score.style?.foregroundColor?.resolve(const {
-          WidgetState.disabled,
-        });
         expect(background, isNotNull);
         expect(foreground, isNotNull);
-        expect(disabledForeground, isNotNull);
         expect(
           _contrastRatio(foreground!, background!),
           greaterThanOrEqualTo(4.5),
         );
-        expect(
-          _contrastRatio(disabledForeground!, background),
-          greaterThanOrEqualTo(4.5),
-        );
       }
     }
+  });
+
+  testWidgets('disabled rail actions use local muted styling and semantics', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: ScoreSidePanel(
+          side: TeamSide.blue,
+          name: 'Blue',
+          score: 0,
+          fouls: 0,
+          scoreEnabled: false,
+          foulEnabled: false,
+          onScore: (_) {},
+          onFoul: () {},
+        ),
+      ),
+    );
+
+    final muted = const HoopTraceEditorialTheme.light().mutedInk;
+    for (final key in const [Key('blue-score-1'), Key('blue-foul')]) {
+      final target = find.byKey(key);
+      final button = tester.widget<ButtonStyleButton>(target);
+      expect(
+        button.style?.foregroundColor?.resolve(const {WidgetState.disabled}),
+        muted,
+      );
+      expect(
+        button.style?.side?.resolve(const {WidgetState.disabled})?.color,
+        muted,
+      );
+      expect(
+        tester
+            .widget<Opacity>(
+              find.ancestor(of: target, matching: find.byType(Opacity)).first,
+            )
+            .opacity,
+        lessThan(1),
+      );
+      expect(
+        tester.getSemantics(target).flagsCollection.isEnabled,
+        Tristate.isFalse,
+      );
+    }
+    semantics.dispose();
   });
 
   testWidgets('scoring page shows court-first landscape controls', (
@@ -769,8 +2405,10 @@ void main() {
       const MaterialApp(home: ScoringPage(matchId: 'match-1')),
     );
 
-    expect(find.text('蓝方'), findsOneWidget);
-    expect(find.text('红方'), findsOneWidget);
+    expect(find.text('蓝方 0'), findsOneWidget);
+    expect(find.text('0 红方'), findsOneWidget);
+    expect(find.text('蓝方'), findsNothing);
+    expect(find.text('红方'), findsNothing);
     expect(find.text('犯规 0'), findsNWidgets(2));
     expect(find.text('犯规'), findsNWidgets(2));
     expect(find.text('+1'), findsNWidgets(2));
@@ -1497,7 +3135,9 @@ void main() {
     },
   );
 
-  testWidgets('More records possession, free throw, and pause', (tester) async {
+  testWidgets('More records possession and free throw; top control pauses', (
+    tester,
+  ) async {
     await withTestDatabase((database) async {
       final anchor = DateTime.utc(2026, 8, 23, 9);
       final service = MatchCommandService(database, now: () => anchor);
@@ -1547,10 +3187,9 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 50)),
       );
       await tester.pump();
-      await tester.tap(find.byKey(const Key('scoring-more')));
+      await tester.tap(find.byKey(const Key('scoring-finish')));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.byKey(const Key('more-pause')));
-      await tester.tap(find.byKey(const Key('more-pause')));
+      await tester.tap(find.byKey(const Key('match-controls-pause')));
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 80)),
       );
@@ -1566,7 +3205,8 @@ void main() {
         ]),
       );
       expect(controller.currentPossession, TeamSide.blue);
-      expect(find.text('计时已暂停'), findsOneWidget);
+      expect(find.byKey(const Key('scoring-paused-panel')), findsOneWidget);
+      expect(find.text('比赛已暂停'), findsOneWidget);
     });
   });
 
@@ -1599,6 +3239,48 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final textScaler in [TextScaler.noScaling, const TextScaler.linear(2)]) {
+    testWidgets(
+      'portrait scoring keeps every primary action visible at ${textScaler == TextScaler.noScaling ? 'normal' : '200 percent'} text',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        const insets = EdgeInsets.only(top: 24, bottom: 24);
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: textScaler,
+                padding: insets,
+                viewPadding: insets,
+              ),
+              child: child!,
+            ),
+            home: const ScoringPage(matchId: 'portrait-primary-actions'),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        for (final side in ['blue', 'red']) {
+          final rail = tester.getRect(find.byKey(Key('$side-action-rail')));
+          expect(rail.top, greaterThanOrEqualTo(insets.top));
+          expect(rail.bottom, lessThanOrEqualTo(844 - insets.bottom));
+          for (final action in ['score-1', 'score-2', 'score-3', 'foul']) {
+            final rect = tester.getRect(find.byKey(Key('$side-$action')));
+            expect(rect.height, greaterThanOrEqualTo(48));
+            expect(
+              rail.contains(rect.topLeft) && rail.contains(rect.bottomRight),
+              isTrue,
+              reason:
+                  '$side $action must be visible inside the rail on first paint',
+            );
+          }
+        }
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('compact scoring remains usable at 200 percent text size', (
     tester,
   ) async {
@@ -1628,7 +3310,7 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(
       tester.getSize(find.byType(ScoreSidePanel).first).width,
-      greaterThan(132),
+      inInclusiveRange(112, 128),
     );
     expect(
       tester.getSize(find.byKey(const Key('scoring-court'))).height,
@@ -1843,6 +3525,7 @@ void main() {
   testWidgets('More replay opens only after score-first location is resolved', (
     tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     var openCount = 0;
     final controller = ScoringController(matchId: 'match-1');
 
@@ -1872,9 +3555,33 @@ void main() {
 
     expect(openCount, 1);
     expect(
-      tester.widget<ListTile>(find.byKey(const Key('more-replay'))).onTap,
+      tester
+          .widget<EditorialIndexRow>(find.byKey(const Key('more-replay')))
+          .onTap,
       isNull,
     );
+    final replay = find.byKey(const Key('more-replay'));
+    expect(
+      tester.getSemantics(replay).flagsCollection.isEnabled,
+      Tristate.isFalse,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.ancestor(of: replay, matching: find.byType(Opacity)).first,
+          )
+          .opacity,
+      lessThan(1),
+    );
+    final editorial = const HoopTraceEditorialTheme.light();
+    final rowTheme = tester.widget<Theme>(
+      find.ancestor(of: replay, matching: find.byType(Theme)).first,
+    );
+    final disabledEditorial = rowTheme.data
+        .extension<HoopTraceEditorialTheme>();
+    expect(disabledEditorial?.ink, editorial.mutedInk);
+    expect(disabledEditorial?.rule, editorial.mutedInk);
+    semantics.dispose();
   });
 
   testWidgets('top Undo awaits soft-delete for a command-backed score', (
@@ -2001,6 +3708,15 @@ void main() {
       expect(controller.locationSupplementWindow, isNull);
       expect(await database.select(database.shotLocations).get(), hasLength(1));
       expect(committedFeedbackCount, 1);
+      final overlay = tester.widget<ScoringMotionOverlay>(
+        find.byType(ScoringMotionOverlay),
+      );
+      expect(overlay.coordinator.pendingCount, 1);
+      expect(overlay.coordinator.active, isNotNull);
+      expect(
+        tester.widget<CourtView>(find.byType(CourtView)).hiddenShotLocationIds,
+        hasLength(1),
+      );
     });
   });
 
@@ -2063,6 +3779,7 @@ void main() {
         MaterialApp(
           home: ScoringPage(
             controller: controller,
+            clockNowUtc: () => anchor,
             onRequestLeave: () async => leaveCalls++,
           ),
         ),
@@ -2151,6 +3868,7 @@ StartMatchCommand _startPageCommand(
   DateTime? createdAt,
   DateTime? startedAt,
   int? targetScore,
+  bool winByTwo = false,
 }) {
   final anchor = createdAt ?? DateTime.utc(2026, 8, 23, 9);
   return StartMatchCommand(
@@ -2163,6 +3881,7 @@ StartMatchCommand _startPageCommand(
       name: 'Free',
       scoreButtons: const [1, 2, 3],
       targetScore: targetScore,
+      winByTwo: winByTwo,
     ),
     recordingMode: recordingMode,
     trackingCoverage: trackingCoverage,

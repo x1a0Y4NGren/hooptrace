@@ -325,6 +325,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get replayTimeline => '事件时间线';
 
   @override
+  String get replayFilters => '筛选';
+
+  @override
   String get replayNoEvents => '没有符合筛选条件的事件';
 
   @override
@@ -761,6 +764,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerAnalyticsLoadError => '无法读取分析数据';
 
   @override
+  String get playerAnalyticsLoadErrorBody => '无法读取生涯分析，请重试以刷新本地比赛数据。';
+
+  @override
   String get playerAnalyticsNotFound => '找不到球员';
 
   @override
@@ -829,6 +835,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsAppearanceSection => '外观';
 
   @override
+  String get settingsLanguageSection => '语言';
+
+  @override
   String get settingsLanguageTitle => '语言';
 
   @override
@@ -854,6 +863,33 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsThemeDark => '深色';
+
+  @override
+  String get settingsMotionTitle => '动效';
+
+  @override
+  String get settingsMotionSubtitle => '选择界面动效程度';
+
+  @override
+  String get settingsMotionStandard => '标准动效';
+
+  @override
+  String get settingsMotionReduced => '减少动效';
+
+  @override
+  String get settingsMotionHelp => '减少动效会缩短过渡并移除装饰性动画。';
+
+  @override
+  String get settingsMotionPreview => '动效预览';
+
+  @override
+  String get settingsMotionPreviewStandard => '预览：标准动效';
+
+  @override
+  String get settingsMotionPreviewReduced => '预览：减少动效';
+
+  @override
+  String get settingsDataSection => '数据';
 
   @override
   String get settingsStatisticsSection => '统计';
@@ -958,6 +994,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsAboutTitle => '关于 HoopTrace';
+
+  @override
+  String get settingsAboutSection => '关于';
 
   @override
   String get settingsAboutSubtitle => '永久开源免费、许可证与贡献方式';
@@ -1184,6 +1223,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerOpenError => '无法打开球员档案';
 
   @override
+  String get playerOpenErrorBody => '无法打开该球员档案，请检查本地数据后重试。';
+
+  @override
   String get playerNicknameLabel => '昵称';
 
   @override
@@ -1214,13 +1256,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get rulesTitle => '规则模板';
 
   @override
+  String get rulesEmptyTitle => '暂无规则模板';
+
+  @override
+  String get rulesEmptyBody => '创建自定义规则模板，为下一场比赛设定计分方式。';
+
+  @override
   String get rulesCreate => '新建规则';
 
   @override
   String get rulesLoadError => '规则模板读取失败';
 
   @override
+  String get rulesLoadErrorBody => '无法读取规则模板，请检查本地数据后重试。';
+
+  @override
   String get rulesBuiltIn => '内置';
+
+  @override
+  String get rulesCustom => '自定义';
 
   @override
   String get ruleBuiltInFreeScoring => '自由计分';
@@ -1499,6 +1553,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scoringPause => '暂停';
+
+  @override
+  String get scoringFinishShort => '结束';
+
+  @override
+  String get scoringMatchControlsTitle => '结束或暂停比赛？';
+
+  @override
+  String get scoringMatchControlsBody => '你可以暂时离开比赛，也可以确认当前比分并结束比赛。';
+
+  @override
+  String get scoringReturnToScoring => '返回计分';
+
+  @override
+  String get scoringPauseMatch => '暂停比赛';
+
+  @override
+  String get scoringMatchPausedTitle => '比赛已暂停';
+
+  @override
+  String get scoringMatchPausedBody => '计分操作已锁定。继续比赛后可接着记录。';
+
+  @override
+  String get scoringReturnHome => '返回主页';
+
+  @override
+  String get scoringPendingPauseExitBody => '当前球场上还有未完成的灰色落点。返回主页或结束比赛会丢弃这次草稿。';
+
+  @override
+  String get scoringDiscardDraft => '丢弃草稿';
 
   @override
   String get scoringResume => '恢复';
@@ -1873,6 +1957,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scoringRecordsGroup => '记录';
+
+  @override
+  String get scoringNotesCustomRecordsGroup => '备注/自定义记录';
 
   @override
   String get scoringMatchGroup => '比赛';

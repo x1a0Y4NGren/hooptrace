@@ -332,6 +332,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get replayTimeline => 'Event timeline';
 
   @override
+  String get replayFilters => 'Replay filters';
+
+  @override
   String get replayNoEvents => 'No events match the filters';
 
   @override
@@ -773,6 +776,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerAnalyticsLoadError => 'Could not load analytics';
 
   @override
+  String get playerAnalyticsLoadErrorBody =>
+      'Career analytics could not be loaded. Try again to refresh the local match data.';
+
+  @override
   String get playerAnalyticsNotFound => 'Player not found';
 
   @override
@@ -845,6 +852,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppearanceSection => 'Appearance';
 
   @override
+  String get settingsLanguageSection => 'Language';
+
+  @override
   String get settingsLanguageTitle => 'Language';
 
   @override
@@ -870,6 +880,35 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsThemeDark => 'Dark';
+
+  @override
+  String get settingsMotionTitle => 'Motion';
+
+  @override
+  String get settingsMotionSubtitle =>
+      'Choose how much interface motion is used';
+
+  @override
+  String get settingsMotionStandard => 'Standard motion';
+
+  @override
+  String get settingsMotionReduced => 'Reduced motion';
+
+  @override
+  String get settingsMotionHelp =>
+      'Reduced motion shortens transitions and removes decorative movement.';
+
+  @override
+  String get settingsMotionPreview => 'Motion preview';
+
+  @override
+  String get settingsMotionPreviewStandard => 'Preview: standard motion';
+
+  @override
+  String get settingsMotionPreviewReduced => 'Preview: reduced motion';
+
+  @override
+  String get settingsDataSection => 'Data';
 
   @override
   String get settingsStatisticsSection => 'Statistics';
@@ -985,6 +1024,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsAboutTitle => 'About HoopTrace';
+
+  @override
+  String get settingsAboutSection => 'About';
 
   @override
   String get settingsAboutSubtitle =>
@@ -1230,6 +1272,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerOpenError => 'Could not open player profile';
 
   @override
+  String get playerOpenErrorBody =>
+      'This player could not be opened. Check the local data and try again.';
+
+  @override
   String get playerNicknameLabel => 'Nickname';
 
   @override
@@ -1260,13 +1306,27 @@ class AppLocalizationsEn extends AppLocalizations {
   String get rulesTitle => 'Rule templates';
 
   @override
+  String get rulesEmptyTitle => 'No rule templates yet';
+
+  @override
+  String get rulesEmptyBody =>
+      'Create a custom rule template to define how the next game is scored.';
+
+  @override
   String get rulesCreate => 'New rule';
 
   @override
   String get rulesLoadError => 'Could not load rule templates';
 
   @override
+  String get rulesLoadErrorBody =>
+      'Rule templates could not be loaded. Check the local data and try again.';
+
+  @override
   String get rulesBuiltIn => 'Built-in';
+
+  @override
+  String get rulesCustom => 'Custom';
 
   @override
   String get ruleBuiltInFreeScoring => 'Free scoring';
@@ -1559,6 +1619,39 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scoringPause => 'Pause';
+
+  @override
+  String get scoringFinishShort => 'Finish';
+
+  @override
+  String get scoringMatchControlsTitle => 'Pause or finish the match?';
+
+  @override
+  String get scoringMatchControlsBody =>
+      'Pause to step away, or confirm the current score and finish the match.';
+
+  @override
+  String get scoringReturnToScoring => 'Return to scoring';
+
+  @override
+  String get scoringPauseMatch => 'Pause match';
+
+  @override
+  String get scoringMatchPausedTitle => 'Match paused';
+
+  @override
+  String get scoringMatchPausedBody =>
+      'Scoring is locked. Continue the match when you are ready to record again.';
+
+  @override
+  String get scoringReturnHome => 'Return home';
+
+  @override
+  String get scoringPendingPauseExitBody =>
+      'An unfinished gray court marker is still active. Returning home or finishing will discard this draft.';
+
+  @override
+  String get scoringDiscardDraft => 'Discard draft';
 
   @override
   String get scoringResume => 'Resume';
@@ -1966,6 +2059,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scoringRecordsGroup => 'Records';
+
+  @override
+  String get scoringNotesCustomRecordsGroup => 'Notes/Custom Records';
 
   @override
   String get scoringMatchGroup => 'Match';

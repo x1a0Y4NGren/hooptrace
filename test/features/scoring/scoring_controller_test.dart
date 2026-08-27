@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
+import 'package:hooptrace/core/domain/entities/match_event.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/rules/rule_engine.dart';
+import 'package:hooptrace/core/domain/scoring/score_state.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
@@ -14,6 +17,127 @@ import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  test(
+    'manual pause state only follows active pause and resume semantic events',
+    () {
+      MatchEvent event({
+        required String id,
+        required EventKind type,
+        String? label,
+        bool isDeleted = false,
+      }) {
+        return MatchEvent(
+          id: id,
+          matchId: 'pause-state',
+          type: type,
+          side: null,
+          points: 0,
+          occurredAt: DateTime.utc(2026, 8, 27, 12),
+          customLabel: label,
+          isDeleted: isDeleted,
+        );
+      }
+
+      MatchScoringState state(List<MatchEvent> events) {
+        return MatchScoringState(
+          matchId: 'pause-state',
+          redName: 'Red',
+          blueName: 'Blue',
+          events: events,
+          score: const ScoreState.zero(),
+          shotLocations: const [],
+          ruleTemplate: const RuleTemplate(
+            id: 'free',
+            name: 'Free',
+            scoreButtons: [1, 2, 3],
+          ),
+        );
+      }
+
+      final pause = event(id: 'pause', type: EventKind.pause, label: 'pause');
+      final resume = event(
+        id: 'resume',
+        type: EventKind.pause,
+        label: 'resume',
+      );
+
+      expect(state([pause]).isManuallyPaused, isTrue);
+      expect(
+        state([
+          pause,
+          event(id: 'foul', type: EventKind.foul, label: 'resume'),
+          event(
+            id: 'decision',
+            type: EventKind.pause,
+            label: 'decision:targetReached',
+          ),
+        ]).isManuallyPaused,
+        isTrue,
+      );
+      expect(state([pause, resume]).isManuallyPaused, isFalse);
+      expect(
+        state([
+          pause,
+          event(
+            id: 'deleted-resume',
+            type: EventKind.pause,
+            label: 'resume',
+            isDeleted: true,
+          ),
+        ]).isManuallyPaused,
+        isTrue,
+      );
+      expect(
+        state([
+          event(
+            id: 'deleted-pause',
+            type: EventKind.pause,
+            label: 'pause',
+            isDeleted: true,
+          ),
+          event(id: 'custom-pause', type: EventKind.custom, label: 'pause'),
+        ]).isManuallyPaused,
+        isFalse,
+      );
+    },
+  );
+
+  test('local untimed pause and resume preserve a court-first draft', () async {
+    final controller = ScoringController(matchId: 'local-pause-state');
+    final point = CourtPoint(x: 0.35, y: 0.65);
+    expect(controller.beginOrMoveCourtFirstShot(point), isTrue);
+
+    expect(await controller.pauseCommitted(), isTrue);
+    expect(controller.isManuallyPaused, isTrue);
+    expect(controller.courtFirstShotDraft?.point, point);
+
+    expect(await controller.resumeCommitted(), isTrue);
+    expect(controller.isManuallyPaused, isFalse);
+    expect(controller.courtFirstShotDraft?.point, point);
+    expect(controller.state.events.map((event) => event.customLabel), [
+      'pause',
+      'resume',
+    ]);
+  });
+
+  test('retryCommand rejects a failure from another match', () async {
+    final controller = ScoringController(matchId: 'current-match');
+    final command = RecordMatchEventCommand(
+      matchId: 'other-match',
+      side: TeamSide.red,
+      points: 1,
+      occurredAt: DateTime.utc(2026, 8, 25, 12),
+    );
+    final failure = MatchCommandFailure(
+      command: command,
+      message: 'stale match failure',
+      canRetry: true,
+    );
+
+    expect(await controller.retryCommand(failure), isFalse);
+    expect(controller.state.events, isEmpty);
+  });
+
   test('local score opens a supplement window without blocking actions', () {
     final now = DateTime.utc(2026, 8, 25, 12);
     final controller = ScoringController(matchId: 'match-1', nowUtc: () => now);
@@ -28,6 +152,442 @@ void main() {
       'match-1-event-1',
     );
     expect(controller.state.locationSupplementWindow?.openedAtUtc, now);
+  });
+
+  test(
+    'local court-first receipt reports the committed event and location',
+    () async {
+      final controller = ScoringController(
+        matchId: 'receipt-local-court',
+        nowUtc: () => DateTime.utc(2026, 8, 25, 12),
+      );
+      final point = CourtPoint(x: 0.2, y: 0.8);
+      expect(
+        controller.beginOrMoveCourtFirstShot(point, side: TeamSide.red),
+        isTrue,
+      );
+      controller.updateCourtFirstShot(points: 2);
+
+      final receipt = await controller.commitCourtFirstShotWithReceipt();
+
+      expect(receipt, isNotNull);
+      expect(receipt!.source, ShotLocationCommitSource.courtFirst);
+      expect(receipt.eventId, controller.state.events.single.id);
+      expect(
+        receipt.actualShotLocationId,
+        controller.state.shotLocations.single.id,
+      );
+      expect(receipt.side, TeamSide.red);
+      expect(receipt.points, 2);
+      expect(receipt.point.x, point.x);
+      expect(receipt.point.y, point.y);
+    },
+  );
+
+  test(
+    'command-backed supplement receipt uses the confirmed projection location id',
+    () async {
+      await withTestDatabase((database) async {
+        final now = DateTime.utc(2026, 8, 25, 12);
+        final service = MatchCommandService(database, now: () => now);
+        final started = await service.start(
+          _startCommand(matchId: 'receipt-supplement'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.blue, points: 3),
+          isTrue,
+        );
+        final eventId = controller.state.events.single.id;
+        final command = ConfirmShotLocationCommand(
+          commandId: 'receipt-existing-location',
+          matchId: started.match.id,
+          eventId: eventId,
+          point: CourtPoint(x: 0.1, y: 0.1),
+          requestedAtUtc: now,
+          shotLocationId: 'receipt-existing-location-shot',
+        );
+        // Seed an unconfirmed row through the real command kernel's undo path.
+        final firstProjection = await service.confirmShotLocation(command);
+        expect(firstProjection.shotLocations.single.isConfirmed, isTrue);
+        final undone = await service.undoLastScoringAction(
+          UndoLastScoringActionCommand(
+            commandId: 'receipt-existing-location-undo',
+            matchId: started.match.id,
+          ),
+        );
+        final durableLocation = await (database.select(
+          database.shotLocations,
+        )..where((row) => row.eventId.equals(eventId))).getSingle();
+        expect(durableLocation.id, 'receipt-existing-location-shot');
+        expect(durableLocation.isConfirmed, isFalse);
+        controller.replaceCommittedProjection(undone);
+        final receipt = await controller.attachSupplementLocationWithReceipt(
+          CourtPoint(x: 0.9, y: 0.7),
+          requestedAtUtc: now,
+        );
+
+        expect(receipt, isNotNull);
+        expect(receipt!.source, ShotLocationCommitSource.supplement);
+        expect(receipt.eventId, eventId);
+        expect(receipt.actualShotLocationId, 'receipt-existing-location-shot');
+        expect(receipt.side, TeamSide.blue);
+        expect(receipt.points, 3);
+        expect(receipt.point.x, 0.9);
+        expect(receipt.point.y, 0.7);
+      });
+    },
+  );
+
+  test(
+    'command-backed court-first receipt matches durable event and location rows',
+    () async {
+      await withTestDatabase((database) async {
+        final now = DateTime.utc(2026, 8, 25, 12);
+        final service = MatchCommandService(database, now: () => now);
+        final started = await service.start(
+          _startCommand(matchId: 'receipt-durable-court'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+        final point = CourtPoint(x: 0.35, y: 0.65);
+        expect(
+          controller.beginOrMoveCourtFirstShot(point, side: TeamSide.blue),
+          isTrue,
+        );
+        controller.updateCourtFirstShot(points: 3);
+
+        final receipt = await controller.commitCourtFirstShotWithReceipt();
+
+        expect(receipt, isNotNull);
+        expect(receipt!.source, ShotLocationCommitSource.courtFirst);
+        expect(receipt.side, TeamSide.blue);
+        expect(receipt.points, 3);
+        expect(receipt.point.x, point.x);
+        expect(receipt.point.y, point.y);
+        final event = await (database.select(
+          database.matchEvents,
+        )..where((row) => row.id.equals(receipt.eventId))).getSingle();
+        final location = await (database.select(
+          database.shotLocations,
+        )..where((row) => row.id.equals(receipt.shotLocationId))).getSingle();
+        expect(event.side, TeamSide.blue.name);
+        expect(event.points, 3);
+        expect(location.eventId, receipt.eventId);
+        expect(location.isConfirmed, isTrue);
+        expect(location.x, point.x);
+        expect(location.y, point.y);
+        final commandRows = await (database.select(
+          database.auditLogs,
+        )..where((row) => row.action.equals(AuditAction.command.name))).get();
+        final recordCommand = commandRows.last;
+        final before = jsonDecode(recordCommand.beforeJson) as Map;
+        expect(before['commandType'], 'record');
+        expect(before['commandId'], recordCommand.id);
+      });
+    },
+  );
+
+  test(
+    'receipt methods return null for invalid paths without changing state',
+    () async {
+      final controller = ScoringController(matchId: 'receipt-invalid');
+
+      expect(await controller.commitCourtFirstShotWithReceipt(), isNull);
+      expect(
+        await controller.attachSupplementLocationWithReceipt(
+          CourtPoint(x: 0.2, y: 0.8),
+        ),
+        isNull,
+      );
+      expect(controller.state.events, isEmpty);
+      expect(controller.state.shotLocations, isEmpty);
+    },
+  );
+
+  test(
+    'receipt transaction failures throw and preserve court-first draft',
+    () async {
+      await withTestDatabase((database) async {
+        var armed = false;
+        var beforeCommitCalls = 0;
+        final service = MatchCommandService(
+          database,
+          failureInjector: (point) {
+            if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+              beforeCommitCalls++;
+              throw StateError('receipt court-first failure');
+            }
+          },
+        );
+        final started = await service.start(
+          _startCommand(matchId: 'receipt-failure-court'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+        );
+        expect(
+          controller.beginOrMoveCourtFirstShot(
+            CourtPoint(x: 0.25, y: 0.75),
+            side: TeamSide.red,
+          ),
+          isTrue,
+        );
+        armed = true;
+
+        await expectLater(
+          controller.commitCourtFirstShotWithReceipt(),
+          throwsA(isA<MatchCommandFailure>()),
+        );
+        expect(beforeCommitCalls, 1);
+        expect(controller.state.courtFirstShotDraft, isNotNull);
+        expect(controller.state.events, isEmpty);
+        expect(controller.state.shotLocations, isEmpty);
+        expect(await database.select(database.matchEvents).get(), isEmpty);
+        expect(await database.select(database.shotLocations).get(), isEmpty);
+      });
+    },
+  );
+
+  test(
+    'receipt transaction failures throw and preserve supplement window',
+    () async {
+      await withTestDatabase((database) async {
+        final now = DateTime.utc(2026, 8, 25, 12);
+        var armed = false;
+        var beforeCommitCalls = 0;
+        final service = MatchCommandService(
+          database,
+          now: () => now,
+          failureInjector: (point) {
+            if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+              beforeCommitCalls++;
+              throw StateError('receipt supplement failure');
+            }
+          },
+        );
+        final started = await service.start(
+          _startCommand(matchId: 'receipt-failure-supplement'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.red, points: 2),
+          isTrue,
+        );
+        final windowEventId =
+            controller.state.locationSupplementWindow!.eventId;
+        armed = true;
+
+        await expectLater(
+          controller.attachSupplementLocationWithReceipt(
+            CourtPoint(x: 0.75, y: 0.25),
+            requestedAtUtc: now,
+          ),
+          throwsA(isA<MatchCommandFailure>()),
+        );
+        expect(beforeCommitCalls, 1);
+        expect(
+          controller.state.locationSupplementWindow!.eventId,
+          windowEventId,
+        );
+        expect(controller.state.shotLocations, isEmpty);
+        expect(await database.select(database.shotLocations).get(), isEmpty);
+      });
+    },
+  );
+
+  test('receipt methods return null after disposal while in flight', () async {
+    await withTestDatabase((database) async {
+      final now = DateTime.utc(2026, 8, 25, 12);
+      final entered = Completer<void>();
+      final release = Completer<void>();
+      var armed = false;
+      final service = MatchCommandService(
+        database,
+        now: () => now,
+        failureInjector: (point) async {
+          if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+            entered.complete();
+            await release.future;
+          }
+        },
+      );
+      final started = await service.start(
+        _startCommand(matchId: 'receipt-dispose'),
+      );
+      armed = true;
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+      );
+      expect(
+        controller.beginOrMoveCourtFirstShot(
+          CourtPoint(x: 0.4, y: 0.6),
+          side: TeamSide.blue,
+        ),
+        isTrue,
+      );
+      final operation = controller.commitCourtFirstShotWithReceipt();
+      await entered.future;
+      controller.dispose();
+      release.complete();
+
+      expect(await operation, isNull);
+      expect(
+        await (database.select(
+          database.matchEvents,
+        )..where((row) => row.matchId.equals(started.match.id))).get(),
+        hasLength(1),
+      );
+    });
+  });
+
+  test(
+    'supplement receipt returns null after disposal while in flight',
+    () async {
+      await withTestDatabase((database) async {
+        final now = DateTime.utc(2026, 8, 25, 12);
+        final entered = Completer<void>();
+        final release = Completer<void>();
+        var armed = false;
+        final service = MatchCommandService(
+          database,
+          now: () => now,
+          failureInjector: (point) async {
+            if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+              entered.complete();
+              await release.future;
+            }
+          },
+        );
+        final started = await service.start(
+          _startCommand(matchId: 'receipt-dispose-supplement'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+        expect(
+          await controller.recordScoreCommitted(side: TeamSide.red, points: 2),
+          isTrue,
+        );
+        armed = true;
+        final operation = controller.attachSupplementLocationWithReceipt(
+          CourtPoint(x: 0.6, y: 0.4),
+          requestedAtUtc: now,
+        );
+        await entered.future;
+        controller.dispose();
+        release.complete();
+
+        expect(await operation, isNull);
+        expect(
+          await database.select(database.shotLocations).get(),
+          hasLength(1),
+        );
+      });
+    },
+  );
+
+  test(
+    'bool court-first failure propagates once without a duplicate command',
+    () async {
+      await withTestDatabase((database) async {
+        final now = DateTime.utc(2026, 8, 25, 12);
+        var armed = false;
+        var beforeCommitCalls = 0;
+        final service = MatchCommandService(
+          database,
+          now: () => now,
+          failureInjector: (point) {
+            if (armed && point == MatchCommandFailurePoint.beforeCommit) {
+              beforeCommitCalls++;
+              throw StateError('wrapper failure');
+            }
+          },
+        );
+        final started = await service.start(
+          _startCommand(matchId: 'receipt-wrapper-failure'),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          started,
+          service,
+          nowUtc: () => now,
+        );
+        expect(
+          controller.beginOrMoveCourtFirstShot(
+            CourtPoint(x: 0.2, y: 0.8),
+            side: TeamSide.red,
+          ),
+          isTrue,
+        );
+        armed = true;
+
+        await expectLater(
+          controller.commitCourtFirstShot(),
+          throwsA(isA<MatchCommandFailure>()),
+        );
+        expect(beforeCommitCalls, 1);
+        expect(controller.state.courtFirstShotDraft, isNotNull);
+        expect(await database.select(database.matchEvents).get(), isEmpty);
+      });
+    },
+  );
+
+  test('bool receipt wrappers commit each action exactly once', () async {
+    await withTestDatabase((database) async {
+      final now = DateTime.utc(2026, 8, 25, 12);
+      final service = MatchCommandService(database, now: () => now);
+      final started = await service.start(
+        _startCommand(matchId: 'receipt-wrapper-count'),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        started,
+        service,
+        nowUtc: () => now,
+      );
+      Future<int> countCommands() async {
+        return (await (database.select(database.auditLogs)
+                  ..where((row) => row.action.equals(AuditAction.command.name)))
+                .get())
+            .length;
+      }
+
+      final beforeCourt = await countCommands();
+      expect(
+        controller.beginOrMoveCourtFirstShot(
+          CourtPoint(x: 0.3, y: 0.7),
+          side: TeamSide.red,
+        ),
+        isTrue,
+      );
+      expect(await controller.commitCourtFirstShot(), isTrue);
+      expect(await countCommands(), beforeCourt + 1);
+
+      expect(
+        await controller.recordScoreCommitted(side: TeamSide.blue, points: 1),
+        isTrue,
+      );
+      final beforeSupplement = await countCommands();
+      expect(
+        await controller.attachSupplementLocation(CourtPoint(x: 0.8, y: 0.2)),
+        isTrue,
+      );
+      expect(await countCommands(), beforeSupplement + 1);
+    });
   });
 
   test('local score-first accepts foul and next score replaces the window', () {
@@ -245,12 +805,12 @@ void main() {
     },
   );
 
-  test('confirming a pending location locks and records the court point', () {
+  test('score-first confirmation locks and records the court point', () async {
     final controller = ScoringController(matchId: 'match-1');
     final point = CourtPoint(x: 0.25, y: 0.75);
 
     controller.addScore(side: TeamSide.blue, points: 2);
-    controller.confirmPendingLocation(point);
+    await controller.confirmPendingLocation(point);
 
     expect(controller.state.pendingLocation, isNull);
     expect(controller.state.shotLocations, hasLength(1));
@@ -762,6 +1322,25 @@ void main() {
         );
       });
     },
+  );
+}
+
+StartMatchCommand _startCommand({required String matchId}) {
+  return StartMatchCommand(
+    commandId: '$matchId-start',
+    matchId: matchId,
+    redName: 'Red',
+    blueName: 'Blue',
+    ruleTemplate: const RuleTemplate(
+      id: 'free',
+      name: 'Free',
+      scoreButtons: [1, 2, 3],
+    ),
+    recordingMode: RecordingMode.simple,
+    trackingCoverage: TrackingCoverage.scoresOnly,
+    timerEnabled: false,
+    createdAt: DateTime.utc(2026, 8, 25, 12),
+    startedAt: DateTime.utc(2026, 8, 25, 12),
   );
 }
 

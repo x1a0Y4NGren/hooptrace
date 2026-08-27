@@ -3,10 +3,11 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/entities/possession_segment.dart';
+import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/export/replay_image_exporter.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
@@ -14,7 +15,9 @@ import 'package:hooptrace/features/replay/widgets/replay_analytics_summary.dart'
 import 'package:hooptrace/features/replay/widgets/replay_audit_sheet.dart';
 import 'package:hooptrace/features/replay/widgets/replay_event_editor.dart';
 import 'package:hooptrace/features/replay/widgets/replay_timeline.dart';
+import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
+import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 
 class ReplayPage extends StatefulWidget {
   const ReplayPage({
@@ -72,6 +75,7 @@ class _ReplayPageState extends State<ReplayPage> {
     if (!mounted || logs == null) return;
     await showModalBottomSheet<void>(
       context: context,
+      isScrollControlled: true,
       showDragHandle: true,
       builder: (context) => ReplayAuditSheet(logs: logs),
     );
@@ -79,8 +83,8 @@ class _ReplayPageState extends State<ReplayPage> {
 
   Future<void> _showEventEditor(ReplayEventData event) async {
     final controller = widget.controller;
-    if (!controller.isEditing) return;
     controller.selectEvent(event.id);
+    if (!controller.isEditing) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -264,8 +268,14 @@ class _ReplayPageState extends State<ReplayPage> {
   Widget build(BuildContext context) {
     final controller = widget.controller;
     final l10n = _localizations(context);
-    final page = Scaffold(
-      appBar: AppBar(
+    final viewport = MediaQuery.sizeOf(context);
+    final compactLandscape =
+        viewport.width > viewport.height && viewport.height < 500;
+    final page = EditorialScaffold(
+      maxContentWidth: 1440,
+      masthead: EditorialMasthead(
+        title: l10n.replayTitle,
+        compact: compactLandscape,
         leading: widget.onExit == null
             ? null
             : IconButton(
@@ -274,68 +284,76 @@ class _ReplayPageState extends State<ReplayPage> {
                 onPressed: widget.onExit,
                 icon: const Icon(Icons.arrow_back),
               ),
-        title: Text(l10n.replayTitle),
-        actions: _appBarActions(context, controller),
+        trailing: Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: _appBarActions(context, controller),
+        ),
       ),
-      body: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            _ScoreHeader(data: controller.data),
-            const Divider(height: 1),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final landscape =
-                      constraints.maxWidth > constraints.maxHeight;
-                  if (constraints.maxWidth >= 840 || landscape) {
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          flex: 5,
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.all(20),
-                            child: _ReplayOverview(
-                              controller: controller,
-                              courtMaxHeight: math.max(
-                                120,
-                                constraints.maxHeight - 76,
-                              ),
+      body: Column(
+        children: [
+          _ScoreHeader(data: controller.data, compact: compactLandscape),
+          SizedBox(
+            height: compactLandscape
+                ? HoopTraceSpacing.compact
+                : HoopTraceSpacing.section,
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final landscape = constraints.maxWidth > constraints.maxHeight;
+                if (constraints.maxWidth >= 840 || landscape) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        flex: 7,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(right: 24),
+                          child: _ReplayOverview(
+                            controller: controller,
+                            courtMaxHeight: math.max(
+                              120,
+                              constraints.maxHeight,
                             ),
                           ),
                         ),
-                        const VerticalDivider(width: 1),
-                        Expanded(
-                          flex: 4,
+                      ),
+                      VerticalDivider(
+                        width: 1,
+                        color: editorialThemeOf(context).rule,
+                      ),
+                      Expanded(
+                        flex: 5,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 24),
                           child: ReplayTimelinePanel(
                             controller: controller,
                             onEventTap: _showEventEditor,
                           ),
                         ),
-                      ],
-                    );
-                  }
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _ReplayOverview(controller: controller),
-                        const SizedBox(height: 24),
-                        ReplayTimelinePanel(
-                          controller: controller,
-                          embedded: true,
-                          onEventTap: _showEventEditor,
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   );
-                },
-              ),
+                }
+                return SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ReplayOverview(controller: controller),
+                      const SizedBox(height: HoopTraceSpacing.section),
+                      ReplayTimelinePanel(
+                        controller: controller,
+                        embedded: true,
+                        onEventTap: _showEventEditor,
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
     final onExit = widget.onExit;
@@ -387,9 +405,9 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.image_outlined,
-                    color: HoopTraceColors.orange,
+                    color: editorialThemeOf(context).arenaAccent,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -516,9 +534,9 @@ class _ReplayExportSummary extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.sports_basketball,
-                color: HoopTraceColors.orange,
+                color: editorialThemeOf(context).arenaAccent,
                 size: 28,
               ),
               const SizedBox(width: 10),
@@ -549,7 +567,10 @@ class _ReplayExportSummary extends StatelessWidget {
                 child: _ExportTeamScore(
                   name: data.blueName,
                   score: data.blueScore,
-                  color: HoopTraceColors.blue,
+                  color: teamColorForScheme(
+                    TeamSide.blue,
+                    Theme.of(context).colorScheme,
+                  ),
                   alignment: CrossAxisAlignment.start,
                 ),
               ),
@@ -564,7 +585,10 @@ class _ReplayExportSummary extends StatelessWidget {
                 child: _ExportTeamScore(
                   name: data.redName,
                   score: data.redScore,
-                  color: HoopTraceColors.red,
+                  color: teamColorForScheme(
+                    TeamSide.red,
+                    Theme.of(context).colorScheme,
+                  ),
                   alignment: CrossAxisAlignment.end,
                 ),
               ),
@@ -703,8 +727,10 @@ class _ExportMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          top: BorderSide(color: editorialThemeOf(context).rule),
+          bottom: BorderSide(color: editorialThemeOf(context).rule),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -733,13 +759,58 @@ class _ExportMetric extends StatelessWidget {
 }
 
 class _ScoreHeader extends StatelessWidget {
-  const _ScoreHeader({required this.data});
+  const _ScoreHeader({required this.data, this.compact = false});
 
   final ReplayMatchData data;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    if (compact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: _CompactTeamScore(
+                name: data.blueName,
+                score: data.blueScore,
+                color: teamColorForScheme(
+                  TeamSide.blue,
+                  Theme.of(context).colorScheme,
+                ),
+                textAlign: TextAlign.start,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Text(
+                data.isFinished ? l10n.replayFinished : l10n.replayInProgress,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.72),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _CompactTeamScore(
+                name: data.redName,
+                score: data.redScore,
+                color: teamColorForScheme(
+                  TeamSide.red,
+                  Theme.of(context).colorScheme,
+                ),
+                textAlign: TextAlign.end,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -748,7 +819,10 @@ class _ScoreHeader extends StatelessWidget {
             child: _TeamScore(
               name: data.blueName,
               score: data.blueScore,
-              color: HoopTraceColors.blue,
+              color: teamColorForScheme(
+                TeamSide.blue,
+                Theme.of(context).colorScheme,
+              ),
               alignment: CrossAxisAlignment.start,
             ),
           ),
@@ -767,12 +841,60 @@ class _ScoreHeader extends StatelessWidget {
             child: _TeamScore(
               name: data.redName,
               score: data.redScore,
-              color: HoopTraceColors.red,
+              color: teamColorForScheme(
+                TeamSide.red,
+                Theme.of(context).colorScheme,
+              ),
               alignment: CrossAxisAlignment.end,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CompactTeamScore extends StatelessWidget {
+  const _CompactTeamScore({
+    required this.name,
+    required this.score,
+    required this.color,
+    required this.textAlign,
+  });
+
+  final String name;
+  final int score;
+  final Color color;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    final alignEnd = textAlign == TextAlign.end;
+    return Row(
+      mainAxisAlignment: alignEnd
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      children: [
+        Flexible(
+          child: Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$score',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: color,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -842,21 +964,10 @@ class _ReplayOverview extends StatelessWidget {
             return Align(
               alignment: Alignment.center,
               child: SizedBox(
+                key: const Key('replay-court-pane'),
                 width: height * 15 / 14,
                 height: height,
-                child: CourtView(
-                  shotLocations: controller.shotLocations,
-                  pendingLocation: controller.pendingShotLocation,
-                  onPendingLocationChanged: controller.isEditing
-                      ? controller.updatePendingShotPoint
-                      : null,
-                  onShotLocationTap: controller.isEditing
-                      ? controller.selectLocation
-                      : null,
-                  mode: controller.isEditing
-                      ? CourtViewMode.editable
-                      : CourtViewMode.readOnly,
-                ),
+                child: _SelectableReplayCourt(controller: controller),
               ),
             );
           },
@@ -923,6 +1034,120 @@ class _ReplayOverview extends StatelessWidget {
   }
 }
 
+class _SelectableReplayCourt extends StatelessWidget {
+  const _SelectableReplayCourt({required this.controller});
+
+  final ReplayController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final locations = controller.shotLocations;
+    final eventsById = {
+      for (final event in controller.data.events) event.id: event,
+    };
+    final selectedLocationId = _selectedLocationId(controller);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, constraints.maxHeight);
+        final court = HalfCourtGeometry.courtRectForSize(size);
+        final courtStack = Stack(
+          fit: StackFit.expand,
+          children: [
+            CourtView(
+              shotLocations: locations,
+              pendingLocation: controller.pendingShotLocation,
+              highlightedShotLocationId: selectedLocationId,
+              onPendingLocationChanged: controller.isEditing
+                  ? controller.updatePendingShotPoint
+                  : null,
+              onShotLocationTap: controller.selectLocation,
+              mode: controller.isEditing
+                  ? CourtViewMode.editable
+                  : CourtViewMode.readOnly,
+            ),
+            if (!controller.isEditing)
+              for (final location in locations)
+                _ReplayCourtMarkerTarget(
+                  location: location,
+                  event: eventsById[location.eventId]!,
+                  center: _targetCenter(location.point, size, court),
+                  selected: selectedLocationId == location.id,
+                  onTap: () => controller.selectEvent(location.eventId),
+                ),
+          ],
+        );
+        if (!controller.isEditing) return courtStack;
+        return Listener(
+          onPointerMove: (event) => controller.updatePendingShotPoint(
+            HalfCourtGeometry.pointFromLocal(event.localPosition, size),
+          ),
+          child: courtStack,
+        );
+      },
+    );
+  }
+
+  String? _selectedLocationId(ReplayController controller) {
+    final selected = controller.selectedEvent;
+    if (selected == null || selected.shotPoint == null) return null;
+    return selected.locationId ?? 'replay-shot-${selected.id}';
+  }
+
+  Offset _targetCenter(CourtPoint point, Size size, Rect court) {
+    final paintedCenter = HalfCourtGeometry.pointToOffset(point, size);
+    if (court.width < 48 || court.height < 48) return court.center;
+    return Offset(
+      paintedCenter.dx.clamp(court.left + 24, court.right - 24).toDouble(),
+      paintedCenter.dy.clamp(court.top + 24, court.bottom - 24).toDouble(),
+    );
+  }
+}
+
+class _ReplayCourtMarkerTarget extends StatelessWidget {
+  const _ReplayCourtMarkerTarget({
+    required this.location,
+    required this.event,
+    required this.center,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ScoringShotLocation location;
+  final ReplayEventData event;
+  final Offset center;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = _localizations(context);
+    final sideLabel = location.side == TeamSide.red
+        ? l10n.replayFilterRed
+        : l10n.replayFilterBlue;
+    return Positioned(
+      left: center.dx - 24,
+      top: center.dy - 24,
+      width: 48,
+      height: 48,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label:
+            '$sideLabel ${l10n.replayActionScore(location.points)}, '
+            '${_formatDuration(event.elapsed)}',
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            key: Key('replay-court-marker-${location.eventId}'),
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ShotLocationReasonDialog extends StatefulWidget {
   const _ShotLocationReasonDialog();
 
@@ -978,8 +1203,10 @@ class _Metric extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 108, minHeight: 64),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          top: BorderSide(color: editorialThemeOf(context).rule),
+          bottom: BorderSide(color: editorialThemeOf(context).rule),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1010,8 +1237,10 @@ class _PossessionSegmentsCard extends StatelessWidget {
       key: const Key('replay-possession-segments'),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(6),
+        border: Border(
+          top: BorderSide(color: editorialThemeOf(context).rule),
+          bottom: BorderSide(color: editorialThemeOf(context).rule),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1087,9 +1316,10 @@ class _PossessionSegmentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    final sideColor = data.side == TeamSide.red
-        ? HoopTraceColors.red
-        : HoopTraceColors.blue;
+    final sideColor = teamColorForScheme(
+      data.side,
+      Theme.of(context).colorScheme,
+    );
     final sideName = data.side == TeamSide.red ? redName : blueName;
     final sourceLabel = data.source == PossessionSource.manual
         ? l10n.replayPossessionManual
@@ -1162,7 +1392,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 21, color: HoopTraceColors.orange),
+        Icon(icon, size: 21, color: editorialThemeOf(context).arenaAccent),
         const SizedBox(width: 8),
         Expanded(
           child: Text(

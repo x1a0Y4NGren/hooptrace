@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
@@ -43,9 +43,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
   @override
   void initState() {
     super.initState();
-    if (widget.playerId != null) {
-      _load();
-    }
+    if (widget.playerId != null) _load();
   }
 
   @override
@@ -62,9 +60,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
     _loadError = null;
     _loading = false;
     _saving = false;
-    if (widget.playerId != null) {
-      _load();
-    }
+    if (widget.playerId != null) _load();
   }
 
   Future<void> _load() async {
@@ -74,9 +70,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
     });
     try {
       final player = await widget.repository.getById(widget.playerId!);
-      if (player == null) {
-        throw StateError('Player not found');
-      }
+      if (player == null) throw StateError('Player not found');
       if (!mounted) return;
       _existing = player;
       _nicknameController.text = player.nickname;
@@ -159,32 +153,34 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.playerId == null ? l10n.playerNewTitle : l10n.playerEditTitle,
-        ),
-        actions: [
-          if (_existing != null && widget.onDeleted != null)
-            IconButton(
-              onPressed: _saving ? null : _delete,
-              tooltip: l10n.playerDeleteTooltip,
-              icon: const Icon(Icons.delete_outline),
-            ),
-          IconButton(
-            onPressed: _loading || _loadError != null || _saving ? null : _save,
-            tooltip: l10n.playerSaveTooltip,
-            icon: _saving
-                ? const SizedBox.square(
-                    dimension: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.save_outlined),
-          ),
-          const SizedBox(width: 8),
-        ],
+    final canPop = Navigator.of(context).canPop();
+    return EditorialScaffold(
+      maxContentWidth: 760,
+      masthead: EditorialMasthead(
+        title: widget.playerId == null
+            ? l10n.playerNewTitle
+            : l10n.playerEditTitle,
+        leading: canPop
+            ? EditorialTapTarget(
+                onPressed: () => Navigator.maybePop(context),
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                label: MaterialLocalizations.of(context).backButtonTooltip,
+                child: const Icon(Icons.arrow_back),
+              )
+            : null,
+        trailing: _existing != null && widget.onDeleted != null
+            ? EditorialTapTarget(
+                onPressed: _saving ? null : _delete,
+                tooltip: l10n.playerDeleteTooltip,
+                label: l10n.playerDeleteTooltip,
+                child: Icon(
+                  Icons.delete_outline,
+                  color: editorialThemeOf(context).ink,
+                ),
+              )
+            : null,
       ),
-      body: SafeArea(child: _buildBody(context)),
+      body: _buildBody(context),
     );
   }
 
@@ -193,86 +189,200 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_loadError != null) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.playerOpenError),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _load,
-              icon: const Icon(Icons.refresh),
-              label: Text(l10n.retryAction),
-            ),
-          ],
+        child: EditorialErrorState(
+          title: l10n.playerOpenError,
+          message: l10n.playerOpenErrorBody,
+          actionLabel: l10n.retryAction,
+          onAction: _load,
         ),
       );
     }
-    return Form(
-      key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-        children: [
-          TextFormField(
-            key: const Key('player-nickname'),
-            controller: _nicknameController,
-            autofocus: widget.playerId == null,
-            textInputAction: TextInputAction.next,
-            maxLength: 30,
-            decoration: InputDecoration(
-              labelText: l10n.playerNicknameLabel,
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            validator: (value) => value == null || value.trim().isEmpty
-                ? l10n.playerNicknameRequired
-                : null,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            l10n.playerPreferredSide,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          SegmentedButton<TeamSide?>(
-            segments: [
-              ButtonSegment(value: null, label: Text(l10n.playerSideAny)),
-              ButtonSegment(
-                value: TeamSide.red,
-                label: Text(l10n.playerSideRed),
-                icon: Icon(Icons.circle, color: HoopTraceColors.red),
+    final editorial = editorialThemeOf(context);
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: HoopTraceSpacing.section),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            EditorialSectionRule(label: l10n.playerNicknameLabel),
+            const SizedBox(height: 16),
+            TextFormField(
+              key: const Key('player-nickname'),
+              controller: _nicknameController,
+              autofocus: widget.playerId == null,
+              textInputAction: TextInputAction.next,
+              maxLength: 30,
+              decoration: InputDecoration(
+                labelText: l10n.playerNicknameLabel,
+                prefixIcon: const Icon(Icons.person_outline),
               ),
-              ButtonSegment(
-                value: TeamSide.blue,
-                label: Text(l10n.playerSideBlue),
-                icon: Icon(Icons.circle, color: HoopTraceColors.blue),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? l10n.playerNicknameRequired
+                  : null,
+            ),
+            const SizedBox(height: 20),
+            EditorialSectionRule(label: l10n.playerPreferredSide),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SideOption(
+                  label: l10n.playerSideAny,
+                  icon: Icons.horizontal_rule,
+                  selected: _preferredSide == null,
+                  onPressed: () => setState(() => _preferredSide = null),
+                ),
+                _SideOption(
+                  label: l10n.playerSideRed,
+                  icon: Icons.circle,
+                  iconColor: editorial.teamRed,
+                  selected: _preferredSide == TeamSide.red,
+                  onPressed: () =>
+                      setState(() => _preferredSide = TeamSide.red),
+                ),
+                _SideOption(
+                  label: l10n.playerSideBlue,
+                  icon: Icons.circle,
+                  iconColor: editorial.teamBlue,
+                  selected: _preferredSide == TeamSide.blue,
+                  onPressed: () =>
+                      setState(() => _preferredSide = TeamSide.blue),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            EditorialSectionRule(label: l10n.playerNoteLabel),
+            const SizedBox(height: 16),
+            TextFormField(
+              key: const Key('player-note'),
+              controller: _noteController,
+              minLines: 3,
+              maxLines: 5,
+              maxLength: 200,
+              decoration: InputDecoration(
+                labelText: l10n.playerNoteLabel,
+                hintText: l10n.playerNoteHint,
+                alignLabelWithHint: true,
               ),
-            ],
-            selected: {_preferredSide},
-            onSelectionChanged: (selection) {
-              setState(() => _preferredSide = selection.single);
-            },
-          ),
-          const SizedBox(height: 24),
-          TextFormField(
-            key: const Key('player-note'),
-            controller: _noteController,
-            minLines: 3,
-            maxLines: 5,
-            maxLength: 200,
-            decoration: InputDecoration(
-              labelText: l10n.playerNoteLabel,
-              hintText: l10n.playerNoteHint,
-              border: OutlineInputBorder(),
-              alignLabelWithHint: true,
+            ),
+            const SizedBox(height: 20),
+            Semantics(
+              key: const Key('player-save'),
+              button: true,
+              enabled: !_saving,
+              label: _saving ? l10n.playerSaving : l10n.playerSaveTooltip,
+              onTap: _saving ? null : _save,
+              child: ExcludeSemantics(
+                child: EditorialTapTarget(
+                  onPressed: _saving ? null : _save,
+                  tooltip: l10n.playerSaveTooltip,
+                  child: Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(minHeight: 52),
+                    color: _saving ? editorial.rule : editorial.arenaAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_saving)
+                          const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          Icon(
+                            Icons.save_outlined,
+                            color: accessibleForegroundFor(
+                              editorial.arenaAccent,
+                            ),
+                          ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            _saving
+                                ? l10n.playerSaving
+                                : l10n.playerSaveTooltip,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _saving
+                                  ? editorial.mutedInk
+                                  : accessibleForegroundFor(
+                                      editorial.arenaAccent,
+                                    ),
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SideOption extends StatelessWidget {
+  const _SideOption({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onPressed,
+    this.iconColor,
+  });
+
+  final String label;
+  final IconData icon;
+  final Color? iconColor;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final editorial = editorialThemeOf(context);
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      onTap: onPressed,
+      child: ExcludeSemantics(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: OutlinedButton.icon(
+            onPressed: onPressed,
+            icon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  selected
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Icon(icon, color: iconColor, size: 16),
+              ],
+            ),
+            label: Text(label),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: selected ? editorial.inverseSurface : null,
+              foregroundColor: selected
+                  ? accessibleForegroundFor(editorial.inverseSurface)
+                  : editorial.ink,
+              side: BorderSide(
+                color: selected ? editorial.inverseSurface : editorial.rule,
+                width: selected ? 2 : 1,
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: const Icon(Icons.save_outlined),
-            label: Text(_saving ? l10n.playerSaving : l10n.playerSaveTooltip),
-          ),
-        ],
+        ),
       ),
     );
   }

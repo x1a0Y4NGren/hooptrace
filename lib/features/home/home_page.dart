@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
@@ -7,6 +8,13 @@ const homeResumeCardKey = Key('home-resume-card');
 const homeResumeKey = Key('home-resume');
 const homeStartScoringKey = Key('home-start-scoring');
 const homeAbandonKey = Key('active-abandon');
+const homeHistoryShortcutKey = Key('home-history-shortcut');
+const homePlayersShortcutKey = Key('home-players-shortcut');
+const homeRulesShortcutKey = Key('home-rules-shortcut');
+const homeSettingsShortcutKey = Key('home-settings-shortcut');
+
+/// Retained for source compatibility. Project details now live under Settings.
+const homeProjectShortcutKey = Key('home-project-shortcut');
 
 class HomePage extends StatelessWidget {
   const HomePage({
@@ -16,73 +24,124 @@ class HomePage extends StatelessWidget {
     required this.onAbandon,
     required this.onOpenHistory,
     required this.onOpenPlayers,
+    required this.onOpenRules,
     required this.onOpenSettings,
     required this.onOpenProject,
+    this.latestFinishedMatch,
     super.key,
   });
 
   final MatchDetail? activeMatch;
+  final MatchDetail? latestFinishedMatch;
   final VoidCallback onStartScoring;
   final VoidCallback onContinue;
   final Future<void> Function() onAbandon;
   final VoidCallback onOpenHistory;
   final VoidCallback onOpenPlayers;
+  final VoidCallback onOpenRules;
   final VoidCallback onOpenSettings;
+
+  /// Kept until the router moves the old project route under Settings/About.
   final VoidCallback onOpenProject;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.appName),
-        actions: [
-          IconButton(
-            onPressed: onOpenPlayers,
-            tooltip: l10n.homePlayersTooltip,
-            icon: const Icon(Icons.people_outline),
-          ),
-          IconButton(
-            onPressed: onOpenSettings,
-            tooltip: l10n.homeSettingsTooltip,
-            icon: const Icon(Icons.settings_outlined),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: onOpenProject,
-        tooltip: l10n.homeProjectTooltip,
-        child: const Icon(Icons.info_outline),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
-              children: [
-                if (activeMatch != null) ...[
-                  _ResumeCard(
-                    detail: activeMatch!,
-                    onContinue: onContinue,
-                    onAbandon: onAbandon,
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                FilledButton(
-                  key: homeStartScoringKey,
-                  onPressed: onStartScoring,
-                  child: Text(l10n.startScoring),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: onOpenHistory,
-                  child: Text(l10n.replayHistory),
-                ),
-              ],
+    return EditorialScaffold(
+      maxContentWidth: 920,
+      masthead: EditorialMasthead(title: l10n.appName.toUpperCase()),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _HomeHero(
+              detail: activeMatch,
+              onStartScoring: onStartScoring,
+              onContinue: onContinue,
+              onAbandon: onAbandon,
             ),
+            if (latestFinishedMatch != null) ...[
+              const SizedBox(height: HoopTraceSpacing.section),
+              EditorialSectionRule(label: l10n.historyTitle),
+              KeyedSubtree(
+                key: const Key('home-latest-result'),
+                child: MatchScoreRow(
+                  blueTeamName: latestFinishedMatch!.match.blueName,
+                  blueScore: latestFinishedMatch!.blueScore,
+                  redTeamName: latestFinishedMatch!.match.redName,
+                  redScore: latestFinishedMatch!.redScore,
+                  contextLabel: l10n.homeVersus,
+                  onTap: onOpenHistory,
+                ),
+              ),
+            ],
+            const SizedBox(height: HoopTraceSpacing.section),
+            _HomeDirectory(
+              onOpenHistory: onOpenHistory,
+              onOpenPlayers: onOpenPlayers,
+              onOpenRules: onOpenRules,
+              onOpenSettings: onOpenSettings,
+              l10n: l10n,
+            ),
+            const SizedBox(height: HoopTraceSpacing.section),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeHero extends StatelessWidget {
+  const _HomeHero({
+    required this.detail,
+    required this.onStartScoring,
+    required this.onContinue,
+    required this.onAbandon,
+  });
+
+  final MatchDetail? detail;
+  final VoidCallback onStartScoring;
+  final VoidCallback onContinue;
+  final Future<void> Function() onAbandon;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final editorial = editorialThemeOf(context);
+    final active = detail;
+    return Semantics(
+      container: true,
+      label: active == null ? l10n.startScoring : l10n.homeActiveMatch,
+      child: Container(
+        key: const Key('home-editorial-hero'),
+        constraints: const BoxConstraints(minHeight: 288),
+        color: editorial.inverseSurface,
+        child: ClipRect(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                left: MediaQuery.sizeOf(context).width * 0.34,
+                child: IgnorePointer(
+                  child: CustomPaint(
+                    painter: EditorialCourtLinesPainter(
+                      color: editorial.canvas.withValues(alpha: 0.24),
+                      strokeWidth: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(HoopTraceSpacing.section),
+                child: active == null
+                    ? _StartHero(onStartScoring: onStartScoring)
+                    : _ActiveHero(
+                        detail: active,
+                        onStartScoring: onStartScoring,
+                        onContinue: onContinue,
+                        onAbandon: onAbandon,
+                      ),
+              ),
+            ],
           ),
         ),
       ),
@@ -90,20 +149,69 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _ResumeCard extends StatelessWidget {
-  const _ResumeCard({
+class _StartHero extends StatelessWidget {
+  const _StartHero({required this.onStartScoring});
+
+  final VoidCallback onStartScoring;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final editorial = editorialThemeOf(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '01',
+          style: Theme.of(context).textTheme.displayLarge?.copyWith(
+            color: editorial.canvas,
+            fontFamily: HoopTraceTypography.displayFamily,
+            fontSize: 96,
+            fontWeight: FontWeight.w700,
+            height: 0.8,
+          ),
+        ),
+        const SizedBox(height: 18),
+        Text(
+          l10n.startScoring,
+          style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+            color: editorial.canvas,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            key: homeStartScoringKey,
+            onPressed: onStartScoring,
+            icon: const Icon(Icons.arrow_forward),
+            label: Text(l10n.startScoring),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActiveHero extends StatelessWidget {
+  const _ActiveHero({
     required this.detail,
+    required this.onStartScoring,
     required this.onContinue,
     required this.onAbandon,
   });
 
   final MatchDetail detail;
+  final VoidCallback onStartScoring;
   final VoidCallback onContinue;
   final Future<void> Function() onAbandon;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final editorial = editorialThemeOf(context);
     final clock = detail.clock;
     final clockStatus = clock == null
         ? l10n.homeClockNotConfigured
@@ -118,62 +226,88 @@ class _ResumeCard extends StatelessWidget {
         : l10n.homeLastPersisted(
             '${persisted.year}-${persisted.month.toString().padLeft(2, '0')}-'
             '${persisted.day.toString().padLeft(2, '0')} '
-            '${persisted.hour.toString().padLeft(2, '0')}:${persisted.minute.toString().padLeft(2, '0')}',
+            '${persisted.hour.toString().padLeft(2, '0')}:'
+            '${persisted.minute.toString().padLeft(2, '0')}',
           );
-
-    return Card(
+    return Column(
       key: homeResumeCardKey,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          l10n.homeActiveMatch.toUpperCase(),
+          style: Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: editorial.canvas,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(
-              l10n.homeActiveMatch,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            Expanded(
+              child: _HeroTeamScore(
+                name: detail.match.blueName,
+                score: detail.blueScore,
+                identityColor: editorial.inverseTeamBlue,
+                identityKey: const Key('home-blue-identity-rule'),
+              ),
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: Text(detail.match.redName)),
-                Text(' ${l10n.homeVersus} '),
-                Expanded(
-                  child: Text(detail.match.blueName, textAlign: TextAlign.end),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Text(
+                l10n.homeVersus.toUpperCase(),
+                style: TextStyle(color: editorial.canvas),
+              ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              '${detail.redScore} : ${detail.blueScore}',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 4),
-            Text('$clockStatus · $persistedLabel'),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    key: homeResumeKey,
-                    onPressed: onContinue,
-                    child: Text(l10n.homeResumeMatch),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    key: homeAbandonKey,
-                    onPressed: () => _confirmAbandon(context),
-                    child: Text(l10n.homeAbandonMatch),
-                  ),
-                ),
-              ],
+            Expanded(
+              child: _HeroTeamScore(
+                name: detail.match.redName,
+                score: detail.redScore,
+                identityColor: editorial.inverseTeamRed,
+                identityKey: const Key('home-red-identity-rule'),
+                alignEnd: true,
+              ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 12),
+        Text(
+          '$clockStatus · $persistedLabel',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: editorial.canvas),
+        ),
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          key: homeResumeKey,
+          onPressed: onContinue,
+          icon: const Icon(Icons.arrow_forward),
+          label: Text(l10n.homeResumeMatch),
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          key: homeStartScoringKey,
+          onPressed: onStartScoring,
+          style: TextButton.styleFrom(
+            foregroundColor: editorial.canvas,
+            minimumSize: const Size.fromHeight(48),
+          ),
+          icon: const Icon(Icons.add),
+          label: Text(l10n.startScoring),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          key: homeAbandonKey,
+          onPressed: () => _confirmAbandon(context),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: editorial.canvas,
+            side: BorderSide(color: editorial.canvas),
+          ),
+          child: Text(l10n.homeAbandonMatch),
+        ),
+      ],
     );
   }
 
@@ -197,5 +331,121 @@ class _ResumeCard extends StatelessWidget {
       ),
     );
     if (confirmed == true) await onAbandon();
+  }
+}
+
+class _HeroTeamScore extends StatelessWidget {
+  const _HeroTeamScore({
+    required this.name,
+    required this.score,
+    required this.identityColor,
+    required this.identityKey,
+    this.alignEnd = false,
+  });
+
+  final String name;
+  final int score;
+  final Color identityColor;
+  final Key identityKey;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = editorialThemeOf(context).canvas;
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: foreground,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        ScoreNumeral(value: score, color: foreground),
+        const SizedBox(height: 4),
+        Container(key: identityKey, width: 48, height: 4, color: identityColor),
+      ],
+    );
+  }
+}
+
+class _HomeDirectory extends StatelessWidget {
+  const _HomeDirectory({
+    required this.onOpenHistory,
+    required this.onOpenPlayers,
+    required this.onOpenRules,
+    required this.onOpenSettings,
+    required this.l10n,
+  });
+
+  final VoidCallback onOpenHistory;
+  final VoidCallback onOpenPlayers;
+  final VoidCallback onOpenRules;
+  final VoidCallback onOpenSettings;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        EditorialSectionRule(label: l10n.replayHistory),
+        EditorialIndexRow(
+          key: homeHistoryShortcutKey,
+          index: '01',
+          title: l10n.replayHistory,
+          semanticLabel: l10n.replayHistory,
+          trailing: const _DirectoryIcon(icon: Icons.history),
+          onTap: onOpenHistory,
+        ),
+        EditorialIndexRow(
+          key: homePlayersShortcutKey,
+          index: '02',
+          title: l10n.playersTitle,
+          semanticLabel: l10n.playersTitle,
+          trailing: const _DirectoryIcon(icon: Icons.person_outline),
+          onTap: onOpenPlayers,
+        ),
+        EditorialIndexRow(
+          key: homeRulesShortcutKey,
+          index: '03',
+          title: l10n.rulesTitle,
+          semanticLabel: l10n.rulesTitle,
+          trailing: const _DirectoryIcon(icon: Icons.rule_outlined),
+          onTap: onOpenRules,
+        ),
+        EditorialIndexRow(
+          key: homeSettingsShortcutKey,
+          index: '04',
+          title: l10n.settings,
+          semanticLabel: l10n.settings,
+          trailing: const _DirectoryIcon(icon: Icons.settings_outlined),
+          onTap: onOpenSettings,
+        ),
+      ],
+    );
+  }
+}
+
+class _DirectoryIcon extends StatelessWidget {
+  const _DirectoryIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 22),
+        const SizedBox(width: 12),
+        const Icon(Icons.arrow_forward, size: 20),
+      ],
+    );
   }
 }

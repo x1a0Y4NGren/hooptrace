@@ -4,9 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
@@ -68,6 +70,82 @@ void main() {
     },
   );
 
+  test(
+    'latestFinishedMatchProvider follows the newest finished match',
+    () async {
+      final database = createTestDatabase();
+      final container = ProviderContainer(
+        overrides: [appDatabaseProvider.overrideWithValue(database)],
+      );
+      addTearDown(() async {
+        container.dispose();
+        await database.close();
+      });
+      container.listen(
+        latestFinishedMatchProvider,
+        (_, _) {},
+        fireImmediately: true,
+      );
+      final service = container.read(matchCommandServiceProvider);
+      await _eventually(() {
+        final latest = container.read(latestFinishedMatchProvider);
+        return latest is AsyncData<MatchDetail?> && latest.value == null;
+      });
+
+      Future<void> finishMatch(String id, DateTime startedAt) async {
+        await service.start(
+          StartMatchCommand(
+            commandId: 'start-$id',
+            matchId: id,
+            redName: 'Red $id',
+            blueName: 'Blue $id',
+            ruleTemplate: const RuleTemplate(
+              id: 'free',
+              name: 'Free scoring',
+              scoreButtons: [1, 2, 3],
+            ),
+            recordingMode: RecordingMode.simple,
+            createdAt: startedAt,
+            startedAt: startedAt,
+          ),
+        );
+        await service.record(
+          RecordMatchEventCommand(
+            commandId: 'score-$id',
+            matchId: id,
+            side: TeamSide.red,
+            points: 2,
+            occurredAt: startedAt.add(const Duration(minutes: 1)),
+          ),
+        );
+        await service.finish(
+          FinishMatchCommand(
+            commandId: 'finish-$id',
+            matchId: id,
+            endedAt: startedAt.add(const Duration(minutes: 10)),
+            confirmFinalScore: true,
+          ),
+        );
+      }
+
+      await finishMatch('older-finished', DateTime.utc(2026, 8, 23, 10));
+      await _eventually(
+        () =>
+            container.read(latestFinishedMatchProvider).valueOrNull?.match.id ==
+            'older-finished',
+      );
+      await finishMatch('newer-finished', DateTime.utc(2026, 8, 24, 10));
+      await _eventually(
+        () =>
+            container.read(latestFinishedMatchProvider).valueOrNull?.match.id ==
+            'newer-finished',
+      );
+      final latest = container.read(latestFinishedMatchProvider).valueOrNull!;
+      expect(latest.redScore, 2);
+      expect(latest.match.redName, 'Red newer-finished');
+    },
+  );
+
   testWidgets(
     'rebuilding the widget tree with the same database shows resume card',
     (tester) async {
@@ -105,14 +183,14 @@ void main() {
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
       expect(find.text('重建红方'), findsOneWidget);
       expect(find.text('重建蓝方'), findsOneWidget);
-      expect(find.text('0 : 3'), findsOneWidget);
+      _expectResumeScores(tester, [3, 0]);
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 500));
       await tester.pumpWidget(HoopTraceApp(database: database));
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
       expect(find.text('重建红方'), findsOneWidget);
-      expect(find.text('0 : 3'), findsOneWidget);
+      _expectResumeScores(tester, [3, 0]);
     },
   );
 
@@ -241,6 +319,19 @@ void main() {
     expect(find.text(l10n.legacyBootstrapHeadline), findsOneWidget);
     expect(find.text(l10n.legacyBootstrapBody(' v1')), findsOneWidget);
   });
+}
+
+void _expectResumeScores(WidgetTester tester, List<int> scores) {
+  final values = tester
+      .widgetList<ScoreNumeral>(
+        find.descendant(
+          of: find.byKey(const Key('home-resume-card')),
+          matching: find.byType(ScoreNumeral),
+        ),
+      )
+      .map((score) => score.value)
+      .toList();
+  expect(values, scores);
 }
 
 void _closeDatabaseAfterWidgetTest(WidgetTester tester, AppDatabase database) {

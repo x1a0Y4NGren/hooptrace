@@ -4,18 +4,29 @@ import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 void main() {
-  test('light theme keeps the warm visual language and shared tokens', () {
+  test('retired visual compatibility extension is not registered', () {
+    final theme = buildHoopTraceTheme();
+    expect(
+      theme.extensions.values.any(
+        (extension) =>
+            extension.runtimeType.toString() == 'HoopTraceVisualTheme',
+      ),
+      isFalse,
+    );
+  });
+
+  test('light theme uses the editorial canvas and shared tokens', () {
     final theme = buildHoopTraceTheme();
 
     expect(theme.brightness, Brightness.light);
-    expect(theme.colorScheme.primary, HoopTraceColors.orange);
-    expect(theme.scaffoldBackgroundColor, HoopTraceColors.offWhite);
+    expect(theme.colorScheme.primary, const Color(0xFFFF5A1F));
+    expect(theme.scaffoldBackgroundColor, const Color(0xFFF4F3EF));
     expect(HoopTraceSpacing.page, 16);
-    expect(HoopTraceRadii.card, 16);
+    expect(HoopTraceRadii.card, 4);
     expect(theme.textTheme.bodyLarge?.fontSize, 16);
   });
 
-  test('dark theme uses a charcoal surface with readable foregrounds', () {
+  test('dark theme uses a black-court canvas with readable foregrounds', () {
     final theme = buildHoopTraceTheme(brightness: Brightness.dark);
     final surface = theme.colorScheme.surface.computeLuminance();
     final foreground = theme.colorScheme.onSurface.computeLuminance();
@@ -24,9 +35,9 @@ void main() {
     final contrast = (lighter + 0.05) / (darker + 0.05);
 
     expect(theme.brightness, Brightness.dark);
-    expect(theme.colorScheme.surface, HoopTraceColors.charcoal);
+    expect(theme.colorScheme.surface, const Color(0xFF151719));
     expect(contrast, greaterThan(4.5));
-    expect(theme.appBarTheme.backgroundColor, HoopTraceColors.charcoal);
+    expect(theme.appBarTheme.backgroundColor, const Color(0xFF0C0D0E));
   });
 
   test('primary actions meet WCAG text contrast in both themes', () {

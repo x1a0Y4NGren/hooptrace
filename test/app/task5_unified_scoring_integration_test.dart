@@ -134,10 +134,8 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('scoring-court')));
       await tester.pump();
       final courtRect = tester.getRect(find.byKey(const Key('scoring-court')));
-      await tester.tapAt(
-        courtRect.topLeft +
-            Offset(courtRect.width * 0.25, courtRect.height * 0.25),
-      );
+      final tapLocal = Offset(courtRect.width * 0.25, courtRect.height * 0.25);
+      await tester.tapAt(courtRect.topLeft + tapLocal);
       await _pumpUntil(
         tester,
         () async => await _confirmedLocationCount(database) == 1,
@@ -145,8 +143,10 @@ void main() {
       var locations = await database.select(database.shotLocations).get();
       expect(locations, hasLength(1));
       expect(locations.single.eventId, activeEvents.single.id);
-      expect(locations.single.x, closeTo(0.25, 0.05));
-      expect(locations.single.y, closeTo(0.25, 0.05));
+      // The 15:14 court is horizontally letterboxed inside the 706.7x544
+      // viewport: (176.675 - 61.921) / 582.857 = 0.1969.
+      expect(locations.single.x, closeTo(0.1969, 0.001));
+      expect(locations.single.y, closeTo(0.25, 0.001));
       expect(locations.single.isConfirmed, isTrue);
       await _tapAction(tester, find.byKey(const Key('scoring-undo')));
       await _pumpUntil(
@@ -329,10 +329,11 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('scoring-court')));
       await tester.pump();
       final finalCourt = tester.getRect(find.byKey(const Key('scoring-court')));
-      await tester.tapAt(
-        finalCourt.topLeft +
-            Offset(finalCourt.width * 0.75, finalCourt.height * 0.25),
+      final finalTapLocal = Offset(
+        finalCourt.width * 0.75,
+        finalCourt.height * 0.25,
       );
+      await tester.tapAt(finalCourt.topLeft + finalTapLocal);
       await _pumpUntil(
         tester,
         () async => await _confirmedLocationCount(database) == 2,
@@ -345,8 +346,10 @@ void main() {
       final finalLocation = locations.singleWhere(
         (location) => location.eventId == latestScore.id,
       );
-      expect(finalLocation.x, closeTo(0.75, 0.05));
-      expect(finalLocation.y, closeTo(0.25, 0.05));
+      // The target-state hint shortens the court viewport; hand-derived
+      // 15:14 letterboxing maps this 75% tap to normalized x = 0.8221.
+      expect(finalLocation.x, closeTo(0.8221, 0.001));
+      expect(finalLocation.y, closeTo(0.25, 0.001));
       expect(finalLocation.isConfirmed, isTrue);
 
       await _tapAction(tester, find.byKey(const Key('scoring-more')));

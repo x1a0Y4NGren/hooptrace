@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,6 +13,109 @@ import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
 
 void main() {
+  testWidgets('court view accepts hidden durable ids and transient markers', (
+    tester,
+  ) async {
+    final point = CourtPoint(x: 0.3, y: 0.4);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CourtView(
+            shotLocations: [
+              ScoringShotLocation(
+                id: 'shot-1',
+                eventId: 'event-1',
+                side: TeamSide.blue,
+                points: 2,
+                point: point,
+                isLocked: true,
+              ),
+            ],
+            hiddenShotLocationIds: const {'shot-1'},
+            transientMarkers: [
+              TransientShotMarker(
+                id: 'shot-1',
+                point: point,
+                side: TeamSide.blue,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final court = tester.widget<CourtView>(find.byType(CourtView));
+    expect(court.hiddenShotLocationIds, contains('shot-1'));
+    expect(court.transientMarkers.single.id, 'shot-1');
+  });
+
+  test('court painter renders an eraser presentation marker', () {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = Size(320, 280);
+    final painter = CourtPainter(
+      eraserMarkers: [
+        EraserShotMarker(
+          id: 'erased-shot',
+          point: CourtPoint(x: 0.35, y: 0.45),
+          side: TeamSide.blue,
+          progress: 0.5,
+        ),
+      ],
+    );
+
+    painter.paint(canvas, size);
+    final picture = recorder.endRecording();
+    expect(picture, isNotNull);
+    picture.dispose();
+  });
+
+  test('court painter accepts semantic flat-court and eraser colors', () async {
+    const surface = Color(0xFF123456);
+    const accent = Color(0xFF00FF00);
+    const eraser = Color(0xFFFEDCBA);
+    const teamBlue = Color(0xFF00FFFF);
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const size = Size(300, 280);
+    final painter = CourtPainter(
+      shotLocations: [
+        ScoringShotLocation(
+          id: 'selected',
+          eventId: 'selected-event',
+          side: TeamSide.blue,
+          points: 2,
+          point: CourtPoint(x: 0.5, y: 0.5),
+          isLocked: true,
+        ),
+      ],
+      highlightedShotLocationId: 'selected',
+      eraserMarkers: [
+        EraserShotMarker(
+          id: 'erased',
+          point: CourtPoint(x: 0.25, y: 0.75),
+          side: TeamSide.red,
+          progress: 0,
+        ),
+      ],
+      surfaceColor: surface,
+      lineColor: Colors.white,
+      accentColor: accent,
+      eraserColor: eraser,
+      teamBlueColor: teamBlue,
+    );
+    painter.paint(canvas, size);
+    final image = await recorder.endRecording().toImage(300, 280);
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    expect(bytes, isNotNull);
+    expect(_pixelAt(bytes!, width: 300, x: 1, y: 1), surface);
+    final selectedRule = _pixelAt(bytes, width: 300, x: 163, y: 140);
+    expect(selectedRule, accent);
+    expect(_pixelAt(bytes, width: 300, x: 150, y: 140), teamBlue);
+    final eraserRule = _pixelAt(bytes, width: 300, x: 83, y: 210);
+    expect(eraserRule, eraser);
+    image.dispose();
+  });
   testWidgets('court prompt is announced while a score location is available', (
     tester,
   ) async {
@@ -191,5 +295,20 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     },
+  );
+}
+
+Color _pixelAt(
+  ByteData bytes, {
+  required int width,
+  required int x,
+  required int y,
+}) {
+  final offset = (y * width + x) * 4;
+  return Color.fromARGB(
+    255,
+    bytes.getUint8(offset),
+    bytes.getUint8(offset + 1),
+    bytes.getUint8(offset + 2),
   );
 }

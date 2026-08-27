@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
@@ -52,19 +52,22 @@ class ReplayTimelinePanel extends StatelessWidget {
               (event) => ReplayTimelineEvent(
                 event: event,
                 data: controller.data,
-                onTap: controller.isEditing ? () => onEventTap(event) : null,
+                selected: controller.selectedEventId == event.id,
+                editing: controller.isEditing,
+                onTap: () => onEventTap(event),
               ),
             )
           else
             Expanded(
               child: ListView.builder(
+                key: const Key('replay-timeline-scroll'),
                 itemCount: events.length,
                 itemBuilder: (context, index) => ReplayTimelineEvent(
                   event: events[index],
                   data: controller.data,
-                  onTap: controller.isEditing
-                      ? () => onEventTap(events[index])
-                      : null,
+                  selected: controller.selectedEventId == events[index].id,
+                  editing: controller.isEditing,
+                  onTap: () => onEventTap(events[index]),
                 ),
               ),
             ),
@@ -72,18 +75,113 @@ class ReplayTimelinePanel extends StatelessWidget {
       );
     }
 
-    if (embedded) return content(inlineEvents: true);
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    if (embedded) {
+      return Container(
+        key: const Key('replay-timeline-pane'),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: editorialThemeOf(context).surface,
+          border: Border(
+            top: BorderSide(
+              color: editorialThemeOf(context).arenaAccent,
+              width: 4,
+            ),
+          ),
+        ),
+        child: content(inlineEvents: true),
+      );
+    }
+    return Container(
+      key: const Key('replay-timeline-pane'),
+      padding: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: editorialThemeOf(context).surface,
+        border: Border(
+          top: BorderSide(
+            color: editorialThemeOf(context).arenaAccent,
+            width: 4,
+          ),
+        ),
+      ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compactHeight = constraints.maxHeight < 280;
+          final compactHeight = constraints.maxHeight < 420;
           final compactWidth = constraints.maxWidth < 360;
           final largeText = MediaQuery.textScalerOf(context).scale(1) >= 1.5;
-          final scrollable = compactHeight || compactWidth || largeText;
-          final child = content(inlineEvents: scrollable);
-          return scrollable ? SingleChildScrollView(child: child) : child;
+          final compact = compactHeight || compactWidth || largeText;
+          if (compact) {
+            final events = controller.visibleEvents;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SectionTitle(
+                          title: l10n.replayTimeline,
+                          icon: Icons.timeline,
+                        ),
+                      ),
+                      Semantics(
+                        key: const Key('replay-compact-filter-action'),
+                        label: l10n.replayFilters,
+                        button: true,
+                        excludeSemantics: true,
+                        child: IconButton(
+                          tooltip: l10n.replayFilters,
+                          onPressed: () => _showCompactFilters(context),
+                          icon: const Icon(Icons.tune),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  if (events.isEmpty)
+                    Expanded(child: Center(child: Text(l10n.replayNoEvents)))
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        key: const Key('replay-timeline-scroll'),
+                        itemCount: events.length,
+                        itemBuilder: (context, index) => ReplayTimelineEvent(
+                          event: events[index],
+                          data: controller.data,
+                          compact: true,
+                          selected:
+                              controller.selectedEventId == events[index].id,
+                          editing: controller.isEditing,
+                          onTap: () => onEventTap(events[index]),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }
+          final child = Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: content(inlineEvents: false),
+          );
+          return child;
         },
+      ),
+    );
+  }
+
+  Future<void> _showCompactFilters(BuildContext context) {
+    final l10n = _localizations(context);
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => SafeArea(
+        child: EditorialSheet(
+          title: l10n.replayFilters,
+          child: SingleChildScrollView(
+            child: ReplayTimelineFilters(controller: controller),
+          ),
+        ),
       ),
     );
   }
@@ -183,7 +281,10 @@ class ReplayTimelineFilters extends StatelessWidget {
               selected:
                   eventFilter.sides.contains(TeamSide.red) &&
                   eventFilter.sides.length == 1,
-              selectedColor: HoopTraceColors.red.withValues(alpha: 0.18),
+              selectedColor: teamColorForScheme(
+                TeamSide.red,
+                Theme.of(context).colorScheme,
+              ).withValues(alpha: 0.18),
               onSelected: () => setSides(const {TeamSide.red}),
             ),
             _FilterChip(
@@ -191,7 +292,10 @@ class ReplayTimelineFilters extends StatelessWidget {
               selected:
                   eventFilter.sides.contains(TeamSide.blue) &&
                   eventFilter.sides.length == 1,
-              selectedColor: HoopTraceColors.blue.withValues(alpha: 0.18),
+              selectedColor: teamColorForScheme(
+                TeamSide.blue,
+                Theme.of(context).colorScheme,
+              ).withValues(alpha: 0.18),
               onSelected: () => setSides(const {TeamSide.blue}),
             ),
             _FilterChip(
@@ -272,22 +376,26 @@ class ReplayTimelineEvent extends StatelessWidget {
   const ReplayTimelineEvent({
     required this.event,
     required this.data,
+    this.selected = false,
+    this.editing = false,
+    this.compact = false,
     this.onTap,
     super.key,
   });
 
   final ReplayEventData event;
   final ReplayMatchData data;
+  final bool selected;
+  final bool editing;
+  final bool compact;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final l10n = _localizations(context);
-    final sideColor = event.side == TeamSide.red
-        ? HoopTraceColors.red
-        : event.side == TeamSide.blue
-        ? HoopTraceColors.blue
-        : Theme.of(context).colorScheme.onSurface;
+    final sideColor = event.side == null
+        ? Theme.of(context).colorScheme.onSurface
+        : teamColorForScheme(event.side!, Theme.of(context).colorScheme);
     final sideName = event.side == TeamSide.red
         ? data.redName
         : event.side == TeamSide.blue
@@ -305,13 +413,16 @@ class ReplayTimelineEvent extends StatelessWidget {
       if (event.matchClockPositionSeconds case final seconds?)
         l10n.replayClockPosition(seconds),
     ];
-    return InkWell(
+    final eventTile = InkWell(
       key: Key('replay-event-${event.id}'),
       onTap: onTap,
       child: Container(
         constraints: const BoxConstraints(minHeight: 64),
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: EdgeInsets.symmetric(vertical: compact ? 6 : 10),
         decoration: BoxDecoration(
+          color: selected
+              ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.10)
+              : null,
           border: Border(
             bottom: BorderSide(
               color: Theme.of(
@@ -320,65 +431,113 @@ class ReplayTimelineEvent extends StatelessWidget {
             ),
           ),
         ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 52,
-              child: Text(
-                _formatDuration(event.elapsed),
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-            ),
-            Container(width: 4, height: 32, color: sideColor),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: compact
+            ? Row(
                 children: [
-                  Wrap(
-                    spacing: 6,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Text(
-                        '$sideName · $action',
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      if (event.isDeleted)
-                        Chip(
-                          label: Text(l10n.replayDeleted),
-                          visualDensity: VisualDensity.compact,
-                          padding: EdgeInsets.zero,
-                        ),
-                    ],
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      _formatDuration(event.elapsed),
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
                   ),
-                  if (details.isNotEmpty)
-                    Text(details.join(' · '), maxLines: 1),
-                  if (event.customLabel case final label?)
-                    Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  if (event.note != null && event.note!.isNotEmpty)
-                    Text(
-                      event.note!,
-                      maxLines: 2,
+                  Container(width: 4, height: 32, color: sideColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$sideName · $action',
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: sideColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (selected)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Icon(Icons.radio_button_checked, size: 20),
+                    ),
+                ],
+              )
+            : Row(
+                children: [
+                  SizedBox(
+                    width: 52,
+                    child: Text(
+                      _formatDuration(event.elapsed),
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ),
+                  Container(width: 4, height: 32, color: sideColor),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              '$sideName · $action',
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: sideColor,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                            ),
+                            if (event.isDeleted)
+                              Chip(
+                                label: Text(l10n.replayDeleted),
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                              ),
+                          ],
+                        ),
+                        if (details.isNotEmpty)
+                          Text(details.join(' · '), maxLines: 1),
+                        if (event.customLabel case final label?)
+                          Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        if (event.note != null && event.note!.isNotEmpty)
+                          Text(
+                            event.note!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (selected)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.radio_button_checked, size: 20),
+                    )
+                  else if (editing)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.edit_outlined, size: 20),
+                    )
+                  else if (event.shotPoint != null)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 8),
+                      child: Icon(Icons.location_on_outlined, size: 20),
                     ),
                 ],
               ),
-            ),
-            if (onTap != null)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.edit_outlined, size: 20),
-              )
-            else if (event.shotPoint != null)
-              const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.location_on_outlined, size: 20),
-              ),
-          ],
-        ),
       ),
+    );
+    return Semantics(
+      selected: selected,
+      button: onTap != null,
+      container: true,
+      child: eventTile,
     );
   }
 }
@@ -421,7 +580,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 21, color: HoopTraceColors.orange),
+        Icon(icon, size: 21, color: editorialThemeOf(context).arenaAccent),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
