@@ -2424,9 +2424,9 @@ class _Scoreboard extends StatelessWidget {
             );
             final clockLeft = (width - clockWidth) / 2;
             final clockRight = clockLeft + clockWidth;
-            final leaveLeft = clockLeft - 48;
-            final undoLeft = clockRight;
-            final moreLeft = undoLeft + 48;
+            final undoLeft = clockLeft - 48;
+            final leaveLeft = undoLeft - 48;
+            final moreLeft = clockRight;
             final finishLeft = moreLeft + 48;
             final finishWidth = compact ? 48.0 : 96.0;
             final sideWidth = _landscapeSideWidth(width);
@@ -2463,6 +2463,18 @@ class _Scoreboard extends StatelessWidget {
                     tooltip: labels.back,
                     icon: Icons.arrow_back,
                     onPressed: onLeave,
+                  ),
+                ),
+                Positioned(
+                  left: undoLeft,
+                  top: actionTop,
+                  bottom: 4,
+                  width: 48,
+                  child: action(
+                    key: const Key('scoring-undo'),
+                    tooltip: labels.undo,
+                    icon: Icons.undo,
+                    onPressed: onUndo,
                   ),
                 ),
                 Positioned(
@@ -2505,18 +2517,6 @@ class _Scoreboard extends StatelessWidget {
                           ),
                       ],
                     ),
-                  ),
-                ),
-                Positioned(
-                  left: undoLeft,
-                  top: actionTop,
-                  bottom: 4,
-                  width: 48,
-                  child: action(
-                    key: const Key('scoring-undo'),
-                    tooltip: labels.undo,
-                    icon: Icons.undo,
-                    onPressed: onUndo,
                   ),
                 ),
                 Positioned(

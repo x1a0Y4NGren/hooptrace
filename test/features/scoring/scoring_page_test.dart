@@ -530,11 +530,11 @@ void main() {
       const MaterialApp(home: ScoringPage(matchId: 'score-switch-motion')),
     );
     expect(find.byKey(const ValueKey<int>(0)), findsAtLeastNWidgets(2));
-    expect(find.text('红方'), findsWidgets);
+    expect(find.text('0 红方'), findsOneWidget);
     await tester.tap(find.byKey(const Key('red-score-1')));
     await tester.pump();
     expect(find.byKey(const ValueKey<int>(1)), findsOneWidget);
-    expect(find.text('红方'), findsWidgets);
+    expect(find.text('1 红方'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 180));
     expect(find.byKey(const ValueKey<int>(1)), findsOneWidget);
   });
@@ -1885,9 +1885,9 @@ void main() {
     expect(blue.center.dx, closeTo(blueColumn.center.dx, 0.5));
     expect(red.center.dx, closeTo(redColumn.center.dx, 0.5));
     expect(blue.center.dx, lessThan(leave.center.dx));
-    expect(leave.center.dx, lessThan(timer.center.dx));
-    expect(timer.center.dx, lessThan(undo.center.dx));
-    expect(undo.center.dx, lessThan(more.center.dx));
+    expect(leave.center.dx, lessThan(undo.center.dx));
+    expect(undo.center.dx, lessThan(timer.center.dx));
+    expect(timer.center.dx, lessThan(more.center.dx));
     expect(more.center.dx, lessThan(finish.center.dx));
     expect(finish.center.dx, lessThan(red.center.dx));
     expect(finish.overlaps(red), isFalse);
@@ -2405,8 +2405,10 @@ void main() {
       const MaterialApp(home: ScoringPage(matchId: 'match-1')),
     );
 
-    expect(find.text('蓝方'), findsOneWidget);
-    expect(find.text('红方'), findsOneWidget);
+    expect(find.text('蓝方 0'), findsOneWidget);
+    expect(find.text('0 红方'), findsOneWidget);
+    expect(find.text('蓝方'), findsNothing);
+    expect(find.text('红方'), findsNothing);
     expect(find.text('犯规 0'), findsNWidgets(2));
     expect(find.text('犯规'), findsNWidgets(2));
     expect(find.text('+1'), findsNWidgets(2));

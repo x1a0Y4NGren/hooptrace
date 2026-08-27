@@ -174,11 +174,7 @@ class ScoreSidePanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _RailTeamKicker(
-                    name: name,
-                    foulsLabel: '${l10n.scoringFoul} $fouls',
-                    color: color,
-                  ),
+                  _RailFoulSummary(foulsLabel: '${l10n.scoringFoul} $fouls'),
                   const SizedBox(height: 4),
                   Expanded(
                     child: LayoutBuilder(
@@ -229,11 +225,7 @@ class ScoreSidePanel extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _RailTeamKicker(
-                      name: name,
-                      foulsLabel: '${l10n.scoringFoul} $fouls',
-                      color: color,
-                    ),
+                    _RailFoulSummary(foulsLabel: '${l10n.scoringFoul} $fouls'),
                     for (final points in scoreButtons)
                       _ScoreAction(
                         side: side,
@@ -544,16 +536,10 @@ class _CompactActionLabel extends StatelessWidget {
   }
 }
 
-class _RailTeamKicker extends StatelessWidget {
-  const _RailTeamKicker({
-    required this.name,
-    required this.foulsLabel,
-    required this.color,
-  });
+class _RailFoulSummary extends StatelessWidget {
+  const _RailFoulSummary({required this.foulsLabel});
 
-  final String name;
   final String foulsLabel;
-  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -561,28 +547,14 @@ class _RailTeamKicker extends StatelessWidget {
       height: 20,
       child: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              name,
-              maxLines: 1,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: color,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              foulsLabel,
-              maxLines: 1,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: editorialThemeOf(context).mutedInk,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
+        child: Text(
+          foulsLabel,
+          maxLines: 1,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: editorialThemeOf(context).mutedInk,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
         ),
       ),
     );

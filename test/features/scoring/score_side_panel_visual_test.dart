@@ -90,9 +90,10 @@ void main() {
           expect(line.constraints?.maxWidth, 3);
         }
 
-        // The oversized duplicate score block is gone; one compact orientation
-        // line retains the team and foul context.
-        expect(find.text('BLUE TEAM'), findsOneWidget);
+        // The scoreboard already owns team identity. The rail header only
+        // repeats the foul count so the narrow column stays visually quiet.
+        expect(find.text('BLUE TEAM'), findsNothing);
+        expect(find.text('犯规 4'), findsOneWidget);
         expect(find.text('23'), findsNothing);
         expect(tester.takeException(), isNull);
       },
