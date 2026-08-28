@@ -152,3 +152,100 @@ Result: launcher hierarchy contained `text="HoopTrace"` / `content-desc="HoopTra
 - The built-in correction attempt did not preserve transparency and was intentionally rejected; the selected first output is the source of record.
 - The 32 pixel contact-sheet sample softens the smallest internal net gaps, although the ball, trace, rim, and overall hoop remain recognizable.
 - The API 36 launcher was visually checked with its normal circular mask. The themed monochrome asset was validated programmatically but was not separately enabled in the emulator UI.
+
+## Fix Round 1: legacy round-icon fallback
+
+### Review finding and root cause
+
+`AndroidManifest.xml` references `@mipmap/ic_launcher_round`, but the initial implementation supplied that name only as v26/v33 adaptive XML. The Pillow generator's legacy loop wrote only `ic_launcher.png`, so API 25 had no density-qualified PNG fallback for the manifest's round-icon resource.
+
+### Red check
+
+Added the legacy round-file existence/dimension/opacity assertions to `validate_resources()` before changing generation, then ran:
+
+```powershell
+py -3 tool\release\generate_launcher_icons.py
+```
+
+Result: exit 1 with the expected failure:
+
+```text
+AssertionError: Missing legacy launcher resource: D:\GitHub\hooptrace\.worktrees\hooptrace-1-1-comparison\android\app\src\main\res\mipmap-mdpi\ic_launcher_round.png
+```
+
+### Fix
+
+Changed the Android legacy generation loop to write the same opaque Lanczos-resized composite to both `ic_launcher.png` and `ic_launcher_round.png` for mdpi, hdpi, xhdpi, xxhdpi, and xxxhdpi. The validator now requires both filenames at every density and checks their expected dimensions and lack of alpha.
+
+Added files:
+
+- `android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png` (48 x 48 RGB)
+- `android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png` (72 x 72 RGB)
+- `android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png` (96 x 96 RGB)
+- `android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png` (144 x 144 RGB)
+- `android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png` (192 x 192 RGB)
+
+### Verification commands and output
+
+```powershell
+py -3 tool\release\generate_launcher_icons.py
+```
+
+Result: exit 0; `Launcher icon resources generated and validated successfully.`
+
+```powershell
+py -3 -c "from pathlib import Path; from PIL import Image; root=Path('android/app/src/main/res'); sizes={'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}; rows=[]; [(lambda p,s,d: (rows.append(f'{d}: {p.name} {Image.open(p).size} {Image.open(p).mode}'), (_ for _ in ()).throw(AssertionError(f'missing {p}')) if not p.is_file() else None, (_ for _ in ()).throw(AssertionError(f'bad size {p}')) if Image.open(p).size!=(s,s) else None, (_ for _ in ()).throw(AssertionError(f'alpha {p}')) if 'A' in Image.open(p).getbands() else None))(root/f'mipmap-{d}'/'ic_launcher_round.png',s,d) for d,s in sizes.items()]; print('\n'.join(rows)); print('Validated 5 legacy round icons: present, correctly sized, opaque.')"
+```
+
+Result: exit 0:
+
+```text
+mdpi: ic_launcher_round.png (48, 48) RGB
+hdpi: ic_launcher_round.png (72, 72) RGB
+xhdpi: ic_launcher_round.png (96, 96) RGB
+xxhdpi: ic_launcher_round.png (144, 144) RGB
+xxxhdpi: ic_launcher_round.png (192, 192) RGB
+Validated 5 legacy round icons: present, correctly sized, opaque.
+```
+
+```powershell
+git diff --check
+```
+
+Result: exit 0; no whitespace errors (only the repository's expected LF-to-CRLF notice for the Python file).
+
+```powershell
+flutter build apk --debug
+```
+
+Result: exit 0; Gradle `assembleDebug` completed in 14.5 seconds and produced `build/app/outputs/flutter-apk/app-debug.apk`.
+
+```powershell
+jar tf 'build\app\outputs\flutter-apk\app-debug.apk' | Select-String -Pattern 'res/mipmap-.*/ic_launcher_round.png'
+```
+
+Result: exit 0; the APK contains all five density fallbacks:
+
+```text
+res/mipmap-hdpi-v4/ic_launcher_round.png
+res/mipmap-mdpi-v4/ic_launcher_round.png
+res/mipmap-xhdpi-v4/ic_launcher_round.png
+res/mipmap-xxhdpi-v4/ic_launcher_round.png
+res/mipmap-xxxhdpi-v4/ic_launcher_round.png
+```
+
+```powershell
+adb -s emulator-5554 install -r 'build\app\outputs\flutter-apk\app-debug.apk'
+adb -s emulator-5554 shell am force-stop io.github.x1a0y4ngren.hooptrace
+adb -s emulator-5554 shell monkey -p io.github.x1a0y4ngren.hooptrace -c android.intent.category.LAUNCHER 1
+```
+
+Result: streamed install returned `Success`; the launcher intent injected one event and the app opened on the API 36 emulator.
+
+### Fix Round 1 self-review
+
+- The change addresses only the missing legacy round-resource configurations; adaptive v26/v33 resources and the manifest remain unchanged.
+- Standard and round legacy PNGs are derived from the same opaque master at the same density dimensions, so pre-v26 launchers can select either manifest resource without changing the visual mark.
+- Validation fails on a missing file, wrong dimension, or alpha channel for either legacy filename.
+- APK inspection confirms AAPT packaged every new fallback, and reinstall/launch confirms the rebuilt artifact remains installable and runnable.
+- No new concerns were found in this fix round.

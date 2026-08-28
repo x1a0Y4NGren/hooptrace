@@ -110,8 +110,10 @@ def generate_resources() -> None:
     _save_rgb(master, MASTER)
 
     for density, size in ANDROID_LEGACY_SIZES.items():
-        path = ANDROID_RES / f'mipmap-{density}/ic_launcher.png'
-        _save_rgb(master.resize((size, size), Image.Resampling.LANCZOS), path)
+        directory = ANDROID_RES / f'mipmap-{density}'
+        resized = master.resize((size, size), Image.Resampling.LANCZOS)
+        for filename in ('ic_launcher.png', 'ic_launcher_round.png'):
+            _save_rgb(resized, directory / filename)
 
     for density, size in ANDROID_ADAPTIVE_SIZES.items():
         adaptive = _resize_foreground(size)
@@ -165,9 +167,13 @@ def validate_resources() -> None:
             assert pixel == BACKGROUND
 
     for density, size in ANDROID_LEGACY_SIZES.items():
-        icon = Image.open(ANDROID_RES / f'mipmap-{density}/ic_launcher.png')
-        assert icon.size == (size, size)
-        assert 'A' not in icon.getbands()
+        directory = ANDROID_RES / f'mipmap-{density}'
+        for filename in ('ic_launcher.png', 'ic_launcher_round.png'):
+            path = directory / filename
+            assert path.is_file(), f'Missing legacy launcher resource: {path}'
+            icon = Image.open(path)
+            assert icon.size == (size, size)
+            assert 'A' not in icon.getbands()
 
     for density, size in ANDROID_ADAPTIVE_SIZES.items():
         directory = ANDROID_RES / f'drawable-{density}'
