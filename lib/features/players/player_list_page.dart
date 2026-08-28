@@ -4,7 +4,6 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
-import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 
 class PlayerListPage extends StatefulWidget {
   const PlayerListPage({
@@ -85,12 +84,12 @@ class _PlayerListPageState extends State<PlayerListPage> {
             itemCount: players.length,
             itemBuilder: (context, index) {
               final player = players[index];
-              final sideColor = _sideColor(context, player.preferredSide);
+              final avatarColor = editorialThemeOf(context).ink;
               return EditorialIndexRow(
                 key: ValueKey('player-row-${player.id}'),
                 index: '${index + 1}'.padLeft(2, '0'),
                 title: player.nickname,
-                subtitle: _playerSummary(player, l10n),
+                subtitle: _playerSummary(player),
                 onTap: () => widget.onEdit(player),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -98,8 +97,8 @@ class _PlayerListPageState extends State<PlayerListPage> {
                     CircleAvatar(
                       key: ValueKey('player-avatar-${player.id}'),
                       radius: 18,
-                      backgroundColor: sideColor,
-                      foregroundColor: accessibleForegroundFor(sideColor),
+                      backgroundColor: avatarColor,
+                      foregroundColor: accessibleForegroundFor(avatarColor),
                       child: Text(
                         player.nickname.characters.first,
                         style: const TextStyle(fontWeight: FontWeight.w800),
@@ -145,21 +144,7 @@ class _StateViewport extends StatelessWidget {
   }
 }
 
-Color _sideColor(BuildContext context, TeamSide? side) {
-  final editorial = editorialThemeOf(context);
-  return switch (side) {
-    TeamSide.red => editorial.teamRed,
-    TeamSide.blue => editorial.teamBlue,
-    null => editorial.ink,
-  };
-}
-
-String _playerSummary(Player player, AppLocalizations l10n) {
-  final side = switch (player.preferredSide) {
-    TeamSide.red => l10n.playersPreferredRed,
-    TeamSide.blue => l10n.playersPreferredBlue,
-    null => l10n.playersPreferredUnset,
-  };
+String? _playerSummary(Player player) {
   final note = player.note?.trim();
-  return note == null || note.isEmpty ? side : '$side · $note';
+  return note == null || note.isEmpty ? null : note;
 }

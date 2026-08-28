@@ -152,47 +152,80 @@ void main() {
     semanticsHandle.dispose();
   });
 
-  testWidgets('player side choices expose selected semantics and glyph', (
+  testWidgets('player profiles no longer expose or persist a preferred side', (
     tester,
   ) async {
-    final semanticsHandle = tester.ensureSemantics();
     final database = createTestDatabase();
+    final repository = PlayerRepository(database);
+    await repository.save(
+      Player(
+        id: 'legacy-sided-player',
+        nickname: '自由球员',
+        createdAt: DateTime.utc(2026, 7, 10),
+        preferredSide: TeamSide.blue,
+      ),
+    );
+
     await tester.pumpWidget(
       MaterialApp(
-        theme: buildHoopTraceTheme(),
         home: PlayerEditorPage(
-          repository: PlayerRepository(database),
+          repository: repository,
+          playerId: 'legacy-sided-player',
           onSaved: () {},
         ),
       ),
     );
+    await _pumpUntilFound(tester, find.text('自由球员'));
 
-    final any = find.widgetWithText(OutlinedButton, '不限');
-    final blue = find.widgetWithText(OutlinedButton, '蓝方');
-    expect(
-      tester.getSemantics(any).flagsCollection.isSelected,
-      ui.Tristate.isTrue,
-    );
-    expect(
-      tester.getSemantics(blue).flagsCollection.isSelected,
-      ui.Tristate.isFalse,
-    );
-    expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
-    _expectSingleTapOwner(tester, any);
-    _expectSingleTapOwner(tester, blue);
+    expect(find.text('偏好方'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, '红方'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, '蓝方'), findsNothing);
 
-    await tester.tap(blue);
-    await tester.pump();
+    await tester.tap(find.byKey(const Key('player-save')));
+    await _pumpDatabase(tester);
     expect(
-      tester.getSemantics(any).flagsCollection.isSelected,
-      ui.Tristate.isFalse,
+      (await repository.getById('legacy-sided-player'))?.preferredSide,
+      isNull,
     );
+  });
+
+  testWidgets('legacy preferred side is inert in the player list', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    final repository = PlayerRepository(database);
+    await repository.save(
+      Player(
+        id: 'legacy-list-player',
+        nickname: '不分边球员',
+        createdAt: DateTime.utc(2026, 7, 10),
+        preferredSide: TeamSide.red,
+        note: '旧数据备注',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        home: PlayerListPage(
+          repository: repository,
+          onCreate: () {},
+          onEdit: (_) {},
+        ),
+      ),
+    );
+    await _pumpDatabase(tester);
+
+    expect(find.text('偏好红方'), findsNothing);
+    expect(find.text('旧数据备注'), findsOneWidget);
+    final avatarFinder = find.byKey(
+      const ValueKey('player-avatar-legacy-list-player'),
+    );
+    final avatar = tester.widget<CircleAvatar>(avatarFinder);
     expect(
-      tester.getSemantics(blue).flagsCollection.isSelected,
-      ui.Tristate.isTrue,
+      avatar.backgroundColor,
+      editorialThemeOf(tester.element(avatarFinder)).ink,
     );
-    expect(find.byIcon(Icons.radio_button_checked), findsOneWidget);
-    semanticsHandle.dispose();
   });
 
   testWidgets('player avatar foreground meets normal-text contrast', (
@@ -441,7 +474,6 @@ void main() {
       ),
     );
     await tester.enterText(find.byKey(const Key('player-nickname')), '飞鱼');
-    await tester.tap(find.text('蓝方'));
     await tester.enterText(find.byKey(const Key('player-note')), '惯用左手');
     expect(find.byType(EditorialScaffold), findsOneWidget);
     expect(find.byType(EditorialSectionRule), findsAtLeastNWidgets(2));
@@ -451,7 +483,7 @@ void main() {
 
     final player = await repository.getById('new-player');
     expect(player?.nickname, '飞鱼');
-    expect(player?.preferredSide?.name, 'blue');
+    expect(player?.preferredSide, isNull);
     expect(player?.note, '惯用左手');
     expect(saved, isTrue);
 

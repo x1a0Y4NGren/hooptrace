@@ -4,7 +4,6 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
-import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:uuid/uuid.dart';
 
 class PlayerEditorPage extends StatefulWidget {
@@ -35,7 +34,6 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
   final _nicknameController = TextEditingController();
   final _noteController = TextEditingController();
   Player? _existing;
-  TeamSide? _preferredSide;
   bool _loading = false;
   bool _saving = false;
   Object? _loadError;
@@ -54,7 +52,6 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
       return;
     }
     _existing = null;
-    _preferredSide = null;
     _nicknameController.clear();
     _noteController.clear();
     _loadError = null;
@@ -76,7 +73,6 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
       _nicknameController.text = player.nickname;
       _noteController.text = player.note ?? '';
       setState(() {
-        _preferredSide = player.preferredSide;
         _loading = false;
       });
     } catch (error) {
@@ -104,7 +100,7 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
       id: _existing?.id ?? widget.idFactory(),
       nickname: _nicknameController.text.trim(),
       createdAt: _existing?.createdAt ?? widget.now(),
-      preferredSide: _preferredSide,
+      preferredSide: null,
       note: note.isEmpty ? null : note,
     );
     try {
@@ -221,37 +217,6 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
                   ? l10n.playerNicknameRequired
                   : null,
             ),
-            const SizedBox(height: 20),
-            EditorialSectionRule(label: l10n.playerPreferredSide),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _SideOption(
-                  label: l10n.playerSideAny,
-                  icon: Icons.horizontal_rule,
-                  selected: _preferredSide == null,
-                  onPressed: () => setState(() => _preferredSide = null),
-                ),
-                _SideOption(
-                  label: l10n.playerSideRed,
-                  icon: Icons.circle,
-                  iconColor: editorial.teamRed,
-                  selected: _preferredSide == TeamSide.red,
-                  onPressed: () =>
-                      setState(() => _preferredSide = TeamSide.red),
-                ),
-                _SideOption(
-                  label: l10n.playerSideBlue,
-                  icon: Icons.circle,
-                  iconColor: editorial.teamBlue,
-                  selected: _preferredSide == TeamSide.blue,
-                  onPressed: () =>
-                      setState(() => _preferredSide = TeamSide.blue),
-                ),
-              ],
-            ),
             const SizedBox(height: 24),
             EditorialSectionRule(label: l10n.playerNoteLabel),
             const SizedBox(height: 16),
@@ -323,65 +288,6 @@ class _PlayerEditorPageState extends State<PlayerEditorPage> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SideOption extends StatelessWidget {
-  const _SideOption({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onPressed,
-    this.iconColor,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color? iconColor;
-  final bool selected;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final editorial = editorialThemeOf(context);
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      onTap: onPressed,
-      child: ExcludeSemantics(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 48),
-          child: OutlinedButton.icon(
-            onPressed: onPressed,
-            icon: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  selected
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_unchecked,
-                  size: 18,
-                ),
-                const SizedBox(width: 6),
-                Icon(icon, color: iconColor, size: 16),
-              ],
-            ),
-            label: Text(label),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: selected ? editorial.inverseSurface : null,
-              foregroundColor: selected
-                  ? accessibleForegroundFor(editorial.inverseSurface)
-                  : editorial.ink,
-              side: BorderSide(
-                color: selected ? editorial.inverseSurface : editorial.rule,
-                width: selected ? 2 : 1,
-              ),
-            ),
-          ),
         ),
       ),
     );

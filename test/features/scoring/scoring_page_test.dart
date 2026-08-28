@@ -2463,6 +2463,158 @@ void main() {
   });
 
   testWidgets(
+    'winning score keeps the court available until its location is confirmed',
+    (tester) async {
+      final anchor = DateTime.utc(2026, 8, 28, 9);
+      await withTestDatabase((database) async {
+        final service = MatchCommandService(database, now: () => anchor);
+        final start = await service.start(
+          _startPageCommand(
+            'winning-score-location-first',
+            targetScore: 2,
+            createdAt: anchor,
+            startedAt: anchor,
+          ),
+        );
+        final controller = ScoringController.fromCommittedProjection(
+          start,
+          service,
+          nowUtc: () => anchor,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: ScoringPage(
+              controller: controller,
+              clockNowUtc: () => anchor,
+              onFinishDecision: (_, _) async {},
+            ),
+          ),
+        );
+        await tester.tap(find.byKey(const Key('red-score-2')));
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)),
+        );
+        await tester.pump();
+
+        expect(controller.state.decision, isNotNull);
+        expect(controller.locationSupplementWindow, isNotNull);
+        expect(find.byKey(const Key('scoring-decision-dock')), findsNothing);
+        expect(find.textContaining('补充红方 +2 落点'), findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(find.byKey(const Key('scoring-finish')))
+              .onPressed,
+          isNull,
+        );
+        expect(
+          tester
+              .widget<FilledButton>(find.byKey(const Key('red-score-1')))
+              .onPressed,
+          isNull,
+        );
+        expect(
+          tester
+              .widget<OutlinedButton>(find.byKey(const Key('red-foul')))
+              .onPressed,
+          isNull,
+        );
+        await tester.tap(find.byKey(const Key('scoring-more')));
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byKey(const Key('more-note')));
+        expect(
+          tester
+              .widget<EditorialIndexRow>(find.byKey(const Key('more-note')))
+              .onTap,
+          isNull,
+        );
+        Navigator.of(tester.element(find.byType(ScoringPage))).pop();
+        await tester.pumpAndSettle();
+
+        await tester.tapAt(
+          tester.getCenter(find.byKey(const Key('scoring-court'))),
+        );
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 30)),
+        );
+        await tester.pump();
+
+        expect(controller.locationSupplementWindow, isNull);
+        expect(controller.state.shotLocations, hasLength(1));
+        expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
+        expect(
+          tester
+              .widget<FilledButton>(find.byKey(const Key('scoring-finish')))
+              .onPressed,
+          isNotNull,
+        );
+      });
+    },
+  );
+
+  testWidgets('winning score decision appears after location time expires', (
+    tester,
+  ) async {
+    final anchor = DateTime.utc(2026, 8, 28, 9);
+    var now = anchor;
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database, now: () => now);
+      final start = await service.start(
+        _startPageCommand(
+          'winning-score-location-expiry',
+          targetScore: 2,
+          createdAt: anchor,
+          startedAt: anchor,
+        ),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+        nowUtc: () => now,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(
+            controller: controller,
+            clockNowUtc: () => now,
+            onFinishDecision: (_, _) async {},
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('red-score-2')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 30)),
+      );
+      await tester.pump();
+
+      expect(controller.locationSupplementWindow, isNotNull);
+      expect(find.byKey(const Key('scoring-decision-dock')), findsNothing);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('scoring-finish')))
+            .onPressed,
+        isNull,
+      );
+
+      now = anchor.add(const Duration(seconds: 10));
+      await tester.pump(const Duration(seconds: 1));
+
+      expect(controller.locationSupplementWindow, isNull);
+      expect(find.byKey(const Key('scoring-decision-dock')), findsOneWidget);
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('scoring-finish')))
+            .onPressed,
+        isNotNull,
+      );
+    });
+  });
+
+  testWidgets(
     'pending decision exposes explicit continue and confirmed finish actions',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(731, 411));

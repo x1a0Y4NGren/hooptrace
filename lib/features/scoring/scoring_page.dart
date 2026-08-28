@@ -468,6 +468,7 @@ class _ScoringPageState extends State<ScoringPage>
   @override
   Widget build(BuildContext context) {
     final state = _controller.state;
+    final decisionControlsDeferred = _decisionControlsDeferred(state);
     final clock = _displayClock();
     final labels = _labels(context);
     final page = Scaffold(
@@ -490,7 +491,9 @@ class _ScoringPageState extends State<ScoringPage>
                         onLeave: _requestLeave,
                         onUndo: () => unawaited(_undoLastScoringAction()),
                         onMore: _showMore,
-                        onFinish: _showMatchControls,
+                        onFinish: decisionControlsDeferred
+                            ? null
+                            : _showMatchControls,
                         labels: labels,
                       ),
                       Expanded(
@@ -498,7 +501,8 @@ class _ScoringPageState extends State<ScoringPage>
                           fit: StackFit.expand,
                           children: [
                             _buildWorkspace(context, state, portrait: portrait),
-                            if (state.decision != null)
+                            if (state.decision != null &&
+                                !decisionControlsDeferred)
                               _buildDecisionOverlay(context, state),
                           ],
                         ),
@@ -639,6 +643,7 @@ class _ScoringPageState extends State<ScoringPage>
         motion?.state ?? const Duration(milliseconds: 180),
     };
     final draft = state.courtFirstShotDraft;
+    final decisionControlsDeferred = _decisionControlsDeferred(state);
     return ScoreSidePanel(
       key: Key('${side.name}-side-panel'),
       side: side,
@@ -647,9 +652,14 @@ class _ScoringPageState extends State<ScoringPage>
       score: isBlue ? state.score.blueScore : state.score.redScore,
       fouls: isBlue ? state.blueFouls : state.redFouls,
       scoreButtons: const [1, 2, 3],
-      scoreEnabled: draft != null || state.pendingLocation == null,
+      scoreEnabled:
+          !decisionControlsDeferred &&
+          (draft != null || state.pendingLocation == null),
       missEnabled: false,
-      foulEnabled: draft == null && state.pendingLocation == null,
+      foulEnabled:
+          !decisionControlsDeferred &&
+          draft == null &&
+          state.pendingLocation == null,
       locationPoints: activeLocation ? window.points : null,
       locationRemainingSeconds: activeLocation ? remaining : null,
       locationRevealDuration: locationRevealDuration,
@@ -1102,7 +1112,11 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<void> _showMatchControls() async {
-    if (_decisionBusy || _interactionPaused) return;
+    if (_decisionBusy ||
+        _interactionPaused ||
+        _decisionControlsDeferred(_controller.state)) {
+      return;
+    }
     final labels = _labels(context);
     final action = await showDialog<_MatchControlAction>(
       context: context,
@@ -1132,7 +1146,8 @@ class _ScoringPageState extends State<ScoringPage>
               key: const Key('match-controls-finish'),
               onPressed:
                   widget.onFinishDecision == null ||
-                      _controller.state.decision?.canFinish == false
+                      _controller.state.decision?.canFinish == false ||
+                      _decisionControlsDeferred(_controller.state)
                   ? null
                   : () => Navigator.of(
                       dialogContext,
@@ -1564,8 +1579,12 @@ class _ScoringPageState extends State<ScoringPage>
                                 icon: Icons.close,
                                 label: labels.missed(TeamSide.blue),
                                 enabled:
-                                    _controller.courtFirstShotDraft != null ||
-                                    _controller.state.pendingLocation == null,
+                                    !_decisionControlsDeferred(
+                                      _controller.state,
+                                    ) &&
+                                    (_controller.courtFirstShotDraft != null ||
+                                        _controller.state.pendingLocation ==
+                                            null),
                                 onTap: () => runMore(
                                   () => _recordMiss(
                                     TeamSide.blue,
@@ -1580,8 +1599,12 @@ class _ScoringPageState extends State<ScoringPage>
                                 icon: Icons.close,
                                 label: labels.missed(TeamSide.red),
                                 enabled:
-                                    _controller.courtFirstShotDraft != null ||
-                                    _controller.state.pendingLocation == null,
+                                    !_decisionControlsDeferred(
+                                      _controller.state,
+                                    ) &&
+                                    (_controller.courtFirstShotDraft != null ||
+                                        _controller.state.pendingLocation ==
+                                            null),
                                 onTap: () => runMore(
                                   () => _recordMiss(
                                     TeamSide.red,
@@ -1783,6 +1806,7 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   bool get _ordinaryActionsEnabled =>
+      !_decisionControlsDeferred(_controller.state) &&
       _controller.state.pendingLocation == null &&
       _controller.state.courtFirstShotDraft == null;
 
@@ -2047,7 +2071,10 @@ class _ScoringPageState extends State<ScoringPage>
     final controller = _controller;
     final finish = widget.onFinishDecision;
     final decision = controller.state.decision;
-    if (finish == null || decision?.canFinish == false || _decisionBusy) {
+    if (finish == null ||
+        decision?.canFinish == false ||
+        _decisionBusy ||
+        _decisionControlsDeferred(controller.state)) {
       return false;
     }
     final state = _controller.state;
@@ -2326,6 +2353,9 @@ class _ScoringPageState extends State<ScoringPage>
 
   _ScoringLabels _labels(BuildContext context) =>
       _ScoringLabels(_localizations(context));
+
+  bool _decisionControlsDeferred(MatchScoringState state) =>
+      state.decision != null && state.locationSupplementWindow != null;
 }
 
 enum _MatchControlAction { returnToScoring, pause, finish }
@@ -2355,7 +2385,7 @@ class _Scoreboard extends StatelessWidget {
   final VoidCallback onLeave;
   final VoidCallback onUndo;
   final VoidCallback onMore;
-  final VoidCallback onFinish;
+  final VoidCallback? onFinish;
   final _ScoringLabels labels;
 
   @override
