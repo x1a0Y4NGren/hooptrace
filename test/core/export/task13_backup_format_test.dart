@@ -6,7 +6,7 @@ import 'package:hooptrace/core/export/json_backup_codec.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
-  test('1.0 exports declare an independent backup format version', () async {
+  test('1.1 exports declare backup format 2 independently', () async {
     final database = createTestDatabase();
 
     final source = await JsonBackupCodec(
@@ -17,7 +17,7 @@ void main() {
     final document = jsonDecode(source) as Map<String, dynamic>;
     final manifest = document['manifest'] as Map<String, dynamic>;
 
-    expect(manifest['formatVersion'], 1);
+    expect(manifest['formatVersion'], 2);
     expect(manifest['schemaVersion'], database.schemaVersion);
   });
 
@@ -34,16 +34,16 @@ void main() {
     );
 
     final future = jsonDecode(exported) as Map<String, dynamic>;
-    (future['manifest'] as Map<String, dynamic>)['formatVersion'] = 2;
+    (future['manifest'] as Map<String, dynamic>)['formatVersion'] = 3;
     await expectLater(
       codec.restore(jsonEncode(future)),
       throwsA(
         isA<UnsupportedBackupFormatException>()
-            .having((error) => error.formatVersion, 'formatVersion', 2)
+            .having((error) => error.formatVersion, 'formatVersion', 3)
             .having(
               (error) => error.supportedFormatVersion,
               'supportedFormatVersion',
-              1,
+              2,
             ),
       ),
     );

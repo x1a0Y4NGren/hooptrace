@@ -30,7 +30,7 @@ void main() {
         'active',
       );
     });
-    test('round-trips all eleven persisted table groups', () async {
+    test('round-trips all twelve persisted table groups', () async {
       final exported = await withTestDatabase((source) async {
         await _seedCompleteBackup(source);
         return JsonBackupCodec(
@@ -61,6 +61,7 @@ void main() {
         'possessionSegments': 1,
         'auditLogs': 1,
         'appSettings': 1,
+        'playerAnalyticsSnapshots': 1,
       });
       expect(manifest['checksum'], matches(RegExp(r'^[a-f0-9]{64}$')));
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/data/repositories/player_analytics_snapshot_repository.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 
@@ -32,6 +33,7 @@ class BackupMergeResult {
     required Map<String, List<String>> skippedIds,
     required Map<String, List<String>> insertedIds,
     required this.importedActiveSession,
+    required this.rebuiltAnalyticsSnapshotCount,
   }) : idMap = _freezeNestedMap(idMap),
        skippedIds = _freezeListMap(skippedIds),
        insertedIds = _freezeListMap(insertedIds);
@@ -41,11 +43,22 @@ class BackupMergeResult {
   final Map<String, List<String>> skippedIds;
   final Map<String, List<String>> insertedIds;
   final bool importedActiveSession;
+  final int rebuiltAnalyticsSnapshotCount;
 
   int get insertedRowCount =>
       insertedIds.values.fold<int>(0, (total, ids) => total + ids.length);
 
   bool get changed => insertedRowCount != 0;
+
+  BackupMergeResult withRebuiltAnalyticsSnapshotCount(int count) =>
+      BackupMergeResult(
+        sourceChecksum: sourceChecksum,
+        idMap: idMap,
+        skippedIds: skippedIds,
+        insertedIds: insertedIds,
+        importedActiveSession: importedActiveSession,
+        rebuiltAnalyticsSnapshotCount: count,
+      );
 
   /// Only mappings that changed a primary key, grouped by persisted table.
   Map<String, Map<String, String>> get remappedIds => {
@@ -99,13 +112,17 @@ class BackupMergeService {
     // local data.
     final document = codec.decodeAndValidate(source);
     try {
-      late final _MergePlan plan;
+      late final BackupMergeResult result;
       await database.transaction(() async {
         final local = await _readLocalRows();
-        plan = _buildPlan(document, local);
+        final plan = _buildPlan(document, local);
         await _applyPlan(plan);
+        final rebuiltCount = await PlayerAnalyticsSnapshotRepository(
+          database,
+        ).ensureSnapshotsForMatches(plan.snapshotMatchIds);
+        result = plan.result.withRebuiltAnalyticsSnapshotCount(rebuiltCount);
       });
-      return plan.result;
+      return result;
     } on BackupMergeException {
       rethrow;
     } on Object catch (error) {
@@ -352,7 +369,20 @@ class BackupMergeService {
         'appSettings': const <String>[],
       },
       importedActiveSession: document.activeSessions.isNotEmpty,
+      rebuiltAnalyticsSnapshotCount: 0,
     );
+    final snapshotMatchIds = <String>{
+      for (final group in [
+        matchRows.rows,
+        participantRows.rows,
+        eventRows.rows,
+        locationRows.rows,
+      ])
+        for (final row in group)
+          if (row['matchId'] case final String matchId) matchId,
+      for (final row in matchRows.rows)
+        if (row['id'] case final String matchId) matchId,
+    };
     return _MergePlan(
       matches: matchRows.rows,
       participants: participantRows.rows,
@@ -363,6 +393,7 @@ class BackupMergeService {
       templates: templateRows.rows,
       possessions: possessionRows.rows,
       audits: auditRows.rows,
+      snapshotMatchIds: snapshotMatchIds,
       result: result,
     );
   }
@@ -899,6 +930,7 @@ class _MergePlan {
     required this.templates,
     required this.possessions,
     required this.audits,
+    required this.snapshotMatchIds,
     required this.result,
   });
 
@@ -911,5 +943,6 @@ class _MergePlan {
   final List<Map<String, dynamic>> templates;
   final List<Map<String, dynamic>> possessions;
   final List<Map<String, dynamic>> audits;
+  final Set<String> snapshotMatchIds;
   final BackupMergeResult result;
 }

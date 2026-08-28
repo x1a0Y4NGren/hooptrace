@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/domain/analytics/player_analytics_snapshot.dart';
@@ -14,10 +16,28 @@ class PlayerAnalyticsSnapshotRepository {
   final AppDatabase _database;
   final PlayerAnalyticsSnapshotCalculator _calculator;
 
-  Future<void> ensureSnapshots({String? playerId}) async {
-    final rows = await _canonicalRows(playerId: playerId);
+  Future<int> ensureSnapshots({String? playerId}) {
+    return _ensureSnapshots(playerId: playerId);
+  }
+
+  /// Rebuilds only the imported or otherwise explicitly affected matches.
+  ///
+  /// A JSON-backed CTE keeps the match filter to one bind variable even for a
+  /// large backup, avoiding SQLite's positional-parameter limit without
+  /// falling back to one query per match.
+  Future<int> ensureSnapshotsForMatches(Iterable<String> matchIds) {
+    final normalized = matchIds.toSet().toList()..sort();
+    if (normalized.isEmpty) return Future.value(0);
+    return _ensureSnapshots(matchIds: normalized);
+  }
+
+  Future<int> _ensureSnapshots({
+    String? playerId,
+    List<String>? matchIds,
+  }) async {
+    final rows = await _canonicalRows(playerId: playerId, matchIds: matchIds);
     final requests = _requestsFromRows(rows);
-    if (requests.isEmpty) return;
+    if (requests.isEmpty) return 0;
     final snapshots = requests
         .map(_calculator.calculate)
         .toList(growable: false);
@@ -27,14 +47,24 @@ class PlayerAnalyticsSnapshotRepository {
         snapshots.map(_toRow).toList(growable: false),
       );
     });
+    return snapshots.length;
   }
 
-  Future<List<QueryRow>> _canonicalRows({String? playerId}) {
+  Future<List<QueryRow>> _canonicalRows({
+    String? playerId,
+    List<String>? matchIds,
+  }) {
     final variables = <Variable<Object>>[];
     final playerPredicate = playerId == null
         ? ''
         : 'AND subject.player_profile_id = ?';
     if (playerId != null) variables.add(Variable.withString(playerId));
+    final matchPredicate = matchIds == null
+        ? ''
+        : 'AND m.id IN (SELECT value FROM json_each(?))';
+    if (matchIds != null) {
+      variables.add(Variable.withString(jsonEncode(matchIds)));
+    }
     return _database
         .customSelect(
           '''
@@ -53,6 +83,7 @@ class PlayerAnalyticsSnapshotRepository {
               WHERE m.lifecycle IN ('finished', 'archived')
                 AND subject.player_profile_id IS NOT NULL
                 $playerPredicate
+                $matchPredicate
             )
             SELECT
               eligible.match_id,

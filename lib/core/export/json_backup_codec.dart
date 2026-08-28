@@ -4,6 +4,9 @@ import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart';
 import 'package:hooptrace/core/audit/audit_log_entry.dart';
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/data/repositories/player_analytics_snapshot_repository.dart';
+import 'package:hooptrace/core/domain/analytics/player_analytics_snapshot.dart';
+import 'package:hooptrace/core/domain/analytics/player_analytics_snapshot_calculator.dart';
 import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
@@ -91,6 +94,7 @@ class JsonBackupDocument {
     required this.possessions,
     required this.audits,
     required this.settings,
+    required this.snapshots,
   });
 
   final BackupManifest manifest;
@@ -106,6 +110,7 @@ class JsonBackupDocument {
   final List<PossessionSegment> possessions;
   final List<AuditLog> audits;
   final List<AppSetting> settings;
+  final List<PlayerAnalyticsSnapshotRow> snapshots;
 
   String get checksum => manifest.checksum;
 }
@@ -124,7 +129,7 @@ class JsonBackupCodec {
   }) : now = now ?? DateTime.now;
 
   static const appName = 'HoopTrace';
-  static const currentFormatVersion = 1;
+  static const currentFormatVersion = 2;
 
   final AppDatabase database;
   final String appVersion;
@@ -135,10 +140,11 @@ class JsonBackupCodec {
 
   Future<String> export() {
     // A headless WorkManager engine may run beside the foreground engine. A
-    // single read transaction keeps the eleven table snapshots at one SQLite
+    // single transaction keeps the twelve table snapshots at one SQLite
     // point in time, so graph validation can never observe a half-committed
     // domain mutation.
     return database.transaction(() async {
+      await PlayerAnalyticsSnapshotRepository(database).ensureSnapshots();
       final tables = <String, List<Map<String, dynamic>>>{
         'matches': await _rows(database.matches),
         'matchParticipants': await _rows(database.matchParticipants),
@@ -157,6 +163,10 @@ class JsonBackupCodec {
           database.appSettings,
           key: 'key',
           include: (row) => row['key'] != automaticBackupRunLeaseSettingKey,
+        ),
+        'playerAnalyticsSnapshots': await _rows(
+          database.playerAnalyticsSnapshots,
+          sortKeys: const ['matchId', 'playerId'],
         ),
       };
       final counts = <String, int>{
@@ -205,6 +215,7 @@ class JsonBackupCodec {
     final possessions = document.possessions;
     final audits = document.audits;
     final settings = document.settings;
+    final snapshots = document.snapshots;
 
     try {
       await database.transaction(() async {
@@ -212,6 +223,7 @@ class JsonBackupCodec {
           throw const BackupRestoreBlockedException();
         }
         await database.delete(database.shotLocations).go();
+        await database.delete(database.playerAnalyticsSnapshots).go();
         await database.delete(database.activeSessions).go();
         await database.delete(database.possessionSegments).go();
         await database.delete(database.auditLogs).go();
@@ -234,6 +246,8 @@ class JsonBackupCodec {
         await _insertAll(database.possessionSegments, possessions);
         await _insertAll(database.auditLogs, audits);
         await _insertAll(database.activeSessions, activeSessions);
+        await _insertAll(database.playerAnalyticsSnapshots, snapshots);
+        await PlayerAnalyticsSnapshotRepository(database).ensureSnapshots();
       });
     } on BackupRestoreBlockedException {
       rethrow;
@@ -275,7 +289,8 @@ class JsonBackupCodec {
     } on Object catch (error) {
       throw BackupFormatException('Backup JSON is invalid: $error');
     }
-    if (manifest.formatVersion != currentFormatVersion) {
+    if (manifest.formatVersion < 1 ||
+        manifest.formatVersion > currentFormatVersion) {
       throw UnsupportedBackupFormatException(
         formatVersion: manifest.formatVersion,
         supportedFormatVersion: currentFormatVersion,
@@ -288,9 +303,15 @@ class JsonBackupCodec {
         supportedSchemaVersion: database.schemaVersion,
       );
     }
-    if (manifest.schemaVersion != database.schemaVersion) {
+    final isLegacyV1 =
+        manifest.formatVersion == 1 && manifest.schemaVersion == 2;
+    final isCurrent =
+        manifest.formatVersion == currentFormatVersion &&
+        manifest.schemaVersion == database.schemaVersion;
+    if (!isLegacyV1 && !isCurrent) {
       throw BackupValidationException(
-        'Backup schema ${manifest.schemaVersion} is not supported.',
+        'Backup format ${manifest.formatVersion} and schema '
+        '${manifest.schemaVersion} are not a supported pair.',
       );
     }
     if (_checksum(manifest, data) != manifest.checksum) {
@@ -309,6 +330,7 @@ class JsonBackupCodec {
     late final List<PossessionSegment> possessions;
     late final List<AuditLog> audits;
     late final List<AppSetting> settings;
+    final parsedSnapshots = <PlayerAnalyticsSnapshotRow>[];
     try {
       matches = data['matches']!.map(Matche.fromJson).toList(growable: false);
       participants = data['matchParticipants']!
@@ -341,6 +363,16 @@ class JsonBackupCodec {
       settings = data['appSettings']!
           .map(AppSetting.fromJson)
           .toList(growable: false);
+      if (!isLegacyV1) {
+        for (final row in data['playerAnalyticsSnapshots']!) {
+          try {
+            parsedSnapshots.add(PlayerAnalyticsSnapshotRow.fromJson(row));
+          } on Object {
+            // Snapshot rows are derived. A malformed row is ignored after the
+            // signed envelope and canonical table groups have been validated.
+          }
+        }
+      }
     } on Object catch (error) {
       throw BackupValidationException('Backup row is invalid: $error');
     }
@@ -357,9 +389,44 @@ class JsonBackupCodec {
       audits: audits,
       settings: settings,
     );
+    final expectedSnapshots = _calculateExpectedSnapshots(
+      matches: matches,
+      participants: participants,
+      events: events,
+      locations: locations,
+    );
+    final expectedByKey = {
+      for (final row in expectedSnapshots) _snapshotKey(row): row,
+    };
+    final snapshotsByKey = <String, List<PlayerAnalyticsSnapshotRow>>{};
+    for (final row in parsedSnapshots) {
+      snapshotsByKey.putIfAbsent(_snapshotKey(row), () => []).add(row);
+    }
+    final validSnapshots = <PlayerAnalyticsSnapshotRow>[];
+    if (!isLegacyV1) {
+      for (final entry in snapshotsByKey.entries) {
+        if (entry.value.length != 1) continue;
+        final expected = expectedByKey[entry.key];
+        if (expected == null) continue;
+        final candidate = entry.value.single;
+        if (candidate.calculatorVersion ==
+                PlayerAnalyticsSnapshotCalculator.version &&
+            candidate.sourceSha256 == expected.sourceSha256 &&
+            _canonicalJson(candidate.toJson()) ==
+                _canonicalJson(expected.toJson())) {
+          validSnapshots.add(candidate);
+        }
+      }
+    }
+    final normalizedData = isLegacyV1
+        ? <String, List<Map<String, dynamic>>>{
+            ...data,
+            'playerAnalyticsSnapshots': const [],
+          }
+        : data;
     return JsonBackupDocument(
       manifest: manifest,
-      data: data,
+      data: normalizedData,
       matches: matches,
       participants: participants,
       clocks: clocks,
@@ -371,6 +438,7 @@ class JsonBackupCodec {
       possessions: possessions,
       audits: audits,
       settings: settings,
+      snapshots: validSnapshots,
     );
   }
 
@@ -433,7 +501,7 @@ class JsonBackupCodec {
         'Backup manifest does not identify a supported HoopTrace export.',
       );
     }
-    const expected = {
+    const legacyExpected = {
       'matches',
       'matchParticipants',
       'matchClocks',
@@ -446,10 +514,15 @@ class JsonBackupCodec {
       'auditLogs',
       'appSettings',
     };
+    const currentExpected = {...legacyExpected, 'playerAnalyticsSnapshots'};
+    final expected = manifest.formatVersion == 1
+        ? legacyExpected
+        : currentExpected;
     if (data.keys.toSet().difference(expected).isNotEmpty ||
         expected.difference(data.keys.toSet()).isNotEmpty) {
-      throw const BackupValidationException(
-        'Backup must contain exactly the eleven persisted table groups.',
+      throw BackupValidationException(
+        'Backup must contain exactly ${manifest.formatVersion == 1 ? 'the '
+                  'eleven legacy' : 'the twelve current'} persisted table groups.',
       );
     }
     if (manifest.recordCounts.keys.toSet().difference(expected).isNotEmpty ||
@@ -708,6 +781,120 @@ class JsonBackupCodec {
     }
   }
 
+  List<PlayerAnalyticsSnapshotRow> _calculateExpectedSnapshots({
+    required List<Matche> matches,
+    required List<MatchParticipant> participants,
+    required List<MatchEventRow> events,
+    required List<ShotLocation> locations,
+  }) {
+    final calculator = PlayerAnalyticsSnapshotCalculator();
+    final participantsByMatch = <String, List<MatchParticipant>>{};
+    for (final participant in participants) {
+      participantsByMatch
+          .putIfAbsent(participant.matchId, () => [])
+          .add(participant);
+    }
+    final eventsByMatch = <String, List<MatchEventRow>>{};
+    for (final event in events) {
+      eventsByMatch.putIfAbsent(event.matchId, () => []).add(event);
+    }
+    final locationByEvent = {
+      for (final location in locations) location.eventId: location,
+    };
+    final snapshots = <PlayerAnalyticsSnapshotRow>[];
+    for (final match in matches) {
+      if (!{'finished', 'archived'}.contains(match.lifecycle)) continue;
+      final matchParticipants = participantsByMatch[match.id] ?? const [];
+      final matchEvents = eventsByMatch[match.id] ?? const [];
+      for (final subject in matchParticipants) {
+        final playerId = subject.playerProfileId;
+        if (playerId == null) continue;
+        final opponent = matchParticipants
+            .where((candidate) => candidate.side != subject.side)
+            .firstOrNull;
+        final snapshot = calculator.calculate(
+          PlayerAnalyticsSnapshotCalculationRequest(
+            matchId: match.id,
+            playerId: playerId,
+            opponentPlayerId: opponent?.playerProfileId,
+            playerSide: subject.side,
+            playedAtUtc: (match.startedAt ?? match.createdAt).toUtc(),
+            trackingCoverage: TrackingCoverage.values.byName(
+              match.trackingCoverage,
+            ),
+            events: [
+              for (final event in matchEvents)
+                PlayerAnalyticsSnapshotEventInput(
+                  id: event.id,
+                  side: event.side,
+                  type: EventKind.values.byName(event.type),
+                  points: event.points,
+                  occurredAtUtc: event.occurredAt.toUtc().toIso8601String(),
+                  outcome: event.outcome == null
+                      ? null
+                      : ShotOutcome.values.byName(event.outcome!),
+                  isDeleted: event.isDeleted,
+                  location: switch (locationByEvent[event.id]) {
+                    final location? => PlayerAnalyticsSnapshotLocationInput(
+                      id: location.id,
+                      x: location.x,
+                      y: location.y,
+                      isConfirmed: location.isConfirmed,
+                    ),
+                    null => null,
+                  },
+                ),
+            ],
+          ),
+        );
+        snapshots.add(_snapshotRow(snapshot));
+      }
+    }
+    snapshots.sort((left, right) {
+      final byMatch = left.matchId.compareTo(right.matchId);
+      return byMatch == 0 ? left.playerId.compareTo(right.playerId) : byMatch;
+    });
+    return snapshots;
+  }
+
+  PlayerAnalyticsSnapshotRow _snapshotRow(PlayerAnalyticsSnapshot snapshot) =>
+      PlayerAnalyticsSnapshotRow(
+        matchId: snapshot.matchId,
+        playerId: snapshot.playerId,
+        opponentPlayerId: snapshot.opponentPlayerId,
+        playedAtUtc: snapshot.playedAtUtc,
+        playerScore: snapshot.playerScore,
+        opponentScore: snapshot.opponentScore,
+        fieldGoalMade: snapshot.fieldGoalMade,
+        fieldGoalAttempts: snapshot.fieldGoalAttempts,
+        freeThrowMade: snapshot.freeThrowMade,
+        freeThrowAttempts: snapshot.freeThrowAttempts,
+        trackingCoverage: snapshot.trackingCoverage.name,
+        confirmedLocationCount: snapshot.confirmedLocationCount,
+        locatableLocationCount: snapshot.locatableLocationCount,
+        zoneDistributionJson: snapshot.zoneDistributionJson,
+        calculatorVersion: snapshot.calculatorVersion,
+        sourceSha256: snapshot.sourceSha256,
+      );
+
+  String _snapshotKey(PlayerAnalyticsSnapshotRow row) =>
+      '${row.matchId}\u0000${row.playerId}';
+
+  String _canonicalJson(Object? value) => jsonEncode(_canonicalizeJson(value));
+
+  Object? _canonicalizeJson(Object? value) {
+    if (value is Map) {
+      final keys = value.keys.map((key) => key.toString()).toList()..sort();
+      return <String, Object?>{
+        for (final key in keys) key: _canonicalizeJson(value[key]),
+      };
+    }
+    if (value is Iterable) {
+      return value.map(_canonicalizeJson).toList(growable: false);
+    }
+    return value;
+  }
+
   bool _hasValidShotResult(MatchEventRow event) {
     return switch (event.outcome) {
       'made' => event.points > 0,
@@ -842,6 +1029,7 @@ class JsonBackupCodec {
   Future<List<Map<String, dynamic>>> _rows<T extends DataClass>(
     TableInfo<Table, T> table, {
     String key = 'id',
+    List<String>? sortKeys,
     bool sortByKey = true,
     bool Function(Map<String, dynamic> row)? include,
   }) async {
@@ -859,10 +1047,16 @@ class JsonBackupCodec {
         .where((row) => include == null || include(row))
         .toList();
     if (sortByKey) {
-      json.sort(
-        (first, second) =>
-            (first[key] as String).compareTo(second[key] as String),
-      );
+      final keys = sortKeys ?? [key];
+      json.sort((first, second) {
+        for (final sortKey in keys) {
+          final comparison = (first[sortKey] as String).compareTo(
+            second[sortKey] as String,
+          );
+          if (comparison != 0) return comparison;
+        }
+        return 0;
+      });
     }
     return json;
   }
