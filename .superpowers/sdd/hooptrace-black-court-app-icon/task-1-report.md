@@ -249,3 +249,72 @@ Result: streamed install returned `Success`; the launcher intent injected one ev
 - Validation fails on a missing file, wrong dimension, or alpha channel for either legacy filename.
 - APK inspection confirms AAPT packaged every new fallback, and reinstall/launch confirms the rebuilt artifact remains installable and runnable.
 - No new concerns were found in this fix round.
+
+## Final Review Fix Wave: themed-icon evidence and alpha equality
+
+### Validator hardening
+
+`validate_resources()` now compares the complete alpha-channel bytes of each
+density-specific `ic_launcher_monochrome.png` with the matching
+`ic_launcher_foreground.png`. A monochrome resource with a different silhouette
+now fails validation even when both files still contain the expected alpha
+extrema.
+
+Commands and results:
+
+```powershell
+py -3 tool\release\generate_launcher_icons.py
+py -3 -B -m py_compile tool\release\generate_launcher_icons.py
+git diff --check
+```
+
+Result: generator validation exited 0 with `Launcher icon resources generated
+and validated successfully.`; Python compilation and whitespace validation also
+exited 0. The only console message was Git's existing LF-to-CRLF notice.
+
+### Android 13+ themed-icon visual check
+
+On `emulator-5554` (API 36), opened the platform personalization page with:
+
+```powershell
+adb -s emulator-5554 shell am start -a android.settings.WALLPAPER_SETTINGS
+adb -s emulator-5554 shell uiautomator dump /sdcard/window.xml
+```
+
+The UI hierarchy reported the `Themed icons` switch as `checked="true"`.
+HoopTrace was then pinned from the app drawer to the home screen using the
+launcher drag-and-drop gesture and captured with:
+
+```powershell
+adb -s emulator-5554 shell input draganddrop 940 1015 540 600 1800
+adb -s emulator-5554 shell screencap -p /sdcard/home-themed.png
+adb -s emulator-5554 pull /sdcard/home-themed.png `.superpowers\sdd\hooptrace-black-court-app-icon\task-1-emulator-themed-launcher.png`
+```
+
+Saved evidence:
+`.superpowers/sdd/hooptrace-black-court-app-icon/task-1-emulator-themed-launcher.png`.
+Visual inspection confirmed Pixel Launcher rendered the HoopTrace mark using a
+single system palette color over the themed circular background. The ball,
+continuous trace, backboard, rim, and net remained recognizable, centered, and
+unclipped.
+
+### Fresh final verification
+
+```powershell
+flutter analyze
+flutter test
+flutter build apk --debug
+```
+
+Results: analyzer reported `No issues found!`; all 907 tests passed; the Debug
+APK was rebuilt successfully at
+`build/app/outputs/flutter-apk/app-debug.apk`.
+
+### Final fix-wave self-review
+
+- The tracked change is limited to one validator assertion; generated launcher
+  assets remained deterministic and unchanged.
+- The themed-icon visual check resolves the previously documented evidence gap.
+- The alpha equality assertion directly covers the remaining validator-hardening
+  recommendation.
+- No new concerns were found.

@@ -183,6 +183,9 @@ def validate_resources() -> None:
         assert monochrome.size == (size, size)
         assert adaptive.getchannel('A').getextrema() == (0, 255)
         assert monochrome.getchannel('A').getextrema() == (0, 255)
+        assert monochrome.getchannel('A').tobytes() == adaptive.getchannel(
+            'A',
+        ).tobytes(), f'Monochrome alpha does not match adaptive foreground: {density}'
         visible_monochrome = {
             pixel[:3]
             for pixel in monochrome.get_flattened_data()
