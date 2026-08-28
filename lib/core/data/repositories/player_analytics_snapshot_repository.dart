@@ -80,8 +80,14 @@ class PlayerAnalyticsSnapshotRepository {
               JOIN match_participants subject ON subject.match_id = m.id
               LEFT JOIN match_participants opponent
                 ON opponent.match_id = m.id AND opponent.side != subject.side
+              LEFT JOIN player_analytics_snapshots existing_snapshot
+                ON existing_snapshot.match_id = m.id
+                AND existing_snapshot.player_id = subject.player_profile_id
+                AND existing_snapshot.calculator_version =
+                  ${PlayerAnalyticsSnapshotCalculator.version}
               WHERE m.lifecycle IN ('finished', 'archived')
                 AND subject.player_profile_id IS NOT NULL
+                AND existing_snapshot.match_id IS NULL
                 $playerPredicate
                 $matchPredicate
             )
@@ -119,6 +125,7 @@ class PlayerAnalyticsSnapshotRepository {
             _database.matchParticipants,
             _database.matchEvents,
             _database.shotLocations,
+            _database.playerAnalyticsSnapshots,
           },
         )
         .get();
