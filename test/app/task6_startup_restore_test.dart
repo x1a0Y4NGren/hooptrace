@@ -119,7 +119,6 @@ void main() {
     expect(canRestoreBackupFor(errorWithPreviousNull), isFalse);
 
     final database = createTestDatabase();
-    addTearDown(database.close);
     final now = DateTime.utc(2026, 8, 23, 12);
     await MatchCommandService(database).start(
       StartMatchCommand(

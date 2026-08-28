@@ -314,7 +314,6 @@ void main() {
     'scoring reacts to shared motion preference changes after mount',
     (tester) async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final feedback = ScoringFeedbackService(
         ScoringFeedbackPreferencesRepository(database),
       );
@@ -402,7 +401,6 @@ void main() {
     'reactive scoring seam loads persisted preference on first mount',
     (tester) async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       await database
           .into(database.appSettings)
           .insert(

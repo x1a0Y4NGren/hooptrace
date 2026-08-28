@@ -19,7 +19,6 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = RuleTemplateRepository(database);
     await repository.ensureBuiltIns();
     const locales = [Locale('zh'), Locale('en')];
@@ -92,7 +91,6 @@ void main() {
   testWidgets('rule list row has one semantic action owner', (tester) async {
     final semanticsHandle = tester.ensureSemantics();
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = RuleTemplateRepository(database);
     await repository.ensureBuiltIns();
     await repository.save(
@@ -121,7 +119,6 @@ void main() {
   testWidgets('rule editor save has one semantic action owner', (tester) async {
     final semanticsHandle = tester.ensureSemantics();
     final database = createTestDatabase();
-    addTearDown(database.close);
     await tester.pumpWidget(
       MaterialApp(
         theme: buildHoopTraceTheme(),
@@ -264,7 +261,6 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repair = Completer<void>();
     final repository = _SequencedRuleRepository(
       database,
@@ -448,7 +444,6 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = RuleTemplateRepository(database);
 
     await tester.pumpWidget(

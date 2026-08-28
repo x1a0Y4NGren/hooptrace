@@ -360,59 +360,58 @@ void main() {
     test(
       'legacy event and audit insertion order survives merge for scoring undo',
       () async {
-        final sourceDatabase = createTestDatabase();
-        addTearDown(sourceDatabase.close);
-        await _seedLibrary(
-          sourceDatabase,
-          matchId: 'merge-legacy-order',
-          lifecycle: 'active',
-          activeSession: true,
-        );
-        await (sourceDatabase.update(sourceDatabase.auditLogs)
-              ..where((row) => row.id.equals('audit-1')))
-            .write(const AuditLogsCompanion(action: Value('create')));
-        await sourceDatabase
-            .into(sourceDatabase.matchEvents)
-            .insert(
-              MatchEventRow(
-                id: 'event-2',
-                matchId: 'merge-legacy-order',
-                type: 'score',
-                side: 'red',
-                points: 3,
-                outcome: 'made',
-                matchClockPositionSeconds: null,
-                occurredAt: DateTime.utc(2026, 8, 24, 9, 1),
-                note: null,
-                customLabel: null,
-                isDeleted: false,
-              ),
-            );
-        await sourceDatabase
-            .into(sourceDatabase.auditLogs)
-            .insert(
-              AuditLog(
-                id: 'audit-2',
-                matchId: 'merge-legacy-order',
-                targetId: 'event-2',
-                action: 'create',
-                beforeJson: '{}',
-                afterJson: '{}',
-                reason: null,
-                createdAt: DateTime.utc(2026, 8, 24, 9, 2),
-              ),
-            );
-        await sourceDatabase.customStatement(
-          'PRAGMA reverse_unordered_selects = ON',
-        );
-        final source = await JsonBackupCodec(
-          sourceDatabase,
-          appVersion: '1.0.0',
-          now: () => DateTime.utc(2026, 8, 24, 10),
-        ).export();
+        final source = await withTestDatabase((sourceDatabase) async {
+          await _seedLibrary(
+            sourceDatabase,
+            matchId: 'merge-legacy-order',
+            lifecycle: 'active',
+            activeSession: true,
+          );
+          await (sourceDatabase.update(sourceDatabase.auditLogs)
+                ..where((row) => row.id.equals('audit-1')))
+              .write(const AuditLogsCompanion(action: Value('create')));
+          await sourceDatabase
+              .into(sourceDatabase.matchEvents)
+              .insert(
+                MatchEventRow(
+                  id: 'event-2',
+                  matchId: 'merge-legacy-order',
+                  type: 'score',
+                  side: 'red',
+                  points: 3,
+                  outcome: 'made',
+                  matchClockPositionSeconds: null,
+                  occurredAt: DateTime.utc(2026, 8, 24, 9, 1),
+                  note: null,
+                  customLabel: null,
+                  isDeleted: false,
+                ),
+              );
+          await sourceDatabase
+              .into(sourceDatabase.auditLogs)
+              .insert(
+                AuditLog(
+                  id: 'audit-2',
+                  matchId: 'merge-legacy-order',
+                  targetId: 'event-2',
+                  action: 'create',
+                  beforeJson: '{}',
+                  afterJson: '{}',
+                  reason: null,
+                  createdAt: DateTime.utc(2026, 8, 24, 9, 2),
+                ),
+              );
+          await sourceDatabase.customStatement(
+            'PRAGMA reverse_unordered_selects = ON',
+          );
+          return JsonBackupCodec(
+            sourceDatabase,
+            appVersion: '1.0.0',
+            now: () => DateTime.utc(2026, 8, 24, 10),
+          ).export();
+        });
 
         final destination = createTestDatabase();
-        addTearDown(destination.close);
         await _seedLibrary(destination);
         final result = await BackupMergeService(
           destination,

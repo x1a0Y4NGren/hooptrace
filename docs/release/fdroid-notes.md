@@ -9,10 +9,14 @@
 - License：MIT
 - Source：`https://github.com/x1a0Y4NGren/hooptrace`
 - Issue tracker：`https://github.com/x1a0Y4NGren/hooptrace/issues`
-- Source release candidate：`1.0.0`，versionCode `2`；当前公开正式版仍为 `0.1.0`，versionCode `1`
+- Published Android release：`1.0.0`，versionCode `2`，Git tag `v1.0.0`；`0.1.0` 是已被取代的原型版本
 - Platform：Flutter，Android 优先
 
-Application ID 已脱离 Flutter 模板的 `com.example` 命名，并与 GitHub Pages 命名空间对应。正式发布后不可再更改。
+Application ID 已脱离 Flutter 模板的 `com.example` 命名，并与 GitHub Pages 命名空间对应。v1.0.0 已正式发布后不可再更改。
+
+## 当前发布状态
+
+v1.0.0 Android APK 已通过 GitHub Release 发布，发布提交对应 `v1.0.0` tag。本文是 F-Droid 准备记录，不代表已经进入官方 F-Droid 仓库；后续 F-Droid 工作仍需单独完成且不得改变已发布版本。
 
 ## 构建工具链
 
@@ -97,7 +101,7 @@ git diff --exit-code -- THIRD_PARTY_NOTICES.md
 
 ## 源码与 tag 要求
 
-- 每个公开 `versionName` 必须有唯一 tag，例如 `v0.1.0`。
+- 每个公开 `versionName` 必须有唯一 tag；当前发布为 `v1.0.0`。
 - tag 必须指向用于构建发布 APK 的干净提交。
 - GitHub source archive 应能在无私有文件、无预下载构建产物的环境中完成构建。
 - `pubspec.lock` 必须提交，避免解析到不同依赖版本。
@@ -124,8 +128,8 @@ F-Droid 官方文档指出 Flutter/NDK 原生库可能嵌入 SDK 或工作目录
 
 ## 提交前剩余阻断项
 
-- [ ] 将完整源码、工作流和 Fastlane 元数据合并并推送到公开 `main`。
-- [ ] 创建并公开首个签名 Git tag 和 GitHub Release。
+- [x] 将 v1.0.0 的完整源码、工作流和 Fastlane 元数据合并并推送到公开 `main`。
+- [x] 创建并公开 v1.0.0 签名 Git tag 和 GitHub Release。
 - [x] 添加经过隐私检查的手机截图。
 - [ ] 在 fdroiddata fork 中生成最终 build metadata，或验证仓库根目录 `.fdroid.yml`。
 - [ ] 运行 `fdroid lint` 和 server-mode build。

@@ -8,7 +8,6 @@ import '../../test_helpers/test_database.dart';
 void main() {
   test('1.0 exports declare an independent backup format version', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
 
     final source = await JsonBackupCodec(
       database,
@@ -24,7 +23,6 @@ void main() {
 
   test('rejects legacy and future backup formats before mutation', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final codec = JsonBackupCodec(database, appVersion: '1.0.0');
     final exported = await codec.export();
 
@@ -53,7 +51,6 @@ void main() {
 
   test('rejects oversized payloads and declared table counts early', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final exported = await JsonBackupCodec(
       database,
       appVersion: '1.0.0',

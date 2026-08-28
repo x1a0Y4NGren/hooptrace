@@ -22,7 +22,6 @@ void main() {
     'legacy payloads default motion to standard and unknown motion is safe',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final now = DateTime.utc(2026, 8, 25);
       await database
           .into(database.appSettings)
@@ -67,7 +66,6 @@ void main() {
     'motion preference round trips with stable JSON field ordering',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final repository = ScoringFeedbackPreferencesRepository(database);
 
       final saved = await repository.update(
@@ -94,7 +92,6 @@ void main() {
 
   test('malformed and unknown preference payloads fall back safely', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final now = DateTime.utc(2026, 8, 23);
     await database
         .into(database.appSettings)
@@ -130,7 +127,6 @@ void main() {
 
   test('round trips updates through AppSettings', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = ScoringFeedbackPreferencesRepository(database);
 
     final saved = await repository.update(haptic: false, sound: true);
@@ -145,7 +141,6 @@ void main() {
     'updates remain usable after backup dirty triggers are installed while disabled',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       await database.ensureBackupDirtyTriggers();
       final repository = ScoringFeedbackPreferencesRepository(database);
 
@@ -164,7 +159,6 @@ void main() {
     'reload observes a restored AppSettings row after invalidation',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final repository = ScoringFeedbackPreferencesRepository(database);
       await repository.update(haptic: false, sound: true);
 
@@ -197,7 +191,6 @@ void main() {
     'motion listenable tracks effective load, write, and restore changes',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final repository = ScoringFeedbackPreferencesRepository(database);
       final service = ScoringFeedbackService(repository);
       final changes = <MotionPreference>[];
@@ -233,7 +226,6 @@ void main() {
 
   test('serialized writes publish each effective motion change once', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = ScoringFeedbackPreferencesRepository(database);
     final changes = <MotionPreference>[];
     repository.motionPreferenceListenable.addListener(() {
@@ -250,7 +242,6 @@ void main() {
 
   test('concurrent loads share one in-flight read', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = ScoringFeedbackPreferencesRepository(database);
 
     final values = await Future.wait([
@@ -266,7 +257,6 @@ void main() {
     'invalidate starts a fresh read and stale completion cannot overwrite it',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final oldRead = Completer<ScoringFeedbackPreferences>();
       final freshRead = Completer<ScoringFeedbackPreferences>();
       var reads = 0;
@@ -303,7 +293,6 @@ void main() {
     'stale in-flight reads do not publish a lost motion preference',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final oldRead = Completer<ScoringFeedbackPreferences>();
       final freshRead = Completer<ScoringFeedbackPreferences>();
       var reads = 0;
@@ -340,7 +329,6 @@ void main() {
 
   test('feedback platform failures are isolated per channel', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final platform = _FakePlatform()
       ..throwOnHaptic = true
       ..throwOnSound = true;
@@ -357,7 +345,6 @@ void main() {
     'committed feedback follows haptic-only, sound-only, and both settings',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final repository = ScoringFeedbackPreferencesRepository(database);
       final platform = _FakePlatform();
       final service = ScoringFeedbackService(repository, platform: platform);

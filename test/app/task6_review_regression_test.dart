@@ -192,7 +192,6 @@ void main() {
     'new provider container creates a fresh controller from the same database projection',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       const matchId = 'task6-controller-rebuild';
       final now = DateTime.utc(2026, 8, 23, 12);
       final service = MatchCommandService(database);

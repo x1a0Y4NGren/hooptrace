@@ -15,7 +15,6 @@ void main() {
         return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
       });
       final destination = createTestDatabase();
-      addTearDown(destination.close);
       await _seedActiveBackup(
         destination,
         runningSinceUtc: DateTime.utc(2026, 7, 18, 9, 1),
@@ -117,7 +116,6 @@ void main() {
       'keeps legacy event and audit insertion order when SQLite reverses unordered scans',
       () async {
         final database = createTestDatabase();
-        addTearDown(database.close);
         await _seedCompleteBackup(database);
         final createdAt = DateTime.utc(2026, 7, 18, 8);
         await database
@@ -179,50 +177,49 @@ void main() {
     );
 
     test('round-trips legacy event and audit insertion order', () async {
-      final source = createTestDatabase();
-      addTearDown(source.close);
-      await _seedCompleteBackup(source);
-      final createdAt = DateTime.utc(2026, 7, 18, 8);
-      await source
-          .into(source.matchEvents)
-          .insert(
-            MatchEventRow(
-              id: 'event-2',
-              matchId: 'match-1',
-              type: 'foul',
-              side: 'blue',
-              points: 0,
-              occurredAt: createdAt.add(const Duration(seconds: 30)),
-              note: null,
-              outcome: null,
-              matchClockPositionSeconds: null,
-              customLabel: null,
-              isDeleted: false,
-            ),
-          );
-      await source
-          .into(source.auditLogs)
-          .insert(
-            AuditLog(
-              id: 'audit-2',
-              matchId: 'match-1',
-              targetId: 'event-2',
-              action: 'create',
-              beforeJson: '{}',
-              afterJson: '{}',
-              reason: null,
-              createdAt: createdAt.add(const Duration(minutes: 2)),
-            ),
-          );
-      await source.customStatement('PRAGMA reverse_unordered_selects = ON');
-      final exported = await JsonBackupCodec(
-        source,
-        appVersion: '1.0.0',
-        now: () => DateTime.utc(2026, 7, 18),
-      ).export();
+      final exported = await withTestDatabase((source) async {
+        await _seedCompleteBackup(source);
+        final createdAt = DateTime.utc(2026, 7, 18, 8);
+        await source
+            .into(source.matchEvents)
+            .insert(
+              MatchEventRow(
+                id: 'event-2',
+                matchId: 'match-1',
+                type: 'foul',
+                side: 'blue',
+                points: 0,
+                occurredAt: createdAt.add(const Duration(seconds: 30)),
+                note: null,
+                outcome: null,
+                matchClockPositionSeconds: null,
+                customLabel: null,
+                isDeleted: false,
+              ),
+            );
+        await source
+            .into(source.auditLogs)
+            .insert(
+              AuditLog(
+                id: 'audit-2',
+                matchId: 'match-1',
+                targetId: 'event-2',
+                action: 'create',
+                beforeJson: '{}',
+                afterJson: '{}',
+                reason: null,
+                createdAt: createdAt.add(const Duration(minutes: 2)),
+              ),
+            );
+        await source.customStatement('PRAGMA reverse_unordered_selects = ON');
+        return JsonBackupCodec(
+          source,
+          appVersion: '1.0.0',
+          now: () => DateTime.utc(2026, 7, 18),
+        ).export();
+      });
 
       final restored = createTestDatabase();
-      addTearDown(restored.close);
       await JsonBackupCodec(restored, appVersion: '1.0.0').restore(exported);
       final eventsQuery = restored.select(restored.matchEvents)
         ..orderBy([
@@ -450,7 +447,6 @@ void main() {
           return JsonBackupCodec(source, appVersion: '0.1.0+1').export();
         });
         final database = createTestDatabase();
-        addTearDown(database.close);
         final codec = JsonBackupCodec(database, appVersion: '0.1.0+1');
 
         final missingSession = jsonDecode(exported) as Map<String, dynamic>;
@@ -489,7 +485,6 @@ void main() {
         return JsonBackupCodec(source, appVersion: '1.0.0').export();
       });
       final database = createTestDatabase();
-      addTearDown(database.close);
       final codec = JsonBackupCodec(database, appVersion: '1.0.0');
 
       final activeWithoutClock = jsonDecode(exported) as Map<String, dynamic>;
@@ -541,7 +536,6 @@ void main() {
           return JsonBackupCodec(source, appVersion: '1.0.0').export();
         });
         final database = createTestDatabase();
-        addTearDown(database.close);
         final codec = JsonBackupCodec(database, appVersion: '1.0.0');
 
         final nonActive = jsonDecode(exported) as Map<String, dynamic>;

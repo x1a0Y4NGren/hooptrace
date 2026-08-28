@@ -15,7 +15,6 @@ import '../../test_helpers/test_database.dart';
 void main() {
   test('rule template persistence retains the possession policy', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = RuleTemplateRepository(database);
     const template = RuleTemplate(
       id: 'policy-round-trip',
@@ -88,7 +87,6 @@ void main() {
     'switch-after-made suggests the other side and never infers a miss',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final service = MatchCommandService(database);
       final start = _start('switch', PossessionPolicy.switchAfterMade);
       await service.start(start);
@@ -159,7 +157,6 @@ void main() {
     'keep-after-made retains the scorer and manual policy does not suggest',
     () async {
       final keepDatabase = createTestDatabase();
-      addTearDown(keepDatabase.close);
       final keepService = MatchCommandService(keepDatabase);
       final keep = _start('keep', PossessionPolicy.keepAfterMade);
       await keepService.start(keep);
@@ -182,7 +179,6 @@ void main() {
       expect(repeated.possessionSegments, hasLength(1));
 
       final manualDatabase = createTestDatabase();
-      addTearDown(manualDatabase.close);
       final manualService = MatchCommandService(manualDatabase);
       final manual = _start('manual', PossessionPolicy.manual);
       await manualService.start(manual);
@@ -265,7 +261,6 @@ void main() {
     'manual possession correction closes the suggestion and audits its reason',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final service = MatchCommandService(database);
       final start = _start('correction', PossessionPolicy.switchAfterMade);
       await service.start(start);
@@ -721,7 +716,6 @@ void main() {
 
   test('finish closes open possession and clock transactionally', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final service = MatchCommandService(database);
     final start = _start(
       'finish',
@@ -1104,7 +1098,6 @@ void main() {
 
   test('finish requires explicit final-score confirmation', () async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final service = MatchCommandService(database);
     final start = _start('finish-confirm', PossessionPolicy.manual);
     await service.start(start);
@@ -1128,7 +1121,6 @@ void main() {
     'target end condition pauses and continue remains an explicit decision',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final service = MatchCommandService(database);
       final start = _start(
         'decision',
@@ -1232,7 +1224,6 @@ void main() {
     'finish rollback preserves active session, open possession, and clock',
     () async {
       final database = createTestDatabase();
-      addTearDown(database.close);
       final service = MatchCommandService(
         database,
         failureInjector: (point) {

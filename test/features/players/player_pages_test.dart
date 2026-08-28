@@ -21,7 +21,6 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = PlayerRepository(database);
     const locales = [Locale('zh'), Locale('en')];
     const sizes = [
@@ -98,7 +97,6 @@ void main() {
   testWidgets('player row has one semantic action owner', (tester) async {
     final semanticsHandle = tester.ensureSemantics();
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = PlayerRepository(database);
     await repository.save(
       Player(
@@ -133,7 +131,6 @@ void main() {
   ) async {
     final semanticsHandle = tester.ensureSemantics();
     final database = createTestDatabase();
-    addTearDown(database.close);
     var saved = false;
     await tester.pumpWidget(
       MaterialApp(
@@ -160,7 +157,6 @@ void main() {
   ) async {
     final semanticsHandle = tester.ensureSemantics();
     final database = createTestDatabase();
-    addTearDown(database.close);
     await tester.pumpWidget(
       MaterialApp(
         theme: buildHoopTraceTheme(),
@@ -203,7 +199,6 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = PlayerRepository(database);
     final variants = <String, TeamSide?>{
       'red': TeamSide.red,
@@ -488,7 +483,6 @@ void main() {
     tester,
   ) async {
     final database = createTestDatabase();
-    addTearDown(database.close);
     final repository = PlayerRepository(database);
     await repository.save(
       Player(
