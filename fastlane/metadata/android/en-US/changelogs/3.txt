@@ -1,0 +1,1 @@
+HoopTrace 1.1 adds offline match-pair and adjacent 7/30/90-day comparisons for linked player profiles, including opponent filters, trustworthy shooting evidence, confirmed-location zone shares, and responsive Chinese/English layouts. Schema v3 persists derived analytics snapshots; backup format 2 validates or rebuilds them while remaining compatible with v1.0 backups.

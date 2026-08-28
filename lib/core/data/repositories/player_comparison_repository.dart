@@ -27,10 +27,11 @@ class PlayerComparisonRepository {
     String playerId,
   ) async {
     _validatePlayerId(playerId);
-    await ensureSnapshots(playerId: playerId);
-    final rows = await _database
-        .customSelect(
-          '''
+    return _database.transaction(() async {
+      await ensureSnapshots(playerId: playerId);
+      final rows = await _database
+          .customSelect(
+            '''
         SELECT
           snapshot.match_id,
           snapshot.played_at_utc,
@@ -48,45 +49,48 @@ class PlayerComparisonRepository {
         WHERE snapshot.player_id = ?
         ORDER BY snapshot.played_at_utc DESC, snapshot.match_id DESC
       ''',
-          variables: [Variable.withString(playerId)],
-          readsFrom: {
-            _database.playerAnalyticsSnapshots,
-            _database.matchParticipants,
-          },
-        )
-        .get();
-    return [
-      for (final row in rows)
-        PlayerComparisonMatch(
-          matchId: row.read<String>('match_id'),
-          playedAtUtc: row.read<DateTime>('played_at_utc'),
-          opponentPlayerId: row.read<String?>('opponent_player_id'),
-          opponentNameSnapshot: row.read<String>('opponent_name_snapshot'),
-          playerScore: row.read<int>('player_score'),
-          opponentScore: row.read<int>('opponent_score'),
-        ),
-    ];
+            variables: [Variable.withString(playerId)],
+            readsFrom: {
+              _database.playerAnalyticsSnapshots,
+              _database.matchParticipants,
+            },
+          )
+          .get();
+      return [
+        for (final row in rows)
+          PlayerComparisonMatch(
+            matchId: row.read<String>('match_id'),
+            playedAtUtc: row.read<DateTime>('played_at_utc'),
+            opponentPlayerId: row.read<String?>('opponent_player_id'),
+            opponentNameSnapshot: row.read<String>('opponent_name_snapshot'),
+            playerScore: row.read<int>('player_score'),
+            opponentScore: row.read<int>('opponent_score'),
+          ),
+      ];
+    });
   }
 
   Future<PlayerComparisonReport> compare(
     PlayerComparisonRequest request,
   ) async {
     _validatePlayerId(request.playerId);
-    await ensureSnapshots(playerId: request.playerId);
-    final query = _database.select(_database.playerAnalyticsSnapshots)
-      ..where((row) => row.playerId.equals(request.playerId))
-      ..orderBy([
-        (row) => OrderingTerm.asc(row.playedAtUtc),
-        (row) => OrderingTerm.asc(row.matchId),
-      ]);
-    final snapshots = await query.get();
-    return switch (request) {
-      final MatchPairComparisonRequest pair => _comparePair(pair, snapshots),
-      final AdjacentWindowComparisonRequest window => _compareWindows(
-        window,
-        snapshots,
-      ),
-    };
+    return _database.transaction(() async {
+      await ensureSnapshots(playerId: request.playerId);
+      final query = _database.select(_database.playerAnalyticsSnapshots)
+        ..where((row) => row.playerId.equals(request.playerId))
+        ..orderBy([
+          (row) => OrderingTerm.asc(row.playedAtUtc),
+          (row) => OrderingTerm.asc(row.matchId),
+        ]);
+      final snapshots = await query.get();
+      return switch (request) {
+        final MatchPairComparisonRequest pair => _comparePair(pair, snapshots),
+        final AdjacentWindowComparisonRequest window => _compareWindows(
+          window,
+          snapshots,
+        ),
+      };
+    });
   }
 
   PlayerComparisonReport _comparePair(

@@ -54,6 +54,28 @@ void main() {
       isEmpty,
     );
   });
+
+  test(
+    'a correction queued during rebuild cannot leave a stale snapshot',
+    () async {
+      final database = createTestDatabase();
+      await _seedEligibleMatch(database);
+      final repository = PlayerAnalyticsSnapshotRepository(database);
+
+      final rebuild = repository.ensureSnapshots(playerId: 'red-player');
+      final correction =
+          (database.update(database.matchEvents)
+                ..where((row) => row.id.equals('red-made')))
+              .write(const MatchEventsCompanion(points: Value(3)));
+      await Future.wait([rebuild, correction]);
+
+      await repository.ensureSnapshots(playerId: 'red-player');
+      final snapshot = await (database.select(
+        database.playerAnalyticsSnapshots,
+      )..where((row) => row.playerId.equals('red-player'))).getSingle();
+      expect(snapshot.playerScore, 3);
+    },
+  );
 }
 
 Future<void> _seedEligibleMatch(AppDatabase database) async {

@@ -31,23 +31,22 @@ class PlayerAnalyticsSnapshotRepository {
     return _ensureSnapshots(matchIds: normalized);
   }
 
-  Future<int> _ensureSnapshots({
-    String? playerId,
-    List<String>? matchIds,
-  }) async {
-    final rows = await _canonicalRows(playerId: playerId, matchIds: matchIds);
-    final requests = _requestsFromRows(rows);
-    if (requests.isEmpty) return 0;
-    final snapshots = requests
-        .map(_calculator.calculate)
-        .toList(growable: false);
-    await _database.batch((batch) {
-      batch.insertAllOnConflictUpdate(
-        _database.playerAnalyticsSnapshots,
-        snapshots.map(_toRow).toList(growable: false),
-      );
+  Future<int> _ensureSnapshots({String? playerId, List<String>? matchIds}) {
+    return _database.transaction(() async {
+      final rows = await _canonicalRows(playerId: playerId, matchIds: matchIds);
+      final requests = _requestsFromRows(rows);
+      if (requests.isEmpty) return 0;
+      final snapshots = requests
+          .map(_calculator.calculate)
+          .toList(growable: false);
+      await _database.batch((batch) {
+        batch.insertAllOnConflictUpdate(
+          _database.playerAnalyticsSnapshots,
+          snapshots.map(_toRow).toList(growable: false),
+        );
+      });
+      return snapshots.length;
     });
-    return snapshots.length;
   }
 
   Future<List<QueryRow>> _canonicalRows({

@@ -159,10 +159,14 @@ jobs:
           retention-days: 14
 
   integration:
-    name: Android main-loop integration
+    name: Android API ${{ matrix.api-level }} integration
     needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [24, 36]
     steps:
       - name: Check out source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -197,7 +201,7 @@ jobs:
       - name: Run Android integration test
         uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
-          api-level: 36
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
           profile: pixel_6
           disable-animations: true
@@ -206,7 +210,10 @@ jobs:
             -no-boot-anim -camera-back none
           script: |
             flutter test integration_test/main_loop_test.dart -d emulator-5554
-            flutter test integration_test/command_performance_test.dart -d emulator-5554
+            if [ "${{ matrix.api-level }}" = "36" ]; then
+              flutter test integration_test/player_comparison_flow_test.dart -d emulator-5554
+              flutter test integration_test/command_performance_test.dart -d emulator-5554
+            fi
 
   ios-no-sign:
     name: iOS no-sign compile

@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/repositories/player_comparison_repository.dart';
@@ -104,6 +105,47 @@ void main() {
       throwsA(isA<PlayerComparisonException>()),
     );
   });
+
+  test(
+    'comparison is one consistent snapshot while a correction queues',
+    () async {
+      final database = createTestDatabase();
+      await _seedPlayers(database);
+      await _seedMatch(
+        database,
+        id: 'baseline',
+        playedAt: DateTime.utc(2026, 8, 10),
+        lifecycle: 'finished',
+        opponentId: 'opponent-a',
+        playerScore: 8,
+      );
+      await _seedMatch(
+        database,
+        id: 'current',
+        playedAt: DateTime.utc(2026, 8, 20),
+        lifecycle: 'finished',
+        opponentId: 'opponent-a',
+        playerScore: 11,
+      );
+      final repository = PlayerComparisonRepository(database);
+
+      final comparison = repository.compare(
+        const MatchPairComparisonRequest(
+          playerId: 'player-main',
+          baselineMatchId: 'baseline',
+          currentMatchId: 'current',
+        ),
+      );
+      final correction =
+          (database.update(database.matchEvents)
+                ..where((row) => row.id.equals('current-red-score')))
+              .write(const MatchEventsCompanion(points: Value(12)));
+
+      final report = await comparison;
+      await correction;
+      expect(report.current.pointsFor, 11);
+    },
+  );
 
   test(
     'uses adjacent half-open UTC windows and stable opponent filters',
