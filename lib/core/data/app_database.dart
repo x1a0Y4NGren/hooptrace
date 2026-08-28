@@ -18,7 +18,7 @@ class LegacySchemaDetectedException implements Exception {
   @override
   String toString() =>
       'LegacySchemaDetectedException: schema v$version is incompatible with '
-      'HoopTrace schema v2; start with a clean database.';
+      'HoopTrace schema v3; start with a clean database.';
 }
 
 class Matches extends Table {
@@ -235,6 +235,44 @@ class AppSettings extends Table {
   Set<Column<Object>> get primaryKey => {key};
 }
 
+@DataClassName('PlayerAnalyticsSnapshotRow')
+class PlayerAnalyticsSnapshots extends Table {
+  TextColumn get matchId =>
+      text().references(Matches, #id, onDelete: KeyAction.cascade)();
+  @ReferenceName('playerAnalyticsSnapshotPlayers')
+  TextColumn get playerId =>
+      text().references(Players, #id, onDelete: KeyAction.cascade)();
+  @ReferenceName('playerAnalyticsSnapshotOpponents')
+  TextColumn get opponentPlayerId =>
+      text().nullable().references(Players, #id, onDelete: KeyAction.setNull)();
+  DateTimeColumn get playedAtUtc => dateTime()();
+  IntColumn get playerScore => integer()();
+  IntColumn get opponentScore => integer()();
+  IntColumn get fieldGoalMade => integer()();
+  IntColumn get fieldGoalAttempts => integer()();
+  IntColumn get freeThrowMade => integer()();
+  IntColumn get freeThrowAttempts => integer()();
+  TextColumn get trackingCoverage => text()();
+  IntColumn get confirmedLocationCount => integer()();
+  IntColumn get locatableLocationCount => integer()();
+  TextColumn get zoneDistributionJson => text()();
+  IntColumn get calculatorVersion => integer()();
+  TextColumn get sourceSha256 => text()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {matchId, playerId};
+
+  @override
+  List<String> get customConstraints => [
+    "CHECK (tracking_coverage IN ('none', 'scoresOnly', 'shotAttempts', 'locations', 'full'))",
+    'CHECK (player_score >= 0 AND opponent_score >= 0)',
+    'CHECK (field_goal_made >= 0 AND field_goal_attempts >= field_goal_made)',
+    'CHECK (free_throw_made >= 0 AND free_throw_attempts >= free_throw_made)',
+    'CHECK (confirmed_location_count >= 0 AND locatable_location_count >= confirmed_location_count)',
+    'CHECK (length(source_sha256) = 64)',
+  ];
+}
+
 @DriftDatabase(
   tables: [
     Matches,
@@ -248,6 +286,7 @@ class AppSettings extends Table {
     PossessionSegments,
     AuditLogs,
     AppSettings,
+    PlayerAnalyticsSnapshots,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -286,7 +325,7 @@ class AppDatabase extends _$AppDatabase {
   }
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -295,6 +334,7 @@ class AppDatabase extends _$AppDatabase {
       await _createSchemaIndexes();
       _schemaIndexesEnsured = true;
       await _createShotLocationTriggers();
+      await _createSnapshotInvalidationTriggers();
     },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
@@ -309,6 +349,12 @@ class AppDatabase extends _$AppDatabase {
     onUpgrade: (Migrator m, int from, int to) async {
       if (from < 2) {
         throw LegacySchemaDetectedException(from);
+      }
+      if (from < 3) {
+        await m.createTable(playerAnalyticsSnapshots);
+        await _createSchemaIndexes();
+        _schemaIndexesEnsured = true;
+        await _createSnapshotInvalidationTriggers();
       }
     },
   );
@@ -354,10 +400,19 @@ class AppDatabase extends _$AppDatabase {
       'CREATE INDEX IF NOT EXISTS possession_segments_match_started '
       'ON possession_segments(match_id, started_at_event_id)',
     );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS player_analytics_snapshots_player_played_at '
+      'ON player_analytics_snapshots(player_id, played_at_utc)',
+    );
+    await customStatement(
+      'CREATE INDEX IF NOT EXISTS '
+      'player_analytics_snapshots_player_opponent_played_at '
+      'ON player_analytics_snapshots(player_id, opponent_player_id, played_at_utc)',
+    );
   }
 
-  /// Ensures indexes introduced after schema v2 are available to an existing
-  /// v2 file. The operation is idempotent and is intentionally lazy so Drift's
+  /// Ensures custom indexes are available to an existing database file. The
+  /// operation is idempotent and is intentionally lazy so Drift's
   /// schema verifier does not treat custom runtime indexes as migration schema.
   Future<void> ensureSchemaIndexes() async {
     if (_schemaIndexesEnsured) return;
@@ -403,6 +458,49 @@ class AppDatabase extends _$AppDatabase {
           THEN RAISE(ABORT, 'located event cannot change match') END;
       END
     ''');
+  }
+
+  /// Canonical writes invalidate derived rows. Rebuilds are explicit and never
+  /// run during open or migration, preserving v2 rows without eager work.
+  Future<void> _createSnapshotInvalidationTriggers() async {
+    const tables = <String>[
+      'matches',
+      'match_participants',
+      'match_events',
+      'shot_locations',
+    ];
+    for (final table in tables) {
+      for (final operation in const <String>['INSERT', 'UPDATE', 'DELETE']) {
+        final triggerName =
+            'player_analytics_snapshots_invalidate_${table}_'
+            '${operation.toLowerCase()}';
+        await customStatement('DROP TRIGGER IF EXISTS $triggerName');
+        final matchIds = switch (operation) {
+          'INSERT' => 'NEW.match_id',
+          'DELETE' => 'OLD.match_id',
+          'UPDATE' => 'OLD.match_id, NEW.match_id',
+          _ => throw StateError('Unsupported snapshot invalidation operation'),
+        };
+        final normalizedMatchIds = table == 'matches'
+            ? switch (operation) {
+                'INSERT' => 'NEW.id',
+                'DELETE' => 'OLD.id',
+                'UPDATE' => 'OLD.id, NEW.id',
+                _ => throw StateError(
+                  'Unsupported snapshot invalidation operation',
+                ),
+              }
+            : matchIds;
+        await customStatement('''
+          CREATE TRIGGER $triggerName
+          AFTER $operation ON $table
+          BEGIN
+            DELETE FROM player_analytics_snapshots
+            WHERE match_id IN ($normalizedMatchIds);
+          END
+        ''');
+      }
+    }
   }
 
   /// Marks every persisted domain mutation as awaiting backup without asking

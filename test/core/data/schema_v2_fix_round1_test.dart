@@ -466,6 +466,6 @@ void main() {
       tables,
       containsAll(['matches', 'match_participants', 'active_sessions']),
     );
-    expect(createTestDatabase().schemaVersion, 2);
+    expect(createTestDatabase().schemaVersion, 3);
   });
 }

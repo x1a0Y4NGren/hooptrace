@@ -5050,6 +5050,1013 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
+class $PlayerAnalyticsSnapshotsTable extends PlayerAnalyticsSnapshots
+    with TableInfo<$PlayerAnalyticsSnapshotsTable, PlayerAnalyticsSnapshotRow> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlayerAnalyticsSnapshotsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _matchIdMeta = const VerificationMeta(
+    'matchId',
+  );
+  @override
+  late final GeneratedColumn<String> matchId = GeneratedColumn<String>(
+    'match_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES matches (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _playerIdMeta = const VerificationMeta(
+    'playerId',
+  );
+  @override
+  late final GeneratedColumn<String> playerId = GeneratedColumn<String>(
+    'player_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES players (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _opponentPlayerIdMeta = const VerificationMeta(
+    'opponentPlayerId',
+  );
+  @override
+  late final GeneratedColumn<String> opponentPlayerId = GeneratedColumn<String>(
+    'opponent_player_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES players (id) ON DELETE SET NULL',
+    ),
+  );
+  static const VerificationMeta _playedAtUtcMeta = const VerificationMeta(
+    'playedAtUtc',
+  );
+  @override
+  late final GeneratedColumn<DateTime> playedAtUtc = GeneratedColumn<DateTime>(
+    'played_at_utc',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _playerScoreMeta = const VerificationMeta(
+    'playerScore',
+  );
+  @override
+  late final GeneratedColumn<int> playerScore = GeneratedColumn<int>(
+    'player_score',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _opponentScoreMeta = const VerificationMeta(
+    'opponentScore',
+  );
+  @override
+  late final GeneratedColumn<int> opponentScore = GeneratedColumn<int>(
+    'opponent_score',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fieldGoalMadeMeta = const VerificationMeta(
+    'fieldGoalMade',
+  );
+  @override
+  late final GeneratedColumn<int> fieldGoalMade = GeneratedColumn<int>(
+    'field_goal_made',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fieldGoalAttemptsMeta = const VerificationMeta(
+    'fieldGoalAttempts',
+  );
+  @override
+  late final GeneratedColumn<int> fieldGoalAttempts = GeneratedColumn<int>(
+    'field_goal_attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _freeThrowMadeMeta = const VerificationMeta(
+    'freeThrowMade',
+  );
+  @override
+  late final GeneratedColumn<int> freeThrowMade = GeneratedColumn<int>(
+    'free_throw_made',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _freeThrowAttemptsMeta = const VerificationMeta(
+    'freeThrowAttempts',
+  );
+  @override
+  late final GeneratedColumn<int> freeThrowAttempts = GeneratedColumn<int>(
+    'free_throw_attempts',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _trackingCoverageMeta = const VerificationMeta(
+    'trackingCoverage',
+  );
+  @override
+  late final GeneratedColumn<String> trackingCoverage = GeneratedColumn<String>(
+    'tracking_coverage',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _confirmedLocationCountMeta =
+      const VerificationMeta('confirmedLocationCount');
+  @override
+  late final GeneratedColumn<int> confirmedLocationCount = GeneratedColumn<int>(
+    'confirmed_location_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _locatableLocationCountMeta =
+      const VerificationMeta('locatableLocationCount');
+  @override
+  late final GeneratedColumn<int> locatableLocationCount = GeneratedColumn<int>(
+    'locatable_location_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _zoneDistributionJsonMeta =
+      const VerificationMeta('zoneDistributionJson');
+  @override
+  late final GeneratedColumn<String> zoneDistributionJson =
+      GeneratedColumn<String>(
+        'zone_distribution_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _calculatorVersionMeta = const VerificationMeta(
+    'calculatorVersion',
+  );
+  @override
+  late final GeneratedColumn<int> calculatorVersion = GeneratedColumn<int>(
+    'calculator_version',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sourceSha256Meta = const VerificationMeta(
+    'sourceSha256',
+  );
+  @override
+  late final GeneratedColumn<String> sourceSha256 = GeneratedColumn<String>(
+    'source_sha256',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    matchId,
+    playerId,
+    opponentPlayerId,
+    playedAtUtc,
+    playerScore,
+    opponentScore,
+    fieldGoalMade,
+    fieldGoalAttempts,
+    freeThrowMade,
+    freeThrowAttempts,
+    trackingCoverage,
+    confirmedLocationCount,
+    locatableLocationCount,
+    zoneDistributionJson,
+    calculatorVersion,
+    sourceSha256,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'player_analytics_snapshots';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlayerAnalyticsSnapshotRow> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('match_id')) {
+      context.handle(
+        _matchIdMeta,
+        matchId.isAcceptableOrUnknown(data['match_id']!, _matchIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_matchIdMeta);
+    }
+    if (data.containsKey('player_id')) {
+      context.handle(
+        _playerIdMeta,
+        playerId.isAcceptableOrUnknown(data['player_id']!, _playerIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_playerIdMeta);
+    }
+    if (data.containsKey('opponent_player_id')) {
+      context.handle(
+        _opponentPlayerIdMeta,
+        opponentPlayerId.isAcceptableOrUnknown(
+          data['opponent_player_id']!,
+          _opponentPlayerIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('played_at_utc')) {
+      context.handle(
+        _playedAtUtcMeta,
+        playedAtUtc.isAcceptableOrUnknown(
+          data['played_at_utc']!,
+          _playedAtUtcMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_playedAtUtcMeta);
+    }
+    if (data.containsKey('player_score')) {
+      context.handle(
+        _playerScoreMeta,
+        playerScore.isAcceptableOrUnknown(
+          data['player_score']!,
+          _playerScoreMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_playerScoreMeta);
+    }
+    if (data.containsKey('opponent_score')) {
+      context.handle(
+        _opponentScoreMeta,
+        opponentScore.isAcceptableOrUnknown(
+          data['opponent_score']!,
+          _opponentScoreMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_opponentScoreMeta);
+    }
+    if (data.containsKey('field_goal_made')) {
+      context.handle(
+        _fieldGoalMadeMeta,
+        fieldGoalMade.isAcceptableOrUnknown(
+          data['field_goal_made']!,
+          _fieldGoalMadeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fieldGoalMadeMeta);
+    }
+    if (data.containsKey('field_goal_attempts')) {
+      context.handle(
+        _fieldGoalAttemptsMeta,
+        fieldGoalAttempts.isAcceptableOrUnknown(
+          data['field_goal_attempts']!,
+          _fieldGoalAttemptsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fieldGoalAttemptsMeta);
+    }
+    if (data.containsKey('free_throw_made')) {
+      context.handle(
+        _freeThrowMadeMeta,
+        freeThrowMade.isAcceptableOrUnknown(
+          data['free_throw_made']!,
+          _freeThrowMadeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_freeThrowMadeMeta);
+    }
+    if (data.containsKey('free_throw_attempts')) {
+      context.handle(
+        _freeThrowAttemptsMeta,
+        freeThrowAttempts.isAcceptableOrUnknown(
+          data['free_throw_attempts']!,
+          _freeThrowAttemptsMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_freeThrowAttemptsMeta);
+    }
+    if (data.containsKey('tracking_coverage')) {
+      context.handle(
+        _trackingCoverageMeta,
+        trackingCoverage.isAcceptableOrUnknown(
+          data['tracking_coverage']!,
+          _trackingCoverageMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_trackingCoverageMeta);
+    }
+    if (data.containsKey('confirmed_location_count')) {
+      context.handle(
+        _confirmedLocationCountMeta,
+        confirmedLocationCount.isAcceptableOrUnknown(
+          data['confirmed_location_count']!,
+          _confirmedLocationCountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_confirmedLocationCountMeta);
+    }
+    if (data.containsKey('locatable_location_count')) {
+      context.handle(
+        _locatableLocationCountMeta,
+        locatableLocationCount.isAcceptableOrUnknown(
+          data['locatable_location_count']!,
+          _locatableLocationCountMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_locatableLocationCountMeta);
+    }
+    if (data.containsKey('zone_distribution_json')) {
+      context.handle(
+        _zoneDistributionJsonMeta,
+        zoneDistributionJson.isAcceptableOrUnknown(
+          data['zone_distribution_json']!,
+          _zoneDistributionJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_zoneDistributionJsonMeta);
+    }
+    if (data.containsKey('calculator_version')) {
+      context.handle(
+        _calculatorVersionMeta,
+        calculatorVersion.isAcceptableOrUnknown(
+          data['calculator_version']!,
+          _calculatorVersionMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_calculatorVersionMeta);
+    }
+    if (data.containsKey('source_sha256')) {
+      context.handle(
+        _sourceSha256Meta,
+        sourceSha256.isAcceptableOrUnknown(
+          data['source_sha256']!,
+          _sourceSha256Meta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_sourceSha256Meta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {matchId, playerId};
+  @override
+  PlayerAnalyticsSnapshotRow map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlayerAnalyticsSnapshotRow(
+      matchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}match_id'],
+      )!,
+      playerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}player_id'],
+      )!,
+      opponentPlayerId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}opponent_player_id'],
+      ),
+      playedAtUtc: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}played_at_utc'],
+      )!,
+      playerScore: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}player_score'],
+      )!,
+      opponentScore: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}opponent_score'],
+      )!,
+      fieldGoalMade: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}field_goal_made'],
+      )!,
+      fieldGoalAttempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}field_goal_attempts'],
+      )!,
+      freeThrowMade: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}free_throw_made'],
+      )!,
+      freeThrowAttempts: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}free_throw_attempts'],
+      )!,
+      trackingCoverage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tracking_coverage'],
+      )!,
+      confirmedLocationCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}confirmed_location_count'],
+      )!,
+      locatableLocationCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}locatable_location_count'],
+      )!,
+      zoneDistributionJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}zone_distribution_json'],
+      )!,
+      calculatorVersion: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}calculator_version'],
+      )!,
+      sourceSha256: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source_sha256'],
+      )!,
+    );
+  }
+
+  @override
+  $PlayerAnalyticsSnapshotsTable createAlias(String alias) {
+    return $PlayerAnalyticsSnapshotsTable(attachedDatabase, alias);
+  }
+}
+
+class PlayerAnalyticsSnapshotRow extends DataClass
+    implements Insertable<PlayerAnalyticsSnapshotRow> {
+  final String matchId;
+  final String playerId;
+  final String? opponentPlayerId;
+  final DateTime playedAtUtc;
+  final int playerScore;
+  final int opponentScore;
+  final int fieldGoalMade;
+  final int fieldGoalAttempts;
+  final int freeThrowMade;
+  final int freeThrowAttempts;
+  final String trackingCoverage;
+  final int confirmedLocationCount;
+  final int locatableLocationCount;
+  final String zoneDistributionJson;
+  final int calculatorVersion;
+  final String sourceSha256;
+  const PlayerAnalyticsSnapshotRow({
+    required this.matchId,
+    required this.playerId,
+    this.opponentPlayerId,
+    required this.playedAtUtc,
+    required this.playerScore,
+    required this.opponentScore,
+    required this.fieldGoalMade,
+    required this.fieldGoalAttempts,
+    required this.freeThrowMade,
+    required this.freeThrowAttempts,
+    required this.trackingCoverage,
+    required this.confirmedLocationCount,
+    required this.locatableLocationCount,
+    required this.zoneDistributionJson,
+    required this.calculatorVersion,
+    required this.sourceSha256,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['match_id'] = Variable<String>(matchId);
+    map['player_id'] = Variable<String>(playerId);
+    if (!nullToAbsent || opponentPlayerId != null) {
+      map['opponent_player_id'] = Variable<String>(opponentPlayerId);
+    }
+    map['played_at_utc'] = Variable<DateTime>(playedAtUtc);
+    map['player_score'] = Variable<int>(playerScore);
+    map['opponent_score'] = Variable<int>(opponentScore);
+    map['field_goal_made'] = Variable<int>(fieldGoalMade);
+    map['field_goal_attempts'] = Variable<int>(fieldGoalAttempts);
+    map['free_throw_made'] = Variable<int>(freeThrowMade);
+    map['free_throw_attempts'] = Variable<int>(freeThrowAttempts);
+    map['tracking_coverage'] = Variable<String>(trackingCoverage);
+    map['confirmed_location_count'] = Variable<int>(confirmedLocationCount);
+    map['locatable_location_count'] = Variable<int>(locatableLocationCount);
+    map['zone_distribution_json'] = Variable<String>(zoneDistributionJson);
+    map['calculator_version'] = Variable<int>(calculatorVersion);
+    map['source_sha256'] = Variable<String>(sourceSha256);
+    return map;
+  }
+
+  PlayerAnalyticsSnapshotsCompanion toCompanion(bool nullToAbsent) {
+    return PlayerAnalyticsSnapshotsCompanion(
+      matchId: Value(matchId),
+      playerId: Value(playerId),
+      opponentPlayerId: opponentPlayerId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(opponentPlayerId),
+      playedAtUtc: Value(playedAtUtc),
+      playerScore: Value(playerScore),
+      opponentScore: Value(opponentScore),
+      fieldGoalMade: Value(fieldGoalMade),
+      fieldGoalAttempts: Value(fieldGoalAttempts),
+      freeThrowMade: Value(freeThrowMade),
+      freeThrowAttempts: Value(freeThrowAttempts),
+      trackingCoverage: Value(trackingCoverage),
+      confirmedLocationCount: Value(confirmedLocationCount),
+      locatableLocationCount: Value(locatableLocationCount),
+      zoneDistributionJson: Value(zoneDistributionJson),
+      calculatorVersion: Value(calculatorVersion),
+      sourceSha256: Value(sourceSha256),
+    );
+  }
+
+  factory PlayerAnalyticsSnapshotRow.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlayerAnalyticsSnapshotRow(
+      matchId: serializer.fromJson<String>(json['matchId']),
+      playerId: serializer.fromJson<String>(json['playerId']),
+      opponentPlayerId: serializer.fromJson<String?>(json['opponentPlayerId']),
+      playedAtUtc: serializer.fromJson<DateTime>(json['playedAtUtc']),
+      playerScore: serializer.fromJson<int>(json['playerScore']),
+      opponentScore: serializer.fromJson<int>(json['opponentScore']),
+      fieldGoalMade: serializer.fromJson<int>(json['fieldGoalMade']),
+      fieldGoalAttempts: serializer.fromJson<int>(json['fieldGoalAttempts']),
+      freeThrowMade: serializer.fromJson<int>(json['freeThrowMade']),
+      freeThrowAttempts: serializer.fromJson<int>(json['freeThrowAttempts']),
+      trackingCoverage: serializer.fromJson<String>(json['trackingCoverage']),
+      confirmedLocationCount: serializer.fromJson<int>(
+        json['confirmedLocationCount'],
+      ),
+      locatableLocationCount: serializer.fromJson<int>(
+        json['locatableLocationCount'],
+      ),
+      zoneDistributionJson: serializer.fromJson<String>(
+        json['zoneDistributionJson'],
+      ),
+      calculatorVersion: serializer.fromJson<int>(json['calculatorVersion']),
+      sourceSha256: serializer.fromJson<String>(json['sourceSha256']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'matchId': serializer.toJson<String>(matchId),
+      'playerId': serializer.toJson<String>(playerId),
+      'opponentPlayerId': serializer.toJson<String?>(opponentPlayerId),
+      'playedAtUtc': serializer.toJson<DateTime>(playedAtUtc),
+      'playerScore': serializer.toJson<int>(playerScore),
+      'opponentScore': serializer.toJson<int>(opponentScore),
+      'fieldGoalMade': serializer.toJson<int>(fieldGoalMade),
+      'fieldGoalAttempts': serializer.toJson<int>(fieldGoalAttempts),
+      'freeThrowMade': serializer.toJson<int>(freeThrowMade),
+      'freeThrowAttempts': serializer.toJson<int>(freeThrowAttempts),
+      'trackingCoverage': serializer.toJson<String>(trackingCoverage),
+      'confirmedLocationCount': serializer.toJson<int>(confirmedLocationCount),
+      'locatableLocationCount': serializer.toJson<int>(locatableLocationCount),
+      'zoneDistributionJson': serializer.toJson<String>(zoneDistributionJson),
+      'calculatorVersion': serializer.toJson<int>(calculatorVersion),
+      'sourceSha256': serializer.toJson<String>(sourceSha256),
+    };
+  }
+
+  PlayerAnalyticsSnapshotRow copyWith({
+    String? matchId,
+    String? playerId,
+    Value<String?> opponentPlayerId = const Value.absent(),
+    DateTime? playedAtUtc,
+    int? playerScore,
+    int? opponentScore,
+    int? fieldGoalMade,
+    int? fieldGoalAttempts,
+    int? freeThrowMade,
+    int? freeThrowAttempts,
+    String? trackingCoverage,
+    int? confirmedLocationCount,
+    int? locatableLocationCount,
+    String? zoneDistributionJson,
+    int? calculatorVersion,
+    String? sourceSha256,
+  }) => PlayerAnalyticsSnapshotRow(
+    matchId: matchId ?? this.matchId,
+    playerId: playerId ?? this.playerId,
+    opponentPlayerId: opponentPlayerId.present
+        ? opponentPlayerId.value
+        : this.opponentPlayerId,
+    playedAtUtc: playedAtUtc ?? this.playedAtUtc,
+    playerScore: playerScore ?? this.playerScore,
+    opponentScore: opponentScore ?? this.opponentScore,
+    fieldGoalMade: fieldGoalMade ?? this.fieldGoalMade,
+    fieldGoalAttempts: fieldGoalAttempts ?? this.fieldGoalAttempts,
+    freeThrowMade: freeThrowMade ?? this.freeThrowMade,
+    freeThrowAttempts: freeThrowAttempts ?? this.freeThrowAttempts,
+    trackingCoverage: trackingCoverage ?? this.trackingCoverage,
+    confirmedLocationCount:
+        confirmedLocationCount ?? this.confirmedLocationCount,
+    locatableLocationCount:
+        locatableLocationCount ?? this.locatableLocationCount,
+    zoneDistributionJson: zoneDistributionJson ?? this.zoneDistributionJson,
+    calculatorVersion: calculatorVersion ?? this.calculatorVersion,
+    sourceSha256: sourceSha256 ?? this.sourceSha256,
+  );
+  PlayerAnalyticsSnapshotRow copyWithCompanion(
+    PlayerAnalyticsSnapshotsCompanion data,
+  ) {
+    return PlayerAnalyticsSnapshotRow(
+      matchId: data.matchId.present ? data.matchId.value : this.matchId,
+      playerId: data.playerId.present ? data.playerId.value : this.playerId,
+      opponentPlayerId: data.opponentPlayerId.present
+          ? data.opponentPlayerId.value
+          : this.opponentPlayerId,
+      playedAtUtc: data.playedAtUtc.present
+          ? data.playedAtUtc.value
+          : this.playedAtUtc,
+      playerScore: data.playerScore.present
+          ? data.playerScore.value
+          : this.playerScore,
+      opponentScore: data.opponentScore.present
+          ? data.opponentScore.value
+          : this.opponentScore,
+      fieldGoalMade: data.fieldGoalMade.present
+          ? data.fieldGoalMade.value
+          : this.fieldGoalMade,
+      fieldGoalAttempts: data.fieldGoalAttempts.present
+          ? data.fieldGoalAttempts.value
+          : this.fieldGoalAttempts,
+      freeThrowMade: data.freeThrowMade.present
+          ? data.freeThrowMade.value
+          : this.freeThrowMade,
+      freeThrowAttempts: data.freeThrowAttempts.present
+          ? data.freeThrowAttempts.value
+          : this.freeThrowAttempts,
+      trackingCoverage: data.trackingCoverage.present
+          ? data.trackingCoverage.value
+          : this.trackingCoverage,
+      confirmedLocationCount: data.confirmedLocationCount.present
+          ? data.confirmedLocationCount.value
+          : this.confirmedLocationCount,
+      locatableLocationCount: data.locatableLocationCount.present
+          ? data.locatableLocationCount.value
+          : this.locatableLocationCount,
+      zoneDistributionJson: data.zoneDistributionJson.present
+          ? data.zoneDistributionJson.value
+          : this.zoneDistributionJson,
+      calculatorVersion: data.calculatorVersion.present
+          ? data.calculatorVersion.value
+          : this.calculatorVersion,
+      sourceSha256: data.sourceSha256.present
+          ? data.sourceSha256.value
+          : this.sourceSha256,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlayerAnalyticsSnapshotRow(')
+          ..write('matchId: $matchId, ')
+          ..write('playerId: $playerId, ')
+          ..write('opponentPlayerId: $opponentPlayerId, ')
+          ..write('playedAtUtc: $playedAtUtc, ')
+          ..write('playerScore: $playerScore, ')
+          ..write('opponentScore: $opponentScore, ')
+          ..write('fieldGoalMade: $fieldGoalMade, ')
+          ..write('fieldGoalAttempts: $fieldGoalAttempts, ')
+          ..write('freeThrowMade: $freeThrowMade, ')
+          ..write('freeThrowAttempts: $freeThrowAttempts, ')
+          ..write('trackingCoverage: $trackingCoverage, ')
+          ..write('confirmedLocationCount: $confirmedLocationCount, ')
+          ..write('locatableLocationCount: $locatableLocationCount, ')
+          ..write('zoneDistributionJson: $zoneDistributionJson, ')
+          ..write('calculatorVersion: $calculatorVersion, ')
+          ..write('sourceSha256: $sourceSha256')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    matchId,
+    playerId,
+    opponentPlayerId,
+    playedAtUtc,
+    playerScore,
+    opponentScore,
+    fieldGoalMade,
+    fieldGoalAttempts,
+    freeThrowMade,
+    freeThrowAttempts,
+    trackingCoverage,
+    confirmedLocationCount,
+    locatableLocationCount,
+    zoneDistributionJson,
+    calculatorVersion,
+    sourceSha256,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlayerAnalyticsSnapshotRow &&
+          other.matchId == this.matchId &&
+          other.playerId == this.playerId &&
+          other.opponentPlayerId == this.opponentPlayerId &&
+          other.playedAtUtc == this.playedAtUtc &&
+          other.playerScore == this.playerScore &&
+          other.opponentScore == this.opponentScore &&
+          other.fieldGoalMade == this.fieldGoalMade &&
+          other.fieldGoalAttempts == this.fieldGoalAttempts &&
+          other.freeThrowMade == this.freeThrowMade &&
+          other.freeThrowAttempts == this.freeThrowAttempts &&
+          other.trackingCoverage == this.trackingCoverage &&
+          other.confirmedLocationCount == this.confirmedLocationCount &&
+          other.locatableLocationCount == this.locatableLocationCount &&
+          other.zoneDistributionJson == this.zoneDistributionJson &&
+          other.calculatorVersion == this.calculatorVersion &&
+          other.sourceSha256 == this.sourceSha256);
+}
+
+class PlayerAnalyticsSnapshotsCompanion
+    extends UpdateCompanion<PlayerAnalyticsSnapshotRow> {
+  final Value<String> matchId;
+  final Value<String> playerId;
+  final Value<String?> opponentPlayerId;
+  final Value<DateTime> playedAtUtc;
+  final Value<int> playerScore;
+  final Value<int> opponentScore;
+  final Value<int> fieldGoalMade;
+  final Value<int> fieldGoalAttempts;
+  final Value<int> freeThrowMade;
+  final Value<int> freeThrowAttempts;
+  final Value<String> trackingCoverage;
+  final Value<int> confirmedLocationCount;
+  final Value<int> locatableLocationCount;
+  final Value<String> zoneDistributionJson;
+  final Value<int> calculatorVersion;
+  final Value<String> sourceSha256;
+  final Value<int> rowid;
+  const PlayerAnalyticsSnapshotsCompanion({
+    this.matchId = const Value.absent(),
+    this.playerId = const Value.absent(),
+    this.opponentPlayerId = const Value.absent(),
+    this.playedAtUtc = const Value.absent(),
+    this.playerScore = const Value.absent(),
+    this.opponentScore = const Value.absent(),
+    this.fieldGoalMade = const Value.absent(),
+    this.fieldGoalAttempts = const Value.absent(),
+    this.freeThrowMade = const Value.absent(),
+    this.freeThrowAttempts = const Value.absent(),
+    this.trackingCoverage = const Value.absent(),
+    this.confirmedLocationCount = const Value.absent(),
+    this.locatableLocationCount = const Value.absent(),
+    this.zoneDistributionJson = const Value.absent(),
+    this.calculatorVersion = const Value.absent(),
+    this.sourceSha256 = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlayerAnalyticsSnapshotsCompanion.insert({
+    required String matchId,
+    required String playerId,
+    this.opponentPlayerId = const Value.absent(),
+    required DateTime playedAtUtc,
+    required int playerScore,
+    required int opponentScore,
+    required int fieldGoalMade,
+    required int fieldGoalAttempts,
+    required int freeThrowMade,
+    required int freeThrowAttempts,
+    required String trackingCoverage,
+    required int confirmedLocationCount,
+    required int locatableLocationCount,
+    required String zoneDistributionJson,
+    required int calculatorVersion,
+    required String sourceSha256,
+    this.rowid = const Value.absent(),
+  }) : matchId = Value(matchId),
+       playerId = Value(playerId),
+       playedAtUtc = Value(playedAtUtc),
+       playerScore = Value(playerScore),
+       opponentScore = Value(opponentScore),
+       fieldGoalMade = Value(fieldGoalMade),
+       fieldGoalAttempts = Value(fieldGoalAttempts),
+       freeThrowMade = Value(freeThrowMade),
+       freeThrowAttempts = Value(freeThrowAttempts),
+       trackingCoverage = Value(trackingCoverage),
+       confirmedLocationCount = Value(confirmedLocationCount),
+       locatableLocationCount = Value(locatableLocationCount),
+       zoneDistributionJson = Value(zoneDistributionJson),
+       calculatorVersion = Value(calculatorVersion),
+       sourceSha256 = Value(sourceSha256);
+  static Insertable<PlayerAnalyticsSnapshotRow> custom({
+    Expression<String>? matchId,
+    Expression<String>? playerId,
+    Expression<String>? opponentPlayerId,
+    Expression<DateTime>? playedAtUtc,
+    Expression<int>? playerScore,
+    Expression<int>? opponentScore,
+    Expression<int>? fieldGoalMade,
+    Expression<int>? fieldGoalAttempts,
+    Expression<int>? freeThrowMade,
+    Expression<int>? freeThrowAttempts,
+    Expression<String>? trackingCoverage,
+    Expression<int>? confirmedLocationCount,
+    Expression<int>? locatableLocationCount,
+    Expression<String>? zoneDistributionJson,
+    Expression<int>? calculatorVersion,
+    Expression<String>? sourceSha256,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (matchId != null) 'match_id': matchId,
+      if (playerId != null) 'player_id': playerId,
+      if (opponentPlayerId != null) 'opponent_player_id': opponentPlayerId,
+      if (playedAtUtc != null) 'played_at_utc': playedAtUtc,
+      if (playerScore != null) 'player_score': playerScore,
+      if (opponentScore != null) 'opponent_score': opponentScore,
+      if (fieldGoalMade != null) 'field_goal_made': fieldGoalMade,
+      if (fieldGoalAttempts != null) 'field_goal_attempts': fieldGoalAttempts,
+      if (freeThrowMade != null) 'free_throw_made': freeThrowMade,
+      if (freeThrowAttempts != null) 'free_throw_attempts': freeThrowAttempts,
+      if (trackingCoverage != null) 'tracking_coverage': trackingCoverage,
+      if (confirmedLocationCount != null)
+        'confirmed_location_count': confirmedLocationCount,
+      if (locatableLocationCount != null)
+        'locatable_location_count': locatableLocationCount,
+      if (zoneDistributionJson != null)
+        'zone_distribution_json': zoneDistributionJson,
+      if (calculatorVersion != null) 'calculator_version': calculatorVersion,
+      if (sourceSha256 != null) 'source_sha256': sourceSha256,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlayerAnalyticsSnapshotsCompanion copyWith({
+    Value<String>? matchId,
+    Value<String>? playerId,
+    Value<String?>? opponentPlayerId,
+    Value<DateTime>? playedAtUtc,
+    Value<int>? playerScore,
+    Value<int>? opponentScore,
+    Value<int>? fieldGoalMade,
+    Value<int>? fieldGoalAttempts,
+    Value<int>? freeThrowMade,
+    Value<int>? freeThrowAttempts,
+    Value<String>? trackingCoverage,
+    Value<int>? confirmedLocationCount,
+    Value<int>? locatableLocationCount,
+    Value<String>? zoneDistributionJson,
+    Value<int>? calculatorVersion,
+    Value<String>? sourceSha256,
+    Value<int>? rowid,
+  }) {
+    return PlayerAnalyticsSnapshotsCompanion(
+      matchId: matchId ?? this.matchId,
+      playerId: playerId ?? this.playerId,
+      opponentPlayerId: opponentPlayerId ?? this.opponentPlayerId,
+      playedAtUtc: playedAtUtc ?? this.playedAtUtc,
+      playerScore: playerScore ?? this.playerScore,
+      opponentScore: opponentScore ?? this.opponentScore,
+      fieldGoalMade: fieldGoalMade ?? this.fieldGoalMade,
+      fieldGoalAttempts: fieldGoalAttempts ?? this.fieldGoalAttempts,
+      freeThrowMade: freeThrowMade ?? this.freeThrowMade,
+      freeThrowAttempts: freeThrowAttempts ?? this.freeThrowAttempts,
+      trackingCoverage: trackingCoverage ?? this.trackingCoverage,
+      confirmedLocationCount:
+          confirmedLocationCount ?? this.confirmedLocationCount,
+      locatableLocationCount:
+          locatableLocationCount ?? this.locatableLocationCount,
+      zoneDistributionJson: zoneDistributionJson ?? this.zoneDistributionJson,
+      calculatorVersion: calculatorVersion ?? this.calculatorVersion,
+      sourceSha256: sourceSha256 ?? this.sourceSha256,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (matchId.present) {
+      map['match_id'] = Variable<String>(matchId.value);
+    }
+    if (playerId.present) {
+      map['player_id'] = Variable<String>(playerId.value);
+    }
+    if (opponentPlayerId.present) {
+      map['opponent_player_id'] = Variable<String>(opponentPlayerId.value);
+    }
+    if (playedAtUtc.present) {
+      map['played_at_utc'] = Variable<DateTime>(playedAtUtc.value);
+    }
+    if (playerScore.present) {
+      map['player_score'] = Variable<int>(playerScore.value);
+    }
+    if (opponentScore.present) {
+      map['opponent_score'] = Variable<int>(opponentScore.value);
+    }
+    if (fieldGoalMade.present) {
+      map['field_goal_made'] = Variable<int>(fieldGoalMade.value);
+    }
+    if (fieldGoalAttempts.present) {
+      map['field_goal_attempts'] = Variable<int>(fieldGoalAttempts.value);
+    }
+    if (freeThrowMade.present) {
+      map['free_throw_made'] = Variable<int>(freeThrowMade.value);
+    }
+    if (freeThrowAttempts.present) {
+      map['free_throw_attempts'] = Variable<int>(freeThrowAttempts.value);
+    }
+    if (trackingCoverage.present) {
+      map['tracking_coverage'] = Variable<String>(trackingCoverage.value);
+    }
+    if (confirmedLocationCount.present) {
+      map['confirmed_location_count'] = Variable<int>(
+        confirmedLocationCount.value,
+      );
+    }
+    if (locatableLocationCount.present) {
+      map['locatable_location_count'] = Variable<int>(
+        locatableLocationCount.value,
+      );
+    }
+    if (zoneDistributionJson.present) {
+      map['zone_distribution_json'] = Variable<String>(
+        zoneDistributionJson.value,
+      );
+    }
+    if (calculatorVersion.present) {
+      map['calculator_version'] = Variable<int>(calculatorVersion.value);
+    }
+    if (sourceSha256.present) {
+      map['source_sha256'] = Variable<String>(sourceSha256.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlayerAnalyticsSnapshotsCompanion(')
+          ..write('matchId: $matchId, ')
+          ..write('playerId: $playerId, ')
+          ..write('opponentPlayerId: $opponentPlayerId, ')
+          ..write('playedAtUtc: $playedAtUtc, ')
+          ..write('playerScore: $playerScore, ')
+          ..write('opponentScore: $opponentScore, ')
+          ..write('fieldGoalMade: $fieldGoalMade, ')
+          ..write('fieldGoalAttempts: $fieldGoalAttempts, ')
+          ..write('freeThrowMade: $freeThrowMade, ')
+          ..write('freeThrowAttempts: $freeThrowAttempts, ')
+          ..write('trackingCoverage: $trackingCoverage, ')
+          ..write('confirmedLocationCount: $confirmedLocationCount, ')
+          ..write('locatableLocationCount: $locatableLocationCount, ')
+          ..write('zoneDistributionJson: $zoneDistributionJson, ')
+          ..write('calculatorVersion: $calculatorVersion, ')
+          ..write('sourceSha256: $sourceSha256, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5066,6 +6073,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $PossessionSegmentsTable(this);
   late final $AuditLogsTable auditLogs = $AuditLogsTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $PlayerAnalyticsSnapshotsTable playerAnalyticsSnapshots =
+      $PlayerAnalyticsSnapshotsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -5082,6 +6091,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     possessionSegments,
     auditLogs,
     appSettings,
+    playerAnalyticsSnapshots,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -5161,6 +6171,33 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('audit_logs', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'matches',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('player_analytics_snapshots', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'players',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('player_analytics_snapshots', kind: UpdateKind.delete),
+      ],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'players',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [
+        TableUpdate('player_analytics_snapshots', kind: UpdateKind.update),
+      ],
     ),
   ]);
 }
@@ -5325,6 +6362,31 @@ final class $$MatchesTableReferences
     ).filter((f) => f.matchId.id.sqlEquals($_itemColumn<String>('id')!));
 
     final cache = $_typedResult.readTableOrNull(_auditLogsRefsTable($_db));
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PlayerAnalyticsSnapshotsTable,
+    List<PlayerAnalyticsSnapshotRow>
+  >
+  _playerAnalyticsSnapshotsRefsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.playerAnalyticsSnapshots,
+        aliasName: 'matches__id__player_analytics_snapshots__match_id',
+      );
+
+  $$PlayerAnalyticsSnapshotsTableProcessedTableManager
+  get playerAnalyticsSnapshotsRefs {
+    final manager = $$PlayerAnalyticsSnapshotsTableTableManager(
+      $_db,
+      $_db.playerAnalyticsSnapshots,
+    ).filter((f) => f.matchId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _playerAnalyticsSnapshotsRefsTable($_db),
+    );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
     );
@@ -5562,6 +6624,33 @@ class $$MatchesTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> playerAnalyticsSnapshotsRefs(
+    Expression<bool> Function($$PlayerAnalyticsSnapshotsTableFilterComposer f)
+    f,
+  ) {
+    final $$PlayerAnalyticsSnapshotsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.playerAnalyticsSnapshots,
+          getReferencedColumn: (t) => t.matchId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlayerAnalyticsSnapshotsTableFilterComposer(
+                $db: $db,
+                $table: $db.playerAnalyticsSnapshots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -5849,6 +6938,33 @@ class $$MatchesTableAnnotationComposer
     );
     return f(composer);
   }
+
+  Expression<T> playerAnalyticsSnapshotsRefs<T extends Object>(
+    Expression<T> Function($$PlayerAnalyticsSnapshotsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$PlayerAnalyticsSnapshotsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.playerAnalyticsSnapshots,
+          getReferencedColumn: (t) => t.matchId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlayerAnalyticsSnapshotsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.playerAnalyticsSnapshots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$MatchesTableTableManager
@@ -5872,6 +6988,7 @@ class $$MatchesTableTableManager
             bool shotLocationsRefs,
             bool possessionSegmentsRefs,
             bool auditLogsRefs,
+            bool playerAnalyticsSnapshotsRefs,
           })
         > {
   $$MatchesTableTableManager(_$AppDatabase db, $MatchesTable table)
@@ -5954,6 +7071,7 @@ class $$MatchesTableTableManager
                 shotLocationsRefs = false,
                 possessionSegmentsRefs = false,
                 auditLogsRefs = false,
+                playerAnalyticsSnapshotsRefs = false,
               }) {
                 return PrefetchHooks(
                   db: db,
@@ -5965,6 +7083,8 @@ class $$MatchesTableTableManager
                     if (shotLocationsRefs) db.shotLocations,
                     if (possessionSegmentsRefs) db.possessionSegments,
                     if (auditLogsRefs) db.auditLogs,
+                    if (playerAnalyticsSnapshotsRefs)
+                      db.playerAnalyticsSnapshots,
                   ],
                   addJoins: null,
                   getPrefetchedDataCallback: (items) async {
@@ -6116,6 +7236,27 @@ class $$MatchesTableTableManager
                               ),
                           typedResults: items,
                         ),
+                      if (playerAnalyticsSnapshotsRefs)
+                        await $_getPrefetchedData<
+                          Matche,
+                          $MatchesTable,
+                          PlayerAnalyticsSnapshotRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$MatchesTableReferences
+                              ._playerAnalyticsSnapshotsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$MatchesTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).playerAnalyticsSnapshotsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.matchId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
                     ];
                   },
                 );
@@ -6144,6 +7285,7 @@ typedef $$MatchesTableProcessedTableManager =
         bool shotLocationsRefs,
         bool possessionSegmentsRefs,
         bool auditLogsRefs,
+        bool playerAnalyticsSnapshotsRefs,
       })
     >;
 typedef $$PlayersTableCreateCompanionBuilder =
@@ -6187,6 +7329,60 @@ final class $$PlayersTableReferences
 
     final cache = $_typedResult.readTableOrNull(
       _matchParticipantsRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PlayerAnalyticsSnapshotsTable,
+    List<PlayerAnalyticsSnapshotRow>
+  >
+  _playerAnalyticsSnapshotPlayersTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.playerAnalyticsSnapshots,
+        aliasName: 'players__id__player_analytics_snapshots__player_id',
+      );
+
+  $$PlayerAnalyticsSnapshotsTableProcessedTableManager
+  get playerAnalyticsSnapshotPlayers {
+    final manager = $$PlayerAnalyticsSnapshotsTableTableManager(
+      $_db,
+      $_db.playerAnalyticsSnapshots,
+    ).filter((f) => f.playerId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _playerAnalyticsSnapshotPlayersTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+
+  static MultiTypedResultKey<
+    $PlayerAnalyticsSnapshotsTable,
+    List<PlayerAnalyticsSnapshotRow>
+  >
+  _playerAnalyticsSnapshotOpponentsTable(_$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.playerAnalyticsSnapshots,
+        aliasName:
+            'players__id__player_analytics_snapshots__opponent_player_id',
+      );
+
+  $$PlayerAnalyticsSnapshotsTableProcessedTableManager
+  get playerAnalyticsSnapshotOpponents {
+    final manager =
+        $$PlayerAnalyticsSnapshotsTableTableManager(
+          $_db,
+          $_db.playerAnalyticsSnapshots,
+        ).filter(
+          (f) => f.opponentPlayerId.id.sqlEquals($_itemColumn<String>('id')!),
+        );
+
+    final cache = $_typedResult.readTableOrNull(
+      _playerAnalyticsSnapshotOpponentsTable($_db),
     );
     return ProcessedTableManager(
       manager.$state.copyWith(prefetchedData: cache),
@@ -6250,6 +7446,60 @@ class $$PlayersTableFilterComposer
                 $removeJoinBuilderFromRootComposer,
           ),
     );
+    return f(composer);
+  }
+
+  Expression<bool> playerAnalyticsSnapshotPlayers(
+    Expression<bool> Function($$PlayerAnalyticsSnapshotsTableFilterComposer f)
+    f,
+  ) {
+    final $$PlayerAnalyticsSnapshotsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.playerAnalyticsSnapshots,
+          getReferencedColumn: (t) => t.playerId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlayerAnalyticsSnapshotsTableFilterComposer(
+                $db: $db,
+                $table: $db.playerAnalyticsSnapshots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<bool> playerAnalyticsSnapshotOpponents(
+    Expression<bool> Function($$PlayerAnalyticsSnapshotsTableFilterComposer f)
+    f,
+  ) {
+    final $$PlayerAnalyticsSnapshotsTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.playerAnalyticsSnapshots,
+          getReferencedColumn: (t) => t.opponentPlayerId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlayerAnalyticsSnapshotsTableFilterComposer(
+                $db: $db,
+                $table: $db.playerAnalyticsSnapshots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
     return f(composer);
   }
 }
@@ -6340,6 +7590,60 @@ class $$PlayersTableAnnotationComposer
         );
     return f(composer);
   }
+
+  Expression<T> playerAnalyticsSnapshotPlayers<T extends Object>(
+    Expression<T> Function($$PlayerAnalyticsSnapshotsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$PlayerAnalyticsSnapshotsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.playerAnalyticsSnapshots,
+          getReferencedColumn: (t) => t.playerId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlayerAnalyticsSnapshotsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.playerAnalyticsSnapshots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+
+  Expression<T> playerAnalyticsSnapshotOpponents<T extends Object>(
+    Expression<T> Function($$PlayerAnalyticsSnapshotsTableAnnotationComposer a)
+    f,
+  ) {
+    final $$PlayerAnalyticsSnapshotsTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.playerAnalyticsSnapshots,
+          getReferencedColumn: (t) => t.opponentPlayerId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$PlayerAnalyticsSnapshotsTableAnnotationComposer(
+                $db: $db,
+                $table: $db.playerAnalyticsSnapshots,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
 }
 
 class $$PlayersTableTableManager
@@ -6355,7 +7659,11 @@ class $$PlayersTableTableManager
           $$PlayersTableUpdateCompanionBuilder,
           (PlayerRow, $$PlayersTableReferences),
           PlayerRow,
-          PrefetchHooks Function({bool matchParticipantsRefs})
+          PrefetchHooks Function({
+            bool matchParticipantsRefs,
+            bool playerAnalyticsSnapshotPlayers,
+            bool playerAnalyticsSnapshotOpponents,
+          })
         > {
   $$PlayersTableTableManager(_$AppDatabase db, $PlayersTable table)
     : super(
@@ -6408,39 +7716,91 @@ class $$PlayersTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback: ({matchParticipantsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (matchParticipantsRefs) db.matchParticipants,
-              ],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (matchParticipantsRefs)
-                    await $_getPrefetchedData<
-                      PlayerRow,
-                      $PlayersTable,
-                      MatchParticipant
-                    >(
-                      currentTable: table,
-                      referencedTable: $$PlayersTableReferences
-                          ._matchParticipantsRefsTable(db),
-                      managerFromTypedResult: (p0) => $$PlayersTableReferences(
-                        db,
-                        table,
-                        p0,
-                      ).matchParticipantsRefs,
-                      referencedItemsForCurrentItem: (item, referencedItems) =>
-                          referencedItems.where(
-                            (e) => e.playerProfileId == item.id,
-                          ),
-                      typedResults: items,
-                    ),
-                ];
+          prefetchHooksCallback:
+              ({
+                matchParticipantsRefs = false,
+                playerAnalyticsSnapshotPlayers = false,
+                playerAnalyticsSnapshotOpponents = false,
+              }) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [
+                    if (matchParticipantsRefs) db.matchParticipants,
+                    if (playerAnalyticsSnapshotPlayers)
+                      db.playerAnalyticsSnapshots,
+                    if (playerAnalyticsSnapshotOpponents)
+                      db.playerAnalyticsSnapshots,
+                  ],
+                  addJoins: null,
+                  getPrefetchedDataCallback: (items) async {
+                    return [
+                      if (matchParticipantsRefs)
+                        await $_getPrefetchedData<
+                          PlayerRow,
+                          $PlayersTable,
+                          MatchParticipant
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PlayersTableReferences
+                              ._matchParticipantsRefsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PlayersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).matchParticipantsRefs,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.playerProfileId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (playerAnalyticsSnapshotPlayers)
+                        await $_getPrefetchedData<
+                          PlayerRow,
+                          $PlayersTable,
+                          PlayerAnalyticsSnapshotRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PlayersTableReferences
+                              ._playerAnalyticsSnapshotPlayersTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PlayersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).playerAnalyticsSnapshotPlayers,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.playerId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                      if (playerAnalyticsSnapshotOpponents)
+                        await $_getPrefetchedData<
+                          PlayerRow,
+                          $PlayersTable,
+                          PlayerAnalyticsSnapshotRow
+                        >(
+                          currentTable: table,
+                          referencedTable: $$PlayersTableReferences
+                              ._playerAnalyticsSnapshotOpponentsTable(db),
+                          managerFromTypedResult: (p0) =>
+                              $$PlayersTableReferences(
+                                db,
+                                table,
+                                p0,
+                              ).playerAnalyticsSnapshotOpponents,
+                          referencedItemsForCurrentItem:
+                              (item, referencedItems) => referencedItems.where(
+                                (e) => e.opponentPlayerId == item.id,
+                              ),
+                          typedResults: items,
+                        ),
+                    ];
+                  },
+                );
               },
-            );
-          },
         ),
       );
 }
@@ -6457,7 +7817,11 @@ typedef $$PlayersTableProcessedTableManager =
       $$PlayersTableUpdateCompanionBuilder,
       (PlayerRow, $$PlayersTableReferences),
       PlayerRow,
-      PrefetchHooks Function({bool matchParticipantsRefs})
+      PrefetchHooks Function({
+        bool matchParticipantsRefs,
+        bool playerAnalyticsSnapshotPlayers,
+        bool playerAnalyticsSnapshotOpponents,
+      })
     >;
 typedef $$MatchParticipantsTableCreateCompanionBuilder =
     MatchParticipantsCompanion Function({
@@ -10082,6 +11446,770 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$PlayerAnalyticsSnapshotsTableCreateCompanionBuilder =
+    PlayerAnalyticsSnapshotsCompanion Function({
+      required String matchId,
+      required String playerId,
+      Value<String?> opponentPlayerId,
+      required DateTime playedAtUtc,
+      required int playerScore,
+      required int opponentScore,
+      required int fieldGoalMade,
+      required int fieldGoalAttempts,
+      required int freeThrowMade,
+      required int freeThrowAttempts,
+      required String trackingCoverage,
+      required int confirmedLocationCount,
+      required int locatableLocationCount,
+      required String zoneDistributionJson,
+      required int calculatorVersion,
+      required String sourceSha256,
+      Value<int> rowid,
+    });
+typedef $$PlayerAnalyticsSnapshotsTableUpdateCompanionBuilder =
+    PlayerAnalyticsSnapshotsCompanion Function({
+      Value<String> matchId,
+      Value<String> playerId,
+      Value<String?> opponentPlayerId,
+      Value<DateTime> playedAtUtc,
+      Value<int> playerScore,
+      Value<int> opponentScore,
+      Value<int> fieldGoalMade,
+      Value<int> fieldGoalAttempts,
+      Value<int> freeThrowMade,
+      Value<int> freeThrowAttempts,
+      Value<String> trackingCoverage,
+      Value<int> confirmedLocationCount,
+      Value<int> locatableLocationCount,
+      Value<String> zoneDistributionJson,
+      Value<int> calculatorVersion,
+      Value<String> sourceSha256,
+      Value<int> rowid,
+    });
+
+final class $$PlayerAnalyticsSnapshotsTableReferences
+    extends
+        BaseReferences<
+          _$AppDatabase,
+          $PlayerAnalyticsSnapshotsTable,
+          PlayerAnalyticsSnapshotRow
+        > {
+  $$PlayerAnalyticsSnapshotsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $MatchesTable _matchIdTable(_$AppDatabase db) => db.matches
+      .createAlias('player_analytics_snapshots__match_id__matches__id');
+
+  $$MatchesTableProcessedTableManager get matchId {
+    final $_column = $_itemColumn<String>('match_id')!;
+
+    final manager = $$MatchesTableTableManager(
+      $_db,
+      $_db.matches,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_matchIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PlayersTable _playerIdTable(_$AppDatabase db) => db.players
+      .createAlias('player_analytics_snapshots__player_id__players__id');
+
+  $$PlayersTableProcessedTableManager get playerId {
+    final $_column = $_itemColumn<String>('player_id')!;
+
+    final manager = $$PlayersTableTableManager(
+      $_db,
+      $_db.players,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_playerIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+
+  static $PlayersTable _opponentPlayerIdTable(_$AppDatabase db) =>
+      db.players.createAlias(
+        'player_analytics_snapshots__opponent_player_id__players__id',
+      );
+
+  $$PlayersTableProcessedTableManager? get opponentPlayerId {
+    final $_column = $_itemColumn<String>('opponent_player_id');
+    if ($_column == null) return null;
+    final manager = $$PlayersTableTableManager(
+      $_db,
+      $_db.players,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_opponentPlayerIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$PlayerAnalyticsSnapshotsTableFilterComposer
+    extends Composer<_$AppDatabase, $PlayerAnalyticsSnapshotsTable> {
+  $$PlayerAnalyticsSnapshotsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<DateTime> get playedAtUtc => $composableBuilder(
+    column: $table.playedAtUtc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get playerScore => $composableBuilder(
+    column: $table.playerScore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get opponentScore => $composableBuilder(
+    column: $table.opponentScore,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fieldGoalMade => $composableBuilder(
+    column: $table.fieldGoalMade,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fieldGoalAttempts => $composableBuilder(
+    column: $table.fieldGoalAttempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get freeThrowMade => $composableBuilder(
+    column: $table.freeThrowMade,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get freeThrowAttempts => $composableBuilder(
+    column: $table.freeThrowAttempts,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get trackingCoverage => $composableBuilder(
+    column: $table.trackingCoverage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get confirmedLocationCount => $composableBuilder(
+    column: $table.confirmedLocationCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get locatableLocationCount => $composableBuilder(
+    column: $table.locatableLocationCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get zoneDistributionJson => $composableBuilder(
+    column: $table.zoneDistributionJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get calculatorVersion => $composableBuilder(
+    column: $table.calculatorVersion,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get sourceSha256 => $composableBuilder(
+    column: $table.sourceSha256,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$MatchesTableFilterComposer get matchId {
+    final $$MatchesTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableFilterComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PlayersTableFilterComposer get playerId {
+    final $$PlayersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.playerId,
+      referencedTable: $db.players,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlayersTableFilterComposer(
+            $db: $db,
+            $table: $db.players,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PlayersTableFilterComposer get opponentPlayerId {
+    final $$PlayersTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.opponentPlayerId,
+      referencedTable: $db.players,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlayersTableFilterComposer(
+            $db: $db,
+            $table: $db.players,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PlayerAnalyticsSnapshotsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PlayerAnalyticsSnapshotsTable> {
+  $$PlayerAnalyticsSnapshotsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<DateTime> get playedAtUtc => $composableBuilder(
+    column: $table.playedAtUtc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get playerScore => $composableBuilder(
+    column: $table.playerScore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get opponentScore => $composableBuilder(
+    column: $table.opponentScore,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fieldGoalMade => $composableBuilder(
+    column: $table.fieldGoalMade,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fieldGoalAttempts => $composableBuilder(
+    column: $table.fieldGoalAttempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get freeThrowMade => $composableBuilder(
+    column: $table.freeThrowMade,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get freeThrowAttempts => $composableBuilder(
+    column: $table.freeThrowAttempts,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get trackingCoverage => $composableBuilder(
+    column: $table.trackingCoverage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get confirmedLocationCount => $composableBuilder(
+    column: $table.confirmedLocationCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get locatableLocationCount => $composableBuilder(
+    column: $table.locatableLocationCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get zoneDistributionJson => $composableBuilder(
+    column: $table.zoneDistributionJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get calculatorVersion => $composableBuilder(
+    column: $table.calculatorVersion,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get sourceSha256 => $composableBuilder(
+    column: $table.sourceSha256,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$MatchesTableOrderingComposer get matchId {
+    final $$MatchesTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableOrderingComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PlayersTableOrderingComposer get playerId {
+    final $$PlayersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.playerId,
+      referencedTable: $db.players,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlayersTableOrderingComposer(
+            $db: $db,
+            $table: $db.players,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PlayersTableOrderingComposer get opponentPlayerId {
+    final $$PlayersTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.opponentPlayerId,
+      referencedTable: $db.players,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlayersTableOrderingComposer(
+            $db: $db,
+            $table: $db.players,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PlayerAnalyticsSnapshotsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PlayerAnalyticsSnapshotsTable> {
+  $$PlayerAnalyticsSnapshotsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<DateTime> get playedAtUtc => $composableBuilder(
+    column: $table.playedAtUtc,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get playerScore => $composableBuilder(
+    column: $table.playerScore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get opponentScore => $composableBuilder(
+    column: $table.opponentScore,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fieldGoalMade => $composableBuilder(
+    column: $table.fieldGoalMade,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fieldGoalAttempts => $composableBuilder(
+    column: $table.fieldGoalAttempts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get freeThrowMade => $composableBuilder(
+    column: $table.freeThrowMade,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get freeThrowAttempts => $composableBuilder(
+    column: $table.freeThrowAttempts,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get trackingCoverage => $composableBuilder(
+    column: $table.trackingCoverage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get confirmedLocationCount => $composableBuilder(
+    column: $table.confirmedLocationCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get locatableLocationCount => $composableBuilder(
+    column: $table.locatableLocationCount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get zoneDistributionJson => $composableBuilder(
+    column: $table.zoneDistributionJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get calculatorVersion => $composableBuilder(
+    column: $table.calculatorVersion,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get sourceSha256 => $composableBuilder(
+    column: $table.sourceSha256,
+    builder: (column) => column,
+  );
+
+  $$MatchesTableAnnotationComposer get matchId {
+    final $$MatchesTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.matchId,
+      referencedTable: $db.matches,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$MatchesTableAnnotationComposer(
+            $db: $db,
+            $table: $db.matches,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PlayersTableAnnotationComposer get playerId {
+    final $$PlayersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.playerId,
+      referencedTable: $db.players,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlayersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.players,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+
+  $$PlayersTableAnnotationComposer get opponentPlayerId {
+    final $$PlayersTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.opponentPlayerId,
+      referencedTable: $db.players,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$PlayersTableAnnotationComposer(
+            $db: $db,
+            $table: $db.players,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$PlayerAnalyticsSnapshotsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlayerAnalyticsSnapshotsTable,
+          PlayerAnalyticsSnapshotRow,
+          $$PlayerAnalyticsSnapshotsTableFilterComposer,
+          $$PlayerAnalyticsSnapshotsTableOrderingComposer,
+          $$PlayerAnalyticsSnapshotsTableAnnotationComposer,
+          $$PlayerAnalyticsSnapshotsTableCreateCompanionBuilder,
+          $$PlayerAnalyticsSnapshotsTableUpdateCompanionBuilder,
+          (
+            PlayerAnalyticsSnapshotRow,
+            $$PlayerAnalyticsSnapshotsTableReferences,
+          ),
+          PlayerAnalyticsSnapshotRow,
+          PrefetchHooks Function({
+            bool matchId,
+            bool playerId,
+            bool opponentPlayerId,
+          })
+        > {
+  $$PlayerAnalyticsSnapshotsTableTableManager(
+    _$AppDatabase db,
+    $PlayerAnalyticsSnapshotsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlayerAnalyticsSnapshotsTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$PlayerAnalyticsSnapshotsTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PlayerAnalyticsSnapshotsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> matchId = const Value.absent(),
+                Value<String> playerId = const Value.absent(),
+                Value<String?> opponentPlayerId = const Value.absent(),
+                Value<DateTime> playedAtUtc = const Value.absent(),
+                Value<int> playerScore = const Value.absent(),
+                Value<int> opponentScore = const Value.absent(),
+                Value<int> fieldGoalMade = const Value.absent(),
+                Value<int> fieldGoalAttempts = const Value.absent(),
+                Value<int> freeThrowMade = const Value.absent(),
+                Value<int> freeThrowAttempts = const Value.absent(),
+                Value<String> trackingCoverage = const Value.absent(),
+                Value<int> confirmedLocationCount = const Value.absent(),
+                Value<int> locatableLocationCount = const Value.absent(),
+                Value<String> zoneDistributionJson = const Value.absent(),
+                Value<int> calculatorVersion = const Value.absent(),
+                Value<String> sourceSha256 = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlayerAnalyticsSnapshotsCompanion(
+                matchId: matchId,
+                playerId: playerId,
+                opponentPlayerId: opponentPlayerId,
+                playedAtUtc: playedAtUtc,
+                playerScore: playerScore,
+                opponentScore: opponentScore,
+                fieldGoalMade: fieldGoalMade,
+                fieldGoalAttempts: fieldGoalAttempts,
+                freeThrowMade: freeThrowMade,
+                freeThrowAttempts: freeThrowAttempts,
+                trackingCoverage: trackingCoverage,
+                confirmedLocationCount: confirmedLocationCount,
+                locatableLocationCount: locatableLocationCount,
+                zoneDistributionJson: zoneDistributionJson,
+                calculatorVersion: calculatorVersion,
+                sourceSha256: sourceSha256,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String matchId,
+                required String playerId,
+                Value<String?> opponentPlayerId = const Value.absent(),
+                required DateTime playedAtUtc,
+                required int playerScore,
+                required int opponentScore,
+                required int fieldGoalMade,
+                required int fieldGoalAttempts,
+                required int freeThrowMade,
+                required int freeThrowAttempts,
+                required String trackingCoverage,
+                required int confirmedLocationCount,
+                required int locatableLocationCount,
+                required String zoneDistributionJson,
+                required int calculatorVersion,
+                required String sourceSha256,
+                Value<int> rowid = const Value.absent(),
+              }) => PlayerAnalyticsSnapshotsCompanion.insert(
+                matchId: matchId,
+                playerId: playerId,
+                opponentPlayerId: opponentPlayerId,
+                playedAtUtc: playedAtUtc,
+                playerScore: playerScore,
+                opponentScore: opponentScore,
+                fieldGoalMade: fieldGoalMade,
+                fieldGoalAttempts: fieldGoalAttempts,
+                freeThrowMade: freeThrowMade,
+                freeThrowAttempts: freeThrowAttempts,
+                trackingCoverage: trackingCoverage,
+                confirmedLocationCount: confirmedLocationCount,
+                locatableLocationCount: locatableLocationCount,
+                zoneDistributionJson: zoneDistributionJson,
+                calculatorVersion: calculatorVersion,
+                sourceSha256: sourceSha256,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$PlayerAnalyticsSnapshotsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback:
+              ({matchId = false, playerId = false, opponentPlayerId = false}) {
+                return PrefetchHooks(
+                  db: db,
+                  explicitlyWatchedTables: [],
+                  addJoins:
+                      <
+                        T extends TableManagerState<
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic,
+                          dynamic
+                        >
+                      >(state) {
+                        if (matchId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.matchId,
+                                    referencedTable:
+                                        $$PlayerAnalyticsSnapshotsTableReferences
+                                            ._matchIdTable(db),
+                                    referencedColumn:
+                                        $$PlayerAnalyticsSnapshotsTableReferences
+                                            ._matchIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (playerId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.playerId,
+                                    referencedTable:
+                                        $$PlayerAnalyticsSnapshotsTableReferences
+                                            ._playerIdTable(db),
+                                    referencedColumn:
+                                        $$PlayerAnalyticsSnapshotsTableReferences
+                                            ._playerIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+                        if (opponentPlayerId) {
+                          state =
+                              state.withJoin(
+                                    currentTable: table,
+                                    currentColumn: table.opponentPlayerId,
+                                    referencedTable:
+                                        $$PlayerAnalyticsSnapshotsTableReferences
+                                            ._opponentPlayerIdTable(db),
+                                    referencedColumn:
+                                        $$PlayerAnalyticsSnapshotsTableReferences
+                                            ._opponentPlayerIdTable(db)
+                                            .id,
+                                  )
+                                  as T;
+                        }
+
+                        return state;
+                      },
+                  getPrefetchedDataCallback: (items) async {
+                    return [];
+                  },
+                );
+              },
+        ),
+      );
+}
+
+typedef $$PlayerAnalyticsSnapshotsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlayerAnalyticsSnapshotsTable,
+      PlayerAnalyticsSnapshotRow,
+      $$PlayerAnalyticsSnapshotsTableFilterComposer,
+      $$PlayerAnalyticsSnapshotsTableOrderingComposer,
+      $$PlayerAnalyticsSnapshotsTableAnnotationComposer,
+      $$PlayerAnalyticsSnapshotsTableCreateCompanionBuilder,
+      $$PlayerAnalyticsSnapshotsTableUpdateCompanionBuilder,
+      (PlayerAnalyticsSnapshotRow, $$PlayerAnalyticsSnapshotsTableReferences),
+      PlayerAnalyticsSnapshotRow,
+      PrefetchHooks Function({
+        bool matchId,
+        bool playerId,
+        bool opponentPlayerId,
+      })
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -10108,4 +12236,9 @@ class $AppDatabaseManager {
       $$AuditLogsTableTableManager(_db, _db.auditLogs);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$PlayerAnalyticsSnapshotsTableTableManager get playerAnalyticsSnapshots =>
+      $$PlayerAnalyticsSnapshotsTableTableManager(
+        _db,
+        _db.playerAnalyticsSnapshots,
+      );
 }
