@@ -776,6 +776,160 @@ class AppLocalizationsZh extends AppLocalizations {
   String get playerAnalyticsRetry => '重试';
 
   @override
+  String get playerComparisonOpen => '比较';
+
+  @override
+  String get playerComparisonTitle => '球员比较';
+
+  @override
+  String get playerComparisonMode => '比较方式';
+
+  @override
+  String get playerComparisonMatchMode => '对局';
+
+  @override
+  String get playerComparisonWindowMode => '时段';
+
+  @override
+  String get playerComparisonMatchModeHint => '比较该球员已关联的两场已完成比赛。';
+
+  @override
+  String get playerComparisonWindowModeHint => '比较以打开页面时刻为终点的两个相邻且不重叠时间窗。';
+
+  @override
+  String get playerComparisonBaseline => '基线';
+
+  @override
+  String get playerComparisonCurrent => '当前样本';
+
+  @override
+  String get playerComparisonDifference => '差值';
+
+  @override
+  String get playerComparisonSelectBaseline => '选择基线对局';
+
+  @override
+  String get playerComparisonSelectCurrent => '选择当前对局';
+
+  @override
+  String get playerComparisonSwap => '交换基线与当前对局';
+
+  @override
+  String get playerComparisonChooseGame => '选择对局';
+
+  @override
+  String get playerComparisonLoading => '正在生成比较';
+
+  @override
+  String get playerComparisonLoadError => '无法读取比较数据';
+
+  @override
+  String get playerComparisonLoadErrorBody => '无法从本地比赛数据重建分析，请检查记录后重试。';
+
+  @override
+  String get playerComparisonRetry => '重试';
+
+  @override
+  String get playerComparisonNoMatches => '暂无可比较比赛';
+
+  @override
+  String get playerComparisonNoMatchesBody => '请先使用该关联球员档案完成一场比赛。';
+
+  @override
+  String get playerComparisonNeedTwoMatches => '至少需要两场比赛';
+
+  @override
+  String get playerComparisonNeedTwoMatchesBody =>
+      '再完成一场已关联比赛即可比较单场对局；目前仍可使用时段比较。';
+
+  @override
+  String get playerComparisonEmptyWindows => '两个时间窗都没有比赛';
+
+  @override
+  String get playerComparisonEmptyWindowsBody => '可以选择更长时段，或取消对手筛选。';
+
+  @override
+  String get playerComparisonBaselineEmpty => '基线时间窗没有比赛。';
+
+  @override
+  String get playerComparisonCurrentEmpty => '当前时间窗没有比赛。';
+
+  @override
+  String get playerComparisonSummary => '证据摘要';
+
+  @override
+  String get playerComparisonResult => '胜负';
+
+  @override
+  String get playerComparisonMatchCount => '场次';
+
+  @override
+  String get playerComparisonWinRate => '胜率';
+
+  @override
+  String get playerComparisonPoints => '得分';
+
+  @override
+  String get playerComparisonPointsPerGame => '场均得分';
+
+  @override
+  String get playerComparisonMargin => '分差';
+
+  @override
+  String get playerComparisonMarginPerGame => '场均分差';
+
+  @override
+  String get playerComparisonFieldGoalsMade => '投篮命中';
+
+  @override
+  String get playerComparisonFieldGoalAttempts => '投篮出手';
+
+  @override
+  String get playerComparisonFieldGoalPercentage => '投篮命中率';
+
+  @override
+  String get playerComparisonFreeThrowsMade => '罚球命中';
+
+  @override
+  String get playerComparisonFreeThrowAttempts => '罚球出手';
+
+  @override
+  String get playerComparisonFreeThrowPercentage => '罚球命中率';
+
+  @override
+  String get playerComparisonLocationCoverage => '落点覆盖';
+
+  @override
+  String get playerComparisonConfirmedZones => '区域已确认落点占比';
+
+  @override
+  String get playerComparisonConfirmedZonesNote => '区域百分比仅使用已确认落点样本。';
+
+  @override
+  String get playerComparisonIncrease => '增加';
+
+  @override
+  String get playerComparisonDecrease => '减少';
+
+  @override
+  String get playerComparisonEqual => '持平';
+
+  @override
+  String get playerComparisonInsufficientData => '数据不足';
+
+  @override
+  String get playerComparisonWin => '胜';
+
+  @override
+  String get playerComparisonLoss => '负';
+
+  @override
+  String get playerComparisonTie => '平';
+
+  @override
+  String get playerComparisonPercentagePoints => '个百分点';
+
+  @override
   String get replayMoreActions => '更多操作';
 
   @override

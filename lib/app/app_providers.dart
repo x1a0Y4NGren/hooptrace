@@ -10,6 +10,7 @@ import 'package:hooptrace/core/data/repositories/match_lifecycle_repository.dart
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
 import 'package:hooptrace/core/data/repositories/player_career_repository.dart';
+import 'package:hooptrace/core/data/repositories/player_comparison_repository.dart';
 import 'package:hooptrace/core/data/repositories/rule_template_repository.dart';
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/match_history_entry.dart';
@@ -27,6 +28,7 @@ import 'package:hooptrace/core/settings/theme_preferences.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 import 'package:hooptrace/features/players/player_career_controller.dart';
+import 'package:hooptrace/features/players/player_comparison_controller.dart';
 
 /// The result of the pre-Drift compatibility probe. A legacy result is
 /// deliberately a value instead of an exception so the app can show a clear
@@ -108,6 +110,22 @@ final playerCareerControllerProvider = Provider.autoDispose
       final controller = PlayerCareerController(
         playerId: playerId,
         loader: (query) => repository.watchByPlayerId(playerId, query: query),
+      );
+      ref.onDispose(controller.dispose);
+      return controller;
+    });
+
+final playerComparisonRepositoryProvider = Provider<PlayerComparisonRepository>(
+  (ref) => PlayerComparisonRepository(ref.watch(appDatabaseProvider)),
+);
+
+final playerComparisonControllerProvider = Provider.autoDispose
+    .family<PlayerComparisonController, String>((ref, playerId) {
+      final repository = ref.watch(playerComparisonRepositoryProvider);
+      final controller = PlayerComparisonController(
+        playerId: playerId,
+        listMatches: repository.listEligibleMatches,
+        compare: repository.compare,
       );
       ref.onDispose(controller.dispose);
       return controller;

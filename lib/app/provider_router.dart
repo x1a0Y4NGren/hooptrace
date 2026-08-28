@@ -9,6 +9,7 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/match_view_data_mapper.dart';
 import 'package:hooptrace/app/orientation_shell.dart';
+import 'package:hooptrace/app/player_routes.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/match_repository.dart';
 import 'package:hooptrace/core/data/repositories/match_lifecycle_repository.dart';
@@ -24,9 +25,6 @@ import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_controller.dart';
 import 'package:hooptrace/features/pregame/start_match_mapper.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
-import 'package:hooptrace/features/players/player_editor_page.dart';
-import 'package:hooptrace/features/players/player_career_page.dart';
-import 'package:hooptrace/features/players/player_list_page.dart';
 import 'package:hooptrace/features/project/project_details_page.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
@@ -112,75 +110,7 @@ GoRouter buildProviderAppRouter() {
         path: '/history',
         builder: (context, state) => const _HistoryRoute(),
       ),
-      GoRoute(
-        path: '/players',
-        builder: (context, state) => Consumer(
-          builder: (context, ref, child) => PlayerListPage(
-            repository: ref.watch(playerRepositoryProvider),
-            onCreate: () => context.push('/players/new'),
-            onEdit: (player) => context.push('/players/${player.id}/edit'),
-            onViewAnalytics: (player) =>
-                context.push('/players/${player.id}/analytics'),
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/players/new',
-        builder: (context, state) => Consumer(
-          builder: (context, ref, child) => PlayerEditorPage(
-            repository: ref.watch(playerRepositoryProvider),
-            onSaved: () => context.pop(),
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/players/:playerId/edit',
-        builder: (context, state) => Consumer(
-          builder: (context, ref, child) => PlayerEditorPage(
-            repository: ref.watch(playerRepositoryProvider),
-            playerId: state.pathParameters['playerId']!,
-            onSaved: () => context.pop(),
-            onDeleted: () => context.pop(),
-          ),
-        ),
-      ),
-      GoRoute(
-        path: '/players/:playerId/analytics',
-        builder: (context, state) => Consumer(
-          builder: (context, ref, child) {
-            final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-            final playerId = state.pathParameters['playerId']!;
-            final players = ref.watch(playerProfilesProvider);
-            return players.when(
-              loading: () => const _RouteLoading(),
-              error: (error, stackTrace) => _RouteMessage(
-                title: l10n.playerAnalyticsLoadError,
-                message: l10n.actionFailedRetry,
-              ),
-              data: (values) {
-                final player = values
-                    .where((value) => value.id == playerId)
-                    .firstOrNull;
-                if (player == null) {
-                  return _RouteMessage(
-                    title: l10n.playerAnalyticsNotFound,
-                    message: l10n.playerAnalyticsNotFoundBody,
-                  );
-                }
-                return PlayerCareerPage(
-                  controller: ref.watch(
-                    playerCareerControllerProvider(playerId),
-                  ),
-                  player: player,
-                  opponents: values
-                      .where((value) => value.id != playerId)
-                      .toList(growable: false),
-                );
-              },
-            );
-          },
-        ),
-      ),
+      ...buildPlayerRoutes(),
       GoRoute(
         path: '/settings',
         builder: (context, state) => const _SettingsRoute(),

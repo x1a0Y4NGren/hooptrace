@@ -12,12 +12,14 @@ class PlayerCareerPage extends StatelessWidget {
     required this.controller,
     required this.player,
     required this.opponents,
+    this.onCompare,
     super.key,
   });
 
   final PlayerCareerController controller;
   final Player player;
   final List<Player> opponents;
+  final VoidCallback? onCompare;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +45,7 @@ class PlayerCareerPage extends StatelessWidget {
             controller: controller,
             player: player,
             opponents: opponents,
+            onCompare: onCompare,
           ),
         ),
       ),
@@ -55,11 +58,13 @@ class _CareerBody extends StatelessWidget {
     required this.controller,
     required this.player,
     required this.opponents,
+    required this.onCompare,
   });
 
   final PlayerCareerController controller;
   final Player player;
   final List<Player> opponents;
+  final VoidCallback? onCompare;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +73,19 @@ class _CareerBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _PlayerIdentity(player: player),
+        if (onCompare != null) ...[
+          const SizedBox(height: 16),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              key: ValueKey('player-comparison-${player.id}'),
+              onPressed: onCompare,
+              icon: const Icon(Icons.compare_arrows),
+              label: Text(l10n.playerComparisonOpen),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
         _CareerFilters(controller: controller, opponents: opponents),
         const SizedBox(height: 24),

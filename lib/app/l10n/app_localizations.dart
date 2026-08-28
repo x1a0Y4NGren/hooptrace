@@ -1578,6 +1578,312 @@ abstract class AppLocalizations {
   /// **'重试'**
   String get playerAnalyticsRetry;
 
+  /// No description provided for @playerComparisonOpen.
+  ///
+  /// In zh, this message translates to:
+  /// **'比较'**
+  String get playerComparisonOpen;
+
+  /// No description provided for @playerComparisonTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'球员比较'**
+  String get playerComparisonTitle;
+
+  /// No description provided for @playerComparisonMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'比较方式'**
+  String get playerComparisonMode;
+
+  /// No description provided for @playerComparisonMatchMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'对局'**
+  String get playerComparisonMatchMode;
+
+  /// No description provided for @playerComparisonWindowMode.
+  ///
+  /// In zh, this message translates to:
+  /// **'时段'**
+  String get playerComparisonWindowMode;
+
+  /// No description provided for @playerComparisonMatchModeHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'比较该球员已关联的两场已完成比赛。'**
+  String get playerComparisonMatchModeHint;
+
+  /// No description provided for @playerComparisonWindowModeHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'比较以打开页面时刻为终点的两个相邻且不重叠时间窗。'**
+  String get playerComparisonWindowModeHint;
+
+  /// No description provided for @playerComparisonBaseline.
+  ///
+  /// In zh, this message translates to:
+  /// **'基线'**
+  String get playerComparisonBaseline;
+
+  /// No description provided for @playerComparisonCurrent.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前样本'**
+  String get playerComparisonCurrent;
+
+  /// No description provided for @playerComparisonDifference.
+  ///
+  /// In zh, this message translates to:
+  /// **'差值'**
+  String get playerComparisonDifference;
+
+  /// No description provided for @playerComparisonSelectBaseline.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择基线对局'**
+  String get playerComparisonSelectBaseline;
+
+  /// No description provided for @playerComparisonSelectCurrent.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择当前对局'**
+  String get playerComparisonSelectCurrent;
+
+  /// No description provided for @playerComparisonSwap.
+  ///
+  /// In zh, this message translates to:
+  /// **'交换基线与当前对局'**
+  String get playerComparisonSwap;
+
+  /// No description provided for @playerComparisonChooseGame.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择对局'**
+  String get playerComparisonChooseGame;
+
+  /// No description provided for @playerComparisonLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在生成比较'**
+  String get playerComparisonLoading;
+
+  /// No description provided for @playerComparisonLoadError.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法读取比较数据'**
+  String get playerComparisonLoadError;
+
+  /// No description provided for @playerComparisonLoadErrorBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'无法从本地比赛数据重建分析，请检查记录后重试。'**
+  String get playerComparisonLoadErrorBody;
+
+  /// No description provided for @playerComparisonRetry.
+  ///
+  /// In zh, this message translates to:
+  /// **'重试'**
+  String get playerComparisonRetry;
+
+  /// No description provided for @playerComparisonNoMatches.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无可比较比赛'**
+  String get playerComparisonNoMatches;
+
+  /// No description provided for @playerComparisonNoMatchesBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先使用该关联球员档案完成一场比赛。'**
+  String get playerComparisonNoMatchesBody;
+
+  /// No description provided for @playerComparisonNeedTwoMatches.
+  ///
+  /// In zh, this message translates to:
+  /// **'至少需要两场比赛'**
+  String get playerComparisonNeedTwoMatches;
+
+  /// No description provided for @playerComparisonNeedTwoMatchesBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'再完成一场已关联比赛即可比较单场对局；目前仍可使用时段比较。'**
+  String get playerComparisonNeedTwoMatchesBody;
+
+  /// No description provided for @playerComparisonEmptyWindows.
+  ///
+  /// In zh, this message translates to:
+  /// **'两个时间窗都没有比赛'**
+  String get playerComparisonEmptyWindows;
+
+  /// No description provided for @playerComparisonEmptyWindowsBody.
+  ///
+  /// In zh, this message translates to:
+  /// **'可以选择更长时段，或取消对手筛选。'**
+  String get playerComparisonEmptyWindowsBody;
+
+  /// No description provided for @playerComparisonBaselineEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'基线时间窗没有比赛。'**
+  String get playerComparisonBaselineEmpty;
+
+  /// No description provided for @playerComparisonCurrentEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'当前时间窗没有比赛。'**
+  String get playerComparisonCurrentEmpty;
+
+  /// No description provided for @playerComparisonSummary.
+  ///
+  /// In zh, this message translates to:
+  /// **'证据摘要'**
+  String get playerComparisonSummary;
+
+  /// No description provided for @playerComparisonResult.
+  ///
+  /// In zh, this message translates to:
+  /// **'胜负'**
+  String get playerComparisonResult;
+
+  /// No description provided for @playerComparisonMatchCount.
+  ///
+  /// In zh, this message translates to:
+  /// **'场次'**
+  String get playerComparisonMatchCount;
+
+  /// No description provided for @playerComparisonWinRate.
+  ///
+  /// In zh, this message translates to:
+  /// **'胜率'**
+  String get playerComparisonWinRate;
+
+  /// No description provided for @playerComparisonPoints.
+  ///
+  /// In zh, this message translates to:
+  /// **'得分'**
+  String get playerComparisonPoints;
+
+  /// No description provided for @playerComparisonPointsPerGame.
+  ///
+  /// In zh, this message translates to:
+  /// **'场均得分'**
+  String get playerComparisonPointsPerGame;
+
+  /// No description provided for @playerComparisonMargin.
+  ///
+  /// In zh, this message translates to:
+  /// **'分差'**
+  String get playerComparisonMargin;
+
+  /// No description provided for @playerComparisonMarginPerGame.
+  ///
+  /// In zh, this message translates to:
+  /// **'场均分差'**
+  String get playerComparisonMarginPerGame;
+
+  /// No description provided for @playerComparisonFieldGoalsMade.
+  ///
+  /// In zh, this message translates to:
+  /// **'投篮命中'**
+  String get playerComparisonFieldGoalsMade;
+
+  /// No description provided for @playerComparisonFieldGoalAttempts.
+  ///
+  /// In zh, this message translates to:
+  /// **'投篮出手'**
+  String get playerComparisonFieldGoalAttempts;
+
+  /// No description provided for @playerComparisonFieldGoalPercentage.
+  ///
+  /// In zh, this message translates to:
+  /// **'投篮命中率'**
+  String get playerComparisonFieldGoalPercentage;
+
+  /// No description provided for @playerComparisonFreeThrowsMade.
+  ///
+  /// In zh, this message translates to:
+  /// **'罚球命中'**
+  String get playerComparisonFreeThrowsMade;
+
+  /// No description provided for @playerComparisonFreeThrowAttempts.
+  ///
+  /// In zh, this message translates to:
+  /// **'罚球出手'**
+  String get playerComparisonFreeThrowAttempts;
+
+  /// No description provided for @playerComparisonFreeThrowPercentage.
+  ///
+  /// In zh, this message translates to:
+  /// **'罚球命中率'**
+  String get playerComparisonFreeThrowPercentage;
+
+  /// No description provided for @playerComparisonLocationCoverage.
+  ///
+  /// In zh, this message translates to:
+  /// **'落点覆盖'**
+  String get playerComparisonLocationCoverage;
+
+  /// No description provided for @playerComparisonConfirmedZones.
+  ///
+  /// In zh, this message translates to:
+  /// **'区域已确认落点占比'**
+  String get playerComparisonConfirmedZones;
+
+  /// No description provided for @playerComparisonConfirmedZonesNote.
+  ///
+  /// In zh, this message translates to:
+  /// **'区域百分比仅使用已确认落点样本。'**
+  String get playerComparisonConfirmedZonesNote;
+
+  /// No description provided for @playerComparisonIncrease.
+  ///
+  /// In zh, this message translates to:
+  /// **'增加'**
+  String get playerComparisonIncrease;
+
+  /// No description provided for @playerComparisonDecrease.
+  ///
+  /// In zh, this message translates to:
+  /// **'减少'**
+  String get playerComparisonDecrease;
+
+  /// No description provided for @playerComparisonEqual.
+  ///
+  /// In zh, this message translates to:
+  /// **'持平'**
+  String get playerComparisonEqual;
+
+  /// No description provided for @playerComparisonInsufficientData.
+  ///
+  /// In zh, this message translates to:
+  /// **'数据不足'**
+  String get playerComparisonInsufficientData;
+
+  /// No description provided for @playerComparisonWin.
+  ///
+  /// In zh, this message translates to:
+  /// **'胜'**
+  String get playerComparisonWin;
+
+  /// No description provided for @playerComparisonLoss.
+  ///
+  /// In zh, this message translates to:
+  /// **'负'**
+  String get playerComparisonLoss;
+
+  /// No description provided for @playerComparisonTie.
+  ///
+  /// In zh, this message translates to:
+  /// **'平'**
+  String get playerComparisonTie;
+
+  /// No description provided for @playerComparisonPercentagePoints.
+  ///
+  /// In zh, this message translates to:
+  /// **'个百分点'**
+  String get playerComparisonPercentagePoints;
+
   /// No description provided for @replayMoreActions.
   ///
   /// In zh, this message translates to:

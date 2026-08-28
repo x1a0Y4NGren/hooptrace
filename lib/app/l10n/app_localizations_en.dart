@@ -790,6 +790,167 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playerAnalyticsRetry => 'Retry';
 
   @override
+  String get playerComparisonOpen => 'Compare';
+
+  @override
+  String get playerComparisonTitle => 'Player comparison';
+
+  @override
+  String get playerComparisonMode => 'Comparison mode';
+
+  @override
+  String get playerComparisonMatchMode => 'Games';
+
+  @override
+  String get playerComparisonWindowMode => 'Time windows';
+
+  @override
+  String get playerComparisonMatchModeHint =>
+      'Compare two completed games linked to this player.';
+
+  @override
+  String get playerComparisonWindowModeHint =>
+      'Compare two adjacent, non-overlapping windows ending when this page was opened.';
+
+  @override
+  String get playerComparisonBaseline => 'Baseline';
+
+  @override
+  String get playerComparisonCurrent => 'Current';
+
+  @override
+  String get playerComparisonDifference => 'Difference';
+
+  @override
+  String get playerComparisonSelectBaseline => 'Select baseline game';
+
+  @override
+  String get playerComparisonSelectCurrent => 'Select current game';
+
+  @override
+  String get playerComparisonSwap => 'Swap baseline and current games';
+
+  @override
+  String get playerComparisonChooseGame => 'Choose a game';
+
+  @override
+  String get playerComparisonLoading => 'Building comparison';
+
+  @override
+  String get playerComparisonLoadError => 'Could not load comparison';
+
+  @override
+  String get playerComparisonLoadErrorBody =>
+      'Local analytics could not be rebuilt. Check the match data and try again.';
+
+  @override
+  String get playerComparisonRetry => 'Retry';
+
+  @override
+  String get playerComparisonNoMatches => 'No games to compare';
+
+  @override
+  String get playerComparisonNoMatchesBody =>
+      'Finish a game with this linked player profile before comparing samples.';
+
+  @override
+  String get playerComparisonNeedTwoMatches => 'Two games are required';
+
+  @override
+  String get playerComparisonNeedTwoMatchesBody =>
+      'Finish one more linked game to compare individual games. Time-window comparison is still available.';
+
+  @override
+  String get playerComparisonEmptyWindows => 'No games in either window';
+
+  @override
+  String get playerComparisonEmptyWindowsBody =>
+      'Try a longer window or remove the opponent filter.';
+
+  @override
+  String get playerComparisonBaselineEmpty =>
+      'The baseline window has no games.';
+
+  @override
+  String get playerComparisonCurrentEmpty => 'The current window has no games.';
+
+  @override
+  String get playerComparisonSummary => 'Evidence summary';
+
+  @override
+  String get playerComparisonResult => 'Result';
+
+  @override
+  String get playerComparisonMatchCount => 'Games';
+
+  @override
+  String get playerComparisonWinRate => 'Win rate';
+
+  @override
+  String get playerComparisonPoints => 'Points';
+
+  @override
+  String get playerComparisonPointsPerGame => 'Points per game';
+
+  @override
+  String get playerComparisonMargin => 'Margin';
+
+  @override
+  String get playerComparisonMarginPerGame => 'Margin per game';
+
+  @override
+  String get playerComparisonFieldGoalsMade => 'Field goals made';
+
+  @override
+  String get playerComparisonFieldGoalAttempts => 'Field goal attempts';
+
+  @override
+  String get playerComparisonFieldGoalPercentage => 'Field goal percentage';
+
+  @override
+  String get playerComparisonFreeThrowsMade => 'Free throws made';
+
+  @override
+  String get playerComparisonFreeThrowAttempts => 'Free throw attempts';
+
+  @override
+  String get playerComparisonFreeThrowPercentage => 'Free throw percentage';
+
+  @override
+  String get playerComparisonLocationCoverage => 'Location coverage';
+
+  @override
+  String get playerComparisonConfirmedZones => 'Confirmed shot-location share';
+
+  @override
+  String get playerComparisonConfirmedZonesNote =>
+      'Zone percentages use confirmed shot locations only.';
+
+  @override
+  String get playerComparisonIncrease => 'Increase';
+
+  @override
+  String get playerComparisonDecrease => 'Decrease';
+
+  @override
+  String get playerComparisonEqual => 'No change';
+
+  @override
+  String get playerComparisonInsufficientData => 'Not enough data';
+
+  @override
+  String get playerComparisonWin => 'Win';
+
+  @override
+  String get playerComparisonLoss => 'Loss';
+
+  @override
+  String get playerComparisonTie => 'Tie';
+
+  @override
+  String get playerComparisonPercentagePoints => 'pp';
+
+  @override
   String get replayMoreActions => 'More actions';
 
   @override
