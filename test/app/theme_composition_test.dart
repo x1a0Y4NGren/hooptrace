@@ -20,7 +20,9 @@ void main() {
       await database.close();
     });
 
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     final context = tester.element(find.byType(Scaffold).first);
@@ -54,7 +56,9 @@ void main() {
     });
     tester.platformDispatcher.localeTestValue = const Locale('en');
 
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -75,7 +79,9 @@ void main() {
     });
     tester.platformDispatcher.localeTestValue = const Locale('en');
 
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
     final settingsShortcut = find.byKey(const Key('home-settings-shortcut'));
     await tester.scrollUntilVisible(
@@ -107,7 +113,9 @@ void main() {
     );
 
     await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
@@ -133,7 +141,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           languagePreferencesControllerProvider.overrideWith((ref) => language),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     for (var attempt = 0; attempt < 50; attempt++) {
@@ -159,7 +167,9 @@ void main() {
     });
     tester.platformDispatcher.localeTestValue = const Locale('fr');
 
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pump();
 
     expect(tester.takeException(), isNull);

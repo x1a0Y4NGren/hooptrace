@@ -131,7 +131,7 @@ void main() {
               matchId,
             ).overrideWithValue(const AsyncLoading<MatchDetail?>()),
           ],
-          child: const HoopTraceApp(),
+          child: const HoopTraceApp(showEntryAnimation: false),
         ),
       );
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));

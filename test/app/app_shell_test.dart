@@ -17,7 +17,9 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await database.close();
     });
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     final l10n = _l10n(tester);
@@ -42,7 +44,9 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await database.close();
     });
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
 
     await _tapVisible(tester, find.byKey(homeStartScoringKey));
@@ -65,7 +69,9 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await database.close();
     });
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await _pumpUntilFound(tester, find.byKey(homeStartScoringKey));
 
     await _tapVisible(tester, find.byKey(homeStartScoringKey));

@@ -45,7 +45,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           matchCommandServiceProvider.overrideWithValue(gatedService),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -115,7 +115,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           matchCommandServiceProvider.overrideWithValue(retryService),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -195,7 +195,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           matchCommandServiceProvider.overrideWithValue(failingService),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -255,7 +255,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           matchCommandServiceProvider.overrideWithValue(gatedService),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -310,7 +310,7 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -386,7 +386,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           matchCommandServiceProvider.overrideWithValue(failingService),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -427,7 +427,7 @@ void main() {
             appDatabaseProvider.overrideWithValue(database),
             scoringFeedbackServiceProvider.overrideWithValue(feedback),
           ],
-          child: const HoopTraceApp(),
+          child: const HoopTraceApp(showEntryAnimation: false),
         ),
       );
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -481,7 +481,7 @@ void main() {
           matchCommandServiceProvider.overrideWithValue(failingService),
           scoringFeedbackServiceProvider.overrideWithValue(feedback),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -560,7 +560,9 @@ Future<void> _startMatch(
 }
 
 Future<void> _enterScoring(WidgetTester tester, AppDatabase database) async {
-  await tester.pumpWidget(HoopTraceApp(database: database));
+  await tester.pumpWidget(
+    HoopTraceApp(database: database, showEntryAnimation: false),
+  );
   await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
   await tester.tap(find.byKey(const Key('home-resume')));
   await _pumpUntilFound(tester, find.byType(ScoringPage));

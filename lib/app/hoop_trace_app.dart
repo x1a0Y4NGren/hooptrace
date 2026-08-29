@@ -4,31 +4,56 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/entry/hoop_trace_entry_gate.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/provider_router.dart';
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
+
+final _processEntryPlaybackSession = EntryPlaybackSession();
 
 /// Application composition root. The optional database and provider overrides
 /// are test seams; production ownership lives in [appDatabaseProvider].
 class HoopTraceApp extends StatelessWidget {
-  const HoopTraceApp({this.database, super.key});
+  const HoopTraceApp({
+    this.database,
+    this.showEntryAnimation = true,
+    this.initialMotionPreference,
+    super.key,
+  });
 
   final AppDatabase? database;
+  final bool showEntryAnimation;
+  final MotionPreference? initialMotionPreference;
 
   @override
   Widget build(BuildContext context) {
     if (database == null) {
-      return const ProviderScope(child: _HoopTraceAppView());
+      return ProviderScope(
+        child: _HoopTraceAppView(
+          showEntryAnimation: showEntryAnimation,
+          initialMotionPreference: initialMotionPreference,
+        ),
+      );
     }
     return ProviderScope(
       overrides: [appDatabaseProvider.overrideWithValue(database!)],
-      child: const _HoopTraceAppView(),
+      child: _HoopTraceAppView(
+        showEntryAnimation: showEntryAnimation,
+        initialMotionPreference: initialMotionPreference,
+      ),
     );
   }
 }
 
 class _HoopTraceAppView extends ConsumerWidget {
-  const _HoopTraceAppView();
+  const _HoopTraceAppView({
+    required this.showEntryAnimation,
+    required this.initialMotionPreference,
+  });
+
+  final bool showEntryAnimation;
+  final MotionPreference? initialMotionPreference;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -40,15 +65,28 @@ class _HoopTraceAppView extends ConsumerWidget {
         ? ref.watch(languagePreferencesControllerProvider)
         : null;
     final locale = languageController?.locale ?? const Locale('zh');
+    Future<MotionPreference> motionPreferenceLoader() async {
+      final initial = initialMotionPreference;
+      if (initial != null) return initial;
+      final feedback = ref.read(scoringFeedbackServiceProvider);
+      final cached = await feedback.loadCachedMotionPreference();
+      if (cached != null) return cached;
+      return (await feedback.load()).motion;
+    }
+
     return bootstrap.when(
       loading: () => _buildMaterialApp(
         themeMode: themeMode,
         locale: locale,
+        motionPreferenceLoader: motionPreferenceLoader,
+        showEntryAnimation: showEntryAnimation,
         home: const _BootstrapLoadingPage(),
       ),
       error: (error, stackTrace) => _buildMaterialApp(
         themeMode: themeMode,
         locale: locale,
+        motionPreferenceLoader: motionPreferenceLoader,
+        showEntryAnimation: showEntryAnimation,
         home: const _BootstrapFailurePage(),
       ),
       data: (state) {
@@ -56,6 +94,8 @@ class _HoopTraceAppView extends ConsumerWidget {
           return _buildMaterialApp(
             themeMode: themeMode,
             locale: locale,
+            motionPreferenceLoader: motionPreferenceLoader,
+            showEntryAnimation: showEntryAnimation,
             home: LegacyDatabaseBootstrapPage(version: state.version),
           );
         }
@@ -63,12 +103,16 @@ class _HoopTraceAppView extends ConsumerWidget {
           return _buildMaterialApp(
             themeMode: themeMode,
             locale: locale,
+            motionPreferenceLoader: motionPreferenceLoader,
+            showEntryAnimation: showEntryAnimation,
             home: const _BootstrapLoadingPage(),
           );
         }
         return _buildMaterialApp(
           themeMode: themeMode,
           locale: locale,
+          motionPreferenceLoader: motionPreferenceLoader,
+          showEntryAnimation: showEntryAnimation,
           routerConfig: ref.watch(appRouterProvider),
         );
       },
@@ -78,6 +122,8 @@ class _HoopTraceAppView extends ConsumerWidget {
   MaterialApp _buildMaterialApp({
     required ThemeMode themeMode,
     required Locale locale,
+    required EntryMotionPreferenceLoader motionPreferenceLoader,
+    required bool showEntryAnimation,
     Widget? home,
     GoRouter? routerConfig,
   }) {
@@ -97,6 +143,13 @@ class _HoopTraceAppView extends ConsumerWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
+        builder: showEntryAnimation
+            ? (context, child) => HoopTraceEntryGate(
+                motionPreferenceLoader: motionPreferenceLoader,
+                playbackSession: _processEntryPlaybackSession,
+                child: child ?? const SizedBox.shrink(),
+              )
+            : null,
         routerConfig: routerConfig,
         debugShowCheckedModeBanner: false,
       );
@@ -116,6 +169,13 @@ class _HoopTraceAppView extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
+      builder: showEntryAnimation
+          ? (context, child) => HoopTraceEntryGate(
+              motionPreferenceLoader: motionPreferenceLoader,
+              playbackSession: _processEntryPlaybackSession,
+              child: child ?? const SizedBox.shrink(),
+            )
+          : null,
       home: home,
       debugShowCheckedModeBanner: false,
     );

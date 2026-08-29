@@ -1,8 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/settings/motion_preference_cache.dart';
+
+export 'package:hooptrace/core/settings/motion_preference_cache.dart'
+    show MotionPreference;
 
 /// The single AppSettings row used by live scoring feedback preferences.
 ///
@@ -11,8 +16,6 @@ import 'package:hooptrace/core/data/app_database.dart';
 /// incompatible.
 const scoringFeedbackPreferencesKey = 'scoring.feedback.v1';
 const _scoringFeedbackPreferencesVersion = 1;
-
-enum MotionPreference { standard, reduced }
 
 class ScoringFeedbackPreferences {
   const ScoringFeedbackPreferences({
@@ -222,16 +225,34 @@ class FlutterScoringFeedbackPlatform implements ScoringFeedbackPlatform {
 /// deliberately isolated here: a missing haptic/sound implementation can
 /// never turn a successful database command into a retryable UI failure.
 class ScoringFeedbackService {
-  ScoringFeedbackService(this.preferences, {ScoringFeedbackPlatform? platform})
-    : platform = platform ?? const FlutterScoringFeedbackPlatform();
+  ScoringFeedbackService(
+    this.preferences, {
+    ScoringFeedbackPlatform? platform,
+    MotionPreferenceCache? motionPreferenceCache,
+  }) : platform = platform ?? const FlutterScoringFeedbackPlatform(),
+       motionPreferenceCache =
+           motionPreferenceCache ?? const NullMotionPreferenceCache();
 
   final ScoringFeedbackPreferencesRepository preferences;
   final ScoringFeedbackPlatform platform;
+  final MotionPreferenceCache motionPreferenceCache;
 
   ValueListenable<MotionPreference> get motionPreferenceListenable =>
       preferences.motionPreferenceListenable;
 
-  Future<ScoringFeedbackPreferences> load() => preferences.load();
+  Future<ScoringFeedbackPreferences> load() async {
+    final loaded = await preferences.load();
+    unawaited(_cacheMotionBestEffort(loaded.motion));
+    return loaded;
+  }
+
+  Future<MotionPreference?> loadCachedMotionPreference() async {
+    try {
+      return await motionPreferenceCache.read();
+    } on Object {
+      return null;
+    }
+  }
 
   Future<ScoringFeedbackPreferences> setHapticEnabled(bool enabled) {
     return preferences.update(haptic: enabled);
@@ -243,21 +264,37 @@ class ScoringFeedbackService {
 
   Future<ScoringFeedbackPreferences> setMotionPreference(
     MotionPreference preference,
-  ) {
-    return preferences.update(motion: preference);
+  ) async {
+    final updated = await preferences.update(motion: preference);
+    unawaited(_cacheMotionBestEffort(updated.motion));
+    return updated;
   }
 
   Future<ScoringFeedbackPreferences> update({
     bool? haptic,
     bool? sound,
     MotionPreference? motion,
-  }) {
-    return preferences.update(haptic: haptic, sound: sound, motion: motion);
+  }) async {
+    final updated = await preferences.update(
+      haptic: haptic,
+      sound: sound,
+      motion: motion,
+    );
+    if (motion != null) unawaited(_cacheMotionBestEffort(updated.motion));
+    return updated;
   }
 
   Future<ScoringFeedbackPreferences> reload() {
     preferences.invalidate();
-    return preferences.load();
+    return load();
+  }
+
+  Future<void> _cacheMotionBestEffort(MotionPreference preference) async {
+    try {
+      await motionPreferenceCache.write(preference);
+    } on Object {
+      // Startup motion caching is an optimization, never a settings failure.
+    }
   }
 
   Future<void> emitCommitted() async {

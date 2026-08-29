@@ -66,7 +66,7 @@ void main() {
                 () async => throw StateError('backup directory moved'),
           ),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-start-scoring')));
@@ -91,7 +91,7 @@ void main() {
           ),
           startupAutomaticBackupProvider.overrideWith((ref) => () async {}),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.text(l10n.bootstrapFailureBody));

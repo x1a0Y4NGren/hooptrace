@@ -179,7 +179,9 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(HoopTraceApp(database: database));
+      await tester.pumpWidget(
+        HoopTraceApp(database: database, showEntryAnimation: false),
+      );
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
       expect(find.text('重建红方'), findsOneWidget);
       expect(find.text('重建蓝方'), findsOneWidget);
@@ -187,7 +189,9 @@ void main() {
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 500));
-      await tester.pumpWidget(HoopTraceApp(database: database));
+      await tester.pumpWidget(
+        HoopTraceApp(database: database, showEntryAnimation: false),
+      );
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
       expect(find.text('重建红方'), findsOneWidget);
       _expectResumeScores(tester, [3, 0]);
@@ -217,7 +221,9 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(HoopTraceApp(database: database));
+      await tester.pumpWidget(
+        HoopTraceApp(database: database, showEntryAnimation: false),
+      );
       await _pumpUntilFound(
         tester,
         find.byKey(const Key('home-start-scoring')),
@@ -267,7 +273,9 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
     await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
@@ -312,7 +320,7 @@ void main() {
                 (_) async => throw const LegacySchemaDetectedException(1),
           ),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('legacy-bootstrap')));

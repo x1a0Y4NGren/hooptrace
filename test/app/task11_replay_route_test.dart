@@ -23,7 +23,9 @@ void main() {
 
     await tester.binding.setSurfaceSize(const Size(1600, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     final router = app.routerConfig! as GoRouter;

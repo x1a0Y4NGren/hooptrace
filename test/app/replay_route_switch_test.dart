@@ -21,7 +21,9 @@ void main() {
     final repository = MatchRepository(database);
     await _createFinishedMatch(repository, 'match-a', 'Alpha', 1);
     await _createFinishedMatch(repository, 'match-b', 'Bravo', 3);
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await tester.pumpAndSettle();
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     final router = app.routerConfig! as GoRouter;

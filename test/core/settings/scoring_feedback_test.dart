@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/settings/motion_preference_cache.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
 import '../../test_helpers/test_database.dart';
@@ -240,6 +241,71 @@ void main() {
     expect(changes, [MotionPreference.reduced, MotionPreference.standard]);
   });
 
+  test(
+    'service mirrors loaded and updated motion into the entry cache',
+    () async {
+      final database = createTestDatabase();
+      final cache = _FakeMotionPreferenceCache();
+      final service = ScoringFeedbackService(
+        ScoringFeedbackPreferencesRepository(database),
+        motionPreferenceCache: cache,
+      );
+
+      expect(await service.loadCachedMotionPreference(), isNull);
+      await service.load();
+      expect(cache.writes, [MotionPreference.standard]);
+
+      await service.setMotionPreference(MotionPreference.reduced);
+      expect(cache.writes, [
+        MotionPreference.standard,
+        MotionPreference.reduced,
+      ]);
+      expect(
+        await service.loadCachedMotionPreference(),
+        MotionPreference.reduced,
+      );
+    },
+  );
+
+  test('entry cache failures never fail settings persistence', () async {
+    final database = createTestDatabase();
+    final cache = _FakeMotionPreferenceCache()..throws = true;
+    final service = ScoringFeedbackService(
+      ScoringFeedbackPreferencesRepository(database),
+      motionPreferenceCache: cache,
+    );
+
+    expect(await service.loadCachedMotionPreference(), isNull);
+    await expectLater(service.load(), completes);
+    await expectLater(
+      service.setMotionPreference(MotionPreference.reduced),
+      completes,
+    );
+    expect(
+      (await ScoringFeedbackPreferencesRepository(database).load()).motion,
+      MotionPreference.reduced,
+    );
+  });
+
+  test('a stalled entry cache never blocks settings persistence', () async {
+    final database = createTestDatabase();
+    final cache = _FakeMotionPreferenceCache()..hangs = true;
+    final service = ScoringFeedbackService(
+      ScoringFeedbackPreferencesRepository(database),
+      motionPreferenceCache: cache,
+    );
+
+    await service.load().timeout(const Duration(seconds: 1));
+    await service
+        .setMotionPreference(MotionPreference.reduced)
+        .timeout(const Duration(seconds: 1));
+
+    expect(
+      (await ScoringFeedbackPreferencesRepository(database).load()).motion,
+      MotionPreference.reduced,
+    );
+  });
+
   test('concurrent loads share one in-flight read', () async {
     final database = createTestDatabase();
     final repository = ScoringFeedbackPreferencesRepository(database);
@@ -382,5 +448,26 @@ class _FakePlatform implements ScoringFeedbackPlatform {
   Future<void> click() async {
     soundCalls++;
     if (throwOnSound) throw StateError('sound unavailable');
+  }
+}
+
+class _FakeMotionPreferenceCache implements MotionPreferenceCache {
+  MotionPreference? value;
+  bool throws = false;
+  bool hangs = false;
+  final writes = <MotionPreference>[];
+
+  @override
+  Future<MotionPreference?> read() async {
+    if (throws) throw StateError('cache unavailable');
+    return value;
+  }
+
+  @override
+  Future<void> write(MotionPreference preference) async {
+    if (throws) throw StateError('cache unavailable');
+    if (hangs) return Completer<void>().future;
+    value = preference;
+    writes.add(preference);
   }
 }

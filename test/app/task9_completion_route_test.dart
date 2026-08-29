@@ -38,7 +38,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(database)],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -78,7 +78,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(database)],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -119,7 +119,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [appDatabaseProvider.overrideWithValue(database)],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -174,7 +174,7 @@ void main() {
           matchCommandServiceProvider.overrideWithValue(service),
           automaticBackupServiceProvider.overrideWithValue(backup),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -234,7 +234,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           matchCommandServiceProvider.overrideWithValue(service),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -294,7 +294,7 @@ void main() {
             appDatabaseProvider.overrideWithValue(database),
             matchCommandServiceProvider.overrideWithValue(service),
           ],
-          child: const HoopTraceApp(),
+          child: const HoopTraceApp(showEntryAnimation: false),
         ),
       );
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
@@ -339,7 +339,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [appDatabaseProvider.overrideWithValue(database)],
-          child: const HoopTraceApp(),
+          child: const HoopTraceApp(showEntryAnimation: false),
         ),
       );
       await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));

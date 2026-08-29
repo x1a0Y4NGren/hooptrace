@@ -25,7 +25,9 @@ void main() {
       await database.close();
     });
 
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await _pumpUntilFound(tester, find.byKey(const Key('home-start-scoring')));
     await tester.tap(find.byKey(const Key('home-start-scoring')));
     await _pumpUntilFound(tester, find.byType(PregamePage));

@@ -26,7 +26,9 @@ void main() {
     raw.execute("INSERT INTO legacy_sentinel(value) VALUES ('untouched')");
     raw.close();
     final database = openAppDatabaseAt(file);
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await _pumpUntilFound(tester, find.byKey(const Key('legacy-bootstrap')));
     expect(find.byKey(const Key('legacy-bootstrap')), findsOneWidget);
     expect(find.text(l10n.legacyBootstrapHeadline), findsOneWidget);

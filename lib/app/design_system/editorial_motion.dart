@@ -16,6 +16,10 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     required this.pageReveal,
     required this.foulStamp,
     required this.undo,
+    required this.entry,
+    required this.entryReduced,
+    required this.entrySkip,
+    required this.entryPreferenceWait,
   });
 
   const HoopTraceMotionTheme.light()
@@ -31,6 +35,10 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
         pageReveal: const Duration(milliseconds: 220),
         foulStamp: const Duration(milliseconds: 180),
         undo: const Duration(milliseconds: 180),
+        entry: const Duration(milliseconds: 1320),
+        entryReduced: const Duration(milliseconds: 140),
+        entrySkip: const Duration(milliseconds: 120),
+        entryPreferenceWait: const Duration(milliseconds: 80),
       );
 
   const HoopTraceMotionTheme.dark() : this.light();
@@ -46,6 +54,10 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
   final Duration pageReveal;
   final Duration foulStamp;
   final Duration undo;
+  final Duration entry;
+  final Duration entryReduced;
+  final Duration entrySkip;
+  final Duration entryPreferenceWait;
 
   Duration get scoreTransition => state;
   Duration get splash => impact;
@@ -64,6 +76,10 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     Duration? pageReveal,
     Duration? foulStamp,
     Duration? undo,
+    Duration? entry,
+    Duration? entryReduced,
+    Duration? entrySkip,
+    Duration? entryPreferenceWait,
   }) {
     return HoopTraceMotionTheme(
       scoreFlight: scoreFlight ?? this.scoreFlight,
@@ -78,6 +94,10 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
       pageReveal: pageReveal ?? this.pageReveal,
       foulStamp: foulStamp ?? this.foulStamp,
       undo: undo ?? this.undo,
+      entry: entry ?? this.entry,
+      entryReduced: entryReduced ?? this.entryReduced,
+      entrySkip: entrySkip ?? this.entrySkip,
+      entryPreferenceWait: entryPreferenceWait ?? this.entryPreferenceWait,
     );
   }
 
@@ -108,6 +128,13 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
       pageReveal: blend(pageReveal, other.pageReveal),
       foulStamp: blend(foulStamp, other.foulStamp),
       undo: blend(undo, other.undo),
+      entry: blend(entry, other.entry),
+      entryReduced: blend(entryReduced, other.entryReduced),
+      entrySkip: blend(entrySkip, other.entrySkip),
+      entryPreferenceWait: blend(
+        entryPreferenceWait,
+        other.entryPreferenceWait,
+      ),
     );
   }
 
@@ -124,7 +151,11 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
       other.sheet == sheet &&
       other.pageReveal == pageReveal &&
       other.foulStamp == foulStamp &&
-      other.undo == undo;
+      other.undo == undo &&
+      other.entry == entry &&
+      other.entryReduced == entryReduced &&
+      other.entrySkip == entrySkip &&
+      other.entryPreferenceWait == entryPreferenceWait;
 
   @override
   int get hashCode => Object.hash(
@@ -139,6 +170,10 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
     pageReveal,
     foulStamp,
     undo,
+    entry,
+    entryReduced,
+    entrySkip,
+    entryPreferenceWait,
   );
 }
 

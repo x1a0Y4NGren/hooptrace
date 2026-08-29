@@ -44,7 +44,9 @@ void main() {
       ),
     );
 
-    await tester.pumpWidget(HoopTraceApp(database: database));
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume')));
     await _tapAction(tester, find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
@@ -90,7 +92,9 @@ void main() {
         await database.close();
       });
 
-      await tester.pumpWidget(HoopTraceApp(database: database));
+      await tester.pumpWidget(
+        HoopTraceApp(database: database, showEntryAnimation: false),
+      );
       await _pumpUntilFound(tester, find.byKey(homeStartScoringKey));
       await _tapAction(tester, find.byKey(homeStartScoringKey));
       await _pumpUntilFound(tester, find.byType(PregamePage));

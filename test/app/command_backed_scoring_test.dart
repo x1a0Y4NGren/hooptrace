@@ -36,7 +36,7 @@ void main() {
           appDatabaseProvider.overrideWithValue(database),
           scoringFeedbackServiceProvider.overrideWithValue(feedback),
         ],
-        child: const HoopTraceApp(),
+        child: const HoopTraceApp(showEntryAnimation: false),
       ),
     );
     await _pumpUntilFound(tester, find.byKey(homeStartScoringKey));

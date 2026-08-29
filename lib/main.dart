@@ -10,9 +10,19 @@ import 'package:hooptrace/core/export/automatic_backup_scheduler.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
 import 'package:hooptrace/core/export/json_backup_codec.dart';
+import 'package:hooptrace/core/settings/motion_preference_cache.dart';
 
-void main() {
-  runApp(const HoopTraceApp());
+void main(List<String> arguments) {
+  runApp(
+    HoopTraceApp(
+      showEntryAnimation: entryAnimationEnabledFromEntrypointArguments(
+        arguments,
+      ),
+      initialMotionPreference: motionPreferenceFromEntrypointArguments(
+        arguments,
+      ),
+    ),
+  );
 }
 
 /// WorkManager starts this entrypoint in a short-lived headless engine. It
