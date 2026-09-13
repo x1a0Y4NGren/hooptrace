@@ -82,11 +82,13 @@ class TransientShotMarker {
     required this.id,
     required this.point,
     required this.side,
+    this.isMiss = false,
   });
 
   final String id;
   final CourtPoint point;
   final TeamSide side;
+  final bool isMiss;
 
   String get locationId => id;
 }
@@ -99,12 +101,14 @@ class EraserShotMarker {
     required this.point,
     required this.side,
     required this.progress,
+    this.isMiss = false,
   });
 
   final String id;
   final CourtPoint point;
   final TeamSide side;
   final double progress;
+  final bool isMiss;
 }
 
 class CourtPainter extends CustomPainter {
@@ -321,6 +325,7 @@ class CourtPainter extends CustomPainter {
         _sideColor(location.side),
         radius: 6,
         isPending: false,
+        isMiss: location.isMiss,
       );
       if (location.id == highlightedShotLocationId) {
         final center = HalfCourtGeometry.pointToOffset(location.point, size);
@@ -364,14 +369,18 @@ class CourtPainter extends CustomPainter {
         Colors.grey.shade600,
         radius: 10,
         isPending: true,
+        isMiss: marker.isMiss,
       );
     }
     for (final marker in eraserMarkers) {
       final center = HalfCourtGeometry.pointToOffset(marker.point, size);
       final progress = marker.progress.clamp(0.0, 1.0);
       final opacity = (1 - progress).toDouble();
+      final markerColor = marker.isMiss
+          ? _missColor(marker.side)
+          : _sideColor(marker.side);
       final shotPaint = Paint()
-        ..color = _sideColor(marker.side).withValues(alpha: opacity)
+        ..color = markerColor.withValues(alpha: opacity)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(center, 6 * (1 - progress).clamp(0.35, 1), shotPaint);
       final paint = Paint()
@@ -389,10 +398,12 @@ class CourtPainter extends CustomPainter {
     Color color, {
     required double radius,
     required bool isPending,
+    bool isMiss = false,
   }) {
     final center = HalfCourtGeometry.pointToOffset(point, size);
+    final resolvedColor = isMiss && !isPending ? Colors.white : color;
     final fillPaint = Paint()
-      ..color = color
+      ..color = resolvedColor
       ..style = PaintingStyle.fill;
     final ringPaint = Paint()
       ..color = markerRingColor
@@ -400,7 +411,31 @@ class CourtPainter extends CustomPainter {
       ..strokeWidth = isPending ? 3 : 2;
     canvas.drawCircle(center, radius, fillPaint);
     canvas.drawCircle(center, radius + 1, ringPaint);
+    if (isMiss && !isPending) {
+      final crossPaint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.7
+        ..strokeCap = StrokeCap.round;
+      final inset = radius * 0.48;
+      canvas
+        ..drawLine(
+          center.translate(-inset, -inset),
+          center.translate(inset, inset),
+          crossPaint,
+        )
+        ..drawLine(
+          center.translate(inset, -inset),
+          center.translate(-inset, inset),
+          crossPaint,
+        );
+    }
   }
+
+  Color _missColor(TeamSide side) => _missColorFor(_sideColor(side));
+
+  Color _missColorFor(Color teamColor) =>
+      Color.lerp(teamColor, markerRingColor, 0.52) ?? teamColor;
 
   Color _sideColor(TeamSide? side) {
     if (side == null) return Colors.grey.shade600;

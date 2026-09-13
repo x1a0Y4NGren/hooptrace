@@ -203,9 +203,12 @@ void main() {
       expect(confirmedCourtLocation.x, closeTo(0.5, 0.01));
       expect(confirmedCourtLocation.y, closeTo(0.5, 0.01));
 
-      // Foul and every grouped More action must be reachable while the
-      // normal score-first supplement is not blocking ordinary actions.
-      await _tapAction(tester, find.byKey(const Key('red-foul')));
+      // The compact top foul chooser and every grouped More action must be
+      // reachable while the normal score-first supplement is not blocking
+      // ordinary actions.
+      await _tapAction(tester, find.byKey(const Key('scoring-foul')));
+      await _pumpUntilFound(tester, find.byKey(const Key('scoring-foul-red')));
+      await _tapAction(tester, find.byKey(const Key('scoring-foul-red')));
       await _pumpUntil(
         tester,
         () async => await _activeScoringEventCount(database) == 2,
@@ -217,19 +220,10 @@ void main() {
       expect(fouls, hasLength(1));
       expect(fouls.single.side, TeamSide.red.name);
       expect(fouls.single.points, 0);
-      await _tapAction(tester, find.byKey(const Key('scoring-more')));
-      await _pumpUntilFound(
+      await _tapAction(tester, find.byKey(const Key('blue-miss')));
+      await _pumpUntil(
         tester,
-        find.byKey(const Key('scoring-more-sheet')),
-      );
-      await _tapAction(
-        tester,
-        find.byKey(const Key('more-blue-miss')),
-        scrollSheet: true,
-      );
-      await _pumpUntilMissing(
-        tester,
-        find.byKey(const Key('scoring-more-sheet')),
+        () async => await _activeScoringEventCount(database) == 3,
       );
       activeEvents = await _activeEvents(database);
       final misses = activeEvents.where(

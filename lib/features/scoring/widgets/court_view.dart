@@ -83,6 +83,7 @@ class CourtView extends StatelessWidget {
           ScoringShotLocation? closest;
           var closestDistance = 28.0;
           for (final location in shotLocations) {
+            if (hiddenShotLocationIds.contains(location.id)) continue;
             final center = HalfCourtGeometry.pointToOffset(
               location.point,
               size,

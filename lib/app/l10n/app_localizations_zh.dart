@@ -1686,7 +1686,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scoringMade => '命中';
 
   @override
-  String get scoringMissed => '未中';
+  String get scoringMissed => '未命中';
 
   @override
   String scoringPoints(Object points) {
@@ -2098,10 +2098,29 @@ class AppLocalizationsZh extends AppLocalizations {
   String get scoringFoul => '犯规';
 
   @override
+  String scoringFoulForSide(Object side) {
+    return '$side犯规';
+  }
+
+  @override
   String get scoringMore => '更多';
 
   @override
   String get scoringShotsGroup => '投篮';
+
+  @override
+  String get scoringShotDisplayGroup => '投篮显示';
+
+  @override
+  String scoringShowMissMarkers(Object side) {
+    return '显示$side未命中点';
+  }
+
+  @override
+  String get scoringDisplayShown => '已显示';
+
+  @override
+  String get scoringDisplayHidden => '已隐藏';
 
   @override
   String get scoringFreeThrowsGroup => '罚球';
@@ -2127,6 +2146,11 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String scoringMissSupplementPrompt(Object seconds, Object side) {
+    return '补充$side未命中落点 · $seconds秒';
+  }
+
+  @override
   String get scoringSupplementExpired => '落点补充已过期';
 
   @override
@@ -2141,5 +2165,15 @@ class AppLocalizationsZh extends AppLocalizations {
     Object side,
   ) {
     return '$side +$points，待补落点 $seconds 秒';
+  }
+
+  @override
+  String scoringMissSemantics(Object side) {
+    return '$side未命中';
+  }
+
+  @override
+  String scoringMissLocationPendingSemantics(Object seconds, Object side) {
+    return '$side未命中，待补落点 $seconds 秒';
   }
 }

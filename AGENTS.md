@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-HoopTrace is an offline-first Flutter application. Application composition, routing, themes, and localization live in `lib/app/`. Shared business logic is under `lib/core/`: `domain/` contains rules and value objects, `data/` contains Drift persistence and repositories, while `audit/` and `export/` handle history and backups. User-facing modules are grouped by capability in `lib/features/` (for example, `scoring/`, `replay/`, and `pregame/`).
+HoopTrace is an offline-first Flutter application. Composition, routing, themes, and localization live in `lib/app/`. Domain rules and Drift persistence live in `lib/core/`; user-facing modules are grouped by capability in `lib/features/` (`scoring/`, `replay/`, `pregame/`).
 
 Tests mirror the production layout under `test/`; Android end-to-end flows live in `integration_test/`. Store bundled resources in `assets/`, release documentation in `docs/release/`, release automation in `tool/release/`, and pinned SQLite sources in `third_party/sqlite/`.
 
@@ -24,14 +24,18 @@ After changing Drift tables or queries, run `dart run build_runner build --delet
 
 Use Dart's formatter and two-space indentation. The analyzer requires single quotes, trailing commas, no `print`, and final locals where possible. Name files `snake_case.dart`, classes and enums `UpperCamelCase`, and members `lowerCamelCase`. Reuse existing repositories, controllers, command queues, and transactions instead of bypassing architectural boundaries.
 
+Scoring mutations must pass through `MatchCommandService` and the controller, preserving receipts, audit chronology, idempotency, and transactional undo. Presentation-only controls belong in page state and must never filter stored events, replay, or statistics.
+
 ## Testing Guidelines
 
 Name tests `*_test.dart` and describe observable behavior. Use unit tests for domain rules, in-memory Drift tests for persistence and rollback, widget tests for interaction and responsive layouts, and integration tests for critical routes or plugins. UI changes should cover relevant Chinese/English, light/dark, compact, and large-text states. Update golden files only after visually inspecting the differences.
 
+For court markers, test both pixels and behavior: made and missed shapes, hidden-marker hit testing, animation fallback, and undo projection. Keep all primary scoring targets at least 48dp.
+
 ## Commit & Pull Request Guidelines
 
-Use short imperative commits consistent with history, such as `fix: guard replay navigation` or `feat(scoring): add undo feedback`. Keep each PR focused. Include the user impact, implementation tradeoffs, schema/privacy/compatibility effects, exact verification commands, and screenshots for visual changes. Link the relevant issue when applicable.
+Use short imperative commits, such as `fix: guard replay navigation` or `feat(scoring): add undo feedback`. Keep PRs focused and include user impact, compatibility/privacy effects, exact verification commands, screenshots for visual changes, and linked issues.
 
 ## Security & Offline Constraints
 
-Do not commit signing keys, `key.properties`, device databases, build output, or real player data. Core scoring, replay, history, and export must remain offline-capable; new network behavior requires explicit privacy and architecture review.
+Never commit signing keys, `key.properties`, device databases, build output, or real player data. Core features must remain offline-capable; new network behavior requires privacy and architecture review.

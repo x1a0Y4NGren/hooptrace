@@ -149,6 +149,159 @@ class _GatedRetryController extends _FailingScoreController {
 }
 
 void main() {
+  testWidgets('miss rail records immediately and exposes a location window', (
+    tester,
+  ) async {
+    final anchor = DateTime.utc(2026, 9, 14, 9);
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database, now: () => anchor);
+      final start = await service.start(
+        _startPageCommand('miss-rail-location-window', createdAt: anchor),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+        nowUtc: () => anchor,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ScoringPage(controller: controller, clockNowUtc: () => anchor),
+        ),
+      );
+
+      await tester.tap(find.byKey(const Key('blue-miss')));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+
+      expect(controller.state.events.single.outcome, ShotOutcome.missed);
+      expect(controller.locationSupplementWindow?.points, 0);
+      expect(
+        find.byKey(const Key('blue-miss-location-affordance')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('补充蓝方未命中落点'), findsOneWidget);
+
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const Key('scoring-court'))),
+      );
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
+      expect(controller.locationSupplementWindow, isNull);
+      expect(controller.state.shotLocations.single.isMiss, isTrue);
+    });
+  });
+
+  testWidgets('More independently filters blue and red miss locations', (
+    tester,
+  ) async {
+    final anchor = DateTime.utc(2026, 9, 14, 10);
+    await withTestDatabase((database) async {
+      final service = MatchCommandService(database, now: () => anchor);
+      final start = await service.start(
+        _startPageCommand('miss-marker-visibility', createdAt: anchor),
+      );
+      final controller = ScoringController.fromCommittedProjection(
+        start,
+        service,
+        nowUtc: () => anchor,
+      );
+      await controller.recordFieldGoalCommitted(
+        side: TeamSide.blue,
+        outcome: ShotOutcome.missed,
+        location: CourtPoint(x: 0.2, y: 0.4),
+      );
+      await controller.recordFieldGoalCommitted(
+        side: TeamSide.red,
+        outcome: ShotOutcome.missed,
+        location: CourtPoint(x: 0.8, y: 0.4),
+      );
+      await controller.recordFieldGoalCommitted(
+        side: TeamSide.blue,
+        outcome: ShotOutcome.made,
+        points: 2,
+        location: CourtPoint(x: 0.5, y: 0.7),
+      );
+      final blueMiss = controller.state.shotLocations.singleWhere(
+        (location) => location.side == TeamSide.blue && location.isMiss,
+      );
+      final redMiss = controller.state.shotLocations.singleWhere(
+        (location) => location.side == TeamSide.red && location.isMiss,
+      );
+      final made = controller.state.shotLocations.singleWhere(
+        (location) => !location.isMiss,
+      );
+      await tester.pumpWidget(
+        MaterialApp(home: ScoringPage(controller: controller)),
+      );
+
+      await tester.tap(find.byKey(const Key('scoring-more')));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<Switch>(
+              find.byKey(const Key('more-show-blue-misses-switch')),
+            )
+            .value,
+        isTrue,
+      );
+      await tester.tap(find.byKey(const Key('more-show-blue-misses-switch')));
+      await tester.pump();
+
+      expect(find.byKey(const Key('scoring-more-sheet')), findsOneWidget);
+      var court = tester.widget<CourtView>(find.byType(CourtView));
+      expect(court.hiddenShotLocationIds, contains(blueMiss.id));
+      expect(court.hiddenShotLocationIds, isNot(contains(redMiss.id)));
+      expect(court.hiddenShotLocationIds, isNot(contains(made.id)));
+
+      await tester.tap(find.byKey(const Key('more-show-red-misses-switch')));
+      await tester.pump();
+      court = tester.widget<CourtView>(find.byType(CourtView));
+      expect(
+        court.hiddenShotLocationIds,
+        containsAll([blueMiss.id, redMiss.id]),
+      );
+      expect(court.hiddenShotLocationIds, isNot(contains(made.id)));
+      expect(await database.select(database.matchEvents).get(), hasLength(3));
+      expect(await database.select(database.shotLocations).get(), hasLength(3));
+    });
+  });
+
+  testWidgets('top foul menu records either side and remains undoable', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'top-foul-selector');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    expect(
+      tester.getSize(find.byKey(const Key('scoring-foul'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    await tester.tap(find.byKey(const Key('scoring-foul')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-foul-blue')), findsOneWidget);
+    expect(find.byKey(const Key('scoring-foul-red')), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('scoring-foul-blue'))).height,
+      greaterThanOrEqualTo(48),
+    );
+    await tester.tap(find.byKey(const Key('scoring-foul-blue')));
+    await tester.pump();
+    await tester.pump();
+    expect(controller.state.blueFouls, 1);
+
+    await tester.tap(find.byKey(const Key('scoring-undo')));
+    await tester.pump();
+    expect(controller.state.blueFouls, 0);
+  });
+
   testWidgets(
     'court-first receipt queues one hero and reveals durable marker after impact',
     (tester) async {
@@ -485,7 +638,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(home: ScoringPage(matchId: 'foul-stamp-motion')),
       );
-      await tester.tap(find.byKey(const Key('red-foul')));
+      await _tapFoul(tester, TeamSide.red);
       await tester.pump();
       expect(find.byKey(const Key('scoring-foul-stamp')), findsOneWidget);
       expect(
@@ -496,7 +649,7 @@ void main() {
         findsOneWidget,
       );
       await tester.pump(const Duration(milliseconds: 120));
-      await tester.tap(find.byKey(const Key('red-foul')));
+      await _tapFoul(tester, TeamSide.red);
       await tester.pump();
       expect(find.byKey(const Key('scoring-foul-stamp')), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 240));
@@ -510,7 +663,7 @@ void main() {
           ),
         ),
       );
-      await tester.tap(find.byKey(const Key('red-foul')));
+      await _tapFoul(tester, TeamSide.red);
       await tester.pump();
       expect(find.byKey(const Key('scoring-foul-stamp')), findsOneWidget);
       expect(
@@ -522,6 +675,29 @@ void main() {
       );
     },
   );
+
+  testWidgets('top undo removes the latest foul from the scoring surface', (
+    tester,
+  ) async {
+    final controller = ScoringController(matchId: 'page-foul-undo');
+    await tester.pumpWidget(
+      MaterialApp(home: ScoringPage(controller: controller)),
+    );
+
+    await _tapFoul(tester, TeamSide.red);
+    await tester.pump();
+    expect(controller.state.redFouls, 1);
+
+    await tester.tap(find.byKey(const Key('scoring-undo')));
+    await tester.pump();
+    expect(controller.state.redFouls, 0);
+    expect(
+      controller.state.events
+          .singleWhere((event) => event.type == EventKind.foul)
+          .isDeleted,
+      isTrue,
+    );
+  });
 
   testWidgets('score switch animates only the numeric value', (tester) async {
     await tester.pumpWidget(
@@ -736,9 +912,9 @@ void main() {
     }
     expect(find.byKey(const Key('more-destructive-section')), findsNothing);
     expect(find.byKey(const Key('more-finish')), findsNothing);
-    expect(find.byKey(const Key('more-blue-miss')), findsOneWidget);
-    expect(find.byKey(const Key('more-red-miss')), findsOneWidget);
-    expect(find.text('投篮'), findsOneWidget);
+    expect(find.byKey(const Key('more-show-blue-misses')), findsOneWidget);
+    expect(find.byKey(const Key('more-show-red-misses')), findsOneWidget);
+    expect(find.text('投篮显示'), findsOneWidget);
     expect(find.text('罚球'), findsOneWidget);
     expect(find.text('比赛状态'), findsOneWidget);
     expect(find.text('备注/自定义记录'), findsOneWidget);
@@ -1386,6 +1562,18 @@ void main() {
       );
       expect(score.onPressed, isNotNull);
       expect(semantics.properties.enabled, isTrue);
+      expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const Key('blue-miss')))
+            .onPressed,
+        isNotNull,
+      );
+      expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const Key('scoring-foul')))
+            .onPressed,
+        isNull,
+      );
     },
   );
 
@@ -1412,6 +1600,18 @@ void main() {
     );
     expect(controller.state.pendingLocation, isNotNull);
     expect(controller.courtFirstShotDraft, isNull);
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('blue-miss')))
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<OutlinedButton>(find.byKey(const Key('scoring-foul')))
+          .onPressed,
+      isNull,
+    );
     expect(score.onPressed, isNull);
     expect(semantics.properties.enabled, isFalse);
   });
@@ -1585,12 +1785,12 @@ void main() {
         );
         expect(
           tester
-              .widget<OutlinedButton>(find.byKey(const Key('red-foul')))
+              .widget<OutlinedButton>(find.byKey(const Key('scoring-foul')))
               .onPressed,
           isNotNull,
         );
 
-        await tester.tap(find.byKey(const Key('red-foul')));
+        await _tapFoul(tester, TeamSide.red);
         await tester.pump();
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 30)),
@@ -1815,8 +2015,8 @@ void main() {
           'red-score-1',
           'red-score-2',
           'red-score-3',
-          'blue-foul',
-          'red-foul',
+          'blue-miss',
+          'red-miss',
         ]) {
           expect(
             tester.getSize(find.byKey(Key(key))).height,
@@ -1839,7 +2039,7 @@ void main() {
 
     for (final side in const ['blue', 'red']) {
       final rects = [
-        for (final action in const ['score-1', 'score-2', 'score-3', 'foul'])
+        for (final action in const ['score-1', 'score-2', 'score-3', 'miss'])
           tester.getRect(find.byKey(Key('$side-$action'))),
       ];
       final x = rects.first.center.dx;
@@ -1885,7 +2085,9 @@ void main() {
     expect(blue.center.dx, lessThan(leave.center.dx));
     expect(leave.center.dx, lessThan(undo.center.dx));
     expect(undo.center.dx, lessThan(timer.center.dx));
-    expect(timer.center.dx, lessThan(more.center.dx));
+    final foul = tester.getRect(find.byKey(const Key('scoring-foul')));
+    expect(timer.center.dx, lessThan(foul.center.dx));
+    expect(foul.center.dx, lessThan(more.center.dx));
     expect(more.center.dx, lessThan(finish.center.dx));
     expect(finish.center.dx, lessThan(red.center.dx));
     expect(finish.overlaps(red), isFalse);
@@ -1907,6 +2109,7 @@ void main() {
     final controls = [
       tester.getRect(find.byKey(const Key('scoring-leave'))),
       tester.getRect(find.byKey(const Key('scoring-undo'))),
+      tester.getRect(find.byKey(const Key('scoring-foul'))),
       tester.getRect(find.byKey(const Key('scoring-more'))),
       tester.getRect(find.byKey(const Key('scoring-finish'))),
     ];
@@ -2141,7 +2344,7 @@ void main() {
   });
 
   testWidgets(
-    'court-first miss failure keeps the draft and retries from More',
+    'court-first miss failure keeps the draft and retries from the rail',
     (tester) async {
       await withTestDatabase((database) async {
         var failNext = false;
@@ -2168,9 +2371,7 @@ void main() {
         await tester.tapAt(
           tester.getCenter(find.byKey(const Key('scoring-court'))),
         );
-        await tester.tap(find.byKey(const Key('scoring-more')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('more-red-miss')));
+        await tester.tap(find.byKey(const Key('red-miss')));
         await tester.pump();
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 30)),
@@ -2178,8 +2379,8 @@ void main() {
         await tester.pump();
 
         expect(controller.courtFirstShotDraft, isNotNull);
-        expect(find.byKey(const Key('more-inline-retry')), findsOneWidget);
-        await tester.tap(find.byKey(const Key('more-inline-retry')));
+        expect(find.byType(SnackBarAction), findsOneWidget);
+        tester.widget<SnackBarAction>(find.byType(SnackBarAction)).onPressed();
         await tester.pump();
         await tester.runAsync(
           () => Future<void>.delayed(const Duration(milliseconds: 30)),
@@ -2322,7 +2523,7 @@ void main() {
                       score: 0,
                       fouls: 0,
                       onScore: (_) {},
-                      onFoul: () {},
+                      onMiss: () {},
                     ),
                   ),
               ],
@@ -2361,15 +2562,15 @@ void main() {
           score: 0,
           fouls: 0,
           scoreEnabled: false,
-          foulEnabled: false,
+          missEnabled: false,
           onScore: (_) {},
-          onFoul: () {},
+          onMiss: () {},
         ),
       ),
     );
 
     final muted = const HoopTraceEditorialTheme.light().mutedInk;
-    for (final key in const [Key('blue-score-1'), Key('blue-foul')]) {
+    for (final key in const [Key('blue-score-1'), Key('blue-miss')]) {
       final target = find.byKey(key);
       final button = tester.widget<ButtonStyleButton>(target);
       expect(
@@ -2408,7 +2609,8 @@ void main() {
     expect(find.text('蓝方'), findsNothing);
     expect(find.text('红方'), findsNothing);
     expect(find.text('犯规 0'), findsNWidgets(2));
-    expect(find.text('犯规'), findsNWidgets(2));
+    expect(find.text('犯规'), findsOneWidget);
+    expect(find.text('未命中'), findsNWidgets(2));
     expect(find.text('+1'), findsNWidgets(2));
     expect(find.text('+2'), findsNWidgets(2));
     expect(find.text('+3'), findsNWidgets(2));
@@ -2426,8 +2628,9 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.byKey(const Key('red-foul')), findsOneWidget);
-    expect(find.byKey(const Key('blue-foul')), findsOneWidget);
+    expect(find.byKey(const Key('scoring-foul')), findsOneWidget);
+    expect(find.byKey(const Key('red-miss')), findsOneWidget);
+    expect(find.byKey(const Key('blue-miss')), findsOneWidget);
   });
 
   testWidgets('timer-disabled scoring hides clock commands and ticks', (
@@ -2516,7 +2719,7 @@ void main() {
         );
         expect(
           tester
-              .widget<OutlinedButton>(find.byKey(const Key('red-foul')))
+              .widget<OutlinedButton>(find.byKey(const Key('scoring-foul')))
               .onPressed,
           isNull,
         );
@@ -2900,11 +3103,11 @@ void main() {
       'blue-score-1',
       'blue-score-2',
       'blue-score-3',
-      'blue-foul',
+      'blue-miss',
       'red-score-1',
       'red-score-2',
       'red-score-3',
-      'red-foul',
+      'red-miss',
     ]) {
       final rect = tester.getRect(find.byKey(Key(key)));
       expect(rect.top, greaterThanOrEqualTo(0));
@@ -3373,11 +3576,11 @@ void main() {
       'blue-score-1',
       'blue-score-2',
       'blue-score-3',
-      'blue-foul',
+      'blue-miss',
       'red-score-1',
       'red-score-2',
       'red-score-3',
-      'red-foul',
+      'red-miss',
       'scoring-undo',
     ]) {
       expect(
@@ -3415,7 +3618,7 @@ void main() {
           final rail = tester.getRect(find.byKey(Key('$side-action-rail')));
           expect(rail.top, greaterThanOrEqualTo(insets.top));
           expect(rail.bottom, lessThanOrEqualTo(844 - insets.bottom));
-          for (final action in ['score-1', 'score-2', 'score-3', 'foul']) {
+          for (final action in ['score-1', 'score-2', 'score-3', 'miss']) {
             final rect = tester.getRect(find.byKey(Key('$side-$action')));
             expect(rect.height, greaterThanOrEqualTo(48));
             expect(
@@ -3549,11 +3752,11 @@ void main() {
       'blue-score-1',
       'blue-score-2',
       'blue-score-3',
-      'blue-foul',
+      'blue-miss',
       'red-score-1',
       'red-score-2',
       'red-score-3',
-      'red-foul',
+      'red-miss',
     ]) {
       final control = find.byKey(Key(key));
       final rect = tester.getRect(control);
@@ -3984,6 +4187,13 @@ void main() {
     await tester.tap(find.byKey(const Key('leave-stay')));
     expect(leaveCalls, 0);
   });
+}
+
+Future<void> _tapFoul(WidgetTester tester, TeamSide side) async {
+  await tester.tap(find.byKey(const Key('scoring-foul')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(Key('scoring-foul-${side.name}')));
+  await tester.pump();
 }
 
 class _RecordingFeedbackPlatform implements ScoringFeedbackPlatform {

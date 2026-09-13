@@ -23,7 +23,7 @@ void main() {
                     score: 23,
                     fouls: 4,
                     onScore: (_) {},
-                    onFoul: () {},
+                    onMiss: () {},
                   ),
                 ),
               ),
@@ -69,15 +69,15 @@ void main() {
         );
         expect(_contrast(foreground!, background!), greaterThanOrEqualTo(4.5));
 
-        final foulButton = tester.widget<OutlinedButton>(
-          find.byKey(const Key('blue-foul')),
+        final missButton = tester.widget<OutlinedButton>(
+          find.byKey(const Key('blue-miss')),
         );
-        final foulBackground = foulButton.style!.backgroundColor!.resolve({})!;
-        final foulForeground = foulButton.style!.foregroundColor!.resolve({})!;
-        final foulBorder = foulButton.style!.side!.resolve({})!;
-        expect(foulBorder.color, palette.arenaAccent);
+        final missBackground = missButton.style!.backgroundColor!.resolve({})!;
+        final missForeground = missButton.style!.foregroundColor!.resolve({})!;
+        final missBorder = missButton.style!.side!.resolve({})!;
+        expect(missBorder.color, palette.rule);
         expect(
-          _contrast(foulForeground, foulBackground),
+          _contrast(missForeground, missBackground),
           greaterThanOrEqualTo(4.5),
         );
 
@@ -86,7 +86,7 @@ void main() {
         );
         expect(identityLines, hasLength(4));
         for (final line in identityLines) {
-          expect(line.color, isIn([palette.teamBlue, palette.arenaAccent]));
+          expect(line.color, palette.teamBlue);
           expect(line.constraints?.maxWidth, 3);
         }
 
@@ -125,7 +125,7 @@ void main() {
                 score: 9,
                 fouls: 2,
                 onScore: (_) {},
-                onFoul: () {},
+                onMiss: () {},
               ),
             ),
           ),
@@ -137,7 +137,7 @@ void main() {
       Key('red-score-1'),
       Key('red-score-2'),
       Key('red-score-3'),
-      Key('red-foul'),
+      Key('red-miss'),
     ];
     final rects = [for (final key in keys) tester.getRect(find.byKey(key))];
     for (final rect in rects) {

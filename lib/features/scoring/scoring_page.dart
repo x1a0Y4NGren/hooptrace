@@ -97,6 +97,10 @@ class _ScoringPageState extends State<ScoringPage>
       for (final points in [1, 2, 3]) points: GlobalKey(),
     },
   };
+  late final Map<TeamSide, GlobalKey> _missButtonKeys = {
+    TeamSide.blue: GlobalKey(),
+    TeamSide.red: GlobalKey(),
+  };
   late ScoringMotionCoordinator _motionCoordinator;
   Ticker? _motionTicker;
   Duration _motionElapsed = Duration.zero;
@@ -114,6 +118,8 @@ class _ScoringPageState extends State<ScoringPage>
   Timer? _foulStampTimer;
   TeamSide? _foulStampSide;
   int _foulStampVersion = 0;
+  bool _showBlueMissLocations = true;
+  bool _showRedMissLocations = true;
   bool _disposed = false;
   int _actionGeneration = 0;
   ValueListenable<MotionPreference>? _attachedMotionPreference;
@@ -154,6 +160,8 @@ class _ScoringPageState extends State<ScoringPage>
       _cancelAllMotions();
       _detachController();
       _attachController();
+      _showBlueMissLocations = true;
+      _showRedMissLocations = true;
       _interactionPaused =
           _restoresPersistedPause && _controller.state.isManuallyPaused;
       _schedulePersistedPausePanel();
@@ -333,6 +341,7 @@ class _ScoringPageState extends State<ScoringPage>
       point: location.point,
       side: location.side,
       progress: 0,
+      isMiss: location.isMiss,
     );
     animation.addListener(() {
       if (!mounted || _disposed || !_eraserControllers.containsKey(id)) return;
@@ -341,6 +350,7 @@ class _ScoringPageState extends State<ScoringPage>
         point: location.point,
         side: location.side,
         progress: animation.value,
+        isMiss: location.isMiss,
       );
       setState(() {});
     });
@@ -490,6 +500,11 @@ class _ScoringPageState extends State<ScoringPage>
                         portrait: portrait,
                         onLeave: _requestLeave,
                         onUndo: () => unawaited(_undoLastScoringAction()),
+                        onFoul: (side) => unawaited(_recordFoul(side)),
+                        foulEnabled:
+                            !decisionControlsDeferred &&
+                            state.courtFirstShotDraft == null &&
+                            state.pendingLocation == null,
                         onMore: _showMore,
                         onFinish: decisionControlsDeferred
                             ? null
@@ -591,11 +606,21 @@ class _ScoringPageState extends State<ScoringPage>
         ? _labels(context).chooseScoringSide
         : window == null
         ? null
+        : window.points == 0
+        ? _labels(context).missSupplementPrompt(
+            _localizedSide(_localizations(context), window.side),
+            remaining,
+          )
         : _labels(context).supplementPrompt(
             _localizedSide(_localizations(context), window.side),
             window.points,
             remaining,
           );
+    final displayHiddenIds = <String>{
+      ..._hiddenShotLocationIds,
+      for (final location in state.shotLocations)
+        if (location.isMiss && !_showsMissLocations(location.side)) location.id,
+    };
     return Padding(
       padding: const EdgeInsets.all(8),
       child: CourtView(
@@ -604,9 +629,17 @@ class _ScoringPageState extends State<ScoringPage>
         shotLocations: state.shotLocations,
         pendingLocation: state.pendingLocation,
         detailedShotDraft: state.courtFirstShotDraft,
-        hiddenShotLocationIds: _hiddenShotLocationIds,
-        transientMarkers: _transientMarkers.values.toList(growable: false),
-        eraserMarkers: _eraserMarkers.values.toList(growable: false),
+        hiddenShotLocationIds: displayHiddenIds,
+        transientMarkers: _transientMarkers.values
+            .where(
+              (marker) => !marker.isMiss || _showsMissLocations(marker.side),
+            )
+            .toList(growable: false),
+        eraserMarkers: _eraserMarkers.values
+            .where(
+              (marker) => !marker.isMiss || _showsMissLocations(marker.side),
+            )
+            .toList(growable: false),
         locationPrompt: prompt,
         onPendingLocationChanged: _controller.updatePendingLocation,
         onCourtPointTap: _handleCourtPoint,
@@ -620,6 +653,43 @@ class _ScoringPageState extends State<ScoringPage>
     return (remaining / 1000).ceil().clamp(0, 10);
   }
 
+  bool _showsMissLocations(TeamSide side) =>
+      side == TeamSide.blue ? _showBlueMissLocations : _showRedMissLocations;
+
+  void _setMissLocationsVisible(TeamSide side, bool visible) {
+    if (_showsMissLocations(side) == visible) return;
+    if (!visible) {
+      final motions =
+          <ScoringMotionEvent>[
+            if (_motionCoordinator.active != null)
+              _motionCoordinator.active!.event,
+            ..._motionCoordinator.queuedEvents,
+          ].where(
+            (event) => event.receipt.points == 0 && event.receipt.side == side,
+          );
+      for (final event in motions.toList(growable: false)) {
+        _motionCoordinator.cancelByEventId(event.id);
+        _hiddenShotLocationIds.remove(event.locationId);
+        _transientMarkers.remove(event.locationId);
+      }
+      final eraserIds = _eraserMarkers.entries
+          .where((entry) => entry.value.isMiss && entry.value.side == side)
+          .map((entry) => entry.key)
+          .toList(growable: false);
+      for (final id in eraserIds) {
+        _eraserControllers.remove(id)?.dispose();
+        _eraserMarkers.remove(id);
+      }
+    }
+    setState(() {
+      if (side == TeamSide.blue) {
+        _showBlueMissLocations = visible;
+      } else {
+        _showRedMissLocations = visible;
+      }
+    });
+  }
+
   Widget _buildSidePanel(
     BuildContext context,
     MatchScoringState state,
@@ -628,8 +698,7 @@ class _ScoringPageState extends State<ScoringPage>
     final isBlue = side == TeamSide.blue;
     final window = state.locationSupplementWindow;
     final remaining = _remainingSeconds(window);
-    final activeLocation =
-        window != null && window.side == side && window.points > 0;
+    final activeLocation = window != null && window.side == side;
     final reduceMotion =
         (MediaQuery.maybeOf(context)?.disableAnimations ?? false) ||
         (MediaQuery.maybeAccessibleNavigationOf(context) ?? false) ||
@@ -655,20 +724,19 @@ class _ScoringPageState extends State<ScoringPage>
       scoreEnabled:
           !decisionControlsDeferred &&
           (draft != null || state.pendingLocation == null),
-      missEnabled: false,
-      foulEnabled:
+      missEnabled:
           !decisionControlsDeferred &&
-          draft == null &&
-          state.pendingLocation == null,
+          (draft != null || state.pendingLocation == null),
       locationPoints: activeLocation ? window.points : null,
       locationRemainingSeconds: activeLocation ? remaining : null,
       locationRevealDuration: locationRevealDuration,
       reduceMotion: reduceMotion,
       scoreButtonKeys: _scoreButtonKeys[side],
+      missButtonKey: _missButtonKeys[side],
       foulStamp: _foulStampSide == side,
       foulStampVersion: _foulStampVersion,
       onScore: (points) => unawaited(_recordScore(side, points)),
-      onFoul: () => unawaited(_recordFoul(side)),
+      onMiss: () => unawaited(_recordMiss(side)),
     );
   }
 
@@ -759,8 +827,10 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Offset? _scoreButtonCenter(TeamSide side, int points) {
-    final box = _scoreButtonKeys[side]?[points]?.currentContext
-        ?.findRenderObject();
+    final sourceKey = points == 0
+        ? _missButtonKeys[side]
+        : _scoreButtonKeys[side]?[points];
+    final box = sourceKey?.currentContext?.findRenderObject();
     final overlay = _motionWorkspaceKey.currentContext?.findRenderObject();
     if (box is! RenderBox || overlay is! RenderBox || !box.hasSize) return null;
     final global = box.localToGlobal(box.size.center(Offset.zero));
@@ -801,11 +871,13 @@ class _ScoringPageState extends State<ScoringPage>
 
   void _submitReceiptMotion(ShotLocationCommitReceipt receipt, Offset? source) {
     if (_disposed) return;
+    if (receipt.points == 0 && !_showsMissLocations(receipt.side)) return;
     if (!_submittedMotionEventIds.add(receipt.eventId)) return;
     final marker = TransientShotMarker(
       id: receipt.shotLocationId,
       point: receipt.point,
       side: receipt.side,
+      isMiss: receipt.points == 0,
     );
     _hiddenShotLocationIds.add(receipt.shotLocationId);
     _transientMarkers[receipt.shotLocationId] = marker;
@@ -915,10 +987,17 @@ class _ScoringPageState extends State<ScoringPage>
         points: 0,
       );
       try {
-        final accepted = await controller.commitCourtFirstShot();
+        final receipt = await controller.commitCourtFirstShotWithReceipt();
         if (!_isCurrentAction(generation, controller)) return false;
-        if (accepted) _notifyCommitted();
-        return accepted;
+        if (receipt != null) {
+          _submitReceiptMotion(
+            receipt,
+            _scoreButtonCenter(receipt.side, receipt.points),
+          );
+          _notifyCommitted();
+          return true;
+        }
+        return false;
       } on MatchCommandFailure catch (failure) {
         if (!_isCurrentAction(generation, controller)) return false;
         if (rethrowFailure) throw _moreFailure(failure);
@@ -996,7 +1075,7 @@ class _ScoringPageState extends State<ScoringPage>
     final controller = _controller;
     final foulStampDuration =
         Theme.of(context).extension<HoopTraceMotionTheme>()?.foulStamp ??
-        Duration.zero;
+        const Duration(milliseconds: 180);
     try {
       final accepted = await controller.recordFoulCommitted(side);
       if (!_isCurrentAction(generation, controller)) return;
@@ -1570,47 +1649,38 @@ class _ScoringPageState extends State<ScoringPage>
                           _moreSection(
                             sheetBuilderContext,
                             key: const Key('more-section-shooting'),
-                            title: labels.shots,
+                            title: labels.shotDisplay,
                             children: [
-                              _moreAction(
+                              _moreToggle(
                                 sheetBuilderContext,
                                 index: '01',
-                                key: const Key('more-blue-miss'),
-                                icon: Icons.close,
-                                label: labels.missed(TeamSide.blue),
-                                enabled:
-                                    !_decisionControlsDeferred(
-                                      _controller.state,
-                                    ) &&
-                                    (_controller.courtFirstShotDraft != null ||
-                                        _controller.state.pendingLocation ==
-                                            null),
-                                onTap: () => runMore(
-                                  () => _recordMiss(
-                                    TeamSide.blue,
-                                    rethrowFailure: true,
-                                  ),
+                                key: const Key('more-show-blue-misses'),
+                                switchKey: const Key(
+                                  'more-show-blue-misses-switch',
                                 ),
+                                label: labels.showMisses(TeamSide.blue),
+                                value: _showBlueMissLocations,
+                                onChanged: (value) {
+                                  _setMissLocationsVisible(
+                                    TeamSide.blue,
+                                    value,
+                                  );
+                                  setSheetState(() {});
+                                },
                               ),
-                              _moreAction(
+                              _moreToggle(
                                 sheetBuilderContext,
                                 index: '02',
-                                key: const Key('more-red-miss'),
-                                icon: Icons.close,
-                                label: labels.missed(TeamSide.red),
-                                enabled:
-                                    !_decisionControlsDeferred(
-                                      _controller.state,
-                                    ) &&
-                                    (_controller.courtFirstShotDraft != null ||
-                                        _controller.state.pendingLocation ==
-                                            null),
-                                onTap: () => runMore(
-                                  () => _recordMiss(
-                                    TeamSide.red,
-                                    rethrowFailure: true,
-                                  ),
+                                key: const Key('more-show-red-misses'),
+                                switchKey: const Key(
+                                  'more-show-red-misses-switch',
                                 ),
+                                label: labels.showMisses(TeamSide.red),
+                                value: _showRedMissLocations,
+                                onChanged: (value) {
+                                  _setMissLocationsVisible(TeamSide.red, value);
+                                  setSheetState(() {});
+                                },
                               ),
                             ],
                           ),
@@ -1882,6 +1952,38 @@ class _ScoringPageState extends State<ScoringPage>
         child: Theme(
           data: theme.copyWith(extensions: disabledExtensions.values),
           child: row,
+        ),
+      ),
+    );
+  }
+
+  Widget _moreToggle(
+    BuildContext sheetContext, {
+    required String index,
+    required Key key,
+    required Key switchKey,
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    final status = value
+        ? _localizations(sheetContext).scoringDisplayShown
+        : _localizations(sheetContext).scoringDisplayHidden;
+    final semantic = '$label, $status';
+    return Semantics(
+      label: semantic,
+      button: true,
+      toggled: value,
+      child: ExcludeSemantics(
+        child: EditorialIndexRow(
+          key: key,
+          index: index,
+          title: label,
+          subtitle: value
+              ? _localizations(sheetContext).scoringDisplayShown
+              : _localizations(sheetContext).scoringDisplayHidden,
+          trailing: Switch(key: switchKey, value: value, onChanged: onChanged),
+          onTap: () => onChanged(!value),
         ),
       ),
     );
@@ -2374,6 +2476,8 @@ class _Scoreboard extends StatelessWidget {
     required this.portrait,
     required this.onLeave,
     required this.onUndo,
+    required this.onFoul,
+    required this.foulEnabled,
     required this.onMore,
     required this.onFinish,
     required this.labels,
@@ -2384,6 +2488,8 @@ class _Scoreboard extends StatelessWidget {
   final bool portrait;
   final VoidCallback onLeave;
   final VoidCallback onUndo;
+  final ValueChanged<TeamSide> onFoul;
+  final bool foulEnabled;
   final VoidCallback onMore;
   final VoidCallback? onFinish;
   final _ScoringLabels labels;
@@ -2439,6 +2545,68 @@ class _Scoreboard extends StatelessWidget {
       );
     }
 
+    Widget foulSelector() {
+      return MenuAnchor(
+        alignmentOffset: const Offset(0, 4),
+        menuChildren: [
+          for (final side in const [TeamSide.blue, TeamSide.red])
+            MenuItemButton(
+              key: Key('scoring-foul-${side.name}'),
+              onPressed: () => onFoul(side),
+              style: MenuItemButton.styleFrom(
+                minimumSize: const Size(156, 48),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 22,
+                    color: side == TeamSide.blue ? blue : red,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    labels.foulFor(side),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        builder: (context, controller, child) => Tooltip(
+          message: labels.foul,
+          child: OutlinedButton(
+            key: const Key('scoring-foul'),
+            onPressed: foulEnabled ? controller.open : null,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 3),
+              foregroundColor: editorial.arenaAccent,
+              backgroundColor: HoopTraceColors.ink,
+              disabledForegroundColor: Colors.white38,
+              elevation: 0,
+              side: BorderSide(
+                color: foulEnabled
+                    ? editorial.arenaAccent
+                    : const Color(0xFF777D82),
+              ),
+              shape: const BeveledRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(7)),
+              ),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                labels.foul,
+                maxLines: 1,
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Material(
       key: const Key('scoring-scoreboard'),
       color: HoopTraceColors.ink,
@@ -2447,19 +2615,34 @@ class _Scoreboard extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            final compact = width < 800;
-            final clockWidth = (width * 0.22).clamp(
-              compact ? 88.0 : 112.0,
+            final compact = width < 900;
+            final sideWidth = _landscapeSideWidth(width);
+            final finishWidth = compact ? 48.0 : 96.0;
+            final desiredClockWidth = (width * 0.22).clamp(
+              compact ? 72.0 : 112.0,
               compact ? 104.0 : 180.0,
+            );
+            final landscapeClockMax =
+                ((width - sideWidth) - width / 2 - (96 + finishWidth)) * 2;
+            final clockMax = portrait
+                ? (compact ? 104.0 : 180.0)
+                : landscapeClockMax.clamp(
+                    compact ? 72.0 : 112.0,
+                    compact ? 104.0 : 180.0,
+                  );
+            final clockWidth = desiredClockWidth.clamp(
+              compact ? 72.0 : 112.0,
+              clockMax,
             );
             final clockLeft = (width - clockWidth) / 2;
             final clockRight = clockLeft + clockWidth;
-            final undoLeft = clockLeft - 48;
-            final leaveLeft = undoLeft - 48;
-            final moreLeft = clockRight;
+            final portraitActionsLeft = (width - 240) / 2;
+            final leaveLeft = portrait ? portraitActionsLeft : clockLeft - 96;
+            final undoLeft = leaveLeft + 48;
+            final foulLeft = portrait ? undoLeft + 48 : clockRight;
+            final moreLeft = foulLeft + 48;
             final finishLeft = moreLeft + 48;
-            final finishWidth = compact ? 48.0 : 96.0;
-            final sideWidth = _landscapeSideWidth(width);
+            final resolvedFinishWidth = portrait ? 48.0 : finishWidth;
             final sideCenter = portrait ? width / 4 : sideWidth / 2;
             final teamWidth = portrait
                 ? ((clockLeft - sideCenter) * 2).clamp(48.0, width / 2)
@@ -2550,6 +2733,13 @@ class _Scoreboard extends StatelessWidget {
                   ),
                 ),
                 Positioned(
+                  left: foulLeft,
+                  top: actionTop,
+                  bottom: 4,
+                  width: 48,
+                  child: foulSelector(),
+                ),
+                Positioned(
                   left: moreLeft,
                   top: actionTop,
                   bottom: 4,
@@ -2565,7 +2755,7 @@ class _Scoreboard extends StatelessWidget {
                   left: finishLeft,
                   top: actionTop,
                   bottom: 4,
-                  width: finishWidth,
+                  width: resolvedFinishWidth,
                   child: Tooltip(
                     message: labels.finish,
                     child: FilledButton(
@@ -2778,13 +2968,14 @@ class _ScoringLabels {
   final AppLocalizations l10n;
   String get back => l10n.scoringBackToScoringList;
   String get undo => l10n.scoringUndo;
+  String get foul => l10n.scoringFoul;
   String get more => l10n.scoringMore;
   String get noTimer => l10n.scoringNoTimer;
   String get timerNotConfigured => l10n.scoringTimerNotConfigured;
   String get clockRunning => l10n.scoringClockRunning;
   String get clockPaused => l10n.scoringClockPaused;
   String get regulationExpired => l10n.scoringRegulationExpired;
-  String get shots => l10n.scoringShotsGroup;
+  String get shotDisplay => l10n.scoringShotDisplayGroup;
   String get freeThrows => l10n.scoringFreeThrowsGroup;
   String get matchStatus => l10n.scoringMatchStatusGroup;
   String get records => l10n.scoringNotesCustomRecordsGroup;
@@ -2822,7 +3013,9 @@ class _ScoringLabels {
   String get recordEvent => l10n.scoringRecordEvent;
   String sideName(TeamSide side) =>
       side == TeamSide.blue ? l10n.pregameBlue : l10n.pregameRed;
-  String missed(TeamSide side) => '${sideName(side)} ${l10n.scoringMissed}';
+  String foulFor(TeamSide side) => l10n.scoringFoulForSide(sideName(side));
+  String showMisses(TeamSide side) =>
+      l10n.scoringShowMissMarkers(sideName(side));
   String freeThrow(TeamSide side, bool made) {
     return switch ((side, made)) {
       (TeamSide.blue, true) => l10n.scoringBlueFreeThrowMade,
@@ -2837,6 +3030,8 @@ class _ScoringLabels {
       : l10n.scoringPossessionRed;
   String supplementPrompt(String side, int points, int seconds) =>
       l10n.scoringSupplementPrompt(points, seconds, side);
+  String missSupplementPrompt(String side, int seconds) =>
+      l10n.scoringMissSupplementPrompt(seconds, side);
   String matchTime(String value) => l10n.scoringMatchTime(value);
 }
 

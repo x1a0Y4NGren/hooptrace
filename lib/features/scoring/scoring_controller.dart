@@ -92,6 +92,11 @@ class ScoringShotLocation {
   final int points;
   final CourtPoint point;
   final bool isLocked;
+
+  /// A located missed field-goal is represented by a zero-point shot event.
+  /// Keeping this interpretation next to the projection avoids duplicating
+  /// event-kind lookups throughout the presentation layer.
+  bool get isMiss => points == 0;
 }
 
 /// A court-first detailed-mode shot that has not been committed yet.
@@ -239,6 +244,7 @@ class MatchScoringState {
     bool? timerEnabled,
     ClockProjection? clock,
     TeamSide? currentPossession,
+    bool clearCurrentPossession = false,
     PendingShotLocation? pendingLocation,
     CourtFirstShotDraft? courtFirstShotDraft,
     DetailedShotDraft? detailedShotDraft,
@@ -265,7 +271,9 @@ class MatchScoringState {
       trackingCoverage: trackingCoverage ?? this.trackingCoverage,
       timerEnabled: timerEnabled ?? this.timerEnabled,
       clock: clock ?? this.clock,
-      currentPossession: currentPossession ?? this.currentPossession,
+      currentPossession: clearCurrentPossession
+          ? null
+          : currentPossession ?? this.currentPossession,
       pendingLocation: clearPendingLocation
           ? null
           : pendingLocation ?? this.pendingLocation,
@@ -334,6 +342,7 @@ class ScoringController extends ChangeNotifier {
   final Queue<_QueuedScoringCommand> _commandQueue =
       Queue<_QueuedScoringCommand>();
   final Set<String> _localAtomicScoringEventIds = <String>{};
+  final List<_LocalUndoAction> _localUndoHistory = <_LocalUndoAction>[];
   bool _drainingQueue = false;
   bool _exclusiveBusy = false;
   bool _disposed = false;
@@ -539,44 +548,25 @@ class ScoringController extends ChangeNotifier {
     );
   }
 
-  Future<bool> undoLastEventCommitted() async {
-    if (_disposed || _state.detailedShotDraft != null) return false;
-    final service = _commandService;
-    if (service == null) {
-      undoLastEvent();
-      return true;
-    }
-    if (_state.events.isEmpty) {
-      return false;
-    }
-    final event = _lastUndoableEvent;
-    if (event == null) return false;
-    final command = UndoMatchEventCommand(
-      matchId: _state.matchId,
-      eventId: event.id,
-      reason: 'Scoring UI undo',
-    );
-    return _runExclusive(command, () => service.undo(command));
-  }
+  /// Compatibility entry point for older scoring surfaces. Keep it routed
+  /// through the same chronological policy as the current top-bar action so
+  /// the two APIs cannot disagree about what one undo press means.
+  Future<bool> undoLastEventCommitted() => undoLastScoringActionCommitted();
 
-  /// Undoes the latest scoring action. A committed supplement location is
-  /// undone before its score; a court-first event/location is one durable
-  /// action. Non-scoring events and timer/finish metadata are ignored.
+  /// Undoes the latest user-recorded live action. A committed supplement
+  /// location is undone before its shot; a court-first event/location is one
+  /// durable action. Clock, finish, and derived metadata are ignored. The
+  /// historical method name remains part of the public compatibility API.
   Future<bool> undoLastScoringActionCommitted() async {
     if (_disposed ||
         _state.courtFirstShotDraft != null ||
         _state.pendingLocation != null) {
       return false;
     }
-    final hasScoringAction = _state.events.any(
-      (event) =>
-          !event.isDeleted &&
-          (event.type == EventKind.score ||
-              event.type == EventKind.fieldGoal ||
-              event.type == EventKind.miss ||
-              event.type == EventKind.freeThrow),
+    final hasUndoableAction = _state.events.any(
+      (event) => !event.isDeleted && event.type.isLiveUndoable,
     );
-    if (!hasScoringAction) return false;
+    if (!hasUndoableAction) return false;
     final service = _commandService;
     if (service == null) {
       return _undoLocalScoringAction();
@@ -592,57 +582,49 @@ class ScoringController extends ChangeNotifier {
   }
 
   bool _undoLocalScoringAction() {
-    MatchEvent? event;
-    for (final candidate in _state.events.reversed) {
-      if (candidate.isDeleted ||
-          (candidate.type != EventKind.score &&
-              candidate.type != EventKind.fieldGoal &&
-              candidate.type != EventKind.miss &&
-              candidate.type != EventKind.freeThrow)) {
-        continue;
-      }
-      event = candidate;
-      break;
-    }
+    final action = _takeLatestLocalUndoAction();
+    if (action == null) return false;
+    final event = _state.events
+        .where(
+          (candidate) => candidate.id == action.eventId && !candidate.isDeleted,
+        )
+        .firstOrNull;
     if (event == null) return false;
-    final locationIndex = _state.shotLocations.lastIndexWhere(
-      (location) => location.eventId == event!.id && location.isLocked,
-    );
-    final atomic = _localAtomicScoringEventIds.remove(event.id);
-    if (atomic) {
-      final locations = _state.shotLocations
-          .where((location) => location.eventId != event!.id)
-          .toList(growable: false);
-      _state = _state.copyWith(shotLocations: locations);
-    }
-    if (locationIndex >= 0 && !atomic) {
+
+    final locationId = action.locationId;
+    if (locationId != null) {
+      final locationIndex = _state.shotLocations.indexWhere(
+        (location) => location.id == locationId && location.isLocked,
+      );
+      if (locationIndex < 0) return false;
       final locations = [..._state.shotLocations]..removeAt(locationIndex);
-      final canRestoreWindow =
-          event.side != null &&
-          (event.type == EventKind.score ||
-              event.type == EventKind.fieldGoal ||
-              event.type == EventKind.miss) &&
-          _nowUtc().toUtc().isBefore(
-            event.occurredAt.toUtc().add(locationSupplementWindowDuration),
-          );
       _state = _state.copyWith(
         shotLocations: locations,
-        locationSupplementWindow: canRestoreWindow
-            ? LocationSupplementWindow(
-                eventId: event.id,
-                side: event.side!,
-                points: event.points,
-                openedAtUtc: event.occurredAt.toUtc(),
-              )
-            : null,
-        clearLocationSupplementWindow: !canRestoreWindow,
+        clearLocationSupplementWindow: true,
       );
+      final replacement = _latestUnlocatedShot;
+      if (replacement?.id == event.id && replacement?.side != null) {
+        _state = _state.copyWith(
+          locationSupplementWindow: LocationSupplementWindow(
+            eventId: replacement!.id,
+            side: replacement.side!,
+            points: replacement.points,
+            openedAtUtc: replacement.occurredAt.toUtc(),
+          ),
+        );
+      }
       notifyListeners();
       return true;
     }
+
+    _localAtomicScoringEventIds.remove(event.id);
+    _localUndoHistory.removeWhere((candidate) => candidate.eventId == event.id);
+    final locations = _state.shotLocations
+        .where((location) => location.eventId != event.id)
+        .toList(growable: false);
     final events = _state.events
         .map(
-          (candidate) => candidate.id == event!.id
+          (candidate) => candidate.id == event.id
               ? MatchEvent(
                   id: candidate.id,
                   matchId: candidate.matchId,
@@ -660,24 +642,73 @@ class ScoringController extends ChangeNotifier {
               : candidate,
         )
         .toList(growable: false);
+    final isScoringEvent = _isScoringEvent(event);
+    final nextPossession = _latestPossession(events);
+    final fouls = _countFouls(events);
     _state = _state.copyWith(
       events: events,
       score: _reducer.reduce(events),
-      clearLocationSupplementWindow: true,
+      shotLocations: locations,
+      currentPossession: nextPossession,
+      clearCurrentPossession: nextPossession == null,
+      redFouls: fouls.red,
+      blueFouls: fouls.blue,
+      ruleHints: isScoringEvent ? const [] : null,
+      clearLocationSupplementWindow: isScoringEvent,
     );
-    final replacement = _latestUnlocatedShot;
-    if (replacement != null && replacement.side != null) {
-      _state = _state.copyWith(
-        locationSupplementWindow: LocationSupplementWindow(
-          eventId: replacement.id,
-          side: replacement.side!,
-          points: replacement.points,
-          openedAtUtc: replacement.occurredAt.toUtc(),
-        ),
-      );
+    if (isScoringEvent) {
+      final replacement = _latestUnlocatedShot;
+      if (replacement != null && replacement.side != null) {
+        _state = _state.copyWith(
+          locationSupplementWindow: LocationSupplementWindow(
+            eventId: replacement.id,
+            side: replacement.side!,
+            points: replacement.points,
+            openedAtUtc: replacement.occurredAt.toUtc(),
+          ),
+        );
+      }
     }
     notifyListeners();
     return true;
+  }
+
+  _LocalUndoAction? _takeLatestLocalUndoAction() {
+    while (_localUndoHistory.isNotEmpty) {
+      final action = _localUndoHistory.removeLast();
+      final eventExists = _state.events.any(
+        (event) =>
+            event.id == action.eventId &&
+            !event.isDeleted &&
+            event.type.isLiveUndoable,
+      );
+      final locationExists =
+          action.locationId == null ||
+          _state.shotLocations.any(
+            (location) => location.id == action.locationId && location.isLocked,
+          );
+      if (eventExists && locationExists) return action;
+    }
+
+    MatchEvent? event;
+    for (final candidate in _state.events.reversed) {
+      if (!candidate.isDeleted && candidate.type.isLiveUndoable) {
+        event = candidate;
+        break;
+      }
+    }
+    if (event == null) return null;
+    if (!_localAtomicScoringEventIds.contains(event.id)) {
+      for (final location in _state.shotLocations.reversed) {
+        if (location.eventId == event.id && location.isLocked) {
+          return _LocalUndoAction.location(
+            eventId: event.id,
+            locationId: location.id,
+          );
+        }
+      }
+    }
+    return _LocalUndoAction.event(event.id);
   }
 
   bool addScore({required TeamSide side, required int points}) {
@@ -705,6 +736,7 @@ class ScoringController extends ChangeNotifier {
       occurredAt: _nowUtc().toUtc(),
     );
     final events = [..._state.events, event];
+    _localUndoHistory.add(_LocalUndoAction.event(event.id));
     _state = _state.copyWith(
       events: events,
       score: _reducer.reduce(events),
@@ -779,6 +811,12 @@ class ScoringController extends ChangeNotifier {
       points: pending.points,
       point: confirmedPoint,
       isLocked: true,
+    );
+    _localUndoHistory.add(
+      _LocalUndoAction.location(
+        eventId: pending.eventId,
+        locationId: marker.id,
+      ),
     );
     _state = _state.copyWith(
       shotLocations: [..._state.shotLocations, marker],
@@ -957,6 +995,9 @@ class ScoringController extends ChangeNotifier {
         points: window.points,
         point: point,
         isLocked: true,
+      );
+      _localUndoHistory.add(
+        _LocalUndoAction.location(eventId: event.id, locationId: marker.id),
       );
       _state = _state.copyWith(
         shotLocations: [..._state.shotLocations, marker],
@@ -1192,6 +1233,8 @@ class ScoringController extends ChangeNotifier {
     final locations = _state.shotLocations
         .where((location) => location.eventId != lastEvent.id)
         .toList();
+    _localUndoHistory.removeWhere((action) => action.eventId == lastEvent.id);
+    _localAtomicScoringEventIds.remove(lastEvent.id);
     final fouls = _countFouls(events);
     _state = _state.copyWith(
       events: events,
@@ -1220,6 +1263,7 @@ class ScoringController extends ChangeNotifier {
       occurredAt: _nowUtc().toUtc(),
     );
     final events = [..._state.events, event];
+    _localUndoHistory.add(_LocalUndoAction.event(event.id));
     final fouls = _countFouls(events);
     _state = _state.copyWith(
       events: events,
@@ -1584,6 +1628,9 @@ class ScoringController extends ChangeNotifier {
       );
       _localAtomicScoringEventIds.add(event.id);
     }
+    if (event.type.isLiveUndoable) {
+      _localUndoHistory.add(_LocalUndoAction.event(event.id));
+    }
     _state = _state.copyWith(
       events: List.unmodifiable(events),
       score: _reducer.reduce(events),
@@ -1648,13 +1695,6 @@ class ScoringController extends ChangeNotifier {
     return null;
   }
 
-  MatchEvent? get _lastUndoableEvent {
-    for (final event in _state.events.reversed) {
-      if (!event.isDeleted) return event;
-    }
-    return null;
-  }
-
   static bool _isScoringEvent(MatchEvent event) {
     return event.type == EventKind.score ||
         event.type == EventKind.fieldGoal ||
@@ -1688,6 +1728,18 @@ class ScoringController extends ChangeNotifier {
     }
     return (red: red, blue: blue);
   }
+}
+
+class _LocalUndoAction {
+  const _LocalUndoAction.event(this.eventId) : locationId = null;
+
+  const _LocalUndoAction.location({
+    required this.eventId,
+    required this.locationId,
+  });
+
+  final String eventId;
+  final String? locationId;
 }
 
 class _QueuedScoringCommand {

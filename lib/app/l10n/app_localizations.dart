@@ -3357,7 +3357,7 @@ abstract class AppLocalizations {
   /// No description provided for @scoringMissed.
   ///
   /// In zh, this message translates to:
-  /// **'未中'**
+  /// **'未命中'**
   String get scoringMissed;
 
   /// No description provided for @scoringPoints.
@@ -4164,6 +4164,12 @@ abstract class AppLocalizations {
   /// **'犯规'**
   String get scoringFoul;
 
+  /// No description provided for @scoringFoulForSide.
+  ///
+  /// In zh, this message translates to:
+  /// **'{side}犯规'**
+  String scoringFoulForSide(Object side);
+
   /// No description provided for @scoringMore.
   ///
   /// In zh, this message translates to:
@@ -4175,6 +4181,30 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'投篮'**
   String get scoringShotsGroup;
+
+  /// No description provided for @scoringShotDisplayGroup.
+  ///
+  /// In zh, this message translates to:
+  /// **'投篮显示'**
+  String get scoringShotDisplayGroup;
+
+  /// No description provided for @scoringShowMissMarkers.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示{side}未命中点'**
+  String scoringShowMissMarkers(Object side);
+
+  /// No description provided for @scoringDisplayShown.
+  ///
+  /// In zh, this message translates to:
+  /// **'已显示'**
+  String get scoringDisplayShown;
+
+  /// No description provided for @scoringDisplayHidden.
+  ///
+  /// In zh, this message translates to:
+  /// **'已隐藏'**
+  String get scoringDisplayHidden;
 
   /// No description provided for @scoringFreeThrowsGroup.
   ///
@@ -4218,6 +4248,12 @@ abstract class AppLocalizations {
   /// **'补充{side} +{points} 落点 · {seconds}秒'**
   String scoringSupplementPrompt(Object points, Object seconds, Object side);
 
+  /// No description provided for @scoringMissSupplementPrompt.
+  ///
+  /// In zh, this message translates to:
+  /// **'补充{side}未命中落点 · {seconds}秒'**
+  String scoringMissSupplementPrompt(Object seconds, Object side);
+
   /// No description provided for @scoringSupplementExpired.
   ///
   /// In zh, this message translates to:
@@ -4239,6 +4275,18 @@ abstract class AppLocalizations {
     Object seconds,
     Object side,
   );
+
+  /// No description provided for @scoringMissSemantics.
+  ///
+  /// In zh, this message translates to:
+  /// **'{side}未命中'**
+  String scoringMissSemantics(Object side);
+
+  /// No description provided for @scoringMissLocationPendingSemantics.
+  ///
+  /// In zh, this message translates to:
+  /// **'{side}未命中，待补落点 {seconds} 秒'**
+  String scoringMissLocationPendingSemantics(Object seconds, Object side);
 }
 
 class _AppLocalizationsDelegate

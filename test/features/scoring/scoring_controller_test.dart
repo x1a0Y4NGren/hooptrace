@@ -847,6 +847,72 @@ void main() {
     expect(controller.state.blueFouls, 0);
   });
 
+  test(
+    'live undo covers foul, possession, note, and custom events locally',
+    () async {
+      final controller = ScoringController(matchId: 'local-all-undo');
+
+      expect(await controller.recordFoulCommitted(TeamSide.red), isTrue);
+      expect(await controller.recordPossessionCommitted(TeamSide.blue), isTrue);
+      expect(
+        await controller.recordNoteCommitted('Timeout adjustment'),
+        isTrue,
+      );
+      expect(
+        await controller.recordCustomCommitted(label: 'Lineup change'),
+        isTrue,
+      );
+
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(
+        controller.state.events
+            .singleWhere((event) => event.type == EventKind.custom)
+            .isDeleted,
+        isTrue,
+      );
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(
+        controller.state.events
+            .singleWhere((event) => event.type == EventKind.note)
+            .isDeleted,
+        isTrue,
+      );
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.currentPossession, isNull);
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.state.redFouls, 0);
+      expect(await controller.undoLastScoringActionCommitted(), isFalse);
+    },
+  );
+
+  test(
+    'local undo preserves action order around location supplements',
+    () async {
+      final controller = ScoringController(
+        matchId: 'local-location-action-order',
+        nowUtc: () => DateTime.utc(2026, 8, 25, 12),
+      );
+      expect(
+        await controller.recordScoreCommitted(side: TeamSide.red, points: 2),
+        isTrue,
+      );
+      expect(
+        await controller.attachSupplementLocation(CourtPoint(x: 0.4, y: 0.6)),
+        isTrue,
+      );
+      expect(await controller.recordFoulCommitted(TeamSide.blue), isTrue);
+
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.state.blueFouls, 0);
+      expect(controller.state.shotLocations, hasLength(1));
+      expect(controller.state.score.redScore, 2);
+
+      expect(await controller.undoLastScoringActionCommitted(), isTrue);
+      expect(controller.state.shotLocations, isEmpty);
+      expect(controller.state.score.redScore, 2);
+    },
+  );
+
   test('target score setup produces rule hints while scoring', () {
     final controller = ScoringController(
       setup: const MatchSetup(

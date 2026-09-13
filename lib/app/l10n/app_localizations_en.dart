@@ -1759,7 +1759,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scoringMade => 'Made';
 
   @override
-  String get scoringMissed => 'Missed';
+  String get scoringMissed => 'Miss';
 
   @override
   String scoringPoints(Object points) {
@@ -2207,10 +2207,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get scoringFoul => 'Foul';
 
   @override
+  String scoringFoulForSide(Object side) {
+    return '$side foul';
+  }
+
+  @override
   String get scoringMore => 'More';
 
   @override
   String get scoringShotsGroup => 'Shots';
+
+  @override
+  String get scoringShotDisplayGroup => 'Shot display';
+
+  @override
+  String scoringShowMissMarkers(Object side) {
+    return 'Show $side misses';
+  }
+
+  @override
+  String get scoringDisplayShown => 'Shown';
+
+  @override
+  String get scoringDisplayHidden => 'Hidden';
 
   @override
   String get scoringFreeThrowsGroup => 'Free throws';
@@ -2236,6 +2255,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String scoringMissSupplementPrompt(Object seconds, Object side) {
+    return 'Add $side miss location · ${seconds}s';
+  }
+
+  @override
   String get scoringSupplementExpired => 'Location supplement expired';
 
   @override
@@ -2250,5 +2274,15 @@ class AppLocalizationsEn extends AppLocalizations {
     Object side,
   ) {
     return '$side +$points, location pending $seconds seconds';
+  }
+
+  @override
+  String scoringMissSemantics(Object side) {
+    return '$side miss';
+  }
+
+  @override
+  String scoringMissLocationPendingSemantics(Object seconds, Object side) {
+    return '$side miss, location pending $seconds seconds';
   }
 }

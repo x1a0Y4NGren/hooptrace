@@ -30,6 +30,8 @@ void main() {
       find.byKey(homeStartScoringKey),
       description: 'the Home start-scoring action',
     );
+    await tester.ensureVisible(find.byKey(homeStartScoringKey));
+    await tester.pump();
 
     await _tapWhenHitTestable(
       tester,
@@ -212,5 +214,26 @@ Future<void> _tapWhenHitTestable(
       () => Future<void>.delayed(const Duration(milliseconds: 10)),
     );
   }
-  fail('Timed out waiting for $description to become hit-testable ($finder).');
+  final viewSize = tester.view.physicalSize / tester.view.devicePixelRatio;
+  final rects = finder
+      .evaluate()
+      .map(
+        (element) => tester.getRect(
+          find.byElementPredicate((candidate) => candidate == element),
+        ),
+      )
+      .toList(growable: false);
+  final hitPaths = rects
+      .map(
+        (rect) => tester
+            .hitTestOnBinding(rect.center)
+            .path
+            .map((entry) => entry.target.runtimeType)
+            .toList(growable: false),
+      )
+      .toList(growable: false);
+  fail(
+    'Timed out waiting for $description to become hit-testable ($finder). '
+    'view=$viewSize rects=$rects hitPaths=$hitPaths.',
+  );
 }
