@@ -20,6 +20,8 @@ flutter build apk --debug               # Produce a local Android debug APK.
 
 After changing Drift tables or queries, run `dart run build_runner build --delete-conflicting-outputs` and commit the generated `app_database.g.dart`. Update ARB files in `lib/app/l10n/` together and regenerate localization output.
 
+Android integration tests can overwrite `app-debug.apk` with a test-entrypoint build. Re-run `flutter build apk --debug` before manually installing an APK for visual review.
+
 ## Coding Style & Naming Conventions
 
 Use Dart's formatter and two-space indentation. The analyzer requires single quotes, trailing commas, no `print`, and final locals where possible. Name files `snake_case.dart`, classes and enums `UpperCamelCase`, and members `lowerCamelCase`. Reuse existing repositories, controllers, command queues, and transactions instead of bypassing architectural boundaries.
