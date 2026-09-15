@@ -265,6 +265,7 @@ class _DataManagementPageState extends State<DataManagementPage> {
     final mode = await showDialog<RestoreMode>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        scrollable: true,
         title: Text(l10n.settingsRestoreDialogTitle),
         contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
         content: Column(

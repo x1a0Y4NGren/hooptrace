@@ -15,6 +15,73 @@ import '../../test_helpers/test_database.dart';
 
 void main() {
   testWidgets(
+    'English restore chooser fits narrow landscape at 200 percent text',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(600, 400));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final database = createTestDatabase();
+      final codec = JsonBackupCodec(database, appVersion: '1.1.0+3');
+      final backup = AutomaticBackupService(
+        database,
+        codec,
+        storage: _Storage(),
+      );
+      final controller = SettingsController(
+        exports: ExportCoordinator(
+          database,
+          codec,
+          gateway: _Gateway(),
+          automaticBackup: backup,
+        ),
+        automaticBackup: backup,
+      );
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        controller.dispose();
+        await database.close();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: DataManagementPage(controller: controller),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('data-restore-row')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('data-restore-row')));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(const Key('backup-mode-merge')), findsOneWidget);
+      expect(find.byKey(const Key('backup-mode-replace')), findsOneWidget);
+      final replace = find.byKey(const Key('backup-mode-replace'));
+      await tester.ensureVisible(replace);
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(replace).dy, greaterThanOrEqualTo(0));
+      expect(tester.getBottomRight(replace).dy, lessThanOrEqualTo(400));
+      await tester.tap(replace);
+      await tester.pumpAndSettle();
+      expect(find.text('Replace all local data?'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Replace all local data?'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'data hub remains usable in compact landscape and at large text',
     (tester) async {
       final database = createTestDatabase();
