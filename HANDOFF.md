@@ -16,12 +16,13 @@
 - 设置总览的数据区收敛为“管理数据与备份”；子页面按导出恢复、自动备份分组，手动导出统一选择 JSON 或 CSV。设置页不再重复提供规则模板入口，旧 `/settings/rules` 深链保持有效。
 - 活动比赛首页移除无效“开始比赛”，仍提供继续记录与确认放弃；空闲首页的开始流程不变。
 - 设置两页共享控制器加载请求，直达数据页及返回均避免构建期间同步通知；未配置的“立即备份”有可见原因和禁用语义。
+- 恢复模式弹窗可滚动，英文 200% 字体和窄横屏下仍可触达“合并”“替换”及取消操作。
 
 ## 验证状态
 
 - `dart format --output=none --set-exit-if-changed .`
 - `flutter analyze`：无问题。
-- `flutter test`：965 项全部通过。
+- `flutter test`：966 项全部通过。
 - `integration_test/main_loop_test.dart`：Android 模拟器主流程通过。
 - `flutter build apk --debug`：构建、安装和启动通过。
 
@@ -33,5 +34,6 @@
 - Android 集成测试可能继承上一场计分页的横屏方向；主页操作在点击前必须 `ensureVisible`，仅等待 `.hitTestable()` 会因滚动视口裁剪而超时。
 - Android 集成测试会以测试入口重编译并覆盖同名 `app-debug.apk`；手动安装供验收前必须重新运行正式的 `flutter build apk --debug`，否则应用会停在等待测试驱动的启动图标。
 - 设置与数据页共用 `SettingsController`：首次加载放在首帧后执行，避免退场中的另一页面收到构建期通知；导出失败后格式选择仍可重试。
+- 恢复模式使用两个较长的操作说明；非滚动 `AlertDialog` 在 600×400 横屏、英文 200% 字体下会底部溢出，须保持弹窗内容可滚动。
 - Golden 更新前必须人工检查差异；README 应引用当前 canonical Golden，而不是遗留的 `*_linux.png` 截图。
 - iOS 尚未完成真机验收；v1.1 的正式签名、tag、Release 和 F-Droid 流程仍需单独执行。
