@@ -1072,6 +1072,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDataSection => 'Data';
 
   @override
+  String get settingsDataManagementTitle => 'Manage data and backups';
+
+  @override
+  String get settingsDataManagementSubtitle =>
+      'Export, restore, and automatic backups in one place';
+
+  @override
+  String get settingsManualDataSection => 'Export and restore';
+
+  @override
+  String get settingsAutomaticBackupSection => 'Automatic backup settings';
+
+  @override
+  String get settingsExportDataTitle => 'Export data';
+
+  @override
+  String get settingsExportDataSubtitle =>
+      'Choose a restorable JSON backup or CSV files for analysis';
+
+  @override
+  String get settingsExportDataDialogTitle => 'Choose export format';
+
+  @override
   String get settingsStatisticsSection => 'Statistics';
 
   @override

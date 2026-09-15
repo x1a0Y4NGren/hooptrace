@@ -198,54 +198,45 @@ void main() {
     },
   );
 
-  testWidgets(
-    'new match is blocked until active match is explicitly abandoned',
-    (tester) async {
-      final database = createTestDatabase();
-      _closeDatabaseAfterWidgetTest(tester, database);
-      final now = DateTime.utc(2026, 8, 23, 12);
-      await MatchCommandService(database).start(
-        StartMatchCommand(
-          commandId: 'task6-block-start',
-          matchId: 'task6-block',
-          redName: '已进行红方',
-          blueName: '已进行蓝方',
-          ruleTemplate: const RuleTemplate(
-            id: 'free',
-            name: '自由计分',
-            scoreButtons: [1, 2, 3],
-          ),
-          recordingMode: RecordingMode.simple,
-          createdAt: now,
-          startedAt: now,
+  testWidgets('active match hides new match entry until explicitly abandoned', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    _closeDatabaseAfterWidgetTest(tester, database);
+    final now = DateTime.utc(2026, 8, 23, 12);
+    await MatchCommandService(database).start(
+      StartMatchCommand(
+        commandId: 'task6-block-start',
+        matchId: 'task6-block',
+        redName: '已进行红方',
+        blueName: '已进行蓝方',
+        ruleTemplate: const RuleTemplate(
+          id: 'free',
+          name: '自由计分',
+          scoreButtons: [1, 2, 3],
         ),
-      );
+        recordingMode: RecordingMode.simple,
+        createdAt: now,
+        startedAt: now,
+      ),
+    );
 
-      await tester.pumpWidget(
-        HoopTraceApp(database: database, showEntryAnimation: false),
-      );
-      await _pumpUntilFound(
-        tester,
-        find.byKey(const Key('home-start-scoring')),
-      );
-      await tester.tap(find.byKey(const Key('home-start-scoring')));
-      await tester.pump();
-      expect(find.text(l10n.routeActiveMatchTitle), findsOneWidget);
+    await tester.pumpWidget(
+      HoopTraceApp(database: database, showEntryAnimation: false),
+    );
+    await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+    expect(find.byKey(const Key('home-start-scoring')), findsNothing);
 
-      await tester.tap(find.byKey(const Key('active-abandon')));
-      await tester.pump();
-      expect(find.text(l10n.homeAbandonTitle), findsOneWidget);
-      await tester.tap(find.text(l10n.homeConfirmAbandon));
-      await _pumpUntilFound(
-        tester,
-        find.byKey(const Key('home-start-scoring')),
-      );
-      expect(find.byKey(const Key('home-resume-card')), findsNothing);
+    await tester.tap(find.byKey(const Key('active-abandon')));
+    await tester.pump();
+    expect(find.text(l10n.homeAbandonTitle), findsOneWidget);
+    await tester.tap(find.text(l10n.homeConfirmAbandon));
+    await _pumpUntilFound(tester, find.byKey(const Key('home-start-scoring')));
+    expect(find.byKey(const Key('home-resume-card')), findsNothing);
 
-      await tester.tap(find.byKey(const Key('home-start-scoring')));
-      await _pumpUntilFound(tester, find.text(l10n.pregameTitle));
-    },
-  );
+    await tester.tap(find.byKey(const Key('home-start-scoring')));
+    await _pumpUntilFound(tester, find.text(l10n.pregameTitle));
+  });
 
   testWidgets('leaving live scoring offers keep running, pause and stay', (
     tester,

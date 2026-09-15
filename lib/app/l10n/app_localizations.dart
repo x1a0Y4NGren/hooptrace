@@ -2112,6 +2112,48 @@ abstract class AppLocalizations {
   /// **'数据'**
   String get settingsDataSection;
 
+  /// No description provided for @settingsDataManagementTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'管理数据与备份'**
+  String get settingsDataManagementTitle;
+
+  /// No description provided for @settingsDataManagementSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出、恢复和自动备份都在这里'**
+  String get settingsDataManagementSubtitle;
+
+  /// No description provided for @settingsManualDataSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出与恢复'**
+  String get settingsManualDataSection;
+
+  /// No description provided for @settingsAutomaticBackupSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'自动备份设置'**
+  String get settingsAutomaticBackupSection;
+
+  /// No description provided for @settingsExportDataTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'导出数据'**
+  String get settingsExportDataTitle;
+
+  /// No description provided for @settingsExportDataSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择可恢复的 JSON 备份或用于分析的 CSV 文件'**
+  String get settingsExportDataSubtitle;
+
+  /// No description provided for @settingsExportDataDialogTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'选择导出格式'**
+  String get settingsExportDataDialogTitle;
+
   /// No description provided for @settingsStatisticsSection.
   ///
   /// In zh, this message translates to:

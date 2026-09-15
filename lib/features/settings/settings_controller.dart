@@ -24,18 +24,25 @@ class SettingsController extends ChangeNotifier {
       const ScoringFeedbackPreferences.defaults();
   bool _initialized = false;
   bool _busy = false;
+  Future<void>? _loadInFlight;
 
   AutomaticBackupState get backupState => _backupState;
   ScoringFeedbackPreferences get feedbackState => _feedbackState;
   bool get initialized => _initialized;
   bool get busy => _busy;
 
-  Future<void> load() async {
-    await _perform(() async {
-      _backupState = await automaticBackup.loadState();
-      if (feedback != null) _feedbackState = await feedback!.load();
-      _initialized = true;
-    });
+  Future<void> load() => _loadInFlight ??= _loadOnce();
+
+  Future<void> _loadOnce() async {
+    try {
+      await _perform(() async {
+        _backupState = await automaticBackup.loadState();
+        if (feedback != null) _feedbackState = await feedback!.load();
+        _initialized = true;
+      });
+    } finally {
+      _loadInFlight = null;
+    }
   }
 
   Future<void> shareJsonBackup({required String subject}) =>

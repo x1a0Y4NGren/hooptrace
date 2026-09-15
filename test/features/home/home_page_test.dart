@@ -92,7 +92,7 @@ void main() {
   });
 
   testWidgets(
-    'active match keeps Continue dominant and retains secondary Start and Abandon callbacks',
+    'active match offers Continue and confirmed Abandon without an invalid Start',
     (tester) async {
       var starts = 0;
       var resumes = 0;
@@ -106,20 +106,16 @@ void main() {
       );
 
       expect(find.byKey(const Key('home-editorial-hero')), findsOneWidget);
-      expect(find.byKey(homeStartScoringKey), findsOneWidget);
+      expect(find.byKey(homeStartScoringKey), findsNothing);
       expect(find.text('River'), findsOneWidget);
       expect(find.text('Jordan'), findsOneWidget);
       expect(find.text('11'), findsOneWidget);
       expect(find.text('9'), findsOneWidget);
       expect(tester.widget(find.byKey(homeResumeKey)), isA<FilledButton>());
-      expect(tester.widget(find.byKey(homeStartScoringKey)), isA<TextButton>());
-
-      await tester.tap(find.byKey(homeStartScoringKey));
-      expect(starts, 1);
 
       await tester.tap(find.byKey(homeResumeKey));
       expect(resumes, 1);
-      expect(starts, 1);
+      expect(starts, 0);
 
       await tester.ensureVisible(find.byKey(homeAbandonKey));
       await tester.tap(find.byKey(homeAbandonKey));

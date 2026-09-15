@@ -30,6 +30,7 @@ import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/rules/rule_template_list_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/settings/data_management_page.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
 enum LeaveScoringAction { keep, pause }
@@ -114,6 +115,10 @@ GoRouter buildProviderAppRouter() {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const _SettingsRoute(),
+      ),
+      GoRoute(
+        path: '/settings/data',
+        builder: (context, state) => const _DataManagementRoute(),
       ),
       GoRoute(
         path: '/about',
@@ -519,7 +524,26 @@ class _SettingsRoute extends ConsumerWidget {
       themeController: ref.watch(themePreferencesControllerProvider),
       languageController: ref.watch(languagePreferencesControllerProvider),
       onOpenProject: () => context.push('/about'),
-      onOpenRules: () => context.push('/settings/rules'),
+      onOpenData: () => context.push('/settings/data'),
+    );
+  }
+}
+
+class _DataManagementRoute extends ConsumerWidget {
+  const _DataManagementRoute();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return DataManagementPage(
+      controller: ref.watch(settingsControllerProvider),
+      onBack: () {
+        final router = GoRouter.of(context);
+        if (router.canPop()) {
+          router.pop();
+        } else {
+          router.go('/settings');
+        }
+      },
       onDataRestored: () => context.go('/'),
     );
   }

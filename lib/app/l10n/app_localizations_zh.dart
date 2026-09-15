@@ -1046,6 +1046,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsDataSection => '数据';
 
   @override
+  String get settingsDataManagementTitle => '管理数据与备份';
+
+  @override
+  String get settingsDataManagementSubtitle => '导出、恢复和自动备份都在这里';
+
+  @override
+  String get settingsManualDataSection => '导出与恢复';
+
+  @override
+  String get settingsAutomaticBackupSection => '自动备份设置';
+
+  @override
+  String get settingsExportDataTitle => '导出数据';
+
+  @override
+  String get settingsExportDataSubtitle => '选择可恢复的 JSON 备份或用于分析的 CSV 文件';
+
+  @override
+  String get settingsExportDataDialogTitle => '选择导出格式';
+
+  @override
   String get settingsStatisticsSection => '统计';
 
   @override

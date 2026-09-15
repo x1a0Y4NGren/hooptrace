@@ -54,6 +54,16 @@ void main() {
     expect(controller.feedbackState.sound, isFalse);
   });
 
+  test('concurrent page loads share one in-flight operation', () async {
+    final first = controller.load();
+    final second = controller.load();
+
+    await Future.wait([first, second]);
+
+    expect(controller.initialized, isTrue);
+    expect(controller.busy, isFalse);
+  });
+
   test(
     'feedback switches persist and update the shared service cache',
     () async {
