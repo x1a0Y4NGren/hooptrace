@@ -6,6 +6,7 @@ import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
+import 'package:hooptrace/core/export/safety_backup_store.dart';
 import 'package:hooptrace/features/settings/settings_action_tile.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 import 'package:hooptrace/features/settings/settings_error_message.dart';
@@ -114,6 +115,43 @@ class _DataManagementPageState extends State<DataManagementPage> {
                       : l10n.settingsRestoreSubtitleBlocked,
                   onTap: widget.controller.busy ? null : _chooseRestoreMode,
                 ),
+                const SizedBox(height: HoopTraceSpacing.section),
+                EditorialSectionRule(label: l10n.v2SafetyTitle),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    l10n.v2SafetyHelp,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                if (widget.controller.safetyBackupError != null)
+                  SettingsActionTile(
+                    key: const Key('safety-backup-retry'),
+                    icon: Icons.refresh,
+                    title: l10n.retryAction,
+                    subtitle: l10n.v2SafetyLoadError,
+                    enabled: !widget.controller.busy,
+                    onTap: () =>
+                        unawaited(widget.controller.refreshSafetyBackups()),
+                  )
+                else if (widget.controller.safetyBackups.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(l10n.v2SafetyEmpty),
+                  ),
+                for (final safety in widget.controller.safetyBackups)
+                  SettingsActionTile(
+                    key: Key('safety-backup-${safety.id}'),
+                    icon: Icons.restore,
+                    title: l10n.v2SafetyRestore,
+                    subtitle: widget.controller.canRestoreBackup
+                        ? _safetyBackupDate(safety)
+                        : l10n.settingsReplaceBlocked,
+                    enabled:
+                        !widget.controller.busy &&
+                        widget.controller.canRestoreBackup,
+                    onTap: () => unawaited(_restoreSafetyBackup(safety)),
+                  ),
                 const SizedBox(height: HoopTraceSpacing.section),
                 EditorialSectionRule(
                   label: l10n.settingsAutomaticBackupSection,
@@ -307,7 +345,6 @@ class _DataManagementPageState extends State<DataManagementPage> {
     try {
       final restored = await widget.controller.restoreBackup(
         mode: mode,
-        safetySubject: l10n.exportSafetyBackupSubject,
         pickerDialogTitle: l10n.settingsRestorePickerTitle,
       );
       if (!mounted) return;
@@ -324,6 +361,45 @@ class _DataManagementPageState extends State<DataManagementPage> {
     } on Object catch (error) {
       if (mounted) _showMessage(settingsFriendlyError(error, l10n));
     }
+  }
+
+  Future<void> _restoreSafetyBackup(SafetyBackup backup) async {
+    final l10n = _l10n(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        scrollable: true,
+        title: Text(l10n.v2SafetyRestore),
+        content: Text(l10n.v2SafetyConfirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancelAction),
+          ),
+          FilledButton(
+            key: const Key('safety-backup-confirm'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(l10n.v2SafetyRestore),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.controller.restoreSafetyBackup(backup);
+      if (!mounted) return;
+      _showMessage(l10n.settingsReplaceCompleted);
+      widget.onDataRestored?.call();
+    } on Object catch (error) {
+      if (mounted) _showMessage(settingsFriendlyError(error, l10n));
+    }
+  }
+
+  String _safetyBackupDate(SafetyBackup backup) {
+    final local = backup.exportedAt.toLocal();
+    final material = MaterialLocalizations.of(context);
+    return '${material.formatMediumDate(local)} '
+        '${material.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
   }
 
   Future<bool> _confirmReplace() async {

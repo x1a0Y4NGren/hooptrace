@@ -181,6 +181,12 @@ class MatchAnalytics {
   /// sufficient to make a truthful claim.
   double? get reliableShootingPercentage => recordedShootingPercentage;
 
+  double? get reliableFreeThrowPercentage =>
+      trackingCoverage.index >= TrackingCoverage.shotAttempts.index &&
+          freeThrowAttemptCount > 0
+      ? freeThrowMadeCount / freeThrowAttemptCount
+      : null;
+
   bool get hasReliableShootingPercentage =>
       shootingPercentageIsTrustworthy && recordedShootingPercentage != null;
 

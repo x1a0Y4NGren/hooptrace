@@ -95,8 +95,11 @@ class PlayerCareerShootingTrend {
   final bool isTrustworthy;
 
   double? get recordedShootingPercentage =>
-      isTrustworthy && recordedAttempts > 0
-      ? recordedMakes / recordedAttempts
+      isTrustworthy && fieldGoalAttempts > 0
+      ? fieldGoalMade / fieldGoalAttempts
+      : null;
+  double? get freeThrowPercentage => isTrustworthy && freeThrowAttempts > 0
+      ? freeThrowMade / freeThrowAttempts
       : null;
   double? get shootingPercentage => recordedShootingPercentage;
   double? get percentage => recordedShootingPercentage;

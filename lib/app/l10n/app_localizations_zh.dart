@@ -9,6 +9,175 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
+  String get v2Saving => '正在保存';
+
+  @override
+  String get v2Saved => '已保存到本机';
+
+  @override
+  String get v2SaveFailed => '保存失败，请重试';
+
+  @override
+  String get v2LastAction => '上次操作';
+
+  @override
+  String v2GrowthChartRange(int count, int total) {
+    return '显示最近 $count 场，共 $total 场';
+  }
+
+  @override
+  String get v2SafetyWriteError => '无法保存并验证安全副本，当前数据未替换。请确认设备存储空间后重试。';
+
+  @override
+  String get v2SafetyLoadError => '无法读取安全副本，请重试。';
+
+  @override
+  String get v2BackupRows => '行';
+
+  @override
+  String v2BackupCapacityError(String measured, String limit) {
+    return '备份超过支持容量（当前 $measured，上限 $limit）。原数据已保留。';
+  }
+
+  @override
+  String get v2SwapSides => '交换双方';
+
+  @override
+  String get v2PresetApplied => '已沿用双方与规则，可继续调整';
+
+  @override
+  String get v2RulesSummary => '规则概览';
+
+  @override
+  String get v2StartFailed => '比赛未能开始，请重试。';
+
+  @override
+  String get v2PointsDifference => '最近两场得分差值';
+
+  @override
+  String get v2MarginDifference => '最近两场分差变化';
+
+  @override
+  String get v2Matches => '比赛';
+
+  @override
+  String get v2RecentMatches => '最近三场';
+
+  @override
+  String get v2RecentPreset => '沿用上场设置';
+
+  @override
+  String get v2Result => '赛果';
+
+  @override
+  String get v2Rematch => '再来一场';
+
+  @override
+  String get v2Share => '分享战报';
+
+  @override
+  String get v2Replay => '完整复盘';
+
+  @override
+  String get v2CoverageTitle => '记录范围';
+
+  @override
+  String get v2CoverageScores => '主要记分';
+
+  @override
+  String get v2CoverageComplete => '记录了每次投篮';
+
+  @override
+  String get v2CoverageHelp => '只有确认全场投篮（含未中）都已记录，才会显示可信命中率。漏记时请选择“主要记分”。';
+
+  @override
+  String get v2CorrectCoverage => '纠正记录范围';
+
+  @override
+  String get v2CoverageReason => '记录范围纠正';
+
+  @override
+  String get v2FieldGoalPercentage => '运动战命中率';
+
+  @override
+  String get v2FreeThrowPercentage => '罚球命中率';
+
+  @override
+  String get v2RecordedSample => '以下图表仅表示已记录的样本';
+
+  @override
+  String get v2LocationScope => '已确认落点 / 已记录运动战出手';
+
+  @override
+  String get v2SavePlayer => '保存到球员档案';
+
+  @override
+  String get v2CreatePlayer => '新建球员档案';
+
+  @override
+  String get v2SelectPlayer => '选择已有球员';
+
+  @override
+  String get v2PlayerSaved => '已关联档案，当场姓名保留';
+
+  @override
+  String get v2Retry => '重试';
+
+  @override
+  String get v2GuideTitle => '快速上手';
+
+  @override
+  String get v2GuideScore => '直接记分';
+
+  @override
+  String get v2GuideScoreBody => '点双方的 +1、+2、+3 即可记分。';
+
+  @override
+  String get v2GuideLocation => '补落点与未中';
+
+  @override
+  String get v2GuideLocationBody => '先点球场再记分，或记分后在 10 秒内补落点；未中也能记录。';
+
+  @override
+  String get v2GuideUndo => '撤回与结束';
+
+  @override
+  String get v2GuideUndoBody => '撤回恢复上一步；点击顶部结束比赛并确认记录范围。';
+
+  @override
+  String get v2GuideSkip => '跳过';
+
+  @override
+  String get v2GuideNext => '下一步';
+
+  @override
+  String get v2GuideDone => '知道了';
+
+  @override
+  String get v2AbandonedMatch => '比赛未完赛';
+
+  @override
+  String get v2AbandonedMatchHelp => '可以复盘已保存的记录；本场不计入已完成比赛统计。';
+
+  @override
+  String get v2SafetyTitle => '恢复安全副本';
+
+  @override
+  String get v2SafetyHelp => '替换前自动保护当前数据，保留最近两份。回退前也会保护当前数据。';
+
+  @override
+  String get v2SafetyEmpty => '尚无安全副本';
+
+  @override
+  String get v2SafetyRestore => '恢复这份副本';
+
+  @override
+  String get v2SafetyConfirm => '恢复安全副本会替换当前数据；当前数据会先另存为安全副本。';
+
+  @override
+  String get v2GrowthSample => '按比赛顺序显示运动战命中率；空缺表示记录不完整或无出手。';
+
+  @override
   String get appName => 'HoopTrace';
 
   @override
@@ -1306,11 +1475,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeClockPaused => '计时已暂停';
 
   @override
-  String get homeLastPersistedUnknown => '最近持久化：未知';
+  String get homeLastPersistedUnknown => '最近保存：时间未知';
 
   @override
   String homeLastPersisted(Object date) {
-    return '最近持久化：$date';
+    return '最近保存：$date';
   }
 
   @override

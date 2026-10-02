@@ -10,6 +10,7 @@ import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 
 import '../../test_helpers/test_database.dart';
+import '../../test_helpers/safety_backup_storage.dart';
 
 void main() {
   late AppDatabase database;
@@ -32,6 +33,7 @@ void main() {
       exports: ExportCoordinator(
         database,
         codec,
+        safetyBackups: createTestSafetyBackupStore(codec),
         gateway: gateway,
         automaticBackup: automaticBackup,
       ),

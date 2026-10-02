@@ -590,6 +590,7 @@ class FinishMatchCommand extends MatchCommand {
     bool? confirmedFinalScore,
     this.expectedRedScore,
     this.expectedBlueScore,
+    this.trackingCoverage,
   }) : endedAt = endedAt.toUtc(),
        confirmFinalScore =
            confirmedFinalScore ??
@@ -611,6 +612,12 @@ class FinishMatchCommand extends MatchCommand {
   final int? expectedRedScore;
   final int? expectedBlueScore;
 
+  /// Optional user confirmation of how completely attempts were recorded.
+  /// A null value retains the stored declaration and is deliberately omitted
+  /// from [payload] so receipts created by older versions keep their original
+  /// fingerprint.
+  final TrackingCoverage? trackingCoverage;
+
   @override
   String get commandType => 'finish';
 
@@ -622,6 +629,34 @@ class FinishMatchCommand extends MatchCommand {
     'confirmFinalScore': confirmFinalScore,
     'expectedRedScore': expectedRedScore,
     'expectedBlueScore': expectedBlueScore,
+    if (trackingCoverage != null) 'trackingCoverage': trackingCoverage!.name,
+  };
+}
+
+/// Explicitly corrects the persisted completeness declaration without
+/// changing scoring events or participating in the live undo stack.
+class SetTrackingCoverageCommand extends MatchCommand {
+  SetTrackingCoverageCommand({
+    super.commandId,
+    required this.matchId,
+    required this.trackingCoverage,
+    required this.reason,
+  });
+
+  @override
+  final String matchId;
+  final TrackingCoverage trackingCoverage;
+  final String reason;
+
+  @override
+  String get commandType => 'setTrackingCoverage';
+
+  @override
+  Map<String, Object?> get payload => <String, Object?>{
+    'commandId': commandId,
+    'matchId': matchId,
+    'trackingCoverage': trackingCoverage.name,
+    'reason': reason.trim(),
   };
 }
 
@@ -1764,6 +1799,73 @@ class MatchCommandService {
     return _complete(command, MatchLifecycle.finished);
   }
 
+  Future<MatchDetail> setTrackingCoverage(SetTrackingCoverageCommand command) {
+    return _execute(command, () {
+      return _database.transaction(() async {
+        final duplicate = await _returnForDuplicate(command);
+        if (duplicate != null) return duplicate;
+        final row = await _matchRow(command.matchId);
+        if (row == null) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'Missing match ${command.matchId}.',
+          );
+        }
+        final lifecycle = MatchLifecycle.values.byName(row.lifecycle);
+        if (lifecycle == MatchLifecycle.active) {
+          await _requireActiveMatch(command);
+        }
+        if (lifecycle != MatchLifecycle.active &&
+            lifecycle != MatchLifecycle.finished &&
+            lifecycle != MatchLifecycle.archived) {
+          throw CommandValidationFailure(
+            command: command,
+            message:
+                'Tracking coverage can only be corrected for a playable match.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        if (command.reason.trim().isEmpty) {
+          throw CommandValidationFailure(
+            command: command,
+            message: 'A tracking coverage correction reason is required.',
+            projectionMatchId: command.matchId,
+          );
+        }
+        final current = TrackingCoverage.values.byName(row.trackingCoverage);
+        if (current != command.trackingCoverage) {
+          await (_database.update(
+            _database.matches,
+          )..where((match) => match.id.equals(command.matchId))).write(
+            MatchesCompanion(
+              trackingCoverage: Value(command.trackingCoverage.name),
+            ),
+          );
+          await _writeAudit(
+            id: '${command.commandId}:audit',
+            matchId: command.matchId,
+            targetId: command.matchId,
+            action: 'edit',
+            before: <String, Object?>{
+              'matchId': command.matchId,
+              'trackingCoverage': current.name,
+            },
+            after: <String, Object?>{
+              'matchId': command.matchId,
+              'trackingCoverage': command.trackingCoverage.name,
+            },
+            reason: command.reason,
+          );
+        }
+        await _inject(MatchCommandFailurePoint.afterLifecycleWritten);
+        final result = await _writeReceipt(command);
+        await _inject(MatchCommandFailurePoint.afterAuditWritten);
+        await _inject(MatchCommandFailurePoint.beforeCommit);
+        return result;
+      });
+    });
+  }
+
   Future<MatchDetail> setPossession(SetPossessionCommand command) {
     return _execute(command, () {
       return _database.transaction(() async {
@@ -2397,6 +2499,7 @@ class MatchCommandService {
             projectionMatchId: active?.matchId ?? command.matchId,
           );
         }
+        TrackingCoverage? finishCoverage;
         if (lifecycle == MatchLifecycle.finished) {
           final confirmed = command is FinishMatchCommand
               ? command.confirmFinalScore
@@ -2444,6 +2547,18 @@ class MatchCommandService {
               decision: decision,
               projectionMatchId: command.matchId,
             );
+          }
+          if (command is FinishMatchCommand &&
+              command.trackingCoverage != null) {
+            final requested = command.trackingCoverage!;
+            final current = TrackingCoverage.values.byName(
+              row.trackingCoverage,
+            );
+            finishCoverage =
+                requested == TrackingCoverage.scoresOnly ||
+                    current.index <= requested.index
+                ? requested
+                : current;
           }
         }
         final endedAt = switch (command) {
@@ -2524,8 +2639,29 @@ class MatchCommandService {
           MatchesCompanion(
             lifecycle: Value(lifecycle.name),
             endedAt: Value(endedAt),
+            trackingCoverage: finishCoverage == null
+                ? const Value.absent()
+                : Value(finishCoverage.name),
           ),
         );
+        if (finishCoverage != null &&
+            finishCoverage.name != row.trackingCoverage) {
+          await _writeAudit(
+            id: '${command.commandId}:coverage-audit',
+            matchId: command.matchId,
+            targetId: command.matchId,
+            action: 'edit',
+            before: <String, Object?>{
+              'matchId': command.matchId,
+              'trackingCoverage': row.trackingCoverage,
+            },
+            after: <String, Object?>{
+              'matchId': command.matchId,
+              'trackingCoverage': finishCoverage.name,
+            },
+            reason: 'finish-tracking-coverage',
+          );
+        }
         await (_database.delete(_database.activeSessions)..where(
               (session) =>
                   session.id.equals('active') &

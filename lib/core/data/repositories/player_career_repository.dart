@@ -266,12 +266,12 @@ class PlayerCareerRepository {
   }
 
   static double? _percentage(_MatchCareer match) {
-    final attempts = match.fieldGoalAttempts + match.freeThrowAttempts;
+    final attempts = match.fieldGoalAttempts;
     if (attempts == 0 ||
         match.trackingCoverage.index < TrackingCoverage.shotAttempts.index) {
       return null;
     }
-    return (match.fieldGoalMade + match.freeThrowMade) / attempts;
+    return match.fieldGoalMade / attempts;
   }
 
   static TrackingCoverage _trackingCoverage(String value) {

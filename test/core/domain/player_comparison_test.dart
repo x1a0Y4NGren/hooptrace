@@ -75,7 +75,7 @@ void main() {
     );
     expect(
       report.evidenceFor(PlayerComparisonMetric.locationCoverage)?.trend,
-      ComparisonTrend.unavailable,
+      ComparisonTrend.equal,
     );
   });
 

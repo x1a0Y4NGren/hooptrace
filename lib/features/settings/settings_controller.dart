@@ -25,11 +25,15 @@ class SettingsController extends ChangeNotifier {
   bool _initialized = false;
   bool _busy = false;
   Future<void>? _loadInFlight;
+  List<SafetyBackup> _safetyBackups = const [];
+  Object? _safetyBackupError;
 
   AutomaticBackupState get backupState => _backupState;
   ScoringFeedbackPreferences get feedbackState => _feedbackState;
   bool get initialized => _initialized;
   bool get busy => _busy;
+  List<SafetyBackup> get safetyBackups => _safetyBackups;
+  Object? get safetyBackupError => _safetyBackupError;
 
   Future<void> load() => _loadInFlight ??= _loadOnce();
 
@@ -38,6 +42,7 @@ class SettingsController extends ChangeNotifier {
       await _perform(() async {
         _backupState = await automaticBackup.loadState();
         if (feedback != null) _feedbackState = await feedback!.load();
+        await _reloadSafetyBackups();
         _initialized = true;
       });
     } finally {
@@ -53,24 +58,57 @@ class SettingsController extends ChangeNotifier {
 
   Future<bool> restoreBackup({
     RestoreMode mode = RestoreMode.replace,
-    required String safetySubject,
+    String? safetySubject,
     String? pickerDialogTitle,
   }) {
     if (mode == RestoreMode.replace && !canRestoreBackup) {
       throw const BackupRestoreBlockedException();
     }
     return _perform(() async {
-      final restored = await exports.restorePickedBackup(
-        mode: mode,
-        safetySubject: safetySubject,
-        pickerDialogTitle: pickerDialogTitle,
-      );
+      late final bool restored;
+      try {
+        restored = await exports.restorePickedBackup(
+          mode: mode,
+          safetySubject: safetySubject,
+          pickerDialogTitle: pickerDialogTitle,
+        );
+      } on Object {
+        await _reloadSafetyBackups();
+        rethrow;
+      }
       if (restored) {
         _backupState = await automaticBackup.loadState();
         if (feedback != null) _feedbackState = await feedback!.reload();
+        await _reloadSafetyBackups();
       }
       return restored;
     });
+  }
+
+  Future<void> refreshSafetyBackups() => _perform(_reloadSafetyBackups);
+
+  Future<void> restoreSafetyBackup(SafetyBackup backup) {
+    if (!canRestoreBackup) throw const BackupRestoreBlockedException();
+    return _perform(() async {
+      try {
+        await exports.restoreSafetyBackup(backup);
+      } on Object {
+        await _reloadSafetyBackups();
+        rethrow;
+      }
+      _backupState = await automaticBackup.loadState();
+      if (feedback != null) _feedbackState = await feedback!.reload();
+      await _reloadSafetyBackups();
+    });
+  }
+
+  Future<void> _reloadSafetyBackups() async {
+    try {
+      _safetyBackups = List.unmodifiable(await exports.listSafetyBackups());
+      _safetyBackupError = null;
+    } on Object catch (error) {
+      _safetyBackupError = error;
+    }
   }
 
   Future<bool> configureBackupDirectory({String? dialogTitle}) {

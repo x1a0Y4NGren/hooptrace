@@ -449,10 +449,8 @@ void main() {
         expect(aggregate.freeThrowMade, 1);
         expect(aggregate.freeThrowAttempts, 1);
         expect(aggregate.shootingTrend.single.isTrustworthy, isTrue);
-        expect(
-          aggregate.shootingTrend.single.recordedShootingPercentage,
-          2 / 3,
-        );
+        expect(aggregate.shootingTrend.single.recordedShootingPercentage, .5);
+        expect(aggregate.shootingTrend.single.freeThrowPercentage, 1);
         expect(aggregate.zoneHeatmap.values, [1]);
         expect(aggregate.recentChange, const PlayerCareerRecentChange.empty());
         expect(() => aggregate.shootingTrend.clear(), throwsUnsupportedError);

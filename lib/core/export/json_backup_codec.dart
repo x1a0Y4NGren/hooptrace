@@ -60,8 +60,33 @@ class BackupValidationException extends BackupException {
   const BackupValidationException(super.message);
 }
 
+enum BackupCapacityLimit { payloadBytes, rowsPerTable, totalRows }
+
+/// Reports measured capacity and the supported limit for localized feedback.
+class BackupCapacityException extends BackupValidationException {
+  const BackupCapacityException({
+    required this.limitKind,
+    required this.measured,
+    required this.limit,
+    this.tableName,
+  }) : super(
+         'Backup capacity${tableName == null ? '' : ' ($tableName)'} '
+         'is $measured; the supported limit is $limit.',
+       );
+
+  final BackupCapacityLimit limitKind;
+  final int measured;
+  final int limit;
+  final String? tableName;
+}
+
 class BackupRestoreException extends BackupException {
   const BackupRestoreException(super.message);
+}
+
+class SafetyBackupWriteException extends BackupException {
+  const SafetyBackupWriteException()
+    : super('The internal safety backup could not be saved and verified.');
 }
 
 /// Raised when replace restore would delete a locally active match.
@@ -144,7 +169,9 @@ class JsonBackupCodec {
     // point in time, so graph validation can never observe a half-committed
     // domain mutation.
     return database.transaction(() async {
+      _validateRecordCounts(await _exportRecordCounts());
       await PlayerAnalyticsSnapshotRepository(database).ensureSnapshots();
+      _validateRecordCounts(await _exportRecordCounts());
       final tables = <String, List<Map<String, dynamic>>>{
         'matches': await _rows(database.matches),
         'matchParticipants': await _rows(database.matchParticipants),
@@ -191,7 +218,12 @@ class JsonBackupCodec {
         recordCounts: sourceManifest.recordCounts,
         checksum: checksum,
       );
-      return jsonEncode({'manifest': manifest.toJson(), 'data': tables});
+      final payload = jsonEncode({
+        'manifest': manifest.toJson(),
+        'data': tables,
+      });
+      _validatePayloadBytes(utf8.encode(payload).length);
+      return payload;
     });
   }
 
@@ -262,11 +294,7 @@ class JsonBackupCodec {
   /// version, checksum, enum, reference and domain checks as replace restore
   /// before opening their write transaction.
   JsonBackupDocument decodeAndValidate(String source) {
-    if (utf8.encode(source).length > maxPayloadBytes) {
-      throw BackupValidationException(
-        'Backup payload exceeds the $maxPayloadBytes byte limit.',
-      );
-    }
+    _validatePayloadBytes(utf8.encode(source).length);
     late final BackupManifest manifest;
     late final Map<String, List<Map<String, dynamic>>> data;
     try {
@@ -475,21 +503,78 @@ class JsonBackupCodec {
   }
 
   void _validateResourceLimits(BackupManifest manifest) {
-    var totalRows = 0;
-    for (final entry in manifest.recordCounts.entries) {
+    _validateRecordCounts(manifest.recordCounts);
+  }
+
+  void _validatePayloadBytes(int measured) {
+    if (measured > maxPayloadBytes) {
+      throw BackupCapacityException(
+        limitKind: BackupCapacityLimit.payloadBytes,
+        measured: measured,
+        limit: maxPayloadBytes,
+      );
+    }
+  }
+
+  void _validateRecordCounts(Map<String, int> counts) {
+    for (final entry in counts.entries) {
       final count = entry.value;
-      if (count < 0 || count > maxRowsPerTable) {
+      if (count < 0) {
         throw BackupValidationException(
-          'Manifest count for ${entry.key} exceeds the per-table limit.',
+          'Manifest count for ${entry.key} must not be negative.',
         );
       }
-      totalRows += count;
-      if (totalRows > maxTotalRows) {
-        throw BackupValidationException(
-          'Manifest row counts exceed the total row limit.',
+      if (count > maxRowsPerTable) {
+        throw BackupCapacityException(
+          limitKind: BackupCapacityLimit.rowsPerTable,
+          measured: count,
+          limit: maxRowsPerTable,
+          tableName: entry.key,
         );
       }
     }
+    final totalRows = counts.values.fold(0, (total, count) => total + count);
+    if (totalRows > maxTotalRows) {
+      throw BackupCapacityException(
+        limitKind: BackupCapacityLimit.totalRows,
+        measured: totalRows,
+        limit: maxTotalRows,
+      );
+    }
+  }
+
+  Future<Map<String, int>> _exportRecordCounts() async {
+    final tables = {
+      'matches': database.matches.actualTableName,
+      'matchParticipants': database.matchParticipants.actualTableName,
+      'matchClocks': database.matchClocks.actualTableName,
+      'activeSessions': database.activeSessions.actualTableName,
+      'matchEvents': database.matchEvents.actualTableName,
+      'shotLocations': database.shotLocations.actualTableName,
+      'players': database.players.actualTableName,
+      'ruleTemplates': database.ruleTemplates.actualTableName,
+      'possessionSegments': database.possessionSegments.actualTableName,
+      'auditLogs': database.auditLogs.actualTableName,
+      'appSettings': database.appSettings.actualTableName,
+      'playerAnalyticsSnapshots':
+          database.playerAnalyticsSnapshots.actualTableName,
+    };
+    final counts = <String, int>{};
+    for (final entry in tables.entries) {
+      final excludeLease = entry.key == 'appSettings';
+      final row = await database
+          .customSelect(
+            'SELECT COUNT(*) AS row_count FROM "${entry.value}"'
+            '${excludeLease ? ' WHERE key != ?' : ''}',
+            variables: [
+              if (excludeLease)
+                const Variable(automaticBackupRunLeaseSettingKey),
+            ],
+          )
+          .getSingle();
+      counts[entry.key] = row.read<int>('row_count');
+    }
+    return counts;
   }
 
   void _validateTableGroups(

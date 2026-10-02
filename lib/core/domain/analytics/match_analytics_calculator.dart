@@ -199,15 +199,13 @@ class MatchAnalyticsCalculator {
     closeRun();
 
     final attempts = madeShotCount + missedShotCount;
-    final effectiveCoverage =
-        trackingCoverage ??
-        (missedShotCount > 0
-            ? TrackingCoverage.shotAttempts
-            : TrackingCoverage.scoresOnly);
+    final effectiveCoverage = trackingCoverage ?? TrackingCoverage.scoresOnly;
     final isReliable =
-        attempts > 0 &&
+        fieldGoalAttemptCount > 0 &&
         effectiveCoverage.index >= TrackingCoverage.shotAttempts.index;
-    final recordedPercentage = isReliable ? madeShotCount / attempts : null;
+    final recordedPercentage = isReliable
+        ? fieldGoalMadeCount / fieldGoalAttemptCount
+        : null;
 
     final locationsByEvent = <String, ShotLocation>{};
     for (final location in shotLocations) {

@@ -9,6 +9,185 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get v2Saving => 'Saving';
+
+  @override
+  String get v2Saved => 'Saved on device';
+
+  @override
+  String get v2SaveFailed => 'Save failed; retry';
+
+  @override
+  String get v2LastAction => 'Last action';
+
+  @override
+  String v2GrowthChartRange(int count, int total) {
+    return 'Showing the latest $count of $total games';
+  }
+
+  @override
+  String get v2SafetyWriteError =>
+      'The safety copy could not be saved and verified. Current data was preserved. Check device storage and try again.';
+
+  @override
+  String get v2SafetyLoadError => 'Safety copies could not be read. Try again.';
+
+  @override
+  String get v2BackupRows => 'rows';
+
+  @override
+  String v2BackupCapacityError(String measured, String limit) {
+    return 'Backup exceeds supported capacity ($measured; limit $limit). Original data is preserved.';
+  }
+
+  @override
+  String get v2SwapSides => 'Swap sides';
+
+  @override
+  String get v2PresetApplied =>
+      'Players and rules copied; adjust before starting';
+
+  @override
+  String get v2RulesSummary => 'Rule summary';
+
+  @override
+  String get v2StartFailed => 'Could not start the match. Try again.';
+
+  @override
+  String get v2PointsDifference => 'Points difference · last two games';
+
+  @override
+  String get v2MarginDifference => 'Margin change · last two games';
+
+  @override
+  String get v2Matches => 'Matches';
+
+  @override
+  String get v2RecentMatches => 'Recent matches';
+
+  @override
+  String get v2RecentPreset => 'Use last match setup';
+
+  @override
+  String get v2Result => 'Result';
+
+  @override
+  String get v2Rematch => 'Play again';
+
+  @override
+  String get v2Share => 'Share report';
+
+  @override
+  String get v2Replay => 'Full replay';
+
+  @override
+  String get v2CoverageTitle => 'Recording scope';
+
+  @override
+  String get v2CoverageScores => 'Mainly scores';
+
+  @override
+  String get v2CoverageComplete => 'Every shot recorded';
+
+  @override
+  String get v2CoverageHelp =>
+      'Confirm only when every attempt, including misses, was recorded. Choose mainly scores if attempts were missed.';
+
+  @override
+  String get v2CorrectCoverage => 'Correct recording scope';
+
+  @override
+  String get v2CoverageReason => 'Recording scope correction';
+
+  @override
+  String get v2FieldGoalPercentage => 'FG%';
+
+  @override
+  String get v2FreeThrowPercentage => 'FT%';
+
+  @override
+  String get v2RecordedSample => 'Charts show recorded attempts only';
+
+  @override
+  String get v2LocationScope =>
+      'Confirmed locations / recorded field goal attempts';
+
+  @override
+  String get v2SavePlayer => 'Save to player profile';
+
+  @override
+  String get v2CreatePlayer => 'Create player profile';
+
+  @override
+  String get v2SelectPlayer => 'Choose existing player';
+
+  @override
+  String get v2PlayerSaved => 'Profile linked; match name preserved';
+
+  @override
+  String get v2Retry => 'Retry';
+
+  @override
+  String get v2GuideTitle => 'Quick guide';
+
+  @override
+  String get v2GuideScore => 'Record scores';
+
+  @override
+  String get v2GuideScoreBody => 'Tap either side’s +1, +2 or +3 to score.';
+
+  @override
+  String get v2GuideLocation => 'Locations and misses';
+
+  @override
+  String get v2GuideLocationBody =>
+      'Tap the court first, or add a location within 10 seconds after scoring. Record misses too.';
+
+  @override
+  String get v2GuideUndo => 'Undo and finish';
+
+  @override
+  String get v2GuideUndoBody =>
+      'Undo restores the last action. Tap Finish at the top and confirm the recording scope.';
+
+  @override
+  String get v2GuideSkip => 'Skip';
+
+  @override
+  String get v2GuideNext => 'Next';
+
+  @override
+  String get v2GuideDone => 'Got it';
+
+  @override
+  String get v2AbandonedMatch => 'Match not finished';
+
+  @override
+  String get v2AbandonedMatchHelp =>
+      'You can replay the saved record. This match is excluded from completed-match statistics.';
+
+  @override
+  String get v2SafetyTitle => 'Restore safety copies';
+
+  @override
+  String get v2SafetyHelp =>
+      'Current data is protected before replacement or rollback. The two most recent copies are kept.';
+
+  @override
+  String get v2SafetyEmpty => 'No safety copies yet';
+
+  @override
+  String get v2SafetyRestore => 'Restore this copy';
+
+  @override
+  String get v2SafetyConfirm =>
+      'Restoring this copy replaces current data after saving another safety copy.';
+
+  @override
+  String get v2GrowthSample =>
+      'FG% in match order. Gaps mean incomplete recording or no attempts.';
+
+  @override
   String get appName => 'HoopTrace';
 
   @override
@@ -1359,7 +1538,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeClockPaused => 'Timer paused';
 
   @override
-  String get homeLastPersistedUnknown => 'Last saved: unknown';
+  String get homeLastPersistedUnknown => 'Last save time unavailable';
 
   @override
   String homeLastPersisted(Object date) {

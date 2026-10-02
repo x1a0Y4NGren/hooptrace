@@ -18,6 +18,7 @@ import 'package:hooptrace/features/settings/data_management_page.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
 import '../../test_helpers/test_database.dart';
+import '../../test_helpers/safety_backup_storage.dart';
 
 void main() {
   testWidgets(
@@ -40,6 +41,7 @@ void main() {
         exports: ExportCoordinator(
           database,
           codec,
+          safetyBackups: createTestSafetyBackupStore(codec),
           gateway: _Gateway(),
           automaticBackup: backup,
         ),
@@ -81,6 +83,7 @@ void main() {
       exports: ExportCoordinator(
         database,
         codec,
+        safetyBackups: createTestSafetyBackupStore(codec),
         gateway: _Gateway(),
         automaticBackup: automaticBackup,
       ),
@@ -160,6 +163,7 @@ void main() {
         exports: ExportCoordinator(
           database,
           codec,
+          safetyBackups: createTestSafetyBackupStore(codec),
           gateway: _Gateway(),
           automaticBackup: automaticBackup,
         ),
@@ -235,6 +239,7 @@ void main() {
         exports: ExportCoordinator(
           database,
           codec,
+          safetyBackups: createTestSafetyBackupStore(codec),
           gateway: gateway,
           automaticBackup: automaticBackup,
         ),
@@ -301,6 +306,7 @@ void main() {
         exports: ExportCoordinator(
           database,
           codec,
+          safetyBackups: createTestSafetyBackupStore(codec),
           gateway: _Gateway(),
           automaticBackup: automaticBackup,
         ),
@@ -416,6 +422,7 @@ void main() {
       exports: ExportCoordinator(
         database,
         codec,
+        safetyBackups: createTestSafetyBackupStore(codec),
         gateway: gateway,
         automaticBackup: automaticBackup,
       ),
@@ -485,6 +492,7 @@ void main() {
         exports: ExportCoordinator(
           database,
           codec,
+          safetyBackups: createTestSafetyBackupStore(codec),
           gateway: _Gateway(),
           automaticBackup: automaticBackup,
         ),
@@ -531,6 +539,7 @@ void main() {
       exports: ExportCoordinator(
         database,
         codec,
+        safetyBackups: createTestSafetyBackupStore(codec),
         gateway: _Gateway(),
         automaticBackup: automaticBackup,
       ),
@@ -604,6 +613,7 @@ void main() {
         exports: ExportCoordinator(
           database,
           codec,
+          safetyBackups: createTestSafetyBackupStore(codec),
           gateway: _Gateway(),
           automaticBackup: automaticBackup,
         ),
