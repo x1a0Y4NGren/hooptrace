@@ -410,6 +410,10 @@ void main() {
     final repository = PlayerRepository(database);
     var editCalls = 0;
     var analyticsCalls = 0;
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await database.close();
+    });
     await repository.save(
       Player(
         id: 'large-text-player',
@@ -421,16 +425,19 @@ void main() {
     );
 
     await tester.pumpWidget(
-      MediaQuery(
-        data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-        child: MaterialApp(
-          theme: buildHoopTraceTheme(),
-          home: PlayerListPage(
-            repository: repository,
-            onCreate: () {},
-            onEdit: (_) => editCalls++,
-            onViewAnalytics: (_) => analyticsCalls++,
-          ),
+      MaterialApp(
+        theme: buildHoopTraceTheme(),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: PlayerListPage(
+          repository: repository,
+          onCreate: () {},
+          onEdit: (_) => editCalls++,
+          onViewAnalytics: (_) => analyticsCalls++,
         ),
       ),
     );
@@ -448,11 +455,10 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey('player-analytics-large-text-player')),
     );
+    expect(editCalls, 1);
+    expect(analyticsCalls, 0);
+    await tester.tap(find.text('很长的球员昵称用于大字号列表'));
     expect(analyticsCalls, 1);
-    await tester.tap(
-      find.byKey(const ValueKey('player-row-large-text-player')),
-      warnIfMissed: false,
-    );
     expect(editCalls, 1);
   });
 

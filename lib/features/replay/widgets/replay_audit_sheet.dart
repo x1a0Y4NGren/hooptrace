@@ -139,6 +139,7 @@ class ReplayAuditFormatter {
       'isDeleted',
       'x',
       'y',
+      'trackingCoverage',
     }.contains(key);
   }
 
@@ -154,6 +155,7 @@ class ReplayAuditFormatter {
       'isDeleted' => l10n.replayAuditFieldDeleted,
       'x' => l10n.replayAuditFieldX,
       'y' => l10n.replayAuditFieldY,
+      'trackingCoverage' => l10n.v2CoverageTitle,
       _ => l10n.replayAuditFieldType,
     };
   }
@@ -164,6 +166,15 @@ class ReplayAuditFormatter {
     }
     if (key == 'isDeleted' && value is bool) {
       return value ? l10n.replayAuditValueDeleted : l10n.replayAuditValueActive;
+    }
+    if (key == 'trackingCoverage') {
+      return switch (value) {
+        'scoresOnly' => l10n.v2CoverageScores,
+        'shotAttempts' => l10n.v2CoverageComplete,
+        'locations' => l10n.replayAnalyticsTrackingLocations,
+        'full' => l10n.replayAnalyticsTrackingFull,
+        _ => l10n.replayNoData,
+      };
     }
     if (key == 'side' && value is String) {
       return value == TeamSide.red.name

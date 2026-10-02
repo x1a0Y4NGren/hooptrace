@@ -26,6 +26,7 @@ void main() {
     final router = buildProviderAppRouter();
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
       await tester.binding.setSurfaceSize(null);
       router.dispose();
       await database.close();
@@ -50,12 +51,10 @@ void main() {
     router.go('/players');
     await _pumpUntil(
       tester,
-      find.byKey(const Key('player-analytics-career-route-player')),
+      find.byKey(const Key('player-row-career-route-player')),
     );
     await tester.pumpAndSettle();
-    await tester.tap(
-      find.byKey(const Key('player-analytics-career-route-player')),
-    );
+    await tester.tap(find.text('飞鱼'));
     await _pumpUntil(tester, find.text('球员分析'));
     await _pumpUntil(tester, find.text('该周期暂无已完成比赛'));
     expect(find.text('该周期暂无已完成比赛'), findsOneWidget);

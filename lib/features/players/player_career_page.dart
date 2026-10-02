@@ -13,6 +13,9 @@ class PlayerCareerPage extends StatelessWidget {
     required this.player,
     required this.opponents,
     this.onCompare,
+    this.onMatchTap,
+    this.onBack,
+    this.onEdit,
     super.key,
   });
 
@@ -20,6 +23,9 @@ class PlayerCareerPage extends StatelessWidget {
   final Player player;
   final List<Player> opponents;
   final VoidCallback? onCompare;
+  final ValueChanged<String>? onMatchTap;
+  final VoidCallback? onBack;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -28,14 +34,24 @@ class PlayerCareerPage extends StatelessWidget {
       maxContentWidth: 920,
       masthead: EditorialMasthead(
         title: _l10n(context).playerAnalyticsTitle,
-        leading: canPop
+        leading: canPop || onBack != null
             ? EditorialTapTarget(
-                onPressed: () => Navigator.maybePop(context),
+                key: const Key('career-back'),
+                onPressed: onBack ?? () => Navigator.maybePop(context),
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
                 label: MaterialLocalizations.of(context).backButtonTooltip,
                 child: const Icon(Icons.arrow_back),
               )
             : null,
+        trailing: onEdit == null
+            ? null
+            : EditorialTapTarget(
+                key: const Key('career-edit'),
+                onPressed: onEdit,
+                tooltip: _l10n(context).playersEdit,
+                label: _l10n(context).playersEdit,
+                child: const Icon(Icons.edit_outlined),
+              ),
       ),
       body: ListenableBuilder(
         listenable: controller,
@@ -46,6 +62,7 @@ class PlayerCareerPage extends StatelessWidget {
             player: player,
             opponents: opponents,
             onCompare: onCompare,
+            onMatchTap: onMatchTap,
           ),
         ),
       ),
@@ -59,12 +76,14 @@ class _CareerBody extends StatelessWidget {
     required this.player,
     required this.opponents,
     required this.onCompare,
+    required this.onMatchTap,
   });
 
   final PlayerCareerController controller;
   final Player player;
   final List<Player> opponents;
   final VoidCallback? onCompare;
+  final ValueChanged<String>? onMatchTap;
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +123,19 @@ class _CareerBody extends StatelessWidget {
         else if (controller.aggregate == null)
           const SizedBox.shrink()
         else
-          _AggregateContent(aggregate: controller.aggregate!, l10n: l10n),
+          _AggregateContent(
+            aggregate: controller.aggregate!,
+            l10n: l10n,
+            query: controller.query,
+            opponentLabel: opponents
+                .where(
+                  (opponent) =>
+                      opponent.id == controller.query.opponentPlayerId,
+                )
+                .firstOrNull
+                ?.nickname,
+            onMatchTap: onMatchTap,
+          ),
       ],
     );
   }
@@ -273,10 +304,19 @@ class _FilterChoice extends StatelessWidget {
 }
 
 class _AggregateContent extends StatelessWidget {
-  const _AggregateContent({required this.aggregate, required this.l10n});
+  const _AggregateContent({
+    required this.aggregate,
+    required this.l10n,
+    required this.query,
+    this.opponentLabel,
+    this.onMatchTap,
+  });
 
   final PlayerCareerAggregate aggregate;
   final AppLocalizations l10n;
+  final PlayerCareerQuery query;
+  final String? opponentLabel;
+  final ValueChanged<String>? onMatchTap;
 
   @override
   Widget build(BuildContext context) {
@@ -298,7 +338,13 @@ class _AggregateContent extends StatelessWidget {
         const SizedBox(height: 24),
         EditorialSectionRule(label: l10n.playerAnalyticsShootingTrend),
         const SizedBox(height: 12),
-        _TrendSection(aggregate: aggregate, l10n: l10n),
+        _TrendSection(
+          aggregate: aggregate,
+          l10n: l10n,
+          query: query,
+          opponentLabel: opponentLabel,
+          onMatchTap: onMatchTap,
+        ),
         const SizedBox(height: 24),
         EditorialSectionRule(label: l10n.playerAnalyticsZoneHeatmap),
         const SizedBox(height: 12),
@@ -326,9 +372,9 @@ class _GrowthSummary extends StatelessWidget {
       runSpacing: 12,
       children: [
         if (pointsDelta != null)
-          _Delta(label: l10n.playerAnalyticsAveragePoints, value: pointsDelta),
+          _Delta(label: l10n.v2PointsDifference, value: pointsDelta),
         if (marginDelta != null)
-          _Delta(label: l10n.playerAnalyticsAverageMargin, value: marginDelta),
+          _Delta(label: l10n.v2MarginDifference, value: marginDelta),
       ],
     );
   }
@@ -348,16 +394,16 @@ class _Delta extends StatelessWidget {
     return Semantics(
       label: '$label ${positive ? '+' : ''}${value.toStringAsFixed(1)}',
       excludeSemantics: true,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Icon(
             positive ? Icons.trending_up : Icons.trending_down,
             color: color,
           ),
-          const SizedBox(width: 8),
           Text(label),
-          const SizedBox(width: 8),
           Text(
             '${positive ? '+' : ''}${value.toStringAsFixed(1)}',
             style: TextStyle(
@@ -443,23 +489,158 @@ class _CareerStat extends StatelessWidget {
 }
 
 class _TrendSection extends StatelessWidget {
-  const _TrendSection({required this.aggregate, required this.l10n});
+  const _TrendSection({
+    required this.aggregate,
+    required this.l10n,
+    required this.query,
+    this.opponentLabel,
+    this.onMatchTap,
+  });
 
   final PlayerCareerAggregate aggregate;
   final AppLocalizations l10n;
+  final PlayerCareerQuery query;
+  final String? opponentLabel;
+  final ValueChanged<String>? onMatchTap;
 
   @override
   Widget build(BuildContext context) {
     if (aggregate.shootingTrend.isEmpty) {
       return Text(l10n.playerAnalyticsNoTrend);
     }
+    final allSamples = aggregate.shootingTrend;
+    final start = allSamples.length > 30 ? allSamples.length - 30 : 0;
+    final samples = allSamples.sublist(start);
+    final dates = MaterialLocalizations.of(context);
+    final editorial = editorialThemeOf(context);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final (index, trend) in aggregate.shootingTrend.indexed)
-          _TrendRow(index: index + 1, trend: trend, l10n: l10n),
+        Text(
+          '${_windowLabel(query.window, l10n)} · '
+          '${opponentLabel ?? l10n.playerAnalyticsOpponentNone}',
+          key: const Key('career-growth-scope'),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          l10n.v2GrowthChartRange(samples.length, allSamples.length),
+          key: const Key('career-growth-range'),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${dates.formatShortDate(samples.first.playedAt.toLocal())} – '
+          '${dates.formatShortDate(samples.last.playedAt.toLocal())}',
+          key: const Key('career-growth-dates'),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            SizedBox(
+              width: 64 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
+              height: 160,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 2),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [Text('100%'), Text('50%'), Text('0%')],
+                ),
+              ),
+            ),
+            Expanded(
+              child: Semantics(
+                label:
+                    '${l10n.playerAnalyticsFieldGoals}. ${l10n.v2GrowthSample}',
+                image: true,
+                child: RepaintBoundary(
+                  key: const Key('career-growth-chart-image'),
+                  child: CustomPaint(
+                    key: const Key('career-growth-chart'),
+                    painter: _ShootingTrendPainter(
+                      percentages: [
+                        for (final sample in samples)
+                          sample.recordedShootingPercentage,
+                      ],
+                      lineColor: editorial.arenaAccent,
+                      gridColor: editorial.rule,
+                    ),
+                    size: const Size(double.infinity, 160),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(l10n.v2GrowthSample, style: Theme.of(context).textTheme.bodySmall),
+        if (samples.every(
+          (sample) => sample.recordedShootingPercentage == null,
+        )) ...[
+          const SizedBox(height: 8),
+          Text(l10n.playerAnalyticsNoReliablePercentage),
+        ],
+        const SizedBox(height: 12),
+        for (final (index, trend) in samples.indexed)
+          _TrendRow(
+            index: start + index + 1,
+            trend: trend,
+            l10n: l10n,
+            onTap: onMatchTap == null ? null : () => onMatchTap!(trend.matchId),
+          ),
       ],
     );
   }
+}
+
+class _ShootingTrendPainter extends CustomPainter {
+  const _ShootingTrendPainter({
+    required this.percentages,
+    required this.lineColor,
+    required this.gridColor,
+  });
+
+  final List<double?> percentages;
+  final Color lineColor;
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const inset = 8.0;
+    final width = size.width - inset * 2;
+    final height = size.height - inset * 2;
+    final grid = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (final ratio in [0.0, 0.5, 1.0]) {
+      final y = inset + height * ratio;
+      canvas.drawLine(Offset(inset, y), Offset(size.width - inset, y), grid);
+    }
+    final line = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round;
+    Offset? previous;
+    for (final (index, percentage) in percentages.indexed) {
+      if (percentage == null) {
+        previous = null;
+        continue;
+      }
+      final x = percentages.length == 1
+          ? size.width / 2
+          : inset + width * index / (percentages.length - 1);
+      final point = Offset(x, inset + height * (1 - percentage.clamp(0, 1)));
+      if (previous != null) canvas.drawLine(previous, point, line);
+      canvas.drawCircle(point, 4, line);
+      previous = point;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShootingTrendPainter oldDelegate) =>
+      oldDelegate.percentages != percentages ||
+      oldDelegate.lineColor != lineColor ||
+      oldDelegate.gridColor != gridColor;
 }
 
 class _TrendRow extends StatelessWidget {
@@ -467,17 +648,20 @@ class _TrendRow extends StatelessWidget {
     required this.index,
     required this.trend,
     required this.l10n,
+    this.onTap,
   });
 
   final int index;
   final PlayerCareerShootingTrend trend;
   final AppLocalizations l10n;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final editorial = editorialThemeOf(context);
     final percentage = trend.recordedShootingPercentage;
-    return Container(
+    final row = Container(
+      constraints: const BoxConstraints(minHeight: 48),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: editorial.rule)),
       ),
@@ -510,7 +694,7 @@ class _TrendRow extends StatelessWidget {
           );
           final identity = Text(
             '${index.toString().padLeft(2, '0')}  '
-            '${trend.playedAt.month}/${trend.playedAt.day}',
+            '${MaterialLocalizations.of(context).formatShortDate(trend.playedAt.toLocal())}',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
               color: editorial.mutedInk,
               fontFamily: HoopTraceTypography.displayFamily,
@@ -520,8 +704,9 @@ class _TrendRow extends StatelessWidget {
           );
           final result = _TrendResult(
             percentage: percentage,
+            freeThrowPercentage: trend.freeThrowPercentage,
             recordedAttempts: trend.recordedAttempts,
-            recordedShotsLabel: l10n.playerAnalyticsRecordedShots,
+            l10n: l10n,
           );
           final compact =
               constraints.maxWidth < 520 ||
@@ -530,7 +715,12 @@ class _TrendRow extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                identity,
+                Row(
+                  children: [
+                    Expanded(child: identity),
+                    if (onTap != null) const Icon(Icons.chevron_right),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 result,
                 const SizedBox(height: 4),
@@ -540,14 +730,20 @@ class _TrendRow extends StatelessWidget {
           }
           return Row(
             children: [
-              SizedBox(width: 96, child: identity),
+              SizedBox(width: 132, child: identity),
               Expanded(child: details),
               const SizedBox(width: 16),
               result,
+              if (onTap != null) const Icon(Icons.chevron_right),
             ],
           );
         },
       ),
+    );
+    return InkWell(
+      key: ValueKey('career-trend-${trend.matchId}'),
+      onTap: onTap,
+      child: row,
     );
   }
 }
@@ -555,13 +751,15 @@ class _TrendRow extends StatelessWidget {
 class _TrendResult extends StatelessWidget {
   const _TrendResult({
     required this.percentage,
+    required this.freeThrowPercentage,
     required this.recordedAttempts,
-    required this.recordedShotsLabel,
+    required this.l10n,
   });
 
   final double? percentage;
+  final double? freeThrowPercentage;
   final int recordedAttempts;
-  final String recordedShotsLabel;
+  final AppLocalizations l10n;
 
   @override
   Widget build(BuildContext context) {
@@ -570,15 +768,37 @@ class _TrendResult extends StatelessWidget {
       fontWeight: FontWeight.w800,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
-    if (percentage != null) {
-      return Text('${(percentage! * 100).round()}%', style: numericStyle);
-    }
     return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 6,
+      spacing: 16,
+      runSpacing: 8,
       children: [
-        Text(recordedShotsLabel),
-        Text('$recordedAttempts', style: numericStyle),
+        for (final (label, value) in [
+          (l10n.playerAnalyticsFieldGoals, percentage),
+          (l10n.playerAnalyticsFreeThrows, freeThrowPercentage),
+        ])
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: Theme.of(context).textTheme.bodySmall),
+              Text(
+                value == null ? '—' : '${(value * 100).round()}%',
+                style: numericStyle,
+              ),
+            ],
+          ),
+        if (percentage == null)
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.playerAnalyticsRecordedShots,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              Text('$recordedAttempts', style: numericStyle),
+            ],
+          ),
       ],
     );
   }

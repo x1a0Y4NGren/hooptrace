@@ -213,11 +213,19 @@ void main() {
       _expectSingleTapOwner(tester, allTime);
       _expectSingleTapOwner(tester, sevenDays);
       expect(
-        tester.widget<Text>(find.text('01  8/1')).style?.fontFamily,
+        tester.widget<Text>(find.text('01  Aug 1, 2026')).style?.fontFamily,
         HoopTraceTypography.displayFamily,
       );
       expect(
-        tester.widget<Text>(find.text('57%')).style?.fontFamily,
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const Key('career-trend-m1')),
+                matching: find.text('50%'),
+              ),
+            )
+            .style
+            ?.fontFamily,
         HoopTraceTypography.displayFamily,
       );
       expect(

@@ -21,7 +21,7 @@ class ReplayAnalyticsSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
-    final attempts = analytics.attempts;
+    final attempts = analytics.fieldGoalAttemptCount;
     final percentage = analytics.reliableShootingPercentage == null
         ? null
         : (analytics.reliableShootingPercentage! * 100).round();
@@ -54,13 +54,19 @@ class ReplayAnalyticsSummary extends StatelessWidget {
                 value: largestLead,
               ),
               _AnalyticsMetric(
-                label: l10n.replayAnalyticsShootingPercentage,
+                label: l10n.v2FieldGoalPercentage,
                 value: _shootingValue(
                   analytics,
                   attempts: attempts,
                   percentage: percentage,
                   l10n: l10n,
                 ),
+              ),
+              _AnalyticsMetric(
+                label: l10n.v2FreeThrowPercentage,
+                value: analytics.reliableFreeThrowPercentage == null
+                    ? l10n.replayNoData
+                    : '${(analytics.reliableFreeThrowPercentage! * 100).round()}% · ${analytics.freeThrowMadeCount}/${analytics.freeThrowAttemptCount}',
               ),
               _AnalyticsMetric(
                 label: l10n.replayAnalyticsKeyMoments,
@@ -101,14 +107,15 @@ class ReplayAnalyticsSummary extends StatelessWidget {
                 value: _coverageLabel(analytics.trackingCoverage, l10n),
               ),
               _AnalyticsMetric(
-                label: l10n.replayAnalyticsLocationCoverage,
-                value: analytics.shotAttemptCount == null
+                label: l10n.v2LocationScope,
+                value: analytics.fieldGoalAttemptCount == 0
                     ? l10n.replayNoData
                     : '${analytics.confirmedLocationCount}/${analytics.fieldGoalAttemptCount}',
               ),
             ],
           ),
           const SizedBox(height: 18),
+          Text(l10n.v2RecordedSample),
           _AnalyticsSubheading(title: l10n.replayAnalyticsScoringRun),
           const SizedBox(height: 8),
           if (analytics.scoringRuns.isEmpty)
@@ -204,7 +211,7 @@ class ReplayAnalyticsSummary extends StatelessWidget {
   }) {
     if (attempts == 0) return l10n.replayAnalyticsNoAttempts;
     if (analytics.hasReliableShootingPercentage && percentage != null) {
-      return '$percentage% · ${analytics.madeShotCount}/$attempts';
+      return '$percentage% · ${analytics.fieldGoalMadeCount}/$attempts';
     }
     return '${l10n.replayAnalyticsIncompleteShooting} · '
         '${l10n.replayAnalyticsRecordedAttempts} · $attempts';

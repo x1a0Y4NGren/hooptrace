@@ -529,6 +529,9 @@ class _ComparisonReportView extends StatelessWidget {
         EditorialSectionRule(label: l10n.playerComparisonSummary),
         const SizedBox(height: 12),
         _SampleRangeHeader(report: report),
+        const SizedBox(height: 8),
+        Text(l10n.v2RecordedSample),
+        Text(l10n.v2LocationScope),
         const SizedBox(height: 12),
         LayoutBuilder(
           builder: (context, constraints) {

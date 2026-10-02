@@ -121,7 +121,9 @@ void main() {
       final target = tester.getRect(
         find.byKey(Key('replay-court-marker-$eventId')),
       );
-      expect(target.size, const Size(48, 48));
+      // RenderBox coordinate subtraction may introduce sub-pixel rounding.
+      expect(target.width, closeTo(48, 1e-9));
+      expect(target.height, closeTo(48, 1e-9));
       expect(target.left, greaterThanOrEqualTo(paintedCourt.left));
       expect(target.top, greaterThanOrEqualTo(paintedCourt.top));
       expect(target.right, lessThanOrEqualTo(paintedCourt.right));

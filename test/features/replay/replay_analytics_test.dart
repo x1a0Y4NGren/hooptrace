@@ -84,6 +84,8 @@ void main() {
       shootingPercentage: 2 / 3,
       recordedShootingPercentage: 2 / 3,
       shootingPercentageIsTrustworthy: true,
+      fieldGoalMadeCount: 2,
+      fieldGoalAttemptCount: 3,
       keyPossessions: [
         KeyPossession(
           type: KeyPossessionType.overtake,

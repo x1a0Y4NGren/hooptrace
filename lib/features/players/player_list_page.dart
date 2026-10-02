@@ -90,7 +90,7 @@ class _PlayerListPageState extends State<PlayerListPage> {
                 index: '${index + 1}'.padLeft(2, '0'),
                 title: player.nickname,
                 subtitle: _playerSummary(player),
-                onTap: () => widget.onEdit(player),
+                onTap: () => (widget.onViewAnalytics ?? widget.onEdit)(player),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -108,11 +108,10 @@ class _PlayerListPageState extends State<PlayerListPage> {
                       const SizedBox(width: 4),
                       EditorialTapTarget(
                         key: ValueKey('player-analytics-${player.id}'),
-                        tooltip: l10n.playerAnalyticsTooltip,
-                        label:
-                            '${player.nickname}, ${l10n.playerAnalyticsTooltip}',
-                        onPressed: () => widget.onViewAnalytics!(player),
-                        child: const Icon(Icons.insights_outlined, size: 20),
+                        tooltip: l10n.playerEditTitle,
+                        label: '${player.nickname}, ${l10n.playerEditTitle}',
+                        onPressed: () => widget.onEdit(player),
+                        child: const Icon(Icons.edit_outlined, size: 20),
                       ),
                     ],
                   ],
