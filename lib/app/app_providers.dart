@@ -250,6 +250,9 @@ final databaseStartupProvider = FutureProvider<DatabaseBootstrapState>((
   final bootstrap = await ref.watch(databaseBootstrapProvider.future);
   if (!bootstrap.isReady) return bootstrap;
 
+  // Repair persisted runtime triggers before the first domain UPSERT. Waiting
+  // until backup.loadState() leaves older enabled backups unable to start.
+  await ref.watch(appDatabaseProvider).ensureBackupDirtyTriggers();
   await ref.watch(startupEnsureBuiltInsProvider)();
   try {
     await ref.watch(startupAutomaticBackupProvider)();
