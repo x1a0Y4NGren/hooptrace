@@ -97,9 +97,14 @@ void main() {
         players: [player],
         matchIdFactory: () => 'new-match',
       );
-      final detail = await MatchCommandService(
-        database,
-      ).start(buildStartMatchCommand(controller.createMatchSetup()));
+      final startedAt = DateTime.utc(2026, 10, 2, 9);
+      final detail = await MatchCommandService(database, now: () => startedAt)
+          .start(
+            buildStartMatchCommand(
+              controller.createMatchSetup(),
+              now: startedAt,
+            ),
+          );
 
       expect(detail.match.id, 'new-match');
       expect(detail.match.lifecycle, MatchLifecycle.active);

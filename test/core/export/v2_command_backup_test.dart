@@ -103,6 +103,85 @@ void main() {
     },
   );
 
+  test('real-command backup round trips at exact capacity limits', () async {
+    final database = createTestDatabase();
+    final source = JsonBackupCodec(
+      database,
+      appVersion: '2.0.0',
+    ).decodeAndValidate(fixture.finishedBackup);
+    final counts = source.manifest.recordCounts.values;
+    final measured = utf8.encode(fixture.finishedBackup).length;
+    final largestTable = counts.reduce(
+      (left, right) => left > right ? left : right,
+    );
+    final totalRows = counts.fold(0, (sum, count) => sum + count);
+    final codec = JsonBackupCodec(
+      database,
+      appVersion: '2.0.0',
+      now: () => DateTime.utc(2026, 9, 24, 12),
+      maxPayloadBytes: measured,
+      maxRowsPerTable: largestTable,
+      maxTotalRows: totalRows,
+    );
+
+    await codec.restore(fixture.finishedBackup);
+    final exported = await codec.export();
+    expect(utf8.encode(exported).length, measured);
+    expect(exported, fixture.finishedBackup);
+    await codec.restore(exported);
+    expect(await codec.export(), exported);
+
+    final gateway = _Gateway();
+    await ExportCoordinator(
+      database,
+      codec,
+      gateway: gateway,
+      automaticBackup: AutomaticBackupService(database, codec),
+    ).shareJsonBackup(subject: 'backup');
+    expect(gateway.shares, 1);
+
+    for (final limits in [
+      (
+        table: largestTable - 1,
+        total: totalRows,
+        kind: BackupCapacityLimit.rowsPerTable,
+      ),
+      (
+        table: largestTable,
+        total: totalRows - 1,
+        kind: BackupCapacityLimit.totalRows,
+      ),
+    ]) {
+      final overLimit = JsonBackupCodec(
+        database,
+        appVersion: '2.0.0',
+        maxRowsPerTable: limits.table,
+        maxTotalRows: limits.total,
+      );
+      await expectLater(
+        overLimit.export(),
+        throwsA(
+          isA<BackupCapacityException>().having(
+            (error) => error.limitKind,
+            'limitKind',
+            limits.kind,
+          ),
+        ),
+      );
+      await expectLater(
+        overLimit.restore(exported),
+        throwsA(
+          isA<BackupCapacityException>().having(
+            (error) => error.limitKind,
+            'limitKind',
+            limits.kind,
+          ),
+        ),
+      );
+      expect(await codec.export(), exported);
+    }
+  });
+
   test(
     'the same long-match payload rejects lower byte budgets before import or sharing',
     () async {
