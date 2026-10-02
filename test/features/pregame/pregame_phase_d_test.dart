@@ -156,6 +156,9 @@ void main() {
       MaterialApp(home: PregamePage(onStartMatch: (value) => setup = value)),
     );
 
+    await _scrollTo(tester, find.byKey(const Key('pregame-clock-settings')));
+    await tester.tap(find.byKey(const Key('pregame-clock-settings')));
+    await tester.pumpAndSettle();
     await _scrollTo(tester, find.byKey(const Key('pregame-timer')));
     await tester.tap(find.byKey(const Key('pregame-timer')));
     await _scrollTo(tester, find.byKey(const Key('pregame-clock-count-up')));

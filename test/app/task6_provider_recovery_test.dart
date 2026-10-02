@@ -268,32 +268,46 @@ void main() {
       HoopTraceApp(database: database, showEntryAnimation: false),
     );
     await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('scoring-leave')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text(l10n.routeLeaveTitle), findsOneWidget);
     expect(find.byKey(const Key('leave-stay')), findsOneWidget);
     expect(find.byKey(const Key('leave-keep-running')), findsOneWidget);
     expect(find.byKey(const Key('leave-pause-and-leave')), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('leave-stay')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.byType(ScoringPage), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('scoring-leave')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('leave-keep-running')));
-    await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('home-resume')).hitTestable(),
+    );
+    await tester.pumpAndSettle();
     expect((await commandService.readClock('task6-leave'))?.isRunning, isTrue);
 
     await tester.tap(find.byKey(const Key('home-resume')));
     await _pumpUntilFound(tester, find.byType(ScoringPage));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('scoring-leave')));
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('leave-pause-and-leave')));
-    await _pumpUntilFound(tester, find.byKey(const Key('home-resume-card')));
+    await _pumpUntilMissing(tester, find.byType(ScoringPage));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('scoring-paused-panel')), findsNothing);
+    await _pumpUntilFound(
+      tester,
+      find.byKey(const Key('home-resume')).hitTestable(),
+    );
+    await tester.pumpAndSettle();
     expect((await commandService.readClock('task6-leave'))?.isRunning, isFalse);
   });
 
@@ -361,4 +375,15 @@ Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
     );
   }
   fail('Timed out waiting for $finder');
+}
+
+Future<void> _pumpUntilMissing(WidgetTester tester, Finder finder) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    await tester.pump(const Duration(milliseconds: 20));
+    if (finder.evaluate().isEmpty) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 5)),
+    );
+  }
+  fail('Timed out waiting for $finder to disappear');
 }

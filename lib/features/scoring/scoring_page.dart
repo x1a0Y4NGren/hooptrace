@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
+import 'package:hooptrace/app/design_system/recording_confirmation.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
@@ -17,6 +18,7 @@ import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/scoring/widgets/court_view.dart';
 import 'package:hooptrace/features/scoring/widgets/court_painter.dart';
 import 'package:hooptrace/features/scoring/widgets/score_side_panel.dart';
+import 'package:hooptrace/features/scoring/widgets/scoring_guide.dart';
 import 'package:hooptrace/features/scoring/motion/scoring_motion.dart';
 
 const scoringResumeClockKey = Key('scoring-resume-clock');
@@ -41,6 +43,9 @@ class ScoringPage extends StatefulWidget {
     this.onReturnHomePaused,
     this.onContinueDecision,
     this.onFinishDecision,
+    this.onFinishWithCoverage,
+    this.showInitialGuide = false,
+    this.onGuideDismissed,
     this.clockNowUtc,
     this.clockTick = const Duration(seconds: 1),
     this.onActionCommitted,
@@ -51,6 +56,8 @@ class ScoringPage extends StatefulWidget {
   }) : assert(matchId != null || setup != null || controller != null);
 
   final String? matchId;
+  final bool showInitialGuide;
+  final VoidCallback? onGuideDismissed;
   final MatchSetup? setup;
   final ScoringController? controller;
   final VoidCallback? onOpenReplay;
@@ -61,6 +68,12 @@ class ScoringPage extends StatefulWidget {
   final Future<void> Function()? onReturnHomePaused;
   final Future<void> Function()? onContinueDecision;
   final Future<void> Function(int redScore, int blueScore)? onFinishDecision;
+  final Future<void> Function(
+    int redScore,
+    int blueScore,
+    TrackingCoverage coverage,
+  )?
+  onFinishWithCoverage;
   final DateTime Function()? clockNowUtc;
   final Duration clockTick;
   final FutureOr<void> Function()? onActionCommitted;
@@ -77,13 +90,17 @@ class ScoringPage extends StatefulWidget {
 
 class _ScoringPageState extends State<ScoringPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
+  bool get _canFinish =>
+      widget.onFinishDecision != null || widget.onFinishWithCoverage != null;
   late ScoringController _controller;
   bool _ownsController = false;
+  bool _guideVisible = false;
   bool _leaveBusy = false;
   bool _decisionBusy = false;
   bool _interactionPaused = false;
   bool _pauseTransitionBusy = false;
   bool _pausedPanelVisible = false;
+  DialogRoute<void>? _pausedPanelRoute;
   bool _pausedPanelScheduled = false;
   Timer? _clockTicker;
   Timer? _supplementTicker;
@@ -127,6 +144,7 @@ class _ScoringPageState extends State<ScoringPage>
   @override
   void initState() {
     super.initState();
+    _guideVisible = widget.showInitialGuide;
     WidgetsBinding.instance.addObserver(this);
     _attachController();
     _interactionPaused =
@@ -151,6 +169,9 @@ class _ScoringPageState extends State<ScoringPage>
   @override
   void didUpdateWidget(covariant ScoringPage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!oldWidget.showInitialGuide && widget.showInitialGuide) {
+      _guideVisible = true;
+    }
     final controllerChanged =
         oldWidget.controller != widget.controller ||
         oldWidget.matchId != widget.matchId ||
@@ -186,6 +207,18 @@ class _ScoringPageState extends State<ScoringPage>
   @override
   void dispose() {
     _disposed = true;
+    final pausedRoute = _pausedPanelRoute;
+    final pausedNavigator = pausedRoute?.navigator;
+    if (pausedRoute != null && pausedNavigator != null) {
+      // A dialog belongs to the Navigator, so disposing its scoring page
+      // does not remove it. Remove only this owned route after navigation
+      // has finished updating the page stack.
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (pausedNavigator.mounted && pausedRoute.isActive) {
+          pausedNavigator.removeRoute(pausedRoute);
+        }
+      });
+    }
     WidgetsBinding.instance.removeObserver(this);
     _detachMotionPreferenceListenable();
     _cancelAllMotions();
@@ -460,6 +493,7 @@ class _ScoringPageState extends State<ScoringPage>
 
   void _schedulePersistedPausePanel() {
     if (!_interactionPaused ||
+        _leaveBusy ||
         _pausedPanelVisible ||
         _pausedPanelScheduled ||
         _disposed) {
@@ -468,7 +502,12 @@ class _ScoringPageState extends State<ScoringPage>
     _pausedPanelScheduled = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _pausedPanelScheduled = false;
-      if (!mounted || _disposed || !_interactionPaused || _pausedPanelVisible) {
+      if (!mounted ||
+          _disposed ||
+          _leaveBusy ||
+          !_interactionPaused ||
+          _pausedPanelVisible ||
+          ModalRoute.of(context)?.isCurrent != true) {
         return;
       }
       unawaited(_showPausedPanel());
@@ -511,11 +550,39 @@ class _ScoringPageState extends State<ScoringPage>
                             : _showMatchControls,
                         labels: labels,
                       ),
+                      _buildRecordStatus(context, state),
                       Expanded(
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
                             _buildWorkspace(context, state, portrait: portrait),
+                            if (_guideVisible)
+                              Positioned(
+                                left: portrait
+                                    ? 16
+                                    : _landscapeSideWidth(
+                                            constraints.maxWidth,
+                                          ) +
+                                          12,
+                                right: portrait
+                                    ? 16
+                                    : _landscapeSideWidth(
+                                            constraints.maxWidth,
+                                          ) +
+                                          12,
+                                top: 8,
+                                bottom: 8,
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  heightFactor: 1,
+                                  child: ScoringGuide(
+                                    onDismiss: () {
+                                      setState(() => _guideVisible = false);
+                                      widget.onGuideDismissed?.call();
+                                    },
+                                  ),
+                                ),
+                              ),
                             if (state.decision != null &&
                                 !decisionControlsDeferred)
                               _buildDecisionOverlay(context, state),
@@ -773,7 +840,7 @@ class _ScoringPageState extends State<ScoringPage>
           onPressed: _decisionBusy ? null : _continueDecision,
           child: Text(l10n.continueMatch),
         ),
-      if (decision.canFinish && widget.onFinishDecision != null)
+      if (decision.canFinish && _canFinish)
         FilledButton(
           key: const Key('scoring-decision-finish'),
           onPressed: _decisionBusy ? null : _confirmFinishDecision,
@@ -1186,6 +1253,7 @@ class _ScoringPageState extends State<ScoringPage>
     } finally {
       if (_isCurrentAction(leaveGeneration, leaveController)) {
         setState(() => _leaveBusy = false);
+        if (_interactionPaused) _schedulePersistedPausePanel();
       }
     }
   }
@@ -1224,7 +1292,7 @@ class _ScoringPageState extends State<ScoringPage>
             FilledButton(
               key: const Key('match-controls-finish'),
               onPressed:
-                  widget.onFinishDecision == null ||
+                  !_canFinish ||
                       _controller.state.decision?.canFinish == false ||
                       _decisionControlsDeferred(_controller.state)
                   ? null
@@ -1249,6 +1317,71 @@ class _ScoringPageState extends State<ScoringPage>
       case null:
         return;
     }
+  }
+
+  Widget _buildRecordStatus(BuildContext context, MatchScoringState state) {
+    final l10n = _localizations(context);
+    final saving = _controller.isSaving;
+    final failed = _controller.hasSaveFailure;
+    final event = state.events.where((event) => !event.isDeleted).lastOrNull;
+    final action = event == null
+        ? l10n.replayNoData
+        : [
+            if (event.side != null)
+              event.side == TeamSide.red ? state.redName : state.blueName,
+            switch (event.type) {
+              EventKind.score || EventKind.fieldGoal || EventKind.freeThrow =>
+                event.outcome == ShotOutcome.missed
+                    ? l10n.replayFilterMissed
+                    : '+${event.points}',
+              EventKind.miss => l10n.replayFilterMissed,
+              EventKind.foul => l10n.replayFilterFouls,
+              _ => event.note ?? event.customLabel ?? l10n.replayFilterOther,
+            },
+          ].join(' ');
+    final status = failed
+        ? l10n.v2SaveFailed
+        : saving
+        ? l10n.v2Saving
+        : l10n.v2Saved;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        key: const Key('scoring-record-status'),
+        color: editorialThemeOf(context).surface,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        child: Row(
+          children: [
+            Icon(
+              failed
+                  ? Icons.error_outline
+                  : saving
+                  ? Icons.sync
+                  : Icons.check_circle_outline,
+              size: 16,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                status,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Text(
+                '${l10n.v2LastAction}: $action',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pauseFromMatchControls() async {
@@ -1290,14 +1423,14 @@ class _ScoringPageState extends State<ScoringPage>
   }
 
   Future<void> _showPausedPanel() async {
-    if (_pausedPanelVisible) return;
+    if (_pausedPanelVisible || _leaveBusy) return;
     _pausedPanelVisible = true;
     try {
       if (!mounted || !_interactionPaused) return;
       final labels = _labels(context);
       String? inlineFailure;
       Future<bool> Function()? inlineRetry;
-      await showDialog<void>(
+      final route = DialogRoute<void>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -1404,7 +1537,7 @@ class _ScoringPageState extends State<ScoringPage>
                     key: const Key('paused-finish'),
                     onPressed:
                         _pauseTransitionBusy ||
-                            widget.onFinishDecision == null ||
+                            !_canFinish ||
                             _controller.state.decision?.canFinish == false
                         ? null
                         : () => unawaited(runFinish()),
@@ -1416,7 +1549,10 @@ class _ScoringPageState extends State<ScoringPage>
           },
         ),
       );
+      _pausedPanelRoute = route;
+      await Navigator.of(context).push<void>(route);
     } finally {
+      _pausedPanelRoute = null;
       _pausedPanelVisible = false;
       if (mounted && _interactionPaused) _schedulePersistedPausePanel();
     }
@@ -1860,6 +1996,22 @@ class _ScoringPageState extends State<ScoringPage>
                                         null,
                                 onTap: () => runMore(() async => _openReplay()),
                               ),
+                              _moreAction(
+                                sheetBuilderContext,
+                                index: '02',
+                                key: const Key('more-quick-guide'),
+                                icon: Icons.help_outline,
+                                label:
+                                    (AppLocalizations.of(sheetBuilderContext) ??
+                                            AppLocalizationsZh())
+                                        .v2GuideTitle,
+                                enabled: true,
+                                onTap: () async {
+                                  Navigator.of(sheetBuilderContext).pop();
+                                  setState(() => _guideVisible = true);
+                                  return true;
+                                },
+                              ),
                             ],
                           ),
                         ],
@@ -2171,9 +2323,8 @@ class _ScoringPageState extends State<ScoringPage>
   Future<bool> _confirmFinishDecision({bool rethrowFailure = false}) async {
     final generation = _actionGeneration;
     final controller = _controller;
-    final finish = widget.onFinishDecision;
     final decision = controller.state.decision;
-    if (finish == null ||
+    if (!_canFinish ||
         decision?.canFinish == false ||
         _decisionBusy ||
         _decisionControlsDeferred(controller.state)) {
@@ -2186,38 +2337,27 @@ class _ScoringPageState extends State<ScoringPage>
     final blueScore = decision?.blueScore ?? state.score.blueScore;
     final l10n = _localizations(context);
     final failureMessage = _labels(context).failureRetry;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.confirmFinalScoreTitle),
-        content: Text(
-          [
-            l10n.finalScoreLine(
-              state.blueName,
-              blueScore,
-              state.redName,
-              redScore,
-            ),
-            if (hasDraft) _labels(dialogContext).pendingPauseExitBody,
-          ].join('\n\n'),
-        ),
-        actions: [
-          TextButton(
-            key: const Key('scoring-finish-cancel'),
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.cancelAction),
-          ),
-          FilledButton(
-            key: const Key('scoring-finish-confirm'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.finishMatch),
-          ),
-        ],
+    final coverage = await confirmRecordingCoverage(
+      context,
+      title: l10n.confirmFinalScoreTitle,
+      scoreLine: l10n.finalScoreLine(
+        state.blueName,
+        blueScore,
+        state.redName,
+        redScore,
       ),
+      draftNotice: hasDraft ? _labels(context).pendingPauseExitBody : null,
+      confirmLabel: l10n.finishMatch,
+      cancelKey: const Key('scoring-finish-cancel'),
+      confirmKey: const Key('scoring-finish-confirm'),
     );
-    if (confirmed != true || !_isCurrentAction(generation, controller)) {
+    if (coverage == null || !_isCurrentAction(generation, controller)) {
       return false;
     }
+    final coveredFinish = widget.onFinishWithCoverage;
+    final Future<void> Function(int, int) finish = coveredFinish == null
+        ? widget.onFinishDecision!
+        : (red, blue) => coveredFinish(red, blue, coverage);
     setState(() => _decisionBusy = true);
     try {
       await finish(redScore, blueScore);

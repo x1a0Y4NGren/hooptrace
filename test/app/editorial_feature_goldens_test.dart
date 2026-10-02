@@ -4,11 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/analytics/match_analytics_calculator.dart';
+import 'package:hooptrace/core/domain/entities/match.dart' as domain;
+import 'package:hooptrace/core/domain/entities/match_detail.dart';
+import 'package:hooptrace/core/domain/entities/match_event.dart';
+import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/replay/replay_controller.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/summary/match_summary_page.dart';
 
 import '../support/golden_fonts.dart';
 
@@ -18,6 +24,7 @@ void main() {
   });
 
   final features = <({String name, Size size, Widget Function() page})>[
+    (name: 'summary', size: const Size(390, 844), page: _summaryPage),
     (
       name: 'pregame',
       size: const Size(390, 844),
@@ -87,6 +94,53 @@ void main() {
       }
     }
   }
+}
+
+Widget _summaryPage() {
+  final events = [
+    for (var i = 0; i < 8; i++)
+      MatchEvent.score(
+        id: 'summary-e$i',
+        matchId: 'summary-demo',
+        side: i.isEven ? TeamSide.blue : TeamSide.red,
+        points: i.isEven ? 2 : 3,
+        occurredAt: DateTime.utc(2026, 10, 2, 10, i),
+      ),
+  ];
+  final detail = MatchDetail(
+    match: domain.Match(
+      id: 'summary-demo',
+      lifecycle: MatchLifecycle.finished,
+      createdAt: DateTime.utc(2026, 10, 2, 10),
+      endedAt: DateTime.utc(2026, 10, 2, 10, 8),
+      redName: 'River',
+      blueName: 'Jordan',
+      ruleTemplateSnapshot: const RuleTemplate(
+        id: 'free',
+        name: 'Free',
+        scoreButtons: [1, 2, 3],
+      ),
+      trackingCoverage: TrackingCoverage.scoresOnly,
+    ),
+    events: events,
+    shotLocations: const [],
+    redScore: 12,
+    blueScore: 8,
+    redFouls: 0,
+    blueFouls: 0,
+    shotAttemptCount: 8,
+    locatedShotCount: 0,
+  );
+  return MatchSummaryPage(
+    detail: detail,
+    analytics: MatchAnalyticsCalculator().calculate(events),
+    onBack: () {},
+    onRematch: () {},
+    onReplay: () {},
+    onShare: () {},
+    onCorrectCoverage: () {},
+    onSavePlayer: (_) {},
+  );
 }
 
 ReplayController _replayController() => ReplayController(

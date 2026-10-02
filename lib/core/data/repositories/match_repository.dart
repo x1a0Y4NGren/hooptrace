@@ -603,6 +603,11 @@ class MatchRepository {
   }) =>
       watchHistoryPage(filter: filter, limit: 100).map((page) => page.entries);
 
+  /// Invalidates retained history pages without querying or hydrating rows.
+  Stream<void> watchHistoryChanges() => _database
+      .tableUpdates(TableUpdateQuery.onAllTables(_historyReadsFrom))
+      .map<void>((_) {});
+
   Set<TableInfo> get _historyReadsFrom => {
     _database.matches,
     _database.matchParticipants,

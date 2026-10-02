@@ -7,6 +7,7 @@ import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/summary/match_summary_page.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -26,14 +27,17 @@ void main() {
     expect(find.byKey(homeStartScoringKey), findsOneWidget);
     expect(find.text(l10n.replayHistory), findsWidgets);
     for (final key in const [
-      Key('home-history-shortcut'),
-      Key('home-players-shortcut'),
-      Key('home-rules-shortcut'),
+      Key('nav-matches'),
+      Key('nav-history'),
+      Key('nav-players'),
       Key('home-settings-shortcut'),
     ]) {
       expect(find.byKey(key), findsOneWidget);
     }
     expect(find.byKey(homeProjectShortcutKey), findsNothing);
+    expect(find.byKey(homeHistoryShortcutKey), findsNothing);
+    expect(find.byKey(homePlayersShortcutKey), findsNothing);
+    expect(find.byKey(homeRulesShortcutKey), findsNothing);
   });
 
   testWidgets('start scoring route enters landscape scoring shell', (
@@ -115,6 +119,10 @@ void main() {
     );
     expect(find.textContaining('2'), findsWidgets);
     await _tapVisible(tester, find.byKey(const Key('replay-finish-confirm')));
+    await _pumpUntilFound(tester, find.byType(MatchSummaryPage));
+    await tester.pumpAndSettle();
+    await _tapVisible(tester, find.byKey(const Key('summary-replay')));
+    await _pumpUntilFound(tester, find.byType(ReplayPage));
     await _pumpUntilFound(tester, find.text(_l10n(tester).replayFinished));
     expect(find.byType(ReplayPage), findsOneWidget);
     expect(find.text(_l10n(tester).replayFinished), findsOneWidget);
@@ -147,7 +155,12 @@ Future<void> _selectSimpleAndStart(WidgetTester tester) async {
   await tester.scrollUntilVisible(
     find.byKey(const Key('pregame-start-match')),
     300,
-    scrollable: find.byType(Scrollable).first,
+    scrollable: find
+        .descendant(
+          of: find.byType(PregamePage),
+          matching: find.byType(Scrollable),
+        )
+        .first,
   );
   await _tapVisible(tester, find.byKey(const Key('pregame-start-match')));
 }

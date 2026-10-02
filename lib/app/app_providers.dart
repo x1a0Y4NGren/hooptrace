@@ -26,6 +26,7 @@ import 'package:hooptrace/core/settings/language_preferences.dart';
 import 'package:hooptrace/core/settings/motion_preference_cache.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 import 'package:hooptrace/core/settings/theme_preferences.dart';
+import 'package:hooptrace/core/settings/scoring_guide_preferences.dart';
 import 'package:hooptrace/features/scoring/scoring_controller.dart';
 import 'package:hooptrace/features/settings/settings_controller.dart';
 import 'package:hooptrace/features/players/player_career_controller.dart';
@@ -148,6 +149,13 @@ final ruleTemplatesProvider = StreamProvider<List<RuleTemplate>>((ref) {
 });
 
 final clockEngineProvider = Provider<ClockEngine>((ref) => const ClockEngine());
+
+final scoringGuidePreferencesProvider = Provider<ScoringGuidePreferences>(
+  (ref) => ScoringGuidePreferences(ref.watch(appDatabaseProvider)),
+);
+final scoringGuideSeenProvider = FutureProvider<bool>(
+  (ref) => ref.watch(scoringGuidePreferencesProvider).hasSeen(),
+);
 
 final matchCommandServiceProvider = Provider<MatchCommandService>(
   (ref) => MatchCommandService(ref.watch(appDatabaseProvider)),
@@ -275,6 +283,14 @@ final activeMatchProvider = StreamProvider<MatchDetail?>((ref) {
 final historyProvider = StreamProvider<List<MatchHistoryEntry>>((ref) {
   return ref.watch(matchRepositoryProvider).watchHistory();
 });
+
+/// Home reads three bounded summaries without hydrating events per match.
+final recentMatchSummariesProvider = StreamProvider<List<MatchHistoryEntry>>(
+  (ref) => ref
+      .watch(matchRepositoryProvider)
+      .watchHistoryPage(limit: 3)
+      .map((page) => page.entries),
+);
 
 final liveMatchProvider = StreamProvider.autoDispose
     .family<MatchDetail?, String>((ref, matchId) {

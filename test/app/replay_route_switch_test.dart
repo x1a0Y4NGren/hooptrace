@@ -30,13 +30,18 @@ void main() {
 
     router.go('/matches/match-a/replay');
     await _pumpUntilFound(tester, find.byType(ReplayPage));
-    expect(find.text('Alpha'), findsWidgets);
+    await tester.pumpAndSettle();
+    final replay = find.byType(ReplayPage);
+    final alpha = find.descendant(of: replay, matching: find.text('Alpha'));
+    final bravo = find.descendant(of: replay, matching: find.text('Bravo'));
+    expect(alpha, findsWidgets);
 
     router.go('/matches/match-b/replay');
-    await _pumpUntilFound(tester, find.text('Bravo'));
+    await _pumpUntilFound(tester, bravo);
+    await tester.pumpAndSettle();
 
-    expect(find.text('Bravo'), findsWidgets);
-    expect(find.text('Alpha'), findsNothing);
+    expect(bravo, findsWidgets);
+    expect(alpha, findsNothing);
   });
 }
 

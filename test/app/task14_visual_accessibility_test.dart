@@ -145,6 +145,7 @@ Widget _fixture({
     home: RepaintBoundary(
       key: const Key('task14-golden-root'),
       child: HomePage(
+        showDirectory: false,
         activeMatch: _activeMatch,
         onStartScoring: _noop,
         onContinue: _noop,

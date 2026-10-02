@@ -906,10 +906,11 @@ void main() {
           points: 2,
         );
         await entered.future;
+        final notificationsBeforeDispose = notifications;
         controller.dispose();
         release.complete();
         expect(await command, isFalse);
-        expect(notifications, 0);
+        expect(notifications, notificationsBeforeDispose);
         expect(await database.select(database.matchEvents).get(), hasLength(1));
       });
     },

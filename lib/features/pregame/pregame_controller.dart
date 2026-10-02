@@ -1,5 +1,6 @@
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/player.dart';
+import 'package:hooptrace/core/domain/entities/match_setup_preset.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
 
 const defaultRedPlayerName = '红方';
@@ -178,21 +179,65 @@ class PregameController {
     PregameState state = const PregameState(),
     List<RuleTemplate> templates = const [],
     List<Player> players = const [],
+    MatchSetupPreset? initialPreset,
+    String Function()? matchIdFactory,
   }) : _state = state,
        _templates = List.of(templates),
-       _players = List.of(players);
+       _players = List.of(players),
+       _matchIdFactory = matchIdFactory ?? _newMatchId {
+    if (initialPreset != null) applyPreset(initialPreset);
+  }
 
   PregameState _state;
   List<RuleTemplate> _templates;
   List<Player> _players;
+  RuleTemplate? _presetRules;
+  final String Function() _matchIdFactory;
 
   PregameState get state => _state;
 
   List<Player> get players => List.unmodifiable(_players);
 
+  List<RuleTemplate> get templates => List.unmodifiable([
+    for (final template in _templates)
+      if (template.id != _presetRules?.id) template,
+    ?_presetRules,
+  ]);
+
+  RuleTemplate? get selectedRules =>
+      templates.where((item) => item.id == _state.ruleTemplateId).firstOrNull;
+
+  void applyPreset(MatchSetupPreset preset) {
+    _presetRules = preset.rules;
+    _state = PregameState(
+      redName: preset.red.nameSnapshot,
+      blueName: preset.blue.nameSnapshot,
+      redPlayerProfileId: preset.red.playerId,
+      bluePlayerProfileId: preset.blue.playerId,
+      ruleTemplateId: preset.rules.id,
+      timerEnabled: preset.timerEnabled,
+      clockMode: preset.clockMode,
+      targetScore: preset.rules.targetScore ?? 11,
+      timeLimitMinutes: preset.timeLimitMinutes,
+      countdownMinutesText: '${preset.timeLimitMinutes}',
+      winByTwo: preset.rules.winByTwo,
+    );
+  }
+
+  void swapSides() {
+    _state = _state.copyWith(
+      redName: _state.blueName,
+      blueName: _state.redName,
+      redPlayerProfileId: _state.bluePlayerProfileId,
+      bluePlayerProfileId: _state.redPlayerProfileId,
+      clearRedPlayerProfileId: _state.bluePlayerProfileId == null,
+      clearBluePlayerProfileId: _state.redPlayerProfileId == null,
+    );
+  }
+
   void setTemplates(List<RuleTemplate> templates) {
     _templates = List.of(templates);
-    if (_templates.any((item) => item.id == _state.ruleTemplateId)) return;
+    if (selectedRules != null) return;
     final fallback =
         _templates.where((item) => item.id == 'free').firstOrNull ??
         _templates.firstOrNull;
@@ -241,7 +286,7 @@ class PregameController {
   }
 
   void setRuleTemplateId(String value) {
-    final selected = _templates.where((item) => item.id == value).firstOrNull;
+    final selected = templates.where((item) => item.id == value).firstOrNull;
     _state = _state.copyWith(
       ruleTemplateId: value,
       timerEnabled: selected?.timeLimitSeconds != null
@@ -355,11 +400,9 @@ class PregameController {
   }
 
   MatchSetup createMatchSetup() {
-    final selected = _templates
-        .where((item) => item.id == _state.ruleTemplateId)
-        .firstOrNull;
+    final selected = selectedRules;
     return MatchSetup(
-      matchId: 'match-${DateTime.now().microsecondsSinceEpoch}',
+      matchId: _matchIdFactory(),
       redName: _state.redName,
       blueName: _state.blueName,
       redPlayerProfileId: _state.redPlayerProfileId,
@@ -411,4 +454,7 @@ class PregameController {
   Player? _findPlayer(String id) {
     return _players.where((player) => player.id == id).firstOrNull;
   }
+
+  static String _newMatchId() =>
+      'match-${DateTime.now().microsecondsSinceEpoch}';
 }

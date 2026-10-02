@@ -4,9 +4,10 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
+import 'package:hooptrace/app/design_system/recording_confirmation.dart';
+import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
-import 'package:hooptrace/core/domain/entities/possession_segment.dart';
 import 'package:hooptrace/core/domain/value_objects/court_point.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/core/export/replay_image_exporter.dart';
@@ -25,6 +26,7 @@ class ReplayPage extends StatefulWidget {
     this.onExit,
     this.exitTooltip,
     this.onFinishMatch,
+    this.onFinishWithCoverage,
     this.onShareSummary,
     this.captureBoundary,
     super.key,
@@ -34,6 +36,12 @@ class ReplayPage extends StatefulWidget {
   final VoidCallback? onExit;
   final String? exitTooltip;
   final FutureOr<void> Function(int redScore, int blueScore)? onFinishMatch;
+  final FutureOr<void> Function(
+    int redScore,
+    int blueScore,
+    TrackingCoverage coverage,
+  )?
+  onFinishWithCoverage;
   final Future<void> Function(Uint8List bytes, String matchId)? onShareSummary;
   final Future<Uint8List> Function(GlobalKey boundaryKey)? captureBoundary;
 
@@ -109,47 +117,31 @@ class _ReplayPageState extends State<ReplayPage> {
 
   Future<void> _confirmFinishMatch() async {
     final finish = widget.onFinishMatch;
-    if (_finishBusy || finish == null) return;
+    final coveredFinish = widget.onFinishWithCoverage;
+    if (_finishBusy || (finish == null && coveredFinish == null)) return;
     final data = widget.controller.data;
     final l10n = _localizations(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.confirmFinalScoreTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              l10n.finalScoreLine(
-                data.blueName,
-                data.blueScore,
-                data.redName,
-                data.redScore,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(l10n.confirmFinalScoreBody),
-          ],
-        ),
-        actions: [
-          TextButton(
-            key: const Key('replay-finish-cancel'),
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.cancelAction),
-          ),
-          FilledButton(
-            key: const Key('replay-finish-confirm'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.finishMatch),
-          ),
-        ],
+    final coverage = await confirmRecordingCoverage(
+      context,
+      title: l10n.confirmFinalScoreTitle,
+      scoreLine: l10n.finalScoreLine(
+        data.blueName,
+        data.blueScore,
+        data.redName,
+        data.redScore,
       ),
+      confirmLabel: l10n.finishMatch,
+      cancelKey: const Key('replay-finish-cancel'),
+      confirmKey: const Key('replay-finish-confirm'),
     );
-    if (confirmed != true || !mounted) return;
+    if (coverage == null || !mounted) return;
     setState(() => _finishBusy = true);
     try {
-      await Future<void>.sync(() => finish(data.redScore, data.blueScore));
+      await Future<void>.sync(
+        () => coveredFinish != null
+            ? coveredFinish(data.redScore, data.blueScore, coverage)
+            : finish!(data.redScore, data.blueScore),
+      );
     } on Object {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -201,7 +193,9 @@ class _ReplayPageState extends State<ReplayPage> {
                   controller.setEditing(!controller.isEditing);
                 }
               case _ReplayAppBarAction.finish:
-                if (!_finishBusy && widget.onFinishMatch != null) {
+                if (!_finishBusy &&
+                    (widget.onFinishMatch != null ||
+                        widget.onFinishWithCoverage != null)) {
                   _confirmFinishMatch();
                 }
             }
@@ -216,7 +210,8 @@ class _ReplayPageState extends State<ReplayPage> {
                     : l10n.replayReadOnly,
               ),
             ),
-            if (widget.onFinishMatch != null)
+            if (widget.onFinishMatch != null ||
+                widget.onFinishWithCoverage != null)
               PopupMenuItem(
                 value: _ReplayAppBarAction.finish,
                 enabled: !_finishBusy,
@@ -245,7 +240,7 @@ class _ReplayPageState extends State<ReplayPage> {
         ),
       ),
     );
-    if (widget.onFinishMatch != null) {
+    if (widget.onFinishMatch != null || widget.onFinishWithCoverage != null) {
       actions.add(
         Padding(
           padding: const EdgeInsets.only(right: 12),
@@ -367,6 +362,19 @@ class _ReplayPageState extends State<ReplayPage> {
     );
   }
 }
+
+Future<void> showMatchReportDialog(
+  BuildContext context, {
+  required ReplayController controller,
+  required Future<void> Function(Uint8List bytes, String matchId) onShare,
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _ReplayExportDialog(
+    controller: controller,
+    captureBoundary: ReplayImageExporter.capture,
+    onShare: onShare,
+  ),
+);
 
 class _ReplayExportDialog extends StatefulWidget {
   const _ReplayExportDialog({
@@ -510,9 +518,8 @@ class _ReplayExportSummary extends StatelessWidget {
     final data = controller.data;
     final l10n = _localizations(context);
     final analytics = data.analytics;
-    final attempts = analytics == null
-        ? controller.scoreEventCount
-        : analytics.attempts;
+    final attempts =
+        analytics?.fieldGoalAttemptCount ?? controller.scoreEventCount;
     final shootingPercentage = analytics == null || attempts == 0
         ? l10n.replayNoData
         : analytics.hasReliableShootingPercentage
@@ -644,8 +651,15 @@ class _ReplayExportSummary extends StatelessWidget {
                               value: '${controller.locatedShotCount}',
                             ),
                             _ExportMetric(
-                              label: l10n.replayExportShootingPercentage,
+                              label: l10n.v2FieldGoalPercentage,
                               value: shootingPercentage,
+                            ),
+                            _ExportMetric(
+                              label: l10n.v2FreeThrowPercentage,
+                              value:
+                                  analytics?.reliableFreeThrowPercentage == null
+                                  ? l10n.replayNoData
+                                  : '${(analytics!.reliableFreeThrowPercentage! * 100).round()}%',
                             ),
                             _ExportMetric(
                               label: l10n.replayExportLeadChanges,
@@ -658,10 +672,13 @@ class _ReplayExportSummary extends StatelessWidget {
                               value: largestLead,
                             ),
                             _ExportMetric(
-                              label: l10n.replayExportKeyMoments,
-                              value: l10n.replayExportKeyMomentsValue(
-                                analytics?.keyPossessions.length ?? 0,
-                              ),
+                              label: l10n.v2CoverageTitle,
+                              value:
+                                  analytics == null ||
+                                      analytics.trackingCoverage.index <
+                                          TrackingCoverage.shotAttempts.index
+                                  ? l10n.v2CoverageScores
+                                  : l10n.v2CoverageComplete,
                             ),
                           ],
                         ),

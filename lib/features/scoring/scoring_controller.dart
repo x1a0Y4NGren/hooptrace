@@ -346,6 +346,11 @@ class ScoringController extends ChangeNotifier {
   bool _drainingQueue = false;
   bool _exclusiveBusy = false;
   bool _disposed = false;
+  final Set<String> _failedWrites = {};
+
+  bool get isSaving =>
+      _drainingQueue || _exclusiveBusy || _commandQueue.isNotEmpty;
+  bool get hasSaveFailure => _failedWrites.isNotEmpty;
 
   MatchScoringState get state => _state;
 
@@ -1486,6 +1491,7 @@ class ScoringController extends ChangeNotifier {
   Future<void> _drainCommandQueue() async {
     if (_drainingQueue) return;
     _drainingQueue = true;
+    notifyListeners();
     try {
       while (_commandQueue.isNotEmpty) {
         final queued = _commandQueue.removeFirst();
@@ -1500,9 +1506,11 @@ class ScoringController extends ChangeNotifier {
             continue;
           }
           _replaceFromProjection(projection);
+          _failedWrites.remove(queued.command.commandId);
           notifyListeners();
           queued.completer.complete(true);
         } on Object catch (error, stackTrace) {
+          _failedWrites.add(queued.command.commandId);
           if (!queued.completer.isCompleted) {
             queued.completer.completeError(error, stackTrace);
           }
@@ -1510,6 +1518,7 @@ class ScoringController extends ChangeNotifier {
       }
     } finally {
       _drainingQueue = false;
+      notifyListeners();
     }
   }
 
@@ -1531,14 +1540,20 @@ class ScoringController extends ChangeNotifier {
       return null;
     }
     _exclusiveBusy = true;
+    notifyListeners();
     try {
       final projection = await operation();
       if (_disposed) return null;
       _replaceFromProjection(projection);
+      _failedWrites.remove(command.commandId);
       notifyListeners();
       return projection;
+    } on Object {
+      _failedWrites.add(command.commandId);
+      rethrow;
     } finally {
       _exclusiveBusy = false;
+      notifyListeners();
     }
   }
 

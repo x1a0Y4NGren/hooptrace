@@ -1273,6 +1273,7 @@ void main() {
           points: 2,
         );
         await entered.future;
+        final notificationsBeforeDispose = notifications;
         controller.dispose();
         release.complete();
 
@@ -1283,7 +1284,7 @@ void main() {
           )..where((row) => row.matchId.equals(start.match.id))).get(),
           hasLength(1),
         );
-        expect(notifications, 0);
+        expect(notifications, notificationsBeforeDispose);
       });
     },
   );

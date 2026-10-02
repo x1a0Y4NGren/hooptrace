@@ -40,8 +40,7 @@ class HoopTraceSpacing {
     return page;
   }
 
-  static double sectionFor(double width) =>
-      width >= 600 ? sectionWide : section;
+  static double sectionFor(double width) => width >= 600 ? 32 : section;
 }
 
 class HoopTraceRadii {
@@ -61,9 +60,9 @@ class HoopTraceTypography {
   static const title = 22.0;
 
   static double mastheadFor(double width) {
-    if (width >= 960) return 64;
-    if (width >= 600) return 52;
-    return 40;
+    if (width >= 960) return 48;
+    if (width >= 600) return 40;
+    return 32;
   }
 
   static double scoreFor(double width) => width >= 600 ? 72 : 56;

@@ -24,6 +24,7 @@ import 'package:hooptrace/features/history/history_page.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/summary/match_summary_page.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -297,6 +298,7 @@ void main() {
     );
     router.go('/scoring/not-a-match');
     await _pumpUntilFound(tester, find.text(l10n.routeMatchNotActive));
+    await tester.pumpAndSettle();
     expect(find.text(l10n.routeMatchNotActiveBody), findsOneWidget);
     expect(find.byKey(const Key('route-message-home')), findsOneWidget);
     expect(find.byKey(const Key('route-message-replay')), findsNothing);
@@ -319,11 +321,13 @@ void main() {
     await tester.pumpWidget(_routerHost(database, router));
     router.go('/scoring/$matchId');
     await _pumpUntilFound(tester, find.text(l10n.routeMatchNotActive));
+    await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('route-message-home')), findsOneWidget);
     expect(find.byKey(const Key('route-message-replay')), findsOneWidget);
     await tester.tap(find.byKey(const Key('route-message-replay')));
     await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await tester.pumpAndSettle();
     expect(find.text(l10n.replayFinished), findsOneWidget);
 
     await tester.binding.handlePopRoute();
@@ -772,6 +776,7 @@ void main() {
     await tester.pumpWidget(_routerHost(database, router));
     router.go('/matches/task6-not-found-home/replay');
     await _pumpUntilFound(tester, find.text(l10n.routeReplayNotFound));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('route-message-home')));
     await _pumpUntilFound(tester, find.byType(HomePage));
   });
@@ -868,6 +873,7 @@ void main() {
     await tester.pumpWidget(_routerHost(database, router));
     router.go('/matches/$matchId/replay');
     await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await tester.pumpAndSettle();
 
     expect(
       tester.widget<IconButton>(find.byKey(const Key('replay-exit'))).tooltip,
@@ -893,37 +899,57 @@ void main() {
     await tester.pumpWidget(_routerHost(database, router));
     router.go('/matches/$matchId/replay');
     await _pumpUntilFound(tester, find.byType(ReplayPage));
+    await tester.pumpAndSettle();
 
     await tester.binding.handlePopRoute();
     await _pumpUntilFound(tester, find.byType(HomePage));
   });
 
-  testWidgets('history-pushed finished replay exits back to history', (
-    tester,
-  ) async {
-    final database = createTestDatabase();
-    addTearDown(() async {
-      await tester.pumpWidget(const SizedBox.shrink());
-      await database.close();
-    });
-    const matchId = 'task6-history-replay-exit';
-    await _seedFinishedMatch(database, matchId);
-    final router = buildProviderAppRouter();
-    addTearDown(router.dispose);
-    await tester.pumpWidget(_routerHost(database, router));
-    router.go('/history');
-    await _pumpUntilFound(tester, find.byKey(Key('history-match-$matchId')));
-    await tester.tap(find.byKey(Key('history-match-$matchId')));
-    await _pumpUntilFound(tester, find.byType(ReplayPage));
+  testWidgets(
+    'history result opens replay and returns through result to history',
+    (tester) async {
+      final database = createTestDatabase();
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await database.close();
+      });
+      const matchId = 'task6-history-replay-exit';
+      await _seedFinishedMatch(database, matchId);
+      final router = buildProviderAppRouter();
+      addTearDown(router.dispose);
+      await tester.pumpWidget(_routerHost(database, router));
+      router.go('/history');
+      await _pumpUntilFound(tester, find.byKey(Key('history-match-$matchId')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('history-match-$matchId')));
+      await _pumpUntilFound(tester, find.byType(MatchSummaryPage));
+      await tester.pumpAndSettle();
+      final replayButton = find.byKey(const Key('summary-replay'));
+      await tester.ensureVisible(replayButton);
+      await tester.pumpAndSettle();
+      await tester.tap(replayButton);
+      await _pumpUntilFound(tester, find.byType(ReplayPage));
+      await tester.pumpAndSettle();
 
-    expect(
-      tester.widget<IconButton>(find.byKey(const Key('replay-exit'))).tooltip,
-      l10n.replayExitToHistoryTooltip,
-    );
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('replay-exit'))).tooltip,
+        l10n.replayExitToHistoryTooltip,
+      );
 
-    await tester.tap(find.byKey(const Key('replay-exit')));
-    await _pumpUntilFound(tester, find.byType(HistoryPage));
-  });
+      await tester.tap(find.byKey(const Key('replay-exit')));
+      await _pumpUntilFound(tester, find.byType(MatchSummaryPage));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.descendant(
+          of: find.byType(MatchSummaryPage),
+          matching: find.byTooltip(l10n.historyHomeTooltip),
+        ),
+      );
+      await _pumpUntilFound(tester, find.byType(HistoryPage));
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/history');
+    },
+  );
 }
 
 Widget _routerHost(

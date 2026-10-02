@@ -900,7 +900,8 @@ void main() {
 
     expect(find.byKey(const Key('scoring-more-sheet')), findsOneWidget);
     expect(find.byType(EditorialSheet), findsOneWidget);
-    expect(find.byType(EditorialIndexRow), findsNWidgets(11));
+    expect(find.byType(EditorialIndexRow), findsNWidgets(12));
+    expect(find.byKey(const Key('more-quick-guide')), findsOneWidget);
     for (final section in const [
       'shooting',
       'free-throws',

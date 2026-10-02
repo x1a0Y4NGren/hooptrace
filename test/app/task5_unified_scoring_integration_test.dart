@@ -8,8 +8,8 @@ import 'package:hooptrace/core/domain/entities/rule_template.dart';
 import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
-import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/summary/match_summary_page.dart';
 
 import '../test_helpers/test_database.dart';
 
@@ -138,7 +138,7 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('scoring-court')));
       await tester.pump();
       final courtRect = tester.getRect(find.byKey(const Key('scoring-court')));
-      final tapLocal = Offset(courtRect.width * 0.25, courtRect.height * 0.25);
+      final tapLocal = _courtTap(courtRect.size, .25, .25);
       await tester.tapAt(courtRect.topLeft + tapLocal);
       await _pumpUntil(
         tester,
@@ -147,9 +147,7 @@ void main() {
       var locations = await database.select(database.shotLocations).get();
       expect(locations, hasLength(1));
       expect(locations.single.eventId, activeEvents.single.id);
-      // The 15:14 court is horizontally letterboxed inside the 706.7x544
-      // viewport: (176.675 - 61.921) / 582.857 = 0.1969.
-      expect(locations.single.x, closeTo(0.1969, 0.001));
+      expect(locations.single.x, closeTo(0.25, 0.001));
       expect(locations.single.y, closeTo(0.25, 0.001));
       expect(locations.single.isConfirmed, isTrue);
       await _tapAction(tester, find.byKey(const Key('scoring-undo')));
@@ -327,10 +325,7 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('scoring-court')));
       await tester.pump();
       final finalCourt = tester.getRect(find.byKey(const Key('scoring-court')));
-      final finalTapLocal = Offset(
-        finalCourt.width * 0.75,
-        finalCourt.height * 0.25,
-      );
+      final finalTapLocal = _courtTap(finalCourt.size, .75, .25);
       await tester.tapAt(finalCourt.topLeft + finalTapLocal);
       await _pumpUntil(
         tester,
@@ -344,9 +339,7 @@ void main() {
       final finalLocation = locations.singleWhere(
         (location) => location.eventId == latestScore.id,
       );
-      // The target-state hint shortens the court viewport; hand-derived
-      // 15:14 letterboxing maps this 75% tap to normalized x = 0.8221.
-      expect(finalLocation.x, closeTo(0.8221, 0.001));
+      expect(finalLocation.x, closeTo(0.75, 0.001));
       expect(finalLocation.y, closeTo(0.25, 0.001));
       expect(finalLocation.isConfirmed, isTrue);
 
@@ -383,8 +376,7 @@ void main() {
         find.byKey(const Key('scoring-finish-confirm')),
       );
       await _tapAction(tester, find.byKey(const Key('scoring-finish-confirm')));
-      await _pumpUntilFound(tester, find.byType(ReplayPage));
-      await _pumpUntilFound(tester, find.text('终场'));
+      await _pumpUntilFound(tester, find.byType(MatchSummaryPage));
 
       final match = await database.select(database.matches).getSingle();
       expect(match.lifecycle, 'finished');
@@ -392,6 +384,19 @@ void main() {
       await tester.binding.handlePopRoute();
       await _pumpUntilFound(tester, find.byType(HomePage));
     },
+  );
+}
+
+// Select a point within the 15:14 painted court, independent of the page's
+// letterboxing or header height. Geometry itself is tested in the court suite.
+Offset _courtTap(Size viewport, double x, double y) {
+  final courtWidth = viewport.width / viewport.height > 15 / 14
+      ? viewport.height * 15 / 14
+      : viewport.width;
+  final courtHeight = courtWidth * 14 / 15;
+  return Offset(
+    (viewport.width - courtWidth) / 2 + courtWidth * x,
+    (viewport.height - courtHeight) / 2 + courtHeight * y,
   );
 }
 

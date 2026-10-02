@@ -288,12 +288,15 @@ class _HistoryPageState extends State<HistoryPage> {
                             onDelete: widget.onDelete,
                           ),
                       ],
-                      if (controller.dataSource != null && controller.hasMore)
+                      if (controller.dataSource != null &&
+                          (controller.hasMore || controller.loadError != null))
                         _LoadMoreButton(
                           loading: controller.isLoadingPage,
                           error: controller.loadError,
                           onPressed: controller.isLoadingPage
                               ? null
+                              : controller.loadError != null
+                              ? controller.retryLoad
                               : controller.loadNextPage,
                         ),
                     ],

@@ -176,19 +176,23 @@ void main() {
           find.byKey(const Key('home-editorial-hero')),
         );
         final startEditorial = editorialThemeOf(startContext);
-        final startIndex = tester.widget<Text>(
-          find.descendant(
-            of: find.byKey(const Key('home-editorial-hero')),
-            matching: find.text('01'),
-          ),
+        final startTitle = tester.widget<Text>(
+          find
+              .descendant(
+                of: find.byKey(const Key('home-editorial-hero')),
+                matching: find.text(
+                  AppLocalizations.of(startContext)!.startScoring,
+                ),
+              )
+              .first,
         );
         expect(
           _contrastRatio(
-            startIndex.style!.color!,
+            startTitle.style!.color!,
             startEditorial.inverseSurface,
           ),
           greaterThanOrEqualTo(4.5),
-          reason: 'the start index must remain readable on the inverse hero',
+          reason: 'the start title must remain readable on the inverse hero',
         );
 
         await _pumpHome(

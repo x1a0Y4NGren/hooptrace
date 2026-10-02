@@ -6,10 +6,13 @@ import 'package:go_router/go_router.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/provider_router.dart';
+import 'package:hooptrace/core/data/app_database.dart';
+import 'package:hooptrace/core/export/export_coordinator.dart';
 import 'package:hooptrace/features/settings/data_management_page.dart';
 import 'package:hooptrace/features/settings/settings_page.dart';
 
 import '../test_helpers/test_database.dart';
+import '../test_helpers/safety_backup_storage.dart';
 
 void main() {
   testWidgets('direct data deep link has an explicit route back to settings', (
@@ -22,22 +25,7 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await database.close();
     });
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [appDatabaseProvider.overrideWithValue(database)],
-        child: MaterialApp.router(
-          locale: const Locale('zh'),
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: router,
-        ),
-      ),
-    );
+    await tester.pumpWidget(_routerApp(database, router));
     router.go('/settings/data');
     await tester.pumpAndSettle();
 
@@ -57,22 +45,7 @@ void main() {
         await tester.pumpWidget(const SizedBox.shrink());
         await database.close();
       });
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [appDatabaseProvider.overrideWithValue(database)],
-          child: MaterialApp.router(
-            locale: const Locale('zh'),
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: AppLocalizations.supportedLocales,
-            routerConfig: router,
-          ),
-        ),
-      );
+      await tester.pumpWidget(_routerApp(database, router));
       router.go('/settings');
       await tester.pumpAndSettle();
 
@@ -80,7 +53,12 @@ void main() {
       await tester.scrollUntilVisible(
         dataRow,
         300,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find
+            .descendant(
+              of: find.byType(SettingsPage),
+              matching: find.byType(Scrollable),
+            )
+            .first,
       );
       await tester.ensureVisible(dataRow);
       await tester.tap(dataRow.hitTestable());
@@ -100,3 +78,30 @@ void main() {
     },
   );
 }
+
+Widget _routerApp(AppDatabase database, GoRouter router) => ProviderScope(
+  overrides: [
+    appDatabaseProvider.overrideWithValue(database),
+    exportCoordinatorProvider.overrideWith((ref) {
+      final codec = ref.watch(backupCodecProvider);
+      return ExportCoordinator(
+        database,
+        codec,
+        gateway: ref.watch(exportGatewayProvider),
+        automaticBackup: ref.watch(automaticBackupServiceProvider),
+        safetyBackups: createTestSafetyBackupStore(codec),
+      );
+    }),
+  ],
+  child: MaterialApp.router(
+    locale: const Locale('zh'),
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    supportedLocales: AppLocalizations.supportedLocales,
+    routerConfig: router,
+  ),
+);

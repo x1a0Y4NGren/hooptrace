@@ -85,17 +85,20 @@ void main() {
     expect(startedBlueName, 'Blue B');
   });
 
-  testWidgets('pre-game page hides recording mode and coverage choices', (
-    tester,
-  ) async {
-    await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+  testWidgets(
+    'pre-game uses natural scope choices and a unified scoring mode',
+    (tester) async {
+      await tester.pumpWidget(const MaterialApp(home: PregamePage()));
 
-    expect(find.byKey(const Key('pregame-recording-simple')), findsNothing);
-    expect(find.byKey(const Key('pregame-recording-detailed')), findsNothing);
-    expect(find.byKey(const Key('pregame-tracking-coverage')), findsNothing);
-    expect(find.text('记录模式（必选）'), findsNothing);
-    expect(find.text('失误追踪范围'), findsNothing);
-  });
+      expect(find.byKey(const Key('pregame-recording-simple')), findsNothing);
+      expect(find.byKey(const Key('pregame-recording-detailed')), findsNothing);
+      expect(find.byKey(const Key('pregame-tracking-coverage')), findsNothing);
+      expect(find.text('记录模式（必选）'), findsNothing);
+      expect(find.text('失误追踪范围'), findsNothing);
+      expect(find.byKey(const Key('pregame-coverage-scores')), findsOneWidget);
+      expect(find.byKey(const Key('pregame-coverage-shots')), findsOneWidget);
+    },
+  );
 
   testWidgets('pre-game page exposes Chinese rule template options', (
     tester,
@@ -139,6 +142,7 @@ void main() {
       MaterialApp(home: PregamePage(onStartMatch: (_) => started = true)),
     );
 
+    await _openClockSettings(tester);
     await tester.scrollUntilVisible(
       find.byKey(const Key('pregame-timer')),
       300,
@@ -174,6 +178,7 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: PregamePage()));
+    await _openClockSettings(tester);
     await tester.ensureVisible(find.byKey(const Key('pregame-timer')));
     await tester.tap(find.byKey(const Key('pregame-timer')));
     await tester.pump();
@@ -221,7 +226,7 @@ void main() {
         1,
       ),
     );
-    expect(find.byKey(const Key('pregame-court-divider')), findsOneWidget);
+    expect(find.byKey(const Key('pregame-court-divider')), findsNothing);
     expect(find.byKey(const Key('pregame-configuration-rail')), findsOneWidget);
   });
 
@@ -267,6 +272,10 @@ void main() {
       expect(find.byKey(const Key('pregame-clock-section')), findsOneWidget);
       expect(find.byKey(const Key('pregame-advanced-section')), findsOneWidget);
       expect(find.byKey(const Key('pregame-rule-template')), findsOneWidget);
+      await _openClockSettings(tester);
+      await tester.ensureVisible(find.byKey(const Key('pregame-advanced')));
+      await tester.tap(find.byKey(const Key('pregame-advanced')));
+      await tester.pumpAndSettle();
       expect(find.byKey(const Key('pregame-timer')), findsOneWidget);
       expect(find.byKey(const Key('pregame-win-by-two')), findsOneWidget);
     },
@@ -513,4 +522,11 @@ void main() {
       expect(find.text('请输入红方姓名。'), findsOneWidget);
     },
   );
+}
+
+Future<void> _openClockSettings(WidgetTester tester) async {
+  final clock = find.byKey(const Key('pregame-clock-settings'));
+  await tester.ensureVisible(clock);
+  await tester.tap(clock);
+  await tester.pumpAndSettle();
 }

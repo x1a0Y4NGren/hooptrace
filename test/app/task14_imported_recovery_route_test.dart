@@ -38,9 +38,13 @@ void main() {
       tester,
       find.byKey(const Key('history-imported-imported-route')),
     );
-    await tester.tap(
-      find.byKey(const Key('history-resume-imported-imported-route')),
+    await tester.pumpAndSettle();
+    final resume = find.byKey(
+      const Key('history-resume-imported-imported-route'),
     );
+    await tester.ensureVisible(resume);
+    await tester.pumpAndSettle();
+    await tester.tap(resume.hitTestable());
     await _pumpUntil(tester, find.byType(ScoringPage));
 
     expect(find.byType(ScoringPage), findsOneWidget);
@@ -80,9 +84,13 @@ void main() {
       tester,
       find.byKey(const Key('history-resume-imported-imported-conflict')),
     );
-    await tester.tap(
-      find.byKey(const Key('history-resume-imported-imported-conflict')),
+    await tester.pumpAndSettle();
+    final resume = find.byKey(
+      const Key('history-resume-imported-imported-conflict'),
     );
+    await tester.ensureVisible(resume);
+    await tester.pumpAndSettle();
+    await tester.tap(resume.hitTestable());
     await tester.pumpAndSettle();
 
     expect(find.text('无法恢复导入的未完成比赛，请确认没有其他活动比赛。'), findsOneWidget);
