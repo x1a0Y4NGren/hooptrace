@@ -47,6 +47,9 @@ unset `jdk-dir` alone is insufficient evidence of the Java selection.
 Neither snapshot may contain `android/key.properties`; unsigned mode exists
 only in the verifier's temporary process environment. The official signed
 release command and its signing checks are unchanged.
+The verifier also scopes Gradle to a single-use JVM and restores the caller's
+`GRADLE_OPTS` afterward. This lets the JVM release mapped R8 intermediates before
+the owned first source tree is removed on Windows; no shared daemon is stopped.
 
 If the effective Java differs, prepare a task-specific configuration outside
 the project, then scope `APPDATA` to that directory for the invocation. For
@@ -88,6 +91,8 @@ Windows 下使用 PowerShell 脚本，两份全新源码快照顺序在同一个
 核对锁文件，完整逐字节比较未签名 APK。每次调用的源码、哈希、日志与工具链记录
 保留在忽略的 `build/reproducible/windows-<timestamp>-<id>`；只有
 `apkComparison=byte-identical` 表示本次比较通过，不代表跨 Windows/Linux 复现。
+脚本在当前进程中关闭 Gradle 常驻 daemon，等待单次构建的 JVM 退出释放 R8
+中间文件后再删除自己的源码目录，并恢复原 `GRADLE_OPTS`；不停止共享 daemon。
 
 The path, cleanup, native command recording and whole-file comparison helpers
 can be checked without a Flutter build:

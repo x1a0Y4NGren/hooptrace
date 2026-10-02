@@ -197,10 +197,18 @@ function Save-PinnedToolchain {
         $properties -notmatch '(?m)^distributionSha256Sum=efe9a3d147d948d7528a9887fa35abcf24ca1a43ad06439996490f77569b02d1\s*$') {
         throw "The Gradle 8.14 distribution URL and SHA-256 must be pinned."
     }
+    # Caller flags may contain proxy credentials. Fingerprint them for drift
+    # detection without placing their contents in the retained evidence.
+    $gradleOptionsHasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $gradleOptionsDigest = [BitConverter]::ToString($gradleOptionsHasher.ComputeHash(
+            [Text.Encoding]::UTF8.GetBytes([string]$env:GRADLE_OPTS))).Replace("-", "").ToLowerInvariant()
+    } finally { $gradleOptionsHasher.Dispose() }
     $androidLines = @("compileSdk=36", "targetSdk=36", "buildTools=36.1.0", "ndk=28.2.13676358",
         "sdkRoot=$sdkRoot", "javaHome=$jdkRoot", "flutterExecutable=$flutter", "agp=8.11.1", "gradleVersion=8.14",
         "gradleWrapperSha256=$wrapperHash", "gradleDistributionSha256=efe9a3d147d948d7528a9887fa35abcf24ca1a43ad06439996490f77569b02d1",
-        "gradleUserHome=$env:GRADLE_USER_HOME", "pubCache=$env:PUB_CACHE", "flutterConfigHome=$env:APPDATA")
+        "gradleUserHome=$env:GRADLE_USER_HOME", "gradleOptionsSha256=$gradleOptionsDigest",
+        "pubCache=$env:PUB_CACHE", "flutterConfigHome=$env:APPDATA")
     foreach ($component in @("platforms\android-36", "build-tools\36.1.0", "ndk\28.2.13676358")) {
         $componentProperties = Join-Path (Join-Path $sdkRoot $component) "source.properties"
         if (-not [IO.File]::Exists($componentProperties)) { throw "Pinned Android SDK component is missing: $component" }
@@ -307,13 +315,14 @@ New-Item -ItemType Directory -Path $output | Out-Null
 New-Item -ItemType Directory -Path $WorkspaceRoot -Force | Out-Null
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $savedEnvironment = @{}
-foreach ($name in @("JAVA_HOME", "PATH", "ANDROID_SDK_ROOT", "ANDROID_HOME", "SOURCE_DATE_EPOCH", "HOOPTRACE_ALLOW_UNSIGNED_RELEASE")) {
+foreach ($name in @("JAVA_HOME", "PATH", "ANDROID_SDK_ROOT", "ANDROID_HOME", "SOURCE_DATE_EPOCH", "HOOPTRACE_ALLOW_UNSIGNED_RELEASE", "GRADLE_OPTS")) {
     $savedEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, "Process")
 }
 $protocol = @("protocolVersion=1", "sourceSnapshot=two fresh git archive exports of one commit", "commit=$sourceCommit",
     "sourceDateEpoch=$sourceDateEpoch", "pubspecLockSha256=$lockHash", "canonicalBuildRoot=$canonicalSource",
     "comparison=complete unsigned release APK bytes", "dependencyResolution=flutter pub get --enforce-lockfile; lock rechecked after build",
-    "signing=disabled; no key.properties in either archive", "sameRunner=true", "crossRunner=not tested", "crossOS=not tested")
+    "signing=disabled; no key.properties in either archive", "gradleDaemon=single-use; JVM exits before workspace cleanup",
+    "sameRunner=true", "crossRunner=not tested", "crossOS=not tested")
 Write-Evidence (Join-Path $output "PUBSPEC_LOCK_SHA256") @($lockHash)
 Write-Evidence (Join-Path $output "REPRODUCIBILITY.txt") ($protocol + "apkComparison=incomplete")
 try {
@@ -323,6 +332,10 @@ try {
     $env:ANDROID_HOME = $sdkRoot
     $env:SOURCE_DATE_EPOCH = $sourceDateEpoch
     $env:HOOPTRACE_ALLOW_UNSIGNED_RELEASE = "true"
+    # A persistent Gradle JVM can retain mapped R8 output files on Windows even
+    # after assembleRelease returns, preventing safe removal of the first tree.
+    # A single-use JVM exits with each build; preserve the caller's other flags.
+    $env:GRADLE_OPTS = ($env:GRADLE_OPTS + " -Dorg.gradle.daemon=false").Trim()
     Save-PinnedToolchain $repoRoot $reference
     Write-Host "Build a: fresh source at $canonicalSource. Evidence: $output"
     Invoke-CleanBuild "a"
