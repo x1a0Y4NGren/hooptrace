@@ -194,7 +194,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get startScoring => 'Start';
 
   @override
-  String get replayHistory => 'Replay History';
+  String get replayHistory => 'History';
 
   @override
   String get settings => 'Settings';
@@ -1526,7 +1526,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get homeActiveMatch => 'Match in progress';
 
   @override
-  String get homeClockNotConfigured => 'Timer not configured';
+  String get homeClockNotConfigured => 'Timer off';
 
   @override
   String get homeClockRegulationExpired => 'Regulation ended';
@@ -1904,7 +1904,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String pregameNameSnapshot(Object side) {
-    return '$side name snapshot';
+    return '$side match name';
   }
 
   @override
@@ -1913,7 +1913,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pregameSnapshotHint =>
-      'The current display name is saved when the match starts.';
+      'Changing this match name does not change the player profile.';
 
   @override
   String get pregameRed => 'Red';

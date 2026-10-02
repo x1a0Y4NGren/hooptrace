@@ -184,7 +184,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get startScoring => '开始计分';
 
   @override
-  String get replayHistory => '复盘历史';
+  String get replayHistory => '历史';
 
   @override
   String get settings => '设置';
@@ -1463,7 +1463,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get homeActiveMatch => '进行中的比赛';
 
   @override
-  String get homeClockNotConfigured => '计时未配置';
+  String get homeClockNotConfigured => '未开启计时';
 
   @override
   String get homeClockRegulationExpired => '常规时间结束';
@@ -1827,14 +1827,14 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String pregameNameSnapshot(Object side) {
-    return '$side姓名快照';
+    return '$side本场姓名';
   }
 
   @override
   String get pregameTemporaryHint => '可输入临时姓名；双方临时同名也可以。';
 
   @override
-  String get pregameSnapshotHint => '比赛开始时保存当前显示的姓名快照。';
+  String get pregameSnapshotHint => '修改本场姓名不会更改球员档案。';
 
   @override
   String get pregameRed => '红方';

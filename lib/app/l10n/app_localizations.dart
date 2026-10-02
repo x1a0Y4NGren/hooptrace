@@ -443,7 +443,7 @@ abstract class AppLocalizations {
   /// No description provided for @replayHistory.
   ///
   /// In zh, this message translates to:
-  /// **'复盘历史'**
+  /// **'历史'**
   String get replayHistory;
 
   /// No description provided for @settings.
@@ -2931,7 +2931,7 @@ abstract class AppLocalizations {
   /// No description provided for @homeClockNotConfigured.
   ///
   /// In zh, this message translates to:
-  /// **'计时未配置'**
+  /// **'未开启计时'**
   String get homeClockNotConfigured;
 
   /// No description provided for @homeClockRegulationExpired.
@@ -3633,7 +3633,7 @@ abstract class AppLocalizations {
   /// No description provided for @pregameNameSnapshot.
   ///
   /// In zh, this message translates to:
-  /// **'{side}姓名快照'**
+  /// **'{side}本场姓名'**
   String pregameNameSnapshot(Object side);
 
   /// No description provided for @pregameTemporaryHint.
@@ -3645,7 +3645,7 @@ abstract class AppLocalizations {
   /// No description provided for @pregameSnapshotHint.
   ///
   /// In zh, this message translates to:
-  /// **'比赛开始时保存当前显示的姓名快照。'**
+  /// **'修改本场姓名不会更改球员档案。'**
   String get pregameSnapshotHint;
 
   /// No description provided for @pregameRed.

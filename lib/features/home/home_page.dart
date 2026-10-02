@@ -245,7 +245,7 @@ class _ActiveHero extends StatelessWidget {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final editorial = editorialThemeOf(context);
     final clock = detail.clock;
-    final clockStatus = clock == null
+    final clockStatus = !detail.match.timerEnabled || clock == null
         ? l10n.homeClockNotConfigured
         : clock.isRegulationExpired
         ? l10n.homeClockRegulationExpired

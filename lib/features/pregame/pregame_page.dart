@@ -195,6 +195,12 @@ class _PregamePageState extends State<PregamePage> {
                       ),
                       const SizedBox(height: 12),
                     ],
+                    Text(
+                      _rulesSummary(l10n),
+                      key: const Key('pregame-rules-summary'),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 12),
                     EditorialSectionRule(label: l10n.pregamePlayers),
                     const SizedBox(height: 12),
                     LayoutBuilder(
@@ -301,14 +307,6 @@ class _PregamePageState extends State<PregamePage> {
                                 children: [
                                   EditorialSectionRule(
                                     label: l10n.pregameRuleTemplate,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    _rulesSummary(l10n),
-                                    key: const Key('pregame-rules-summary'),
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium,
                                   ),
                                   const SizedBox(height: 12),
                                   Padding(

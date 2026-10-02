@@ -5,6 +5,8 @@ import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
+import 'package:hooptrace/core/domain/clock/clock_engine.dart';
+import 'package:hooptrace/core/domain/entities/clock_state.dart';
 import 'package:hooptrace/core/domain/entities/match.dart' as domain_match;
 import 'package:hooptrace/core/domain/entities/match_detail.dart';
 import 'package:hooptrace/core/domain/entities/rule_template.dart';
@@ -12,6 +14,35 @@ import 'package:hooptrace/core/domain/value_objects/team_side.dart';
 import 'package:hooptrace/features/home/home_page.dart';
 
 void main() {
+  testWidgets('a restored untimed match does not claim its clock is paused', (
+    tester,
+  ) async {
+    final persistedClock = ClockEngine().project(
+      state: ClockState(
+        id: 'restored-untimed-clock',
+        matchId: _activeMatch.match.id,
+        mode: ClockMode.countUp,
+        phase: ClockPhase.regulation,
+        accumulatedSeconds: 0,
+      ),
+      now: DateTime.utc(2026, 10, 2),
+    );
+    for (final locale in const [Locale('en'), Locale('zh')]) {
+      await _pumpHome(
+        tester,
+        locale: locale,
+        activeMatch: _activeMatch.copyWith(clock: persistedClock),
+      );
+      final l10n = AppLocalizations.of(
+        tester.element(find.byKey(homeResumeCardKey)),
+      )!;
+      expect(find.textContaining(l10n.homeClockNotConfigured), findsOneWidget);
+      expect(find.textContaining(l10n.homeClockPaused), findsNothing);
+      expect(find.byKey(homeResumeKey), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   testWidgets('empty home makes one editorial hero the start destination', (
     tester,
   ) async {
