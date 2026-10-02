@@ -10,8 +10,8 @@ import 'package:hooptrace/features/players/player_career_page.dart';
 import 'package:hooptrace/features/players/player_comparison_page.dart';
 import 'package:hooptrace/features/players/player_list_page.dart';
 import 'package:hooptrace/features/pregame/pregame_page.dart';
-import 'package:hooptrace/features/replay/replay_page.dart';
 import 'package:hooptrace/features/scoring/scoring_page.dart';
+import 'package:hooptrace/features/summary/match_summary_page.dart';
 import 'package:integration_test/integration_test.dart';
 
 void main() {
@@ -73,14 +73,14 @@ void main() {
 
       await _tapWhenHitTestable(
         tester,
-        find.byKey(homePlayersShortcutKey),
-        description: 'the Home players shortcut',
+        find.byType(NavigationDestination).at(2),
+        description: 'the Players primary navigation destination',
       );
       await _pumpUntilFound(tester, find.byType(PlayerListPage));
       await _tapWhenHitTestable(
         tester,
-        find.byKey(const ValueKey('player-analytics-$subjectId')),
-        description: 'the linked player analytics action',
+        find.byKey(const ValueKey('player-row-$subjectId')),
+        description: 'the linked player career row',
       );
       await _pumpUntilFound(tester, find.byType(PlayerCareerPage));
       await _tapWhenHitTestable(
@@ -163,6 +163,14 @@ Future<void> _playAndFinishLinkedMatch(
     description: 'the Pregame start-match action',
   );
   await _pumpUntilFound(tester, find.byType(ScoringPage));
+  final skipGuide = find.byKey(const Key('scoring-guide-skip'));
+  if (skipGuide.evaluate().isNotEmpty) {
+    await _tapWhenHitTestable(
+      tester,
+      skipGuide,
+      description: 'the inline scoring guide skip action',
+    );
+  }
 
   for (var score = 0; score < subjectScores; score++) {
     await _tapWhenHitTestable(
@@ -192,12 +200,21 @@ Future<void> _playAndFinishLinkedMatch(
     find.byKey(const Key('scoring-finish-confirm')),
     description: 'the scoring finish confirmation',
   );
-  await _pumpUntilFound(tester, find.byType(ReplayPage));
+  await _pumpUntilFound(tester, find.byType(MatchSummaryPage));
 
   await _tapWhenHitTestable(
     tester,
-    find.byKey(const Key('replay-exit')),
-    description: 'the Replay exit action',
+    find.descendant(
+      of: find.byType(MatchSummaryPage),
+      matching: find.byIcon(Icons.arrow_back),
+    ),
+    description: 'the result return action',
+  );
+  await _pumpUntilFound(tester, find.byType(NavigationBar));
+  await _tapWhenHitTestable(
+    tester,
+    find.byType(NavigationDestination).first,
+    description: 'the Matches primary navigation destination',
   );
   await _pumpUntilFound(tester, find.byType(HomePage));
 }

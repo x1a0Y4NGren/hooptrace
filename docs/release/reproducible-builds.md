@@ -24,6 +24,78 @@ bash tool/release/verify_unsigned_reproducible_android.sh
 sha256sum -c build/reproducible/SHA256SUMS
 ```
 
+On Windows, use the PowerShell counterpart from a clean committed checkout:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tool/release/verify_unsigned_reproducible_android.ps1 `
+  -WorkspaceRoot D:\HoopTrace-Reproducibility `
+  -AndroidSdkRoot D:\Android\Sdk `
+  -JavaHome "C:\path\to\jdk-17.0.20+8"
+```
+
+Replace the example `JavaHome` with the installed Temurin 17.0.20+8 directory.
+
+It exports two fresh `git archive` snapshots and builds them sequentially at
+`D:\HoopTrace-Reproducibility\hooptrace-reproducible-source`. The named workspace
+must be on D:, outside the checkout and toolchains; the canonical source leaf
+must not exist before invocation. Cleanup requires the exact resolved path and
+this invocation's ownership marker, and refuses junctions or other reparse
+points. Before and after each build, `flutter config --machine` records the Java
+and Android SDK that Flutter actually selected; both must match the supplied
+paths. Android Studio's bundled JDK can take precedence over `JAVA_HOME`, so an
+unset `jdk-dir` alone is insufficient evidence of the Java selection.
+Neither snapshot may contain `android/key.properties`; unsigned mode exists
+only in the verifier's temporary process environment. The official signed
+release command and its signing checks are unchanged.
+
+If the effective Java differs, prepare a task-specific configuration outside
+the project, then scope `APPDATA` to that directory for the invocation. For
+example, an operator-prepared
+`D:\HoopTrace-Reproducibility\flutter-config\.flutter_settings` can contain:
+
+```json
+{
+  "jdk-dir": "C:\\path\\to\\jdk-17.0.20+8",
+  "android-sdk": "D:\\Android\\Sdk"
+}
+```
+
+```powershell
+$reproPreviousAppData = $env:APPDATA
+try {
+  $env:APPDATA = "D:\HoopTrace-Reproducibility\flutter-config"
+  & .\tool\release\verify_unsigned_reproducible_android.ps1 `
+    -WorkspaceRoot D:\HoopTrace-Reproducibility `
+    -AndroidSdkRoot D:\Android\Sdk `
+    -JavaHome "C:\path\to\jdk-17.0.20+8"
+} finally { $env:APPDATA = $reproPreviousAppData }
+```
+
+Use the same actual JDK path in the prepared settings and `-JavaHome`. The
+verifier only reads Flutter configuration and records the scoped configuration
+path; it does not alter the user's global settings.
+
+Each invocation retains both complete APKs, their SHA-256 values, source archive
+hashes, build logs, signature inspection, protocol and before/after toolchain
+records under an ignored `build/reproducible/windows-<timestamp>-<id>` directory.
+A successful complete byte comparison adds `app-release.apk` and records
+`apkComparison=byte-identical` in `REPRODUCIBILITY.txt`. Failures retain evidence
+and return nonzero. Windows evidence establishes reproducibility within that
+one invocation; it does not establish equality with the Linux CI APK.
+
+Windows 下使用 PowerShell 脚本，两份全新源码快照顺序在同一个外部 D 盘目录构建。
+脚本拒绝已有源码目录、非本次拥有的目录和 junction/reparse point，固定工具链并
+核对锁文件，完整逐字节比较未签名 APK。每次调用的源码、哈希、日志与工具链记录
+保留在忽略的 `build/reproducible/windows-<timestamp>-<id>`；只有
+`apkComparison=byte-identical` 表示本次比较通过，不代表跨 Windows/Linux 复现。
+
+The path, cleanup, native command recording and whole-file comparison helpers
+can be checked without a Flutter build:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File test/tool/release/verify_unsigned_reproducible_android_test.ps1
+```
+
 The native SQLite hook is configured with `source: source` and the checked-in
 `third_party/sqlite/sqlite3.c` amalgamation (SQLite 3.53.4, SHA-256
 `b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189`). A clean

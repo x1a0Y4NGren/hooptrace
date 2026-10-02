@@ -1,4 +1,4 @@
-# 1.0 screenshot checklist / 1.0 截图清单
+# 2.0 screenshot checklist / 2.0 截图清单
 
 Screenshots are release metadata, not test evidence. Use synthetic player names
 and inspect every image at full resolution before committing it.
@@ -10,8 +10,9 @@ and inspect every image at full resolution before committing it.
 
 - [ ] Simplified Chinese and English.
 - [ ] Warm light and charcoal dark themes.
-- [ ] Home/recovery state, pregame mode selection, simple and detailed scoring,
-      finished replay/analytics, history filters, player growth, backup settings.
+- [ ] Match/home recovery, compact pregame with recording scope, unified scoring,
+      result summary, replay/analytics, history filters, player growth, safety
+      copies and backup settings.
 - [ ] Compact phone landscape scoring.
 - [ ] Large/foldable portrait and landscape layouts.
 - [ ] One critical flow at 200% text scale without clipping or overflow.
@@ -33,4 +34,6 @@ and inspect every image at full resolution before committing it.
 
 For each final image record commit, build type, emulator/device, API, viewport,
 locale, theme, text scale, route/state, and source test fixture. Re-capture after
-any visible 1.0 RC change.
+any visible 2.0 candidate change. Keep widget Goldens and real Android captures
+identified separately; neither a prior release image nor a test fixture alone
+proves the final installed APK flow.

@@ -1,0 +1,5 @@
+2.0.0 candidate, not yet released.
+Match, History and Players tabs; quick setup with profiles and recent rules; save feedback and a short guide; result summaries, profile linking and fresh rematches.
+Separate FG%/FT%, honest incomplete samples and 13-column player CSV.
+Verified private safety copies before replacement or rollback; export/import share capacity limits.
+Schema 3 and JSON format 2 retained. Signing, same-certificate upgrade and final platform acceptance remain pending.

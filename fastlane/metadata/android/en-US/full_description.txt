@@ -1,13 +1,11 @@
-HoopTrace is an offline scoring, replay, and player-development tool for one-on-one basketball.
+HoopTrace is an offline scoring, replay, and player-growth tool for one-on-one basketball. This metadata describes the 2.0.0 candidate; it is not a published release.
 
-Choose a fast one-tap mode or a detailed court-first mode. Record points, attempts, fouls, possession, match events, and confirmed shot locations. Recover an interrupted active match and use count-up, countdown, or overtime clocks with explicit finish decisions.
+Start with temporary names, existing profiles, or a new player. Reuse the last setup, swap sides, review the rules, and choose whether you will mainly keep score or record every shot. The landscape workspace keeps points, misses, fouls, locations, and undo close at hand, with save status, retry feedback, and a skippable guide.
 
-Review the game through a local timeline, shot chart, scoring flow, key moments, and analytics that clearly reflect tracking coverage. Profile-linked career views provide 7/30/90-day and all-time growth, opponent filters, recorded shooting trends, and zone heatmaps.
+Confirm the final score and recording scope, then open a result summary, full replay, or share report. Link a temporary participant to a profile or start a fresh rematch. Player careers and comparisons show recorded evidence: field-goal and free-throw percentages use separate denominators, and incomplete or zero-attempt samples show no percentage.
 
-Manage players and scoring rules, archive history, correct finished records with a human-readable audit trail, and export complete JSON backups, CSV data, or a replay image. Versioned restore supports safe replacement and deterministic merge. Optional automatic backup writes only to a user-approved folder with bounded retention.
+Export complete JSON, readable CSV, or a replay image. Replacement and rollback require a verified private safety copy; active matches block replacement. The two latest valid copies are normally retained. Export and import share a 32 MiB, 100,000-rows-per-table, 200,000-total-row capacity contract. Private copies do not replace an external backup.
 
-All records stay on the device by default. HoopTrace has no account, cloud sync, ads, analytics, tracking, or personal-data upload. Automatic backup is optional, disabled by default, and writes only to a folder explicitly selected by the user.
+All records stay on the device by default. There is no account, cloud sync, advertising, analytics, tracking, or personal-data upload. Optional automatic backup is off by default and writes only to a user-approved folder. The official HoopTrace project remains permanently free and open source under the MIT License.
 
-The official HoopTrace project is permanently free and open source under the MIT License.
-
-The complete interface is available in Simplified Chinese and English, with system/light/dark themes, large-text accessibility, and adaptive phone, tablet, foldable, and multi-window layouts. Android is the supported release platform; no iOS binary is promised.
+Simplified Chinese and English, system/light/dark themes, large text, and adaptive layouts are supported. Android is the candidate validation platform; iOS is not formally released. Official signing, same-certificate upgrade, remote CI, and macOS iOS build acceptance remain pending.

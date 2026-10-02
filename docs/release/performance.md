@@ -1,4 +1,16 @@
-# 1.0 performance evidence / 1.0 性能证据
+# Performance evidence / 性能证据
+
+## 2.0 candidate / 2.0 候选
+
+The final Windows unit/widget suite (`flutter test --no-pub --reporter expanded`,
+1,057 passing tests) recorded `history_first_page_ms=16.145` and
+`replay_projection_ms=48.543` for the unchanged 1,000-match / 10,000-event
+fixture. The 500 ms gates remain unchanged. This is a local debug-test
+regression measurement, not a real-device or cross-runner claim.
+
+本轮最终主机全量 1,057 项通过，20 行历史首屏 16.145ms、1,009 条事件复盘投影
+48.543ms，仍使用下面的原夹具与 500ms 门槛。Android 命令 p95 本轮结果待补充；
+下方 1.0 数值仅为历史参考，不作为 2.0 设备验收证据。
 
 ## Deterministic query fixture / 确定性查询夹具
 
