@@ -411,40 +411,51 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.image_outlined,
-                    color: editorialThemeOf(context).arenaAccent,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      l10n.replayExportTitle,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: l10n.replayClose,
-                    onPressed: _busy ? null : () => Navigator.pop(context),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              Text(l10n.replayExportDescription),
-              const SizedBox(height: 16),
               Expanded(
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.contain,
-                    child: RepaintBoundary(
-                      key: _boundaryKey,
-                      child: _ReplayExportSummary(
-                        controller: widget.controller,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.image_outlined,
+                            color: editorialThemeOf(context).arenaAccent,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              l10n.replayExportTitle,
+                              style: Theme.of(context).textTheme.titleLarge
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: l10n.replayClose,
+                            onPressed: _busy
+                                ? null
+                                : () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                          ),
+                        ],
                       ),
-                    ),
+                      Text(l10n.replayExportDescription),
+                      const SizedBox(height: 16),
+                      FittedBox(
+                        fit: BoxFit.fitWidth,
+                        alignment: Alignment.topCenter,
+                        // Report typography belongs to the exported document.
+                        // The dialog controls still follow system text size.
+                        child: MediaQuery.withNoTextScaling(
+                          child: RepaintBoundary(
+                            key: _boundaryKey,
+                            child: _ReplayExportSummary(
+                              controller: widget.controller,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -456,14 +467,15 @@ class _ReplayExportDialogState extends State<_ReplayExportDialog> {
                 ),
               ],
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   TextButton(
                     onPressed: _busy ? null : () => Navigator.pop(context),
                     child: Text(l10n.cancelAction),
                   ),
-                  const SizedBox(width: 12),
                   FilledButton.icon(
                     key: const Key('replay-export-confirm'),
                     onPressed: _busy ? null : _export,
@@ -533,7 +545,6 @@ class _ReplayExportSummary extends StatelessWidget {
     return Container(
       key: const Key('replay-export-summary'),
       width: 900,
-      height: 520,
       padding: const EdgeInsets.all(26),
       color: Theme.of(context).colorScheme.surface,
       child: Column(
@@ -602,92 +613,97 @@ class _ReplayExportSummary extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio: 15 / 14,
-                      child: CourtView(
-                        shotLocations: controller.shotLocations,
-                        pendingLocation: null,
-                        mode: CourtViewMode.readOnly,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: AspectRatio(
+                  aspectRatio: 15 / 14,
+                  child: CourtView(
+                    shotLocations: controller.shotLocations,
+                    pendingLocation: null,
+                    mode: CourtViewMode.readOnly,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.replayExportAnalysis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 5,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        l10n.replayExportAnalysis,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontWeight: FontWeight.w800,
+                    const SizedBox(height: 10),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final metricWidth = (constraints.maxWidth - 10) / 2;
+                        final metrics = [
+                          _ExportMetric(
+                            label: l10n.replayDuration,
+                            value: _formatDuration(data.duration),
+                          ),
+                          _ExportMetric(
+                            label: l10n.v2LocationScope,
+                            value: analytics == null || attempts == 0
+                                ? l10n.replayNoData
+                                : '${analytics.confirmedLocationCount}/$attempts',
+                          ),
+                          _ExportMetric(
+                            label: l10n.v2FieldGoalPercentage,
+                            value: shootingPercentage,
+                          ),
+                          _ExportMetric(
+                            label: l10n.v2FreeThrowPercentage,
+                            value:
+                                analytics?.reliableFreeThrowPercentage == null
+                                ? l10n.replayNoData
+                                : '${(analytics!.reliableFreeThrowPercentage! * 100).round()}%',
+                          ),
+                          _ExportMetric(
+                            label: l10n.replayExportLeadChanges,
+                            value: l10n.replayExportLeadChangesValue(
+                              analytics?.leadChanges ?? 0,
                             ),
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: GridView.count(
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          childAspectRatio: 2.25,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
+                          ),
+                          _ExportMetric(
+                            label: l10n.replayExportLargestLead,
+                            value: largestLead,
+                          ),
+                          _ExportMetric(
+                            label: l10n.v2CoverageTitle,
+                            value:
+                                analytics == null ||
+                                    analytics.trackingCoverage.index <
+                                        TrackingCoverage.shotAttempts.index
+                                ? l10n.v2CoverageScores
+                                : l10n.v2CoverageComplete,
+                          ),
+                        ];
+                        return Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
                           children: [
-                            _ExportMetric(
-                              label: l10n.replayDuration,
-                              value: _formatDuration(data.duration),
-                            ),
-                            _ExportMetric(
-                              label: l10n.replayExportShotLocations,
-                              value: '${controller.locatedShotCount}',
-                            ),
-                            _ExportMetric(
-                              label: l10n.v2FieldGoalPercentage,
-                              value: shootingPercentage,
-                            ),
-                            _ExportMetric(
-                              label: l10n.v2FreeThrowPercentage,
-                              value:
-                                  analytics?.reliableFreeThrowPercentage == null
-                                  ? l10n.replayNoData
-                                  : '${(analytics!.reliableFreeThrowPercentage! * 100).round()}%',
-                            ),
-                            _ExportMetric(
-                              label: l10n.replayExportLeadChanges,
-                              value: l10n.replayExportLeadChangesValue(
-                                analytics?.leadChanges ?? 0,
-                              ),
-                            ),
-                            _ExportMetric(
-                              label: l10n.replayExportLargestLead,
-                              value: largestLead,
-                            ),
-                            _ExportMetric(
-                              label: l10n.v2CoverageTitle,
-                              value:
-                                  analytics == null ||
-                                      analytics.trackingCoverage.index <
-                                          TrackingCoverage.shotAttempts.index
-                                  ? l10n.v2CoverageScores
-                                  : l10n.v2CoverageComplete,
-                            ),
+                            for (final metric in metrics)
+                              SizedBox(width: metricWidth, child: metric),
                           ],
-                        ),
-                      ),
-                    ],
-                  ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      l10n.v2RecordedSample,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -715,8 +731,9 @@ class _ExportTeamScore extends StatelessWidget {
       children: [
         Text(
           name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+          textAlign: alignment == CrossAxisAlignment.end
+              ? TextAlign.end
+              : TextAlign.start,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: color,
             fontWeight: FontWeight.w700,
@@ -752,18 +769,13 @@ class _ExportMetric extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              maxLines: 1,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+            Text(label, style: Theme.of(context).textTheme.labelMedium),
             Text(
               value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: Theme.of(
                 context,
               ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
