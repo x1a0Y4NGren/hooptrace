@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/design_system/design_system.dart';
+import 'package:hooptrace/app/entry/hoop_trace_entry_gate.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/export/export_coordinator.dart';
@@ -144,7 +145,8 @@ void main() {
     }
 
     expect(find.byKey(const Key('home-start-scoring')), findsNothing);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(HoopTraceStartupPlaceholder), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
 
     await language.load();
     await tester.pumpAndSettle();

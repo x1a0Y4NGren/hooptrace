@@ -2,519 +2,43 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
-import 'package:hooptrace/app/entry/entry_feedback.dart';
 import 'package:hooptrace/app/entry/hoop_trace_entry_gate.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
 void main() {
-  testWidgets('standard entry emits feedback once and reveals its child', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    var hapticCount = 0;
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.standard,
-        haptic: () async => hapticCount++,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsOneWidget);
-    expect(feedback.prepareCount, 1);
-
-    await tester.pump(const Duration(milliseconds: 619));
-    expect(feedback.playCount, 0);
-    expect(hapticCount, 0);
-
-    await tester.pump(const Duration(milliseconds: 2));
-    expect(feedback.playCount, 1);
-    expect(hapticCount, 1);
-
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pump();
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(find.byKey(const Key('entry-child')), findsOneWidget);
-    expect(feedback.disposeCount, 1);
+  TestWidgetsFlutterBinding.ensureInitialized();
+  late ui.Image image;
+  setUpAll(() async {
+    final recorder = ui.PictureRecorder();
+    Canvas(
+      recorder,
+    ).drawRect(const Rect.fromLTWH(0, 0, 8, 8), Paint()..color = Colors.orange);
+    final picture = recorder.endRecording();
+    image = await picture.toImage(8, 8);
+    picture.dispose();
   });
+  tearDownAll(() => image.dispose());
 
-  testWidgets('standard entry defers the covered page until its final mark', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.standard,
-      ),
-    );
-
-    expect(find.byKey(const Key('entry-child')), findsNothing);
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 700));
-    expect(find.byKey(const Key('entry-child')), findsNothing);
-
-    await tester.pump(const Duration(milliseconds: 621));
-    await tester.pump();
-    expect(find.byKey(const Key('entry-child')), findsOneWidget);
-  });
-
-  testWidgets('standard entry stages the page behind the opaque final mark', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.standard,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-
-    await tester.pump(const Duration(milliseconds: 1159));
-    expect(find.byKey(const Key('entry-child')), findsNothing);
-
-    await tester.pump(const Duration(milliseconds: 2));
-    expect(find.byKey(const Key('entry-child')), findsOneWidget);
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsOneWidget);
-  });
-
-  testWidgets('standard entry keeps playing beyond the old one-second cut', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.standard,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-
-    await tester.pump(const Duration(milliseconds: 1100));
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsOneWidget);
-  });
-
-  testWidgets('tap before the swish completes the mark without feedback', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    var childTapCount = 0;
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.standard,
-        onChildTap: () => childTapCount++,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    await tester.tap(find.byKey(hoopTraceEntryOverlayKey));
-    expect(childTapCount, 0);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 121));
-    await tester.pump();
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(feedback.playCount, 0);
-    expect(feedback.disposeCount, 1);
-  });
-
-  testWidgets('reduced preference uses a short silent crossfade', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    var hapticCount = 0;
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.reduced,
-        haptic: () async => hapticCount++,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 141));
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(feedback.prepareCount, 0);
-    expect(feedback.playCount, 0);
-    expect(hapticCount, 0);
-  });
-
-  testWidgets('system disabled animations bypass the overlay immediately', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        media: const MediaQueryData(disableAnimations: true),
-      ),
-    );
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(find.byKey(const Key('entry-child')), findsOneWidget);
-    expect(feedback.prepareCount, 0);
-  });
-
-  testWidgets(
-    'standard entry keeps its authored duration when semantics state is stale',
-    (tester) async {
-      debugSemanticsDisableAnimations = true;
-      addTearDown(() => debugSemanticsDisableAnimations = null);
-      final feedback = _FakeEntryFeedbackPlayer();
-
-      await tester.pumpWidget(
-        _harness(
-          feedback: feedback,
-          preferenceLoader: () async => MotionPreference.standard,
-          media: const MediaQueryData(
-            size: Size(390, 844),
-            disableAnimations: false,
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.byKey(hoopTraceEntryOverlayKey), findsOneWidget);
-      expect(feedback.playCount, 0);
-    },
-  );
-
-  testWidgets('standard timeline begins after the aligned handoff frame', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(_harness(feedback: feedback));
-    expect(feedback.prepareCount, 0);
-
-    await tester.pump(const Duration(milliseconds: 700));
-
-    final frame = tester.widget<HoopTraceEntryFrame>(
-      find.byKey(hoopTraceEntrySceneKey),
-    );
-    expect(frame.progress, 0);
-    expect(feedback.playCount, 0);
-  });
-
-  testWidgets('accessible navigation selects reduced motion', (tester) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        media: const MediaQueryData(accessibleNavigation: true),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 141));
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(feedback.prepareCount, 0);
-    expect(feedback.playCount, 0);
-  });
-
-  testWidgets('a preference timeout safely falls back to reduced motion', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    final pending = Completer<MotionPreference>();
-    await tester.pumpWidget(
-      _harness(feedback: feedback, preferenceLoader: () => pending.future),
-    );
-    await tester.pump(const Duration(milliseconds: 81));
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 141));
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(feedback.prepareCount, 0);
-    expect(feedback.playCount, 0);
-  });
-
-  testWidgets('lifecycle changes do not restart an active entry', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.standard,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 650));
-    expect(feedback.playCount, 1);
-
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump(const Duration(milliseconds: 671));
-    await tester.pump();
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(feedback.playCount, 1);
-  });
-
-  testWidgets('leaving the foreground suppresses pending entry feedback', (
-    tester,
-  ) async {
-    final feedback = _FakeEntryFeedbackPlayer();
-    var hapticCount = 0;
-    await tester.pumpWidget(
-      _harness(
-        feedback: feedback,
-        preferenceLoader: () async => MotionPreference.standard,
-        haptic: () async => hapticCount++,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
-    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
-    await tester.pump(const Duration(milliseconds: 550));
-
-    expect(feedback.playCount, 0);
-    expect(hapticCount, 0);
-  });
-
-  testWidgets('a process session does not replay after widget recreation', (
-    tester,
-  ) async {
-    final session = EntryPlaybackSession();
-    final firstFeedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(feedback: firstFeedback, playbackSession: session),
-    );
-    await tester.pump();
-    await tester.pump();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1321));
-    await tester.pump();
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    final secondFeedback = _FakeEntryFeedbackPlayer();
-    await tester.pumpWidget(
-      _harness(feedback: secondFeedback, playbackSession: session),
-    );
-    await tester.pump();
-
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    expect(secondFeedback.prepareCount, 0);
-    expect(secondFeedback.playCount, 0);
-  });
-
-  testWidgets('entry frame remains centered on compact landscape screens', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildHoopTraceTheme(),
-        home: const MediaQuery(
-          data: MediaQueryData(size: Size(320, 240)),
-          child: HoopTraceEntryFrame(
-            key: hoopTraceEntrySceneKey,
-            mode: EntryMotionMode.standard,
-            progress: 0.5,
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(tester.takeException(), isNull);
-    expect(find.byKey(hoopTraceEntrySceneKey), findsOneWidget);
-  });
-
-  testWidgets('entry crossfades without allocating opacity layers', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildHoopTraceTheme(),
-        home: const MediaQuery(
-          data: MediaQueryData(size: Size(390, 844)),
-          child: HoopTraceEntryFrame(
-            mode: EntryMotionMode.standard,
-            progress: 0.6,
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    expect(
-      tester.layers.whereType<OpacityLayer>().where(
-        (layer) => (layer.alpha ?? 255) < 255,
-      ),
-      isEmpty,
-    );
-  });
-
-  for (final frame in [
-    (name: 'pending handoff', mode: null, progress: 0.0),
-    (name: 'reduced handoff', mode: EntryMotionMode.reduced, progress: 0.0),
-    (name: 'reduced fade', mode: EntryMotionMode.reduced, progress: 0.5),
-    (name: 'standard handoff', mode: EntryMotionMode.standard, progress: 0.0),
-    (
-      name: 'standard bounce',
-      mode: EntryMotionMode.standard,
-      progress: 300 / 1320,
-    ),
-    (
-      name: 'standard landing',
-      mode: EntryMotionMode.standard,
-      progress: 680 / 1320,
-    ),
-    (
-      name: 'standard settling',
-      mode: EntryMotionMode.standard,
-      progress: 860 / 1320,
-    ),
-    (
-      name: 'standard final mark',
-      mode: EntryMotionMode.standard,
-      progress: 1160 / 1320,
-    ),
-  ]) {
-    testWidgets('${frame.name} keeps the selected mascot visible', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: buildHoopTraceTheme(),
-          home: HoopTraceEntryFrame(
-            key: hoopTraceEntrySceneKey,
-            mode: frame.mode,
-            progress: frame.progress,
-          ),
-        ),
-      );
-      final scene = find.byKey(hoopTraceEntrySceneKey);
-      final images = find.descendant(of: scene, matching: find.byType(Image));
-      expect(images, findsOneWidget);
-      final image = tester.widget<Image>(images);
-      expect(
-        image.image,
-        const AssetImage('assets/icons/hooptrace-app-icon-foreground.png'),
-      );
-      expect(image.opacity?.value ?? 1, 1);
-      expect(
-        find.descendant(of: scene, matching: find.byType(CustomPaint)),
-        findsNothing,
-      );
-    });
-  }
-
-  testWidgets('mascot bounce stays near the center without a flight trail', (
-    tester,
-  ) async {
-    const captureKey = Key('entry-mascot-capture');
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: buildHoopTraceTheme(),
-        home: MediaQuery(
-          data: const MediaQueryData(size: Size(390, 844)),
-          child: RepaintBoundary(
-            key: captureKey,
-            child: HoopTraceEntryFrame(
-              mode: EntryMotionMode.standard,
-              progress: 300 / HoopTraceEntryTimeline.total.inMilliseconds,
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.runAsync(() async {
-      await precacheImage(
-        const AssetImage('assets/icons/hooptrace-app-icon-foreground.png'),
-        tester.element(find.byType(HoopTraceEntryFrame)),
-      );
-    });
-    await tester.pump();
-
-    final boundary = tester.renderObject<RenderRepaintBoundary>(
-      find.byKey(captureKey),
-    );
-    final orangePixels = await tester.runAsync(() async {
-      final image = await boundary.toImage();
-      try {
-        final bytes = await image.toByteData(
-          format: ui.ImageByteFormat.rawRgba,
-        );
-        if (bytes == null) return null;
-        var edgeCount = 0;
-        var centerCount = 0;
-        final rgba = bytes.buffer.asUint8List();
-        for (var y = 0; y < image.height; y++) {
-          for (var x = 0; x < image.width; x++) {
-            final offset = (y * image.width + x) * 4;
-            final red = rgba[offset];
-            final green = rgba[offset + 1];
-            final blue = rgba[offset + 2];
-            if (red > 220 && green > 50 && green < 130 && blue < 80) {
-              if (x < 12) edgeCount++;
-              if (x > image.width * 0.3 &&
-                  x < image.width * 0.7 &&
-                  y > image.height * 0.3 &&
-                  y < image.height * 0.7) {
-                centerCount++;
-              }
-            }
-          }
-        }
-        return (edge: edgeCount, center: centerCount);
-      } finally {
-        image.dispose();
-      }
-    });
-    expect(orangePixels, isNotNull);
-    expect(orangePixels!.edge, 0);
-    expect(orangePixels.center, greaterThan(100));
-  });
-}
-
-Widget _harness({
-  required _FakeEntryFeedbackPlayer feedback,
-  EntryMotionPreferenceLoader? preferenceLoader,
-  EntryHapticFeedback? haptic,
-  VoidCallback? onChildTap,
-  MediaQueryData media = const MediaQueryData(size: Size(390, 844)),
-  EntryPlaybackSession? playbackSession,
-}) {
-  return MaterialApp(
+  Widget harness({
+    EntryStartupStatus status = EntryStartupStatus.ready,
+    EntryMotionPreferenceLoader? preferenceLoader,
+    EntryImageLoader? imageLoader,
+    EntryPlaybackSession? session,
+    MediaQueryData media = const MediaQueryData(size: Size(390, 844)),
+    VoidCallback? onChildTap,
+  }) => MaterialApp(
     theme: buildHoopTraceTheme(),
     home: MediaQuery(
       data: media,
       child: HoopTraceEntryGate(
-        feedbackPlayer: feedback,
-        playbackSession: playbackSession,
+        startupStatus: status,
+        waitingLabel: 'Opening local records…',
         motionPreferenceLoader: preferenceLoader,
-        hapticFeedback: haptic,
+        imageLoader: imageLoader ?? () async => image.clone(),
+        playbackSession: session,
         child: GestureDetector(
           key: const Key('entry-child'),
           behavior: HitTestBehavior.opaque,
@@ -524,19 +48,418 @@ Widget _harness({
       ),
     ),
   );
+
+  testWidgets('approved entry stays silent throughout bounce and reveal', (
+    tester,
+  ) async {
+    final calls = <MethodCall>[];
+    for (final channel in [
+      SystemChannels.platform,
+      const MethodChannel('xyz.luan/audioplayers'),
+      const MethodChannel('xyz.luan/audioplayers.global'),
+    ]) {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        calls.add(call);
+        return null;
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+    }
+    await tester.pumpWidget(harness());
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 861));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 141));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(find.byKey(const Key('entry-child')), findsOneWidget);
+    expect(
+      calls.where(
+        (c) =>
+            c.method.contains('HapticFeedback') ||
+            c.method == 'play' ||
+            c.method == 'create' ||
+            c.method == 'setSourceBytes',
+      ),
+      isEmpty,
+    );
+  });
+
+  testWidgets('page mounts only during opaque settled pose', (tester) async {
+    await tester.pumpWidget(harness());
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 750));
+    expect(find.byKey(const Key('entry-child')), findsNothing);
+    await tester.pump(const Duration(milliseconds: 10));
+    expect(find.byKey(const Key('entry-child')), findsOneWidget);
+    final opacity = tester.widget<Opacity>(
+      find
+          .descendant(
+            of: find.byKey(hoopTraceEntrySceneKey),
+            matching: find.byType(Opacity),
+          )
+          .first,
+    );
+    expect(opacity.opacity, 1);
+    final childElement = tester.element(find.byKey(const Key('entry-child')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.element(find.byKey(const Key('entry-child'))),
+      same(childElement),
+    );
+  });
+
+  testWidgets('skip during reveal never flashes the opaque mark back', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 861));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 70));
+    double opacity() => tester
+        .widget<Opacity>(
+          find
+              .descendant(
+                of: find.byKey(hoopTraceEntrySceneKey),
+                matching: find.byType(Opacity),
+              )
+              .first,
+        )
+        .opacity;
+    final before = opacity();
+    expect(before, inExclusiveRange(0, 1));
+    await tester.tap(find.byKey(hoopTraceEntryOverlayKey));
+    await tester.pump();
+    expect(opacity(), closeTo(before, .001));
+    await tester.pump(const Duration(milliseconds: 71));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('finished gate releases its owned decoded image', (tester) async {
+    final owned = image.clone();
+    await tester.pumpWidget(harness(imageLoader: () async => owned));
+    await _start(tester);
+    await tester.pumpAndSettle();
+    expect(owned.debugDisposed, isTrue);
+    expect(find.byKey(const Key('entry-child')), findsOneWidget);
+  });
+
+  testWidgets('readiness regression cancels reveal until content is ready', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 861));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pumpWidget(harness(status: EntryStartupStatus.loading));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(_frame(tester).progress, .86);
+    await tester.pumpWidget(harness());
+    await tester.pumpAndSettle();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('timeline starts after the unchanged handoff frame', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(_frame(tester).progress, 0);
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.pump();
+    expect(_frame(tester).progress, closeTo(.06, .001));
+  });
+
+  testWidgets('slow startup settles and waits without replaying', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness(status: EntryStartupStatus.loading));
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 861));
+    await tester.pump(const Duration(seconds: 2));
+    expect(_frame(tester).progress, .86);
+    expect(find.text('Opening local records…'), findsOneWidget);
+    expect(find.byKey(const Key('entry-child')), findsNothing);
+    await tester.pumpWidget(harness());
+    expect(_frame(tester).progress, .86);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 141));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('tap settles current deformation and does not tap through', (
+    tester,
+  ) async {
+    var taps = 0;
+    await tester.pumpWidget(harness(onChildTap: () => taps++));
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 330));
+    final frozen = _frame(tester).progress;
+    await tester.tap(find.byKey(hoopTraceEntryOverlayKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.pump();
+    expect(_frame(tester).progress, frozen);
+    expect(_frame(tester).motionStrength, inExclusiveRange(0, 1));
+    expect(taps, 0);
+    await tester.pump(const Duration(milliseconds: 61));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets(
+    'skip while loading settles but still waits for actual readiness',
+    (tester) async {
+      await tester.pumpWidget(harness(status: EntryStartupStatus.loading));
+      await _start(tester);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.tap(find.byKey(hoopTraceEntryOverlayKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 121));
+      await tester.pump();
+      expect(_frame(tester).progress, .86);
+      expect(_frame(tester).mode, EntryMotionMode.reduced);
+      expect(find.byKey(const Key('entry-child')), findsNothing);
+      await tester.pumpWidget(harness());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 141));
+      await tester.pump();
+      expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    },
+  );
+
+  testWidgets('skip before preference and image resolve remains bounded', (
+    tester,
+  ) async {
+    final pending = Completer<MotionPreference>();
+    final decode = Completer<ui.Image>();
+    await tester.pumpWidget(
+      harness(
+        preferenceLoader: () => pending.future,
+        imageLoader: () => decode.future,
+      ),
+    );
+    await tester.tap(find.byKey(hoopTraceEntryOverlayKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 121));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    final lateImage = image.clone();
+    decode.complete(lateImage);
+    pending.complete(MotionPreference.standard);
+    await tester.pump();
+    expect(lateImage.debugDisposed, isTrue);
+  });
+
+  for (final reduced in [false, true]) {
+    testWidgets(
+      'reduced ${reduced ? 'accessibility' : 'preference'} uses only a short fade',
+      (tester) async {
+        await tester.pumpWidget(
+          harness(
+            media: MediaQueryData(accessibleNavigation: reduced),
+            preferenceLoader: () async =>
+                reduced ? MotionPreference.standard : MotionPreference.reduced,
+          ),
+        );
+        await _start(tester);
+        expect(_frame(tester).mode, EntryMotionMode.reduced);
+        await tester.pump(const Duration(milliseconds: 141));
+        await tester.pump();
+        expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+      },
+    );
+  }
+
+  testWidgets('disabled animations bypass immediately without decoding', (
+    tester,
+  ) async {
+    var loads = 0;
+    await tester.pumpWidget(
+      harness(
+        media: const MediaQueryData(disableAnimations: true),
+        imageLoader: () async {
+          loads++;
+          return image.clone();
+        },
+      ),
+    );
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(loads, 0);
+  });
+
+  testWidgets('system disabling motion during jump reveals content', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpWidget(
+      harness(media: const MediaQueryData(disableAnimations: true)),
+    );
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final fails in [false, true]) {
+    testWidgets(
+      'preference ${fails ? 'failure' : 'timeout'} falls back to fade',
+      (tester) async {
+        await tester.pumpWidget(
+          harness(
+            preferenceLoader: () => fails
+                ? Future.error(StateError('unavailable'))
+                : Completer<MotionPreference>().future,
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 81));
+        await _start(tester);
+        expect(_frame(tester).mode, EntryMotionMode.reduced);
+        await tester.pump(const Duration(milliseconds: 141));
+        await tester.pump();
+        expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+      },
+    );
+  }
+
+  testWidgets('decode failure falls back to a static brand and proceeds', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness(imageLoader: () async => throw StateError('decode failed')),
+    );
+    await _start(tester);
+    expect(_frame(tester).mode, EntryMotionMode.reduced);
+    expect(find.byType(Image), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 141));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('decode timeout disposes late image and never restarts', (
+    tester,
+  ) async {
+    final pending = Completer<ui.Image>();
+    await tester.pumpWidget(harness(imageLoader: () => pending.future));
+    await tester.pump(const Duration(milliseconds: 101));
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 141));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    final lateImage = image.clone();
+    pending.complete(lateImage);
+    await tester.pump();
+    expect(lateImage.debugDisposed, isTrue);
+  });
+
+  testWidgets(
+    'disposal during decode releases native frame and late resource',
+    (tester) async {
+      final pending = Completer<ui.Image>();
+      await tester.pumpWidget(harness(imageLoader: () => pending.future));
+      await tester.pumpWidget(const SizedBox.shrink());
+      final lateImage = image.clone();
+      pending.complete(lateImage);
+      await tester.pump();
+      expect(lateImage.debugDisposed, isTrue);
+      expect(tester.binding.sendFramesToEngine, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final status in [
+    EntryStartupStatus.failure,
+    EntryStartupStatus.legacy,
+  ]) {
+    testWidgets('$status bypasses ongoing motion immediately', (tester) async {
+      await tester.pumpWidget(harness(status: EntryStartupStatus.loading));
+      await _start(tester);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpWidget(harness(status: status));
+      expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+      expect(find.byKey(const Key('entry-child')), findsOneWidget);
+    });
+  }
+
+  testWidgets('foreground return settles rather than restarting jump', (
+    tester,
+  ) async {
+    await tester.pumpWidget(harness());
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 250));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 121));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('one process session does not replay on widget recreation', (
+    tester,
+  ) async {
+    final session = EntryPlaybackSession();
+    await tester.pumpWidget(harness(session: session));
+    await _start(tester);
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(harness(session: session));
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('long waiting hint is accessible with compact large text', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+
+    tester.view.reset();
+    tester.view.physicalSize = const Size(320, 240);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      harness(
+        status: EntryStartupStatus.loading,
+        media: const MediaQueryData(
+          size: Size(320, 240),
+          textScaler: TextScaler.linear(2),
+          padding: EdgeInsets.only(bottom: 20),
+        ),
+      ),
+    );
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 2100));
+    expect(find.text('Opening local records…'), findsOneWidget);
+    expect(
+      tester
+          .getSemantics(find.byKey(hoopTraceEntryWaitingKey))
+          .getSemanticsData()
+          .flagsCollection
+          .isLiveRegion,
+      isTrue,
+    );
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+  });
 }
 
-class _FakeEntryFeedbackPlayer implements EntryFeedbackPlayer {
-  int prepareCount = 0;
-  int playCount = 0;
-  int disposeCount = 0;
-
-  @override
-  Future<void> prepare() async => prepareCount++;
-
-  @override
-  Future<void> playSwish() async => playCount++;
-
-  @override
-  Future<void> dispose() async => disposeCount++;
+Future<void> _start(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump();
+  await tester.pump();
+  await tester.pump();
 }
+
+HoopTraceEntryFrame _frame(WidgetTester tester) =>
+    tester.widget<HoopTraceEntryFrame>(find.byKey(hoopTraceEntrySceneKey));

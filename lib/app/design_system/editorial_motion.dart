@@ -35,7 +35,7 @@ class HoopTraceMotionTheme extends ThemeExtension<HoopTraceMotionTheme> {
         pageReveal: const Duration(milliseconds: 220),
         foulStamp: const Duration(milliseconds: 180),
         undo: const Duration(milliseconds: 180),
-        entry: const Duration(milliseconds: 1320),
+        entry: const Duration(milliseconds: 1000),
         entryReduced: const Duration(milliseconds: 140),
         entrySkip: const Duration(milliseconds: 120),
         entryPreferenceWait: const Duration(milliseconds: 80),

@@ -1116,6 +1116,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get bootstrapFailureBody => '本地数据库暂时无法打开，现有数据未被修改。请稍后重试，或创建新的本地数据库。';
 
   @override
+  String get entryPreparingRecords => '正在打开本地记录…';
+
+  @override
   String get settingsDefaultSection => '默认值';
 
   @override

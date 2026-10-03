@@ -358,6 +358,7 @@
   "legacyBootstrapHeadline": "Could not open HoopTrace v0.1 data",
   "legacyBootstrapBody": "An incompatible legacy database version{version} was detected. The existing file will remain unchanged; HoopTrace will not silently migrate, delete, or clear it. Export or back up the old file first, then create new local data with this version.",
   "bootstrapFailureBody": "The local database could not be opened. Existing data was not modified. Try again later or create a new local database.",
+  "entryPreparingRecords": "Opening local records…",
   "settingsDefaultSection": "Defaults",
   "settingsDefaultRuleTitle": "Default scoring rule",
   "settingsDefaultRuleSubtitle": "Currently follows pre-game settings",

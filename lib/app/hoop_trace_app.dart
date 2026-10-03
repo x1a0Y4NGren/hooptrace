@@ -19,12 +19,16 @@ class HoopTraceApp extends StatelessWidget {
     this.database,
     this.showEntryAnimation = true,
     this.initialMotionPreference,
+    this.entryPlaybackSession,
     super.key,
   });
 
   final AppDatabase? database;
   final bool showEntryAnimation;
   final MotionPreference? initialMotionPreference;
+
+  /// Tests can isolate playback ownership; production shares one process claim.
+  final EntryPlaybackSession? entryPlaybackSession;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +37,7 @@ class HoopTraceApp extends StatelessWidget {
         child: _HoopTraceAppView(
           showEntryAnimation: showEntryAnimation,
           initialMotionPreference: initialMotionPreference,
+          entryPlaybackSession: entryPlaybackSession,
         ),
       );
     }
@@ -41,22 +46,34 @@ class HoopTraceApp extends StatelessWidget {
       child: _HoopTraceAppView(
         showEntryAnimation: showEntryAnimation,
         initialMotionPreference: initialMotionPreference,
+        entryPlaybackSession: entryPlaybackSession,
       ),
     );
   }
 }
 
-class _HoopTraceAppView extends ConsumerWidget {
+class _HoopTraceAppView extends ConsumerStatefulWidget {
   const _HoopTraceAppView({
     required this.showEntryAnimation,
     required this.initialMotionPreference,
+    required this.entryPlaybackSession,
   });
 
   final bool showEntryAnimation;
   final MotionPreference? initialMotionPreference;
+  final EntryPlaybackSession? entryPlaybackSession;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HoopTraceAppView> createState() => _HoopTraceAppViewState();
+}
+
+class _HoopTraceAppViewState extends ConsumerState<_HoopTraceAppView> {
+  // The bootstrap navigator becomes a Router when local startup is ready.
+  // Preserve the entry timeline and its process claim across that handoff.
+  final _entryGateKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
     final bootstrap = ref.watch(databaseStartupProvider);
     final themeMode = bootstrap.value?.isReady == true
         ? ref.watch(themePreferencesControllerProvider).themeMode
@@ -66,7 +83,7 @@ class _HoopTraceAppView extends ConsumerWidget {
         : null;
     final locale = languageController?.locale ?? const Locale('zh');
     Future<MotionPreference> motionPreferenceLoader() async {
-      final initial = initialMotionPreference;
+      final initial = widget.initialMotionPreference;
       if (initial != null) return initial;
       final feedback = ref.read(scoringFeedbackServiceProvider);
       final cached = await feedback.loadCachedMotionPreference();
@@ -79,14 +96,14 @@ class _HoopTraceAppView extends ConsumerWidget {
         themeMode: themeMode,
         locale: locale,
         motionPreferenceLoader: motionPreferenceLoader,
-        showEntryAnimation: showEntryAnimation,
+        startupStatus: EntryStartupStatus.loading,
         home: const _BootstrapLoadingPage(),
       ),
       error: (error, stackTrace) => _buildMaterialApp(
         themeMode: themeMode,
         locale: locale,
         motionPreferenceLoader: motionPreferenceLoader,
-        showEntryAnimation: showEntryAnimation,
+        startupStatus: EntryStartupStatus.failure,
         home: const _BootstrapFailurePage(),
       ),
       data: (state) {
@@ -95,7 +112,7 @@ class _HoopTraceAppView extends ConsumerWidget {
             themeMode: themeMode,
             locale: locale,
             motionPreferenceLoader: motionPreferenceLoader,
-            showEntryAnimation: showEntryAnimation,
+            startupStatus: EntryStartupStatus.legacy,
             home: LegacyDatabaseBootstrapPage(version: state.version),
           );
         }
@@ -104,7 +121,7 @@ class _HoopTraceAppView extends ConsumerWidget {
             themeMode: themeMode,
             locale: locale,
             motionPreferenceLoader: motionPreferenceLoader,
-            showEntryAnimation: showEntryAnimation,
+            startupStatus: EntryStartupStatus.loading,
             home: const _BootstrapLoadingPage(),
           );
         }
@@ -112,7 +129,7 @@ class _HoopTraceAppView extends ConsumerWidget {
           themeMode: themeMode,
           locale: locale,
           motionPreferenceLoader: motionPreferenceLoader,
-          showEntryAnimation: showEntryAnimation,
+          startupStatus: EntryStartupStatus.ready,
           routerConfig: ref.watch(appRouterProvider),
         );
       },
@@ -123,7 +140,7 @@ class _HoopTraceAppView extends ConsumerWidget {
     required ThemeMode themeMode,
     required Locale locale,
     required EntryMotionPreferenceLoader motionPreferenceLoader,
-    required bool showEntryAnimation,
+    required EntryStartupStatus startupStatus,
     Widget? home,
     GoRouter? routerConfig,
   }) {
@@ -143,10 +160,16 @@ class _HoopTraceAppView extends ConsumerWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: AppLocalizations.supportedLocales,
-        builder: showEntryAnimation
+        builder: widget.showEntryAnimation
             ? (context, child) => HoopTraceEntryGate(
+                key: _entryGateKey,
                 motionPreferenceLoader: motionPreferenceLoader,
-                playbackSession: _processEntryPlaybackSession,
+                playbackSession:
+                    widget.entryPlaybackSession ?? _processEntryPlaybackSession,
+                startupStatus: startupStatus,
+                waitingLabel: AppLocalizations.of(
+                  context,
+                )!.entryPreparingRecords,
                 child: child ?? const SizedBox.shrink(),
               )
             : null,
@@ -169,10 +192,14 @@ class _HoopTraceAppView extends ConsumerWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: AppLocalizations.supportedLocales,
-      builder: showEntryAnimation
+      builder: widget.showEntryAnimation
           ? (context, child) => HoopTraceEntryGate(
+              key: _entryGateKey,
               motionPreferenceLoader: motionPreferenceLoader,
-              playbackSession: _processEntryPlaybackSession,
+              playbackSession:
+                  widget.entryPlaybackSession ?? _processEntryPlaybackSession,
+              startupStatus: startupStatus,
+              waitingLabel: AppLocalizations.of(context)!.entryPreparingRecords,
               child: child ?? const SizedBox.shrink(),
             )
           : null,
@@ -231,8 +258,10 @@ class _BootstrapLoadingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: SafeArea(child: Center(child: CircularProgressIndicator())),
+    return Scaffold(
+      body: HoopTraceStartupPlaceholder(
+        waitingLabel: AppLocalizations.of(context)!.entryPreparingRecords,
+      ),
     );
   }
 }

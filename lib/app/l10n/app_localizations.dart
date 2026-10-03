@@ -2244,6 +2244,12 @@ abstract class AppLocalizations {
   /// **'本地数据库暂时无法打开，现有数据未被修改。请稍后重试，或创建新的本地数据库。'**
   String get bootstrapFailureBody;
 
+  /// No description provided for @entryPreparingRecords.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在打开本地记录…'**
+  String get entryPreparingRecords;
+
   /// No description provided for @settingsDefaultSection.
   ///
   /// In zh, this message translates to:

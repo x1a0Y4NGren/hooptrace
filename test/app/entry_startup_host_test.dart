@@ -1,0 +1,302 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_providers.dart';
+import 'package:hooptrace/app/entry/hoop_trace_entry_gate.dart';
+import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
+import 'package:hooptrace/core/settings/language_preferences.dart';
+import 'package:hooptrace/core/settings/scoring_feedback.dart';
+import 'package:hooptrace/features/history/history_page.dart';
+
+import '../test_helpers/test_database.dart';
+
+void main() {
+  testWidgets('slow startup keeps the brand visible without a spinner', (
+    tester,
+  ) async {
+    final startup = Completer<DatabaseBootstrapState>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseStartupProvider.overrideWith((ref) => startup.future),
+        ],
+        child: HoopTraceApp(
+          initialMotionPreference: MotionPreference.reduced,
+          entryPlaybackSession: EntryPlaybackSession(),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2100));
+
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsOneWidget);
+    expect(find.text('正在打开本地记录…'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('database and language readiness preserve one entry state', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    final startup = Completer<DatabaseBootstrapState>();
+    final language = LanguagePreferencesController(
+      LanguagePreferencesRepository(database),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          databaseStartupProvider.overrideWith((ref) => startup.future),
+          languagePreferencesControllerProvider.overrideWith((ref) => language),
+        ],
+        child: HoopTraceApp(
+          initialMotionPreference: MotionPreference.reduced,
+          entryPlaybackSession: EntryPlaybackSession(),
+        ),
+      ),
+    );
+    final entryState = tester.state(find.byType(HoopTraceEntryGate));
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.loading);
+
+    startup.complete(const DatabaseBootstrapState.ready());
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 2200));
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.loading);
+    expect(tester.state(find.byType(HoopTraceEntryGate)), same(entryState));
+    expect(find.byKey(const Key('home-start-scoring')), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+
+    await language.setPreference(AppLanguagePreference.english);
+    await tester.pumpAndSettle();
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.ready);
+    expect(tester.state(find.byType(HoopTraceEntryGate)), same(entryState));
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(find.byKey(const Key('home-start-scoring')), findsOneWidget);
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).locale,
+      const Locale('en'),
+    );
+    expect(_entryGate(tester).waitingLabel, 'Opening local records…');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('startup failure bypasses the unfinished entry immediately', (
+    tester,
+  ) async {
+    final startup = Completer<DatabaseBootstrapState>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseStartupProvider.overrideWith((ref) => startup.future),
+        ],
+        child: HoopTraceApp(
+          initialMotionPreference: MotionPreference.standard,
+          entryPlaybackSession: EntryPlaybackSession(),
+        ),
+      ),
+    );
+    final entryState = tester.state(find.byType(HoopTraceEntryGate));
+    startup.completeError(StateError('startup failed'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.failure);
+    expect(tester.state(find.byType(HoopTraceEntryGate)), same(entryState));
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(
+      find.text(AppLocalizationsZh().bootstrapFailureBody),
+      findsOneWidget,
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('legacy bootstrap bypasses the unfinished entry immediately', (
+    tester,
+  ) async {
+    final startup = Completer<DatabaseBootstrapState>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseStartupProvider.overrideWith((ref) => startup.future),
+        ],
+        child: HoopTraceApp(
+          initialMotionPreference: MotionPreference.standard,
+          entryPlaybackSession: EntryPlaybackSession(),
+        ),
+      ),
+    );
+    final entryState = tester.state(find.byType(HoopTraceEntryGate));
+    startup.complete(const DatabaseBootstrapState.incompatibleLegacy(1));
+    await tester.pump();
+    await tester.pump();
+
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.legacy);
+    expect(tester.state(find.byType(HoopTraceEntryGate)), same(entryState));
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(find.byKey(const Key('legacy-bootstrap')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('consumed process session retains static slow-startup content', (
+    tester,
+  ) async {
+    final session = EntryPlaybackSession();
+    final startup = Completer<DatabaseBootstrapState>();
+    Widget app() => ProviderScope(
+      overrides: [
+        databaseStartupProvider.overrideWith((ref) => startup.future),
+      ],
+      child: HoopTraceApp(
+        initialMotionPreference: MotionPreference.reduced,
+        entryPlaybackSession: session,
+      ),
+    );
+    await tester.pumpWidget(app());
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpWidget(app());
+    await tester.pump(const Duration(milliseconds: 2200));
+
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(find.byType(HoopTraceStartupPlaceholder), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('正在打开本地记录…'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('disabled animation retains static slow-startup content', (
+    tester,
+  ) async {
+    final startup = Completer<DatabaseBootstrapState>();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseStartupProvider.overrideWith((ref) => startup.future),
+        ],
+        child: const HoopTraceApp(showEntryAnimation: false),
+      ),
+    );
+    expect(find.byType(HoopTraceStartupPlaceholder), findsOneWidget);
+    expect(find.text('正在打开本地记录…'), findsNothing);
+    await tester.pump(const Duration(milliseconds: 2200));
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('正在打开本地记录…'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('startup handoff preserves the initial deep link', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    final startup = Completer<DatabaseBootstrapState>();
+    tester.platformDispatcher.defaultRouteNameTestValue = '/history';
+    addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          databaseStartupProvider.overrideWith((ref) => startup.future),
+        ],
+        child: HoopTraceApp(
+          initialMotionPreference: MotionPreference.reduced,
+          entryPlaybackSession: EntryPlaybackSession(),
+        ),
+      ),
+    );
+    startup.complete(const DatabaseBootstrapState.ready());
+    await _pumpUntil(
+      tester,
+      () => find.byType(HistoryPage).evaluate().isNotEmpty,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HistoryPage), findsOneWidget);
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('entry retains compatibility, built-ins, then backup ordering', (
+    tester,
+  ) async {
+    final database = createTestDatabase();
+    final compatibility = Completer<void>();
+    final builtIns = Completer<void>();
+    final backup = Completer<void>();
+    final started = <String>[];
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appDatabaseProvider.overrideWithValue(database),
+          databaseCompatibilityProbeProvider.overrideWith((ref) {
+            return (database) {
+              started.add('compatibility');
+              return compatibility.future;
+            };
+          }),
+          startupEnsureBuiltInsProvider.overrideWith((ref) {
+            return () {
+              started.add('built-ins');
+              return builtIns.future;
+            };
+          }),
+          startupAutomaticBackupProvider.overrideWith((ref) {
+            return () {
+              started.add('backup');
+              return backup.future;
+            };
+          }),
+        ],
+        child: HoopTraceApp(
+          initialMotionPreference: MotionPreference.reduced,
+          entryPlaybackSession: EntryPlaybackSession(),
+        ),
+      ),
+    );
+    expect(started, ['compatibility']);
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.loading);
+
+    compatibility.complete();
+    await _pumpUntil(tester, () => started.length == 2);
+    expect(started, ['compatibility', 'built-ins']);
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.loading);
+
+    builtIns.complete();
+    await _pumpUntil(tester, () => started.length == 3);
+    expect(started, ['compatibility', 'built-ins', 'backup']);
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.loading);
+    expect(find.byKey(const Key('home-start-scoring')), findsNothing);
+
+    backup.complete();
+    await _pumpUntil(
+      tester,
+      () => find.byKey(const Key('home-start-scoring')).evaluate().isNotEmpty,
+    );
+    await tester.pumpAndSettle();
+    expect(_entryGate(tester).startupStatus, EntryStartupStatus.ready);
+    expect(started, ['compatibility', 'built-ins', 'backup']);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+}
+
+HoopTraceEntryGate _entryGate(WidgetTester tester) =>
+    tester.widget<HoopTraceEntryGate>(find.byType(HoopTraceEntryGate));
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
+  for (var attempt = 0; attempt < 100; attempt++) {
+    await tester.pump(const Duration(milliseconds: 20));
+    if (condition()) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 5)),
+    );
+  }
+  fail('Timed out waiting for startup');
+}

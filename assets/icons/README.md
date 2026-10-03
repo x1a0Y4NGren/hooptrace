@@ -36,6 +36,11 @@ in the transparent source. Never reduce the foreground to an orange/white palett
   at 0.78 scale, matching the first Flutter entry frame. Flutter uses the same
   foreground through its bounce and final hold; it no longer draws the old hoop.
 
+The current entry motion uses a 48×48 texture mesh for squash, stretch and a
+decaying upper-body wave. Its endpoints render the original image directly.
+Startup is silent and has no haptic feedback; scoring feedback preferences are
+separate. See the [entry motion record](../../docs/design/brand/entry-motion.md).
+
 Regenerate with Python and Pillow (validated with Python 3.12 and Pillow 12.3):
 
 ```sh
@@ -49,6 +54,7 @@ python -m unittest discover -s tool/release/tests -v
 The launcher script validates all platform dimensions, transparency, the three
 foreground colors, monochrome details, adaptive XML, and both store icons. It
 does not add a Flutter dependency. The entry script also reproduces the existing
-original swish sound; it does not synthesize replacement artwork.
+legacy swish sound, which the current entry no longer loads or plays; it does not
+synthesize replacement artwork.
 
 All source artwork, derivatives, and scripts use the repository MIT License.

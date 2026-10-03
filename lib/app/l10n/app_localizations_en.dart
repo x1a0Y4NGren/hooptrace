@@ -1148,6 +1148,9 @@ class AppLocalizationsEn extends AppLocalizations {
       'The local database could not be opened. Existing data was not modified. Try again later or create a new local database.';
 
   @override
+  String get entryPreparingRecords => 'Opening local records…';
+
+  @override
   String get settingsDefaultSection => 'Defaults';
 
   @override

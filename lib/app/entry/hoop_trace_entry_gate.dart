@@ -1,31 +1,40 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooptrace/app/design_system/editorial_motion.dart';
 import 'package:hooptrace/app/design_system/editorial_tokens.dart';
-import 'package:hooptrace/app/entry/entry_feedback.dart';
+import 'package:hooptrace/app/entry/entry_creature.dart';
+import 'package:hooptrace/app/entry/entry_frame_probe.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
 const hoopTraceEntryOverlayKey = Key('hooptrace-entry-overlay');
 const hoopTraceEntrySceneKey = Key('hooptrace-entry-scene');
+const hoopTraceEntryWaitingKey = Key('hooptrace-entry-waiting');
+const _brandAsset = 'assets/icons/hooptrace-app-icon-foreground.png';
 
 enum EntryMotionMode { standard, reduced, disabled }
 
+enum EntryStartupStatus { loading, ready, failure, legacy }
+
 abstract final class HoopTraceEntryTimeline {
-  static const total = Duration(milliseconds: 1320);
-  static const handoffEnd = Duration(milliseconds: 80);
-  static const flightRevealEnd = Duration(milliseconds: 170);
-  static const flightEnd = Duration(milliseconds: 620);
-  static const swishEnd = Duration(milliseconds: 760);
-  static const lockEnd = Duration(milliseconds: 960);
-  static const scalePeak = Duration(milliseconds: 1090);
-  static const scaleEnd = Duration(milliseconds: 1160);
+  static const total = Duration(milliseconds: 1000);
+  static const handoffEnd = Duration(milliseconds: 60);
+  static const anticipationEnd = Duration(milliseconds: 150);
+  static const flightPeak = Duration(milliseconds: 330);
+  static const landing = Duration(milliseconds: 480);
+  static const reboundEnd = Duration(milliseconds: 620);
+  static const rippleEnd = Duration(milliseconds: 760);
+  static const fadeStart = Duration(milliseconds: 860);
+  static const imageWait = Duration(milliseconds: 100);
+  static const waitingHint = Duration(seconds: 2);
 }
 
 typedef EntryMotionPreferenceLoader = Future<MotionPreference> Function();
-typedef EntryHapticFeedback = Future<void> Function();
+
+/// Returns a decoded image owned by the gate. Late results are also disposed.
+typedef EntryImageLoader = Future<ui.Image> Function();
 
 class EntryPlaybackSession {
   bool _claimed = false;
@@ -40,17 +49,19 @@ class EntryPlaybackSession {
 class HoopTraceEntryGate extends StatefulWidget {
   const HoopTraceEntryGate({
     required this.child,
+    this.startupStatus = EntryStartupStatus.ready,
+    this.waitingLabel,
     this.motionPreferenceLoader,
-    this.feedbackPlayer,
-    this.hapticFeedback,
+    this.imageLoader,
     this.playbackSession,
     super.key,
   });
 
   final Widget child;
+  final EntryStartupStatus startupStatus;
+  final String? waitingLabel;
   final EntryMotionPreferenceLoader? motionPreferenceLoader;
-  final EntryFeedbackPlayer? feedbackPlayer;
-  final EntryHapticFeedback? hapticFeedback;
+  final EntryImageLoader? imageLoader;
   final EntryPlaybackSession? playbackSession;
 
   @override
@@ -60,37 +71,47 @@ class HoopTraceEntryGate extends StatefulWidget {
 class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _controller;
-  late final EntryFeedbackPlayer _feedbackPlayer =
-      widget.feedbackPlayer ?? AssetEntryFeedbackPlayer();
-
+  final _probe = const bool.fromEnvironment('HOOPTRACE_ENTRY_PROFILE')
+      ? EntryFrameProbe()
+      : null;
   HoopTraceMotionTheme _motion = const HoopTraceMotionTheme.light();
   EntryMotionMode? _mode;
+  ui.Image? _image;
+  Timer? _hintTimer;
   bool _decisionStarted = false;
   bool _visible = true;
-  bool _feedbackEmitted = false;
-  bool _skipping = false;
   bool _childMounted = false;
-  bool _resumeAfterChildMountScheduled = false;
-  bool _feedbackDisposed = false;
-  bool _feedbackSuppressedByLifecycle = false;
+  bool _performanceDone = false;
+  bool _exiting = false;
+  bool _skipping = false;
+  bool _skipRevealsContent = false;
+  bool _showWaitingHint = false;
+  bool _firstFrameDeferred = false;
+  double _skipFrom = 0;
+  double _skipOpacity = 1;
+
+  bool get _ready => widget.startupStatus == EntryStartupStatus.ready;
+  bool get _terminal =>
+      widget.startupStatus == EntryStartupStatus.failure ||
+      widget.startupStatus == EntryStartupStatus.legacy;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _controller =
-        AnimationController(
-            vsync: this,
-            animationBehavior: AnimationBehavior.preserve,
-          )
-          ..addListener(_handleProgress)
-          ..addStatusListener(_handleStatus);
-    if (widget.playbackSession?.claim() == false) {
+    _controller = AnimationController(
+      vsync: this,
+      duration: _motion.entry,
+      animationBehavior: AnimationBehavior.preserve,
+    )..addListener(_stageChild);
+    if (widget.playbackSession?.claim() == false || _terminal) {
       _decisionStarted = true;
-      _mode = EntryMotionMode.disabled;
       _visible = false;
-      _feedbackDisposed = true;
+      _probe?.dispose();
     }
+    _hintTimer = Timer(HoopTraceEntryTimeline.waitingHint, () {
+      if (mounted && _visible) setState(() => _showWaitingHint = true);
+    });
   }
 
   @override
@@ -99,189 +120,244 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
     _motion =
         Theme.of(context).extension<HoopTraceMotionTheme>() ??
         const HoopTraceMotionTheme.light();
-    if (_decisionStarted) return;
-    _decisionStarted = true;
-
     final media = MediaQuery.maybeOf(context);
     if (media?.disableAnimations == true) {
-      _mode = EntryMotionMode.disabled;
+      _decisionStarted = true;
+      _controller.stop();
       _visible = false;
-      _disposeFeedbackBestEffort();
+      _releaseFirstFrame();
+      _retireImage();
+      _probe?.dispose();
       return;
     }
-    _precacheBrandAssets();
-    if (media?.accessibleNavigation == true) {
-      _start(EntryMotionMode.reduced);
+    if (_decisionStarted) return;
+    _decisionStarted = true;
+    if (!WidgetsBinding.instance.firstFrameRasterized) {
+      WidgetsBinding.instance.deferFirstFrame();
+      _firstFrameDeferred = true;
+    }
+    unawaited(_prepare(reduced: media?.accessibleNavigation == true));
+  }
+
+  Future<void> _prepare({required bool reduced}) async {
+    // Start both bounded waits together so preference I/O adds no decode delay.
+    final preference = _loadPreference(reduced);
+    final image = await _loadImage();
+    final chosen = await preference;
+    if (!mounted || !_visible || _skipping || _performanceDone) {
+      image?.dispose();
+      _releaseFirstFrame();
       return;
     }
-    unawaited(_resolvePersistedPreference());
-  }
-
-  void _precacheBrandAssets() {
-    unawaited(
-      precacheImage(
-        const AssetImage('assets/icons/hooptrace-app-icon-foreground.png'),
-        context,
-      ).catchError((Object _) {}),
-    );
-  }
-
-  Future<void> _resolvePersistedPreference() async {
-    final loader = widget.motionPreferenceLoader;
-    MotionPreference preference;
-    if (loader == null) {
-      preference = MotionPreference.standard;
-    } else {
-      try {
-        preference = await loader().timeout(
-          _motion.entryPreferenceWait,
-          onTimeout: () => MotionPreference.reduced,
-        );
-      } on Object {
-        preference = MotionPreference.reduced;
-      }
-    }
-    if (!mounted || !_visible || _skipping) return;
-    _start(
-      preference == MotionPreference.reduced
-          ? EntryMotionMode.reduced
-          : EntryMotionMode.standard,
-    );
-  }
-
-  void _start(EntryMotionMode mode) {
-    if (!_visible || mode == EntryMotionMode.disabled) return;
-    _mode = mode;
-    _controller.duration = mode == EntryMotionMode.standard
-        ? _motion.entry
-        : _motion.entryReduced;
-    _controller.value = 0;
-    if (mounted) setState(() {});
+    _image = image;
+    _mode = chosen == MotionPreference.reduced || image == null
+        ? EntryMotionMode.reduced
+        : EntryMotionMode.standard;
+    setState(() {});
+    _releaseFirstFrame();
+    // Submit the matching handoff before the first animated vsync.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_visible || _skipping || _controller.isAnimating) {
-        return;
-      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || !_visible || _skipping || _controller.isAnimating) {
-          return;
+        if (mounted && _visible && !_skipping && !_performanceDone) {
+          unawaited(_play());
         }
-        if (mode == EntryMotionMode.standard) {
-          unawaited(_runBestEffort(_feedbackPlayer.prepare));
-        }
-        unawaited(_controller.forward());
       });
       WidgetsBinding.instance.scheduleFrame();
     });
   }
 
-  void _handleProgress() {
-    _stageChildBehindFinalMark();
-    if (_mode != EntryMotionMode.standard ||
-        _skipping ||
-        _feedbackEmitted ||
-        _feedbackSuppressedByLifecycle) {
-      return;
+  Future<MotionPreference> _loadPreference(bool reduced) async {
+    if (reduced) return MotionPreference.reduced;
+    try {
+      return await (widget.motionPreferenceLoader?.call() ??
+              Future.value(MotionPreference.standard))
+          .timeout(
+            _motion.entryPreferenceWait,
+            onTimeout: () => MotionPreference.reduced,
+          );
+    } on Object {
+      return MotionPreference.reduced;
     }
-    final swishFraction =
-        HoopTraceEntryTimeline.flightEnd.inMicroseconds /
-        HoopTraceEntryTimeline.total.inMicroseconds;
-    if (_controller.value < swishFraction) return;
-    _feedbackEmitted = true;
-    unawaited(_runBestEffort(_feedbackPlayer.playSwish));
-    unawaited(
-      _runBestEffort(widget.hapticFeedback ?? HapticFeedback.lightImpact),
-    );
   }
 
-  void _stageChildBehindFinalMark() {
-    final stageFraction =
-        HoopTraceEntryTimeline.scaleEnd.inMicroseconds /
-        HoopTraceEntryTimeline.total.inMicroseconds;
-    if (_mode != EntryMotionMode.standard ||
-        _skipping ||
-        _childMounted ||
-        _controller.value < stageFraction) {
+  Future<ui.Image?> _loadImage() async {
+    var accepting = true;
+    try {
+      return await (widget.imageLoader ?? _decodeBrandImage)()
+          .then<ui.Image?>((image) {
+            if (!accepting) {
+              image.dispose();
+              return null;
+            }
+            return image;
+          })
+          .timeout(
+            HoopTraceEntryTimeline.imageWait,
+            onTimeout: () {
+              accepting = false;
+              return null;
+            },
+          );
+    } on Object {
+      accepting = false;
+      return null;
+    }
+  }
+
+  void _releaseFirstFrame() {
+    if (!_firstFrameDeferred) return;
+    _firstFrameDeferred = false;
+    WidgetsBinding.instance.allowFirstFrame();
+  }
+
+  Future<void> _play() async {
+    _probe?.mark('playing_${_mode?.name}');
+    try {
+      if (_mode == EntryMotionMode.standard) {
+        await _controller
+            .animateTo(
+              .86,
+              duration: Duration(
+                microseconds: (_motion.entry.inMicroseconds * .86).round(),
+              ),
+            )
+            .orCancel;
+      } else {
+        _controller.value = .86;
+      }
+      if (!mounted || !_visible || _skipping) return;
+      _performanceDone = true;
+      _probe?.mark('settled');
+      _maybeExit();
+    } on TickerCanceled {
+      // Skip, accessibility, terminal startup and disposal cancel this run.
+    }
+  }
+
+  void _stageChild() {
+    if (!_ready || _childMounted || _skipping || _controller.value < .76) {
       return;
     }
+    setState(() => _childMounted = true);
+  }
 
-    _childMounted = true;
-    if (_controller.value >= 1) return;
-
-    _controller.stop(canceled: false);
-    setState(() {});
-    if (_resumeAfterChildMountScheduled) return;
-    _resumeAfterChildMountScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _resumeAfterChildMountScheduled = false;
-      if (!mounted || !_visible || _skipping || _controller.isCompleted) {
-        return;
+  void _maybeExit() {
+    if (!_visible || !_ready || !_performanceDone || _skipping || _exiting) {
+      return;
+    }
+    _exiting = true;
+    _probe?.mark('reveal');
+    setState(() => _childMounted = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || !_visible || _skipping) return;
+      try {
+        await _controller.animateTo(1, duration: _motion.entryReduced).orCancel;
+        _finish();
+      } on TickerCanceled {
+        // A terminal startup state or disposal superseded the reveal.
       }
-      unawaited(_controller.forward());
     });
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed && !_feedbackEmitted) {
-      _feedbackSuppressedByLifecycle = true;
-    }
-  }
-
-  void _handleStatus(AnimationStatus status) {
-    if (status == AnimationStatus.completed) _finish();
-  }
-
-  void _skip() {
-    if (!_visible || _skipping) return;
-    _skipping = true;
-    if (_mode == null) {
+  void didUpdateWidget(covariant HoopTraceEntryGate oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (_terminal) {
+      _controller.stop();
+      _visible = false;
+      _releaseFirstFrame();
+      _retireImage();
+      _probe?.dispose();
+    } else if (_ready) {
+      _stageChild();
+      _maybeExit();
+    } else if (_visible && (_exiting || _skipping)) {
+      _controller.stop();
+      _exiting = false;
+      _skipping = false;
+      _performanceDone = true;
       _mode = EntryMotionMode.reduced;
-      _controller.duration = _motion.entrySkip;
-      if (mounted) setState(() {});
-      unawaited(_controller.forward());
-      return;
+      _controller.value = .86;
     }
-    final duration = _remainingSkipDuration();
-    unawaited(
-      _controller.animateTo(1, duration: duration, curve: Curves.easeOutCubic),
-    );
   }
 
-  Duration _remainingSkipDuration() {
-    final configured = _motion.entrySkip;
-    final base = _controller.duration ?? configured;
-    final remainingMicros = (base.inMicroseconds * (1 - _controller.value))
-        .round();
-    return Duration(
-      microseconds: math.min(configured.inMicroseconds, remainingMicros),
-    );
+  Future<void> _skip() async {
+    if (!_visible || _skipping) return;
+    _skipFrom = _controller.value;
+    _skipOpacity = _entryOpacity(_skipFrom);
+    _controller.stop();
+    _skipping = true;
+    _skipRevealsContent = _ready;
+    _performanceDone = true;
+    _probe?.mark('skip');
+    _releaseFirstFrame();
+    setState(() {
+      _childMounted = _childMounted || _ready;
+      _controller.value = 0;
+    });
+    try {
+      final remaining = _exiting
+          ? Duration(
+              microseconds: (_motion.entry.inMicroseconds * (1 - _skipFrom))
+                  .round(),
+            )
+          : _motion.entrySkip;
+      await _controller
+          .animateTo(
+            1,
+            duration: remaining < _motion.entrySkip
+                ? remaining
+                : _motion.entrySkip,
+          )
+          .orCancel;
+      if (!mounted || !_visible) return;
+      if (_skipRevealsContent) {
+        _finish();
+      } else {
+        setState(() {
+          _skipping = false;
+          _mode = EntryMotionMode.reduced;
+          _controller.value = .86;
+        });
+        _maybeExit();
+      }
+    } on TickerCanceled {
+      // A terminal startup state or disposal superseded the skip.
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed && _visible) {
+      // Settle rather than restarting a decorative jump on return.
+      unawaited(_skip());
+    }
   }
 
   void _finish() {
-    if (!_visible || !mounted) return;
+    if (!mounted || !_visible) return;
+    _hintTimer?.cancel();
+    if (_probe != null) unawaited(_probe.finish());
     setState(() => _visible = false);
-    _disposeFeedbackBestEffort();
+    _retireImage();
   }
 
-  Future<void> _runBestEffort(Future<void> Function() action) async {
-    try {
-      await action();
-    } on Object {
-      // Entry feedback is decorative and must never gate application startup.
-    }
-  }
-
-  void _disposeFeedbackBestEffort() {
-    if (_feedbackDisposed) return;
-    _feedbackDisposed = true;
-    unawaited(_runBestEffort(_feedbackPlayer.dispose));
+  void _retireImage() {
+    final image = _image;
+    _image = null;
+    if (image == null) return;
+    // Let the last render object leave the tree before releasing its texture.
+    WidgetsBinding.instance.addPostFrameCallback((_) => image.dispose());
   }
 
   @override
   void dispose() {
+    _hintTimer?.cancel();
+    _releaseFirstFrame();
     WidgetsBinding.instance.removeObserver(this);
     _controller.dispose();
-    _disposeFeedbackBestEffort();
+    _probe?.dispose();
+    _image?.dispose();
     super.dispose();
   }
 
@@ -295,19 +371,32 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
         if (_visible)
           Positioned.fill(
             child: BlockSemantics(
-              child: ExcludeSemantics(
-                child: GestureDetector(
-                  key: hoopTraceEntryOverlayKey,
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _skip,
-                  child: AnimatedBuilder(
-                    animation: _controller,
-                    builder: (context, child) => HoopTraceEntryFrame(
+              child: GestureDetector(
+                key: hoopTraceEntryOverlayKey,
+                behavior: HitTestBehavior.opaque,
+                onTap: _skip,
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    final skip = Curves.easeOutCubic.transform(
+                      _controller.value,
+                    );
+                    return HoopTraceEntryFrame(
                       key: hoopTraceEntrySceneKey,
+                      image: _image,
                       mode: _mode,
-                      progress: _controller.value,
-                    ),
-                  ),
+                      progress: _skipping ? _skipFrom : _controller.value,
+                      motionStrength: _skipping ? 1 - skip : 1,
+                      opacity: _skipping
+                          ? (_skipRevealsContent
+                                ? _skipOpacity * (1 - skip)
+                                : 1)
+                          : null,
+                      waitingLabel: !_ready && _showWaitingHint
+                          ? widget.waitingLabel
+                          : null,
+                    );
+                  },
                 ),
               ),
             ),
@@ -321,178 +410,147 @@ class HoopTraceEntryFrame extends StatelessWidget {
   const HoopTraceEntryFrame({
     required this.mode,
     required this.progress,
+    this.image,
+    this.motionStrength = 1,
+    this.opacity,
+    this.waitingLabel,
     super.key,
   }) : assert(progress >= 0 && progress <= 1);
 
   final EntryMotionMode? mode;
   final double progress;
+  final ui.Image? image;
+  final double motionStrength;
+  final double? opacity;
+  final String? waitingLabel;
 
   @override
   Widget build(BuildContext context) {
-    final mediaSize = MediaQuery.sizeOf(context);
-    final shortestSide = mediaSize.shortestSide;
-    final visibleMarkSize = (shortestSide * 0.42).clamp(144.0, 208.0);
-    final canvasExtent = visibleMarkSize * (1024 / 620);
-
-    final overlayOpacity = switch (mode) {
-      EntryMotionMode.reduced => 1 - Curves.easeInCubic.transform(progress),
-      EntryMotionMode.standard =>
-        1 -
-            _entryInterval(
-              progress,
-              HoopTraceEntryTimeline.scaleEnd,
-              HoopTraceEntryTimeline.total,
-              Curves.easeInCubic,
-            ),
-      EntryMotionMode.disabled => 0.0,
-      null => 1.0,
-    };
-
+    final mark = ExcludeSemantics(
+      child: RepaintBoundary(
+        child: image == null
+            ? const _StaticBrand()
+            : EntryCreature(
+                image: image!,
+                progress: mode == EntryMotionMode.standard ? progress : 0,
+                motionStrength: motionStrength,
+              ),
+      ),
+    );
     return Opacity(
-      opacity: overlayOpacity.clamp(0.0, 1.0),
+      opacity:
+          opacity ??
+          (mode == EntryMotionMode.disabled ? 0 : _entryOpacity(progress)),
       child: ColoredBox(
         color: HoopTraceColors.ink,
-        child: _buildScene(canvasExtent),
+        child: waitingLabel == null
+            ? Center(
+                child: OverflowBox(
+                  minWidth: 288,
+                  maxWidth: 288,
+                  minHeight: 288,
+                  maxHeight: 288,
+                  child: mark,
+                ),
+              )
+            : SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: FittedBox(fit: BoxFit.scaleDown, child: mark),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          waitingLabel!,
+                          key: hoopTraceEntryWaitingKey,
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: HoopTraceColors.offWhite),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
       ),
     );
-  }
-
-  Widget _buildScene(double canvasExtent) {
-    if (mode == EntryMotionMode.disabled) return const SizedBox.shrink();
-    if (mode != EntryMotionMode.standard) {
-      return _centerMark(
-        canvasExtent,
-        Transform.scale(scale: 0.78, child: const _BrandAsset()),
-      );
-    }
-
-    final bounceProgress = _entryInterval(
-      progress,
-      HoopTraceEntryTimeline.handoffEnd,
-      HoopTraceEntryTimeline.flightEnd,
-      Curves.easeInOutCubic,
-    );
-    final bounce = math.sin(math.pi * bounceProgress);
-    final landing = math.sin(
-      math.pi *
-          _entryInterval(
-            progress,
-            HoopTraceEntryTimeline.flightEnd,
-            HoopTraceEntryTimeline.swishEnd,
-            Curves.easeOutCubic,
-          ),
-    );
-    final scale = _standardScale(progress);
-    final squash = landing * 0.06;
-    return _centerMark(
-      canvasExtent,
-      Transform.translate(
-        offset: Offset(0, -canvasExtent * 0.06 * bounce),
-        child: Transform.rotate(
-          angle: math.sin(2 * math.pi * bounceProgress) * 0.07,
-          child: Transform.scale(
-            scaleX: scale * (1 + squash),
-            scaleY: scale * (1 - squash),
-            child: const _BrandAsset(),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _centerMark(double canvasExtent, Widget child) {
-    return Center(
-      child: RepaintBoundary(
-        child: SizedBox.square(dimension: canvasExtent, child: child),
-      ),
-    );
-  }
-
-  double _standardScale(double t) {
-    final logoScale = switch (_milliseconds(t)) {
-      < 960 => 0.78,
-      < 1090 => _lerp(
-        0.78,
-        1.03,
-        _entryInterval(
-          t,
-          HoopTraceEntryTimeline.lockEnd,
-          HoopTraceEntryTimeline.scalePeak,
-          Curves.easeOutCubic,
-        ),
-      ),
-      < 1160 => _lerp(
-        1.03,
-        1,
-        _entryInterval(
-          t,
-          HoopTraceEntryTimeline.scalePeak,
-          HoopTraceEntryTimeline.scaleEnd,
-          Curves.easeInOutCubic,
-        ),
-      ),
-      _ => 1.0,
-    };
-    final exitScale = _lerp(
-      1,
-      1.04,
-      _entryInterval(
-        t,
-        HoopTraceEntryTimeline.scaleEnd,
-        HoopTraceEntryTimeline.total,
-        Curves.easeInCubic,
-      ),
-    );
-    return logoScale * exitScale;
   }
 }
 
-class _BrandAsset extends StatelessWidget {
-  const _BrandAsset();
+/// Used when animation is disabled or already consumed while startup continues.
+class HoopTraceStartupPlaceholder extends StatefulWidget {
+  const HoopTraceStartupPlaceholder({this.waitingLabel, super.key});
+
+  final String? waitingLabel;
 
   @override
-  Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/icons/hooptrace-app-icon-foreground.png',
-      fit: BoxFit.contain,
-      filterQuality: FilterQuality.high,
-      gaplessPlayback: true,
-    );
+  State<HoopTraceStartupPlaceholder> createState() =>
+      _HoopTraceStartupPlaceholderState();
+}
+
+class _HoopTraceStartupPlaceholderState
+    extends State<HoopTraceStartupPlaceholder> {
+  Timer? _timer;
+  bool _showHint = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(HoopTraceEntryTimeline.waitingHint, () {
+      if (mounted) setState(() => _showHint = true);
+    });
   }
-}
 
-double _interval(
-  double progress,
-  double startMilliseconds,
-  double endMilliseconds,
-  Curve curve,
-) {
-  final milliseconds = _milliseconds(progress);
-  final normalized =
-      ((milliseconds - startMilliseconds) /
-              (endMilliseconds - startMilliseconds))
-          .clamp(0.0, 1.0);
-  return curve.transform(normalized);
-}
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
-double _entryInterval(
-  double progress,
-  Duration start,
-  Duration end,
-  Curve curve,
-) {
-  return _interval(
-    progress,
-    start.inMicroseconds / Duration.microsecondsPerMillisecond,
-    end.inMicroseconds / Duration.microsecondsPerMillisecond,
-    curve,
+  @override
+  Widget build(BuildContext context) => HoopTraceEntryFrame(
+    mode: null,
+    progress: 0,
+    waitingLabel: _showHint ? widget.waitingLabel : null,
   );
 }
 
-double _milliseconds(double progress) {
-  return progress * HoopTraceEntryTimeline.total.inMilliseconds;
+class _StaticBrand extends StatelessWidget {
+  const _StaticBrand();
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: 288,
+    child: Transform.scale(
+      scale: .78,
+      child: Image.asset(
+        _brandAsset,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+      ),
+    ),
+  );
 }
 
-double _lerp(double begin, double end, double t) {
-  return begin + (end - begin) * t;
+Future<ui.Image> _decodeBrandImage() async {
+  final data = await rootBundle.load(_brandAsset);
+  final codec = await ui.instantiateImageCodec(
+    data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+  );
+  try {
+    return (await codec.getNextFrame()).image;
+  } finally {
+    codec.dispose();
+  }
+}
+
+double _entryOpacity(double progress) {
+  final reveal = ((progress - .86) / .14).clamp(0.0, 1.0);
+  return 1 - Curves.easeInOutCubic.transform(reveal);
 }

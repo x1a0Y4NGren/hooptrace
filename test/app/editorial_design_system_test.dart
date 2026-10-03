@@ -81,7 +81,7 @@ void main() {
       expect(motion.acceleratedScoreFlight, const Duration(milliseconds: 320));
       expect(motion.acceleratedImpact, const Duration(milliseconds: 120));
       expect(motion.reducedReveal, const Duration(milliseconds: 120));
-      expect(motion.entry, const Duration(milliseconds: 1320));
+      expect(motion.entry, const Duration(milliseconds: 1000));
       expect(motion.entryReduced, const Duration(milliseconds: 140));
       expect(motion.entrySkip, const Duration(milliseconds: 120));
       expect(motion.entryPreferenceWait, const Duration(milliseconds: 80));

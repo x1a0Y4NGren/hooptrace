@@ -358,6 +358,7 @@
   "legacyBootstrapHeadline": "无法打开 HoopTrace v0.1 数据",
   "legacyBootstrapBody": "检测到不兼容的旧数据库版本{version}。现有文件会保持原样；HoopTrace 不会静默迁移、删除或清空它。请先导出或备份旧文件，再使用当前版本创建新的本地数据。",
   "bootstrapFailureBody": "本地数据库暂时无法打开，现有数据未被修改。请稍后重试，或创建新的本地数据库。",
+  "entryPreparingRecords": "正在打开本地记录…",
   "settingsDefaultSection": "默认值",
   "settingsDefaultRuleTitle": "默认计分规则",
   "settingsDefaultRuleSubtitle": "当前沿用赛前设置",
