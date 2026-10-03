@@ -1,6 +1,8 @@
 # HoopTrace v2.0.0 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> Implementation and the recorded local acceptance are complete; this is a historical execution plan, not a new assignment or release authorization. Consult [HANDOFF](../../../HANDOFF.md) and the [candidate record](../../release/v2.0.0-candidate.md) for current status.
+
+> The steps below retain the original implementation breakdown. Current maintenance follows [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md); recorded checkbox state does not establish current outstanding work.
 
 **Goal:** Deliver an Android release candidate whose offline 1v1 journey runs from quick setup through trustworthy results and player history.
 

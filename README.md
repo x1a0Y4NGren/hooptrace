@@ -60,7 +60,7 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 ## 当前阵容
 
 - 当前正式版：[HoopTrace `v1.0.0`](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v1.0.0)，Android APK 已使用项目正式证书签名发布。
-- 当前开发候选：`2.0.0+4`。数据库仍为 schema 3，JSON 仍为格式 2；候选验收未完成，不代表发布就绪。
+- 当前开发候选：`2.0.0+4`。数据库仍为 schema 3，JSON 仍为格式 2；本地实现与所列验收已完成，正式签名、同证升级、远端 CI 和 macOS iOS 编译仍未完成，不代表发布就绪。
 - 当前平台：Android 优先，最低 Android API 24，目标 Android API 36。
 - Android Application ID：`io.github.x1a0y4ngren.hooptrace`。
 - iOS 无签名编译已纳入 CI，但尚未完成真机验收和正式发布。
@@ -95,7 +95,7 @@ flutter run -d <device-id>
 
 ## 认真部分
 
-俏皮归俏皮，CI 不放水：
+俏皮归俏皮，CI 不放水。以下为完整验证常用命令；日常修改按 [贡献指南](CONTRIBUTING.md#测试要求) 选择相关检查，修一段文案不必重建整个 APK：
 
 ```powershell
 dart format --output=none --set-exit-if-changed .
@@ -105,7 +105,7 @@ flutter test integration_test/main_loop_test.dart -d <android-device-id>
 flutter build apk --debug
 ```
 
-主流程集成测试使用隔离的内存数据库；文件恢复测试使用临时 SQLite 文件。Flutter 测试运行器结束时会卸载该 Android 用户下的应用，请使用专用测试设备或独立测试用户，并通过 `--device-user <id>` 指定用户。不要在需要保留比赛数据的用户下运行集成测试。
+主流程集成测试使用隔离的内存数据库；文件恢复测试使用临时 SQLite 文件，关闭重开不能代替进程重启验收。Flutter 测试运行器结束时会卸载该 Android 用户下的应用，请使用专用测试设备或独立测试用户，并通过 `--device-user <id>` 指定用户。手动安装验收前重新构建普通 MAIN Debug APK，以免安装到测试入口。
 
 ## 构建与发布
 
@@ -133,7 +133,7 @@ HoopTrace 不计划同时分发两个签名不同的官方 Android 包。F-Droid
 - `lib/features`：计分、复盘、历史、球员、规则和设置页面。
 - `test`：单元测试与 Widget 测试。
 - `integration_test`：Android 主流程端到端测试。
-- `docs`：规划、分支执行说明和发布资料。
+- [docs](docs/README.md)：当前文档入口、设计记录和发布资料。
 
 ## 欢迎上场
 

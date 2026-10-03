@@ -2,7 +2,15 @@
 
 更新：2026-10-03 · 版本 `2.0.0+4` · 应用源码 `94bb58e094736dfeaf42e524e308236de876a059`。
 
-本轮在隔离worktree `C:/Users/48029/.codex/worktrees/hooptrace-v2/hooptrace`、分支 `codex/hooptrace-v2` 完成可执行范围。原 `D:/GitHub/hooptrace` 的24项无关文档修改完整保留；未push、合并、创建tag或GitHub Release。公开正式版仍为 v1.0.0，**不标记发布就绪**。
+本轮在隔离worktree `C:/Users/48029/.codex/worktrees/hooptrace-v2/hooptrace`、分支 `codex/hooptrace-v2` 完成可执行范围。v2 实施期间，原 `D:/GitHub/hooptrace` 的 24 项既有文档修改完整保留；未push、合并、创建tag或GitHub Release。公开正式版仍为 v1.0.0，**不标记发布就绪**。
+
+## 项目文档同步（2026-10-03）
+
+本轮按后续请求，将原工作区已有的指导文件改进同步到候选分支，更新 AGENTS、贡献指南、PR 模板、发行模板、历史范围说明及文档入口。README 修正本地验收状态；隐私说明补齐实际自动备份策略和 2.0 私有安全副本，安全政策修正过期的 1.0 候选表述。
+
+原工作区 main 的应用仍为 `1.1.0+3`；其 README/HANDOFF 已注明候选所在分支与本机路径，已有的 1.1 交接内容保留。文档同步前的原文已独立保存，原工作区改动继续保持未提交。本轮只校对文档与链接，不重建 APK、不将旧验收改标为新提交；上方应用源码、现有 APK 和发行阻断项保持原有来源。
+
+完整文档入口见 [docs/README.md](docs/README.md)；指导规则以 [AGENTS.md](AGENTS.md) 和 [CONTRIBUTING.md](CONTRIBUTING.md) 为准。文件实际版本、工作区状态与 APK 来源分别记录，避免将候选实现当作 main 已合并或正式已发布。
 
 ## 实现
 

@@ -3,9 +3,12 @@
 ## Supported versions / 支持版本
 
 Security fixes are provided for the latest published HoopTrace release. The
-current 1.0 work remains a release candidate until its signed tag is published.
+2.0 development branch remains an unpublished candidate; local Debug packages
+and unsigned reproducibility artifacts do not establish a production release.
 
-HoopTrace 仅为最新正式版本提供安全修复；1.0 在签名标签发布前均视为候选版本。
+HoopTrace 仅为最新正式版本提供安全修复；2.0 开发分支仍是未发布候选，
+本地 Debug 包和未签名复现产物不代表正式发行。候选状态与未完成的门槛见
+[HANDOFF.md](HANDOFF.md)。
 
 ## Report privately / 私密报告
 
@@ -34,6 +37,8 @@ available. These are best-effort targets for a volunteer project.
   enables an approved SAF backup directory.
 - Android system backup is disabled; official releases request no broad storage
   permission.
+- Candidate safety copies remain inside the app's private storage. They protect
+  replacement mistakes and do not replace an external JSON backup.
 - Third-party forks and repackaged APKs are outside the upstream trust boundary.
 - Official APKs must trace to a signed Git tag, published checksums, and the
   maintainer certificate documented in the release record.

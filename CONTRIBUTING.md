@@ -4,8 +4,8 @@
 
 ## 开始之前
 
-1. 搜索现有 Issue，避免重复工作。
-2. 较大的功能或数据模型变更应先创建 Issue，说明使用场景、范围和迁移策略。
+1. 有相关 Issue 时查阅其上下文，避免重复工作；无需为每个小改搜索全部 Issue 或另建提案。
+2. 较大的功能或数据模型变更先明确使用场景、范围和迁移策略。已有 Issue 或当前对话中确认的需求即可作为依据，不必重新走一轮提案和批准。
 3. 安全问题不要公开披露；请使用 GitHub 仓库的 Private vulnerability reporting。
 4. 所有贡献都按仓库的 MIT License 提供。
 
@@ -21,12 +21,14 @@
 ## 本地环境
 
 当前基准工具链为 Flutter `3.41.9` stable、Dart `3.11.5` 和 Java 17。
+锁定配置以 `.github/workflows/flutter-ci.yml` 和 `pubspec.lock` 为准；无需为了普通维护升级依赖。
 
 ```powershell
 flutter pub get
-flutter doctor -v
-flutter test
+flutter run -d <device-id>
 ```
+
+首次配置或排查环境问题时再运行 `flutter doctor -v`。测试按下方验证矩阵选择。
 
 涉及数据库表或 Drift 查询时，重新生成并提交 `lib/core/data/app_database.g.dart`：
 
@@ -36,11 +38,15 @@ dart run build_runner build --delete-conflicting-outputs
 
 ## 分支与提交
 
-- 从最新 `main` 创建短生命周期分支。
+- 需要新建开发分支时，从最新 `main` 创建短生命周期分支；已分配的任务分支可继续使用。
 - 推荐分支前缀：`feat/`、`fix/`、`docs/`、`test/` 或 `codex/`。
 - 一个 Pull Request 处理一个明确问题，避免夹带无关重构。
 - 提交信息使用命令式短句，例如 `fix: keep scoring header within compact screens`。
 - 不提交构建产物、密钥、`key.properties`、设备数据或 IDE 临时文件。
+
+小型文档维护可直接使用当前干净 checkout；并行修改或需要隔离时再创建 worktree，只创建实际要使用的目录。只读审查无需独立 worktree。任务结束时保留未提交内容，安全移除已合并且不再使用的任务工作树，不批量强删目录。
+
+沿用当前任务已经获得的授权，完成实现和适用验证后交付；已批准的方案无需再次批准才能执行。合并、推送、发布按当前任务授权进行，旧计划中的命令不是发布授权。
 
 ## 实现要求
 
@@ -51,29 +57,45 @@ dart run build_runner build --delete-conflicting-outputs
 - 对用户可见的中文文案应直接、可操作；新增本地化文案时同步 ARB 结构。
 - 依赖升级应说明必要性、许可证和对 F-Droid 构建的影响。
 
+2.0 候选继续使用命令事务体系。完整度必须由用户明确确认或纠正，不能从未中或落点推断；FG/FT 分开计算，落点覆盖使用确认运动战落点除以已记录运动战出手。预填和再赛只复用双方及规则，确认开始才创建新比赛。数据库仍为 schema 3，JSON 仍为格式 2；备份容量和安全替换契约随相关回归一起维护。当前工作区、候选来源和验收范围见 [HANDOFF.md](HANDOFF.md)。
+
 ## 测试要求
 
-按改动风险选择最小但充分的覆盖：
+按实际影响选择验证，命令清单不是每次任务都要执行的流水线：
 
-- 领域规则和数据转换：单元测试。
-- Repository、事务和迁移：内存数据库测试。
-- 页面状态和交互：Widget 测试。
-- 跨页面主流程或平台插件：Integration Test 和模拟器验证。
+| 改动 | 本地验证 |
+| --- | --- |
+| 纯文档、注释、指导文件 | 校对内容、命令和链接；`git diff --check`。无需 Flutter 测试、代码生成或 APK 构建。 |
+| 单一模块的 Dart 行为 | 格式化改动文件、`flutter analyze`、相关单元或 Widget 测试；bug 修复优先补能复现问题的回归测试。 |
+| 界面或本地化 | 相关 Widget 测试与视觉检查；覆盖受影响的中英文、主题、窄屏和大字体状态；布局或绘制变化时检查相应 Golden 差异。 |
+| 公共领域逻辑、数据库、撤回或备份 | 事务、失败回滚、迁移或兼容性测试，并运行一次完整 `flutter test` 检查跨模块影响。 |
+| 跨页面主流程、平台插件或 Android 构建配置 | 相关路由/插件测试；涉及设备行为时运行 Android 集成测试，涉及打包或需要安装验收时构建 Debug APK。 |
+| 正式发行 | 按 [发布清单](docs/release/release-checklist.md) 完成发行级检查。 |
 
-Pull Request 提交前运行：
+修改球场标记时，覆盖受影响的命中/未中形状、隐藏标记点击检测、动画降级和撤回投影。
+
+常用命令按需组合，例如：
 
 ```powershell
-dart format --output=none --set-exit-if-changed .
+dart format <changed-dart-files>
 flutter analyze
+flutter test test/features/settings/data_management_page_test.dart
+git diff --check
+```
+
+需要完整回归或设备验证时：
+
+```powershell
 flutter test
+flutter test integration_test/main_loop_test.dart -d <android-device-id>
 flutter build apk --debug
 ```
 
-修改主页、赛前、计分、复盘或历史主链路时，还应运行：
+`test/` 使用测试夹具，数据库测试优先使用内存数据库；当前 `main_loop_test.dart` 也显式注入内存数据库。可自主运行适用测试、修复本次改动导致的失败并重跑受影响部分。文件恢复测试使用临时 SQLite 文件，文件关闭重开不能代替进程重启验证。设备测试会安装测试入口，运行器结束时可能卸载该 Android 用户下的应用；使用专用测试设备或独立 Android 用户，并按需通过 `--device-user <id>` 指定。之后手动安装验收前重新构建普通 Debug APK。
 
-```powershell
-flutter test integration_test/main_loop_test.dart -d <android-device-id>
-```
+相关源码、依赖和环境没有变化且结果仍适用时，可复用已成功的检查，不因提交、合并或汇报阶段变化重复跑同一套命令。CI 仍按工作流执行其规定检查；本地范围缩小不等于跳过 CI 门槛。测试环境失败不算通过：完成可运行的检查，记录准确阻碍，不循环等待未连接的设备或重复执行同一个缺失工具链命令。
+
+并行任务按真实依赖推进，独立工作无需等上一波合并。等待构建、测试或代理时优先使用完成通知或有界等待；有可继续的独立工作就先处理。不要以固定延时替代完成条件，也不要在已有可复用结果时启动重复验证。
 
 ## Pull Request 内容
 
@@ -83,6 +105,6 @@ flutter test integration_test/main_loop_test.dart -d <android-device-id>
 - 实现选择及重要取舍。
 - 数据库、隐私、权限或兼容性影响。
 - 已执行的验证命令及结果。
-- 有视觉变化时附上真实设备或模拟器截图。
+- 有视觉变化时附上实际渲染证据（相关 Golden、模拟器或真机截图）；平台行为需设备验证。
 
 维护者会优先审查行为回归、数据安全、缺失测试、可访问性和发布风险。
