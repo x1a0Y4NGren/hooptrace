@@ -21,11 +21,15 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 ## 先看比赛，不看说明书
 
 <p align="center">
-  <img src="test/app/goldens/scoring_zh_light.png" width="49%" alt="HoopTrace 黑场编辑部横屏计分页">
-  <img src="test/app/goldens/replay_zh_light.png" width="49%" alt="HoopTrace 比赛复盘页">
+  <img src="fastlane/metadata/android/zh-CN/images/phoneScreenshots/2-scoring.png" width="96%" alt="HoopTrace 2.0 Android 横屏计分页">
 </p>
 
-<p align="center"><sub>左边负责当场记清楚，右边负责赛后讲明白。</sub></p>
+<p align="center">
+  <img src="fastlane/metadata/android/zh-CN/images/phoneScreenshots/1-home.png" width="45%" alt="HoopTrace 2.0 比赛首页">
+  <img src="fastlane/metadata/android/zh-CN/images/phoneScreenshots/3-summary.png" width="45%" alt="HoopTrace 2.0 赛果与比分走势">
+</p>
+
+<p align="center"><sub>2.0 候选的实际 Android 画面，使用虚构球员与演示对局。截图来自独立对局，拍摄版本与状态见<a href="docs/release/v2.0.0-screenshots.json">截图记录</a>。</sub></p>
 
 ## 三步打完一场球
 
@@ -101,7 +105,7 @@ flutter test integration_test/main_loop_test.dart -d <android-device-id>
 flutter build apk --debug
 ```
 
-集成测试会使用每次运行唯一的测试球员名称，在测试设备上创建并结束一场本地比赛。
+主流程集成测试使用隔离的内存数据库；文件恢复测试使用临时 SQLite 文件。Flutter 测试运行器结束时会卸载该 Android 用户下的应用，请使用专用测试设备或独立测试用户，并通过 `--device-user <id>` 指定用户。不要在需要保留比赛数据的用户下运行集成测试。
 
 ## 构建与发布
 

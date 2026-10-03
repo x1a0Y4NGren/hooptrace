@@ -2,15 +2,42 @@
 
 ## 2.0 candidate / 2.0 候选
 
-The final Windows unit/widget suite (`flutter test --no-pub --reporter expanded`,
-1,057 passing tests) recorded `history_first_page_ms=16.145` and
-`replay_projection_ms=48.543` for the unchanged 1,000-match / 10,000-event
-fixture. The 500 ms gates remain unchanged. This is a local debug-test
-regression measurement, not a real-device or cross-runner claim.
+Updated / 更新：2026-10-03。Accepted application source:
+`3a0166c3a4a510e76a3093142a8b2d559ba7be93`.
 
-本轮最终主机全量 1,057 项通过，20 行历史首屏 16.145ms、1,009 条事件复盘投影
-48.543ms，仍使用下面的原夹具与 500ms 门槛。Android 命令 p95 本轮结果待补充；
-下方 1.0 数值仅为历史参考，不作为 2.0 设备验收证据。
+The Windows unit/widget suite passed 1,080 tests in 54 seconds and recorded
+history_first_page_ms=20.117 and replay_projection_ms=57.86. Its unchanged
+1,000-match / 10,000-event fixture retains both 500 ms gates. The log is
+`.superpowers/sdd/2026-09-24-hooptrace-v2/final-share-backup-full-suite.log`.
+
+The final API 36 command rerun on 2026-10-03 passed: 100 committed samples,
+p95 81.951 ms, exit 0 / +1, against the unchanged 100 ms gate. It used the same
+real SQLite file fixture, production background executor and five discarded
+warm-up commits, with explicit SwiftShader matching the previous emulator
+configuration. Log: `build/integration-v2-api36-final/command_performance_test-swiftshader-20261003.log`.
+
+The preceding host-renderer run failed at p95 623.61 ms / 100 samples (exit 1);
+its log remains `command_performance_test-resumed-20261003.log` in the same
+directory. Product and benchmark inputs were unchanged between those runs.
+Emulator logs record host Vulkan/GLES versus explicit SwiftShader. This is
+evidence of environment sensitivity, not proof of one exclusive root cause.
+The earlier 65.574 ms run remains historical evidence. No threshold was raised,
+transaction durability disabled or samples dropped to obtain a pass. These are
+local emulator debug measurements, not physical-device or cross-runner claims.
+
+中文：主机全量 1,080 项通过；历史首屏 20.117ms、复盘投影 57.86ms，500ms
+门槛保持。API 36 恢复原 SwiftShader 条件后，100 样本 p95 81.951ms、退出 0，
+通过未改动的 100ms 门槛。之前宿主 GPU 条件下的 623.61ms 失败完整保留；
+两次产品与测试输入一致，不能将渲染后端差异推断为唯一根因，也不外推为实体
+设备或跨 runner 性能。独立文件写入探针同步写 p95 2.2507ms，仅用于排查。
+比较测试在息屏后唤醒完成，166 秒不是性能基线；三项主流程/文件恢复/比较
+各自 +1，最初 quota/主机停止中断的运行没有结果，不能计为通过或产品失败。
+
+The immutable MAIN Debug was rebuilt after the integration runner in 29.9 s;
+its complete SHA-256 still equals the accepted APK. Native backup, sharing,
+screenshots and API 24 checks are recorded separately and add no benchmark
+samples. The due metadata fixture proves one real headless write, not natural
+24-hour scheduling; later completion backups are foreground callbacks.
 
 ## Deterministic query fixture / 确定性查询夹具
 
