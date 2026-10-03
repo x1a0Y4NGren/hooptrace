@@ -296,7 +296,8 @@ class _ReplayPageState extends State<ReplayPage> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final landscape = constraints.maxWidth > constraints.maxHeight;
+                final landscape =
+                    MediaQuery.orientationOf(context) == Orientation.landscape;
                 if (constraints.maxWidth >= 840 || landscape) {
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

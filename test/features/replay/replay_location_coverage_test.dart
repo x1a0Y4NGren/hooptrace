@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/l10n/app_localizations.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/app/match_view_data_mapper.dart';
@@ -184,6 +185,29 @@ void main() {
     _expectCoverage(AppLocalizationsZh().replayNoData);
   });
 
+  testWidgets('English 200% portrait keeps the overview above the timeline', (
+    tester,
+  ) async {
+    final controller = ReplayController(data: _oneOfEightData());
+    await _pumpReplay(
+      tester,
+      controller,
+      locale: const Locale('en'),
+      textScale: 2,
+      size: const Size(390, 740),
+      theme: buildHoopTraceTheme(brightness: Brightness.dark),
+    );
+
+    final court = tester.getRect(find.byKey(const Key('replay-court-pane')));
+    final timeline = tester.getRect(
+      find.byKey(const Key('replay-timeline-pane')),
+    );
+    expect(court.width, greaterThan(300));
+    expect(timeline.top, greaterThan(court.bottom));
+    _expectCoverage('13% · 1/8');
+    expect(tester.takeException(), isNull);
+  });
+
   for (final locale in [const Locale('zh'), const Locale('en')]) {
     testWidgets('full replay analytics remains usable at 200% in $locale', (
       tester,
@@ -231,13 +255,17 @@ Future<void> _pumpReplay(
   ReplayController controller, {
   Locale locale = const Locale('zh'),
   double textScale = 1,
+  Size size = const Size(390, 844),
+  ThemeData? theme,
 }) async {
-  await tester.binding.setSurfaceSize(const Size(390, 844));
-  addTearDown(() => tester.binding.setSurfaceSize(null));
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPhysicalSize);
   addTearDown(controller.dispose);
   await tester.pumpWidget(
     MaterialApp(
-      theme: ThemeData.dark(),
+      theme: theme ?? ThemeData.dark(),
       locale: locale,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
