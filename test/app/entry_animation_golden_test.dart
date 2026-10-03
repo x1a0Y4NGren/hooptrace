@@ -88,7 +88,9 @@ void main() {
       expect(canvasBottom, lessThanOrEqualTo(label.top - 16));
       await expectLater(
         find.byKey(_goldenKey),
-        matchesGoldenFile('goldens/entry_waiting_${language}_compact.png'),
+        matchesGoldenFile(
+          hoopTraceGoldenFile('entry_waiting_${language}_compact'),
+        ),
       );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());

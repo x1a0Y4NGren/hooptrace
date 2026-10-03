@@ -114,6 +114,11 @@ def aggregate(probes, budget_ms):
             grouped.setdefault(phase, []).extend(frames)
     return {
         'runs': len(probes),
+        'motion_modes': {
+            mode: sum(any(mark['phase'] == 'playing_' + mode
+                          for mark in probe['summary']['marks']) for probe in probes)
+            for mode in ('standard', 'reduced')
+        },
         'budget_ms': budget_ms,
         'percentile_method': 'nearest rank over individual frames, no warmup samples discarded',
         'phase_method': 'FrameTiming build_start_us against Timeline.now phase marks; pre-gate first frame is initializing',
@@ -180,6 +185,11 @@ class Device:
                           self.args.package + '/' + self.args.activity, timeout=self.args.timeout)
         if 'Status: ok' not in launch:
             raise RuntimeError(f'Activity launch failed: {launch}')
+        window = self.run('shell', 'dumpsys', 'window')
+        focus = next((line.strip() for line in window.splitlines()
+                      if 'mCurrentFocus=' in line), '')
+        if self.args.package not in focus:
+            raise RuntimeError(f'App is not visible in the foreground: {focus}')
         process_ids = self.processes()
         if len(process_ids) != 1:
             raise RuntimeError(f'Expected one new app process, found {process_ids}.')
@@ -192,6 +202,7 @@ class Device:
                 probe['launch'] = {
                     'run': index, 'previous_pids': before_pids, 'pid': process_id,
                     'force_stop_verified': True, 'am_start': launch,
+                    'focused_window': focus,
                     'utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 }
                 return probe, '\n'.join(line for line in log.splitlines() if PREFIX in line) + '\n'

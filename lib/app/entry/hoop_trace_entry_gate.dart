@@ -384,6 +384,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
                     return HoopTraceEntryFrame(
                       key: hoopTraceEntrySceneKey,
                       image: _image,
+                      nativeHandoffPending: _firstFrameDeferred,
                       mode: _mode,
                       progress: _skipping ? _skipFrom : _controller.value,
                       motionStrength: _skipping ? 1 - skip : 1,
@@ -411,6 +412,7 @@ class HoopTraceEntryFrame extends StatelessWidget {
     required this.mode,
     required this.progress,
     this.image,
+    this.nativeHandoffPending = false,
     this.motionStrength = 1,
     this.opacity,
     this.waitingLabel,
@@ -420,6 +422,7 @@ class HoopTraceEntryFrame extends StatelessWidget {
   final EntryMotionMode? mode;
   final double progress;
   final ui.Image? image;
+  final bool nativeHandoffPending;
   final double motionStrength;
   final double? opacity;
   final String? waitingLabel;
@@ -429,7 +432,9 @@ class HoopTraceEntryFrame extends StatelessWidget {
     final mark = ExcludeSemantics(
       child: RepaintBoundary(
         child: image == null
-            ? const _StaticBrand()
+            ? (nativeHandoffPending
+                  ? const SizedBox.square(dimension: 288)
+                  : const _StaticBrand())
             : EntryCreature(
                 image: image!,
                 progress: mode == EntryMotionMode.standard ? progress : 0,

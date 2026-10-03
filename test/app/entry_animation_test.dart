@@ -365,6 +365,19 @@ void main() {
   });
 
   testWidgets(
+    'native handoff waits on one decode without a second asset image',
+    (tester) async {
+      final pending = Completer<ui.Image>();
+      await tester.pumpWidget(harness(imageLoader: () => pending.future));
+      expect(find.byType(Image), findsNothing);
+      pending.complete(image.clone());
+      await _start(tester);
+      expect(_frame(tester).image, isNotNull);
+      expect(find.byType(Image), findsNothing);
+    },
+  );
+
+  testWidgets(
     'disposal during decode releases native frame and late resource',
     (tester) async {
       final pending = Completer<ui.Image>();
