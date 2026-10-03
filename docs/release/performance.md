@@ -1,8 +1,21 @@
 # Performance evidence / 性能证据
 
-## 2.0 candidate / 2.0 候选
+## Latest candidate / 最新候选（2026-10-03）
 
-Updated / 更新：2026-10-03。Accepted application source:
+Source `94bb58e094736dfeaf42e524e308236de876a059` full-suite query benchmark: history 20 rows
+15.464ms, replay 1,009 events 50.827ms; unchanged 500ms gate.
+Android command inputs/DB/transaction/provider are unchanged from 3a, verified in
+`D:/DevCache/HoopTraceV2Artifacts/94bb58e/verification/reused-inputs.json`.
+Retained API 36 explicit SwiftShader/WHPX p95=81.951ms/100, exit 0/100ms gate;
+retained same-source host GPU p95=623.61ms/100, exit 1. This is environment
+sensitivity evidence, not a uniquely proven cause or cross-device guarantee.
+Both original logs and the file I/O diagnostic remain at
+`D:/DevCache/HoopTraceV2Artifacts/3a0166c/verification/performance-environment-comparison.json`.
+No thresholds, durability settings, sample count or warm-up rule were relaxed.
+
+## Previous checkpoint / 前次记录（3a0166c）
+
+Updated / 更新：2026-10-03。Historical application source:
 `3a0166c3a4a510e76a3093142a8b2d559ba7be93`.
 
 The Windows unit/widget suite passed 1,080 tests in 54 seconds and recorded
@@ -10,7 +23,7 @@ history_first_page_ms=20.117 and replay_projection_ms=57.86. Its unchanged
 1,000-match / 10,000-event fixture retains both 500 ms gates. The log is
 `.superpowers/sdd/2026-09-24-hooptrace-v2/final-share-backup-full-suite.log`.
 
-The final API 36 command rerun on 2026-10-03 passed: 100 committed samples,
+The API 36 command rerun on 2026-10-03 passed: 100 committed samples,
 p95 81.951 ms, exit 0 / +1, against the unchanged 100 ms gate. It used the same
 real SQLite file fixture, production background executor and five discarded
 warm-up commits, with explicit SwiftShader matching the previous emulator

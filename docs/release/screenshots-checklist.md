@@ -19,10 +19,10 @@ readiness. 勾选仅表示下述实际采集与检查范围，不代表全部页
 - [x] Match/home recovery, compact pregame with recording scope, unified scoring,
       result summary, history list, player growth and backup settings in the
       inspected captures.
-- [ ] Complete the remaining final capture matrix for interactive replay/analytics,
-      an applied history filter and the safety-copy page. The final 25-image set
-      has a replay share preview; earlier native XML/operation records identify
-      their source builds and do not replace final screenshots.
+- [x] Supplementary applied history filter and safety-copy page captured and
+      inspected at source 3a; their inputs are unchanged. Replay/analytics and
+      Chinese/English 200% were recaptured and inspected at the revised source.
+      Each file retains its actual source/APK metadata; this is the stated scope.
 - [x] Compact phone landscape scoring at 1920×1080 / density 420.
 - [x] Large emulator portrait and landscape windows at 1800×2560 and 2560×1800.
 - [ ] Physical foldable hardware, hinge and posture behavior. Emulator window
@@ -90,3 +90,11 @@ a WorkManager run under a revoked grant, physical foldable hardware and
 cross-runner reproduction remain unverified. The [candidate record](v2.0.0-candidate.md)
 keeps these limits separate from visual acceptance and the remaining formal
 signing, same-certificate upgrade, remote CI and macOS iOS gates.
+
+Latest Replay correction: source `94bb58e094736dfeaf42e524e308236de876a059`, MAIN Debug SHA-256
+`60d17a1179099c41a3fc12691edd15793ad4b1cf823a9d9fcb09a97edd088edd`. Raw PNG/XML/metadata and visual review are in
+`D:/DevCache/HoopTraceV2Artifacts/94bb58e/verification/supplemental-api36/`.
+Overview reads 13% · 1/8 for the same 8:11 fixture; Chinese/English 200% analytics,
+lazy scoring flow (including its end) and key possessions were inspected.
+The English portrait stays one column; before-fix 3c images are issue evidence.
+The eight unchanged Fastlane pages retain their truthful 3a source above.
