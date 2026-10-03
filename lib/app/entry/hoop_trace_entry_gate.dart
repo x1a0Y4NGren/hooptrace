@@ -332,7 +332,7 @@ class HoopTraceEntryFrame extends StatelessWidget {
     final mediaSize = MediaQuery.sizeOf(context);
     final shortestSide = mediaSize.shortestSide;
     final visibleMarkSize = (shortestSide * 0.42).clamp(144.0, 208.0);
-    final canvasExtent = visibleMarkSize * (1024 / 544);
+    final canvasExtent = visibleMarkSize * (1024 / 620);
 
     final overlayOpacity = switch (mode) {
       EntryMotionMode.reduced => 1 - Curves.easeInCubic.transform(progress),
@@ -358,88 +358,45 @@ class HoopTraceEntryFrame extends StatelessWidget {
   }
 
   Widget _buildScene(double canvasExtent) {
-    if (mode == null) {
-      return _centerMark(
-        canvasExtent,
-        Transform.scale(scale: 0.78, child: const _HoopAsset()),
-      );
-    }
-    if (mode == EntryMotionMode.reduced) {
-      return _centerMark(
-        canvasExtent,
-        Stack(
-          fit: StackFit.expand,
-          children: [
-            _HoopAsset(opacity: 1 - progress),
-            _FinalBrandAsset(opacity: Curves.easeOutCubic.transform(progress)),
-          ],
-        ),
-      );
-    }
     if (mode == EntryMotionMode.disabled) return const SizedBox.shrink();
+    if (mode != EntryMotionMode.standard) {
+      return _centerMark(
+        canvasExtent,
+        Transform.scale(scale: 0.78, child: const _BrandAsset()),
+      );
+    }
 
-    final scale = _standardScale(progress);
-    final hoopOpacity =
-        1 -
-        _entryInterval(
-          progress,
-          HoopTraceEntryTimeline.handoffEnd,
-          HoopTraceEntryTimeline.flightRevealEnd,
-          Curves.easeInCubic,
-        );
-    final painterOpacity = math.min(
-      _entryInterval(
-        progress,
-        HoopTraceEntryTimeline.handoffEnd,
-        HoopTraceEntryTimeline.flightRevealEnd,
-        Curves.easeOutCubic,
-      ),
-      1 -
+    final bounceProgress = _entryInterval(
+      progress,
+      HoopTraceEntryTimeline.handoffEnd,
+      HoopTraceEntryTimeline.flightEnd,
+      Curves.easeInOutCubic,
+    );
+    final bounce = math.sin(math.pi * bounceProgress);
+    final landing = math.sin(
+      math.pi *
           _entryInterval(
             progress,
+            HoopTraceEntryTimeline.flightEnd,
             HoopTraceEntryTimeline.swishEnd,
-            HoopTraceEntryTimeline.lockEnd,
-            Curves.easeInOutCubic,
+            Curves.easeOutCubic,
           ),
     );
-    final finalOpacity = _entryInterval(
-      progress,
-      HoopTraceEntryTimeline.swishEnd,
-      HoopTraceEntryTimeline.lockEnd,
-      Curves.easeOutCubic,
-    );
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        RepaintBoundary(
-          child: CustomPaint(
-            painter: _EntryScenePainter(
-              progress: progress,
-              opacity: painterOpacity,
-              markExtent: canvasExtent,
-            ),
-            isComplex: true,
-            willChange: true,
+    final scale = _standardScale(progress);
+    final squash = landing * 0.06;
+    return _centerMark(
+      canvasExtent,
+      Transform.translate(
+        offset: Offset(0, -canvasExtent * 0.06 * bounce),
+        child: Transform.rotate(
+          angle: math.sin(2 * math.pi * bounceProgress) * 0.07,
+          child: Transform.scale(
+            scaleX: scale * (1 + squash),
+            scaleY: scale * (1 - squash),
+            child: const _BrandAsset(),
           ),
         ),
-        _centerMark(
-          canvasExtent,
-          Stack(
-            fit: StackFit.expand,
-            children: [
-              Transform.scale(
-                scale: 0.78,
-                child: _HoopAsset(opacity: hoopOpacity),
-              ),
-              Transform.scale(
-                scale: scale,
-                child: _FinalBrandAsset(opacity: finalOpacity),
-              ),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -490,24 +447,8 @@ class HoopTraceEntryFrame extends StatelessWidget {
   }
 }
 
-class _HoopAsset extends StatelessWidget {
-  const _HoopAsset({this.opacity = 1});
-
-  final double opacity;
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _EntryScenePainter(progress: 0, opacity: opacity),
-      isComplex: true,
-    );
-  }
-}
-
-class _FinalBrandAsset extends StatelessWidget {
-  const _FinalBrandAsset({this.opacity = 1});
-
-  final double opacity;
+class _BrandAsset extends StatelessWidget {
+  const _BrandAsset();
 
   @override
   Widget build(BuildContext context) {
@@ -516,274 +457,7 @@ class _FinalBrandAsset extends StatelessWidget {
       fit: BoxFit.contain,
       filterQuality: FilterQuality.high,
       gaplessPlayback: true,
-      opacity: AlwaysStoppedAnimation(opacity),
     );
-  }
-}
-
-class _EntryScenePainter extends CustomPainter {
-  const _EntryScenePainter({
-    required this.progress,
-    this.opacity = 1,
-    this.markExtent,
-  });
-
-  final double progress;
-  final double opacity;
-  final double? markExtent;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (opacity <= 0) return;
-    final paintsViewport = markExtent != null;
-    final scale =
-        (markExtent ?? size.width) / 1024 * (paintsViewport ? 0.78 : 1);
-    final origin = paintsViewport
-        ? Offset(
-            (size.width - (1024 * scale)) / 2,
-            (size.height - (1024 * scale)) / 2,
-          )
-        : Offset.zero;
-    canvas.save();
-    canvas.translate(origin.dx, origin.dy);
-    canvas.scale(scale, scale);
-
-    final milliseconds = _milliseconds(progress);
-    final flight = _entryInterval(
-      progress,
-      HoopTraceEntryTimeline.handoffEnd,
-      HoopTraceEntryTimeline.flightEnd,
-      Curves.easeInOutCubic,
-    );
-    final swish = _entryInterval(
-      progress,
-      HoopTraceEntryTimeline.flightEnd,
-      HoopTraceEntryTimeline.swishEnd,
-      Curves.easeOutCubic,
-    );
-    final lock = _entryInterval(
-      progress,
-      HoopTraceEntryTimeline.swishEnd,
-      HoopTraceEntryTimeline.lockEnd,
-      Curves.easeInOutCubic,
-    );
-
-    _paintBackboard(canvas);
-    _paintRimAndNet(canvas, swish);
-
-    final arc = paintsViewport
-        ? _buildViewportFlightArc(size, origin, scale)
-        : (Path()
-            ..moveTo(332, 300)
-            ..cubicTo(478, 307, 626, 437, 568, 607));
-    final drop = Path()
-      ..moveTo(568, 607)
-      ..cubicTo(566, 647, 560, 688, 548, 716);
-    final orange = Paint()
-      ..color = HoopTraceColors.orange.withValues(alpha: opacity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 45
-      ..strokeCap = StrokeCap.round;
-    final arcMetric = arc.computeMetrics().single;
-    if (flight > 0) {
-      final start = math.min(82.0, arcMetric.length * flight);
-      final end = arcMetric.length * flight;
-      if (end > start) {
-        canvas.drawPath(arcMetric.extractPath(start, end), orange);
-      }
-    }
-
-    if (milliseconds >= HoopTraceEntryTimeline.swishEnd.inMilliseconds &&
-        milliseconds < HoopTraceEntryTimeline.lockEnd.inMilliseconds) {
-      canvas.drawPath(arc, orange);
-      final pulseCenter = arcMetric.length * (1 - lock);
-      final pulseStart = math.max(0.0, pulseCenter - 66);
-      final pulseEnd = math.min(arcMetric.length, pulseCenter + 66);
-      final halo = Paint()
-        ..color = HoopTraceColors.orange.withValues(alpha: 0.32 * opacity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 78
-        ..strokeCap = StrokeCap.round;
-      canvas.drawPath(arcMetric.extractPath(pulseStart, pulseEnd), halo);
-    }
-
-    if (milliseconds >= HoopTraceEntryTimeline.handoffEnd.inMilliseconds &&
-        milliseconds < HoopTraceEntryTimeline.swishEnd.inMilliseconds) {
-      late final Offset ballCenter;
-      late final Offset tangent;
-      late final double ballOpacity;
-      if (milliseconds < HoopTraceEntryTimeline.flightEnd.inMilliseconds) {
-        final sample = arcMetric.getTangentForOffset(
-          arcMetric.length * flight,
-        )!;
-        ballCenter = sample.position;
-        tangent = sample.vector;
-        ballOpacity = 1;
-      } else {
-        final dropMetric = drop.computeMetrics().single;
-        final sample = dropMetric.getTangentForOffset(
-          dropMetric.length * swish,
-        )!;
-        ballCenter = sample.position;
-        tangent = sample.vector;
-        ballOpacity = 1 - Curves.easeInCubic.transform(swish);
-      }
-      _paintBall(
-        canvas,
-        center: ballCenter,
-        tangent: tangent,
-        rotationProgress: flight,
-        opacity: ballOpacity * opacity,
-        squeeze: math.sin(math.pi * swish) * 0.06,
-      );
-    }
-
-    canvas.restore();
-  }
-
-  Path _buildViewportFlightArc(Size viewport, Offset origin, double scale) {
-    Offset toDesign(Offset point) =>
-        Offset((point.dx - origin.dx) / scale, (point.dy - origin.dy) / scale);
-
-    final ballRadius = 91 * scale;
-    final start = Offset(
-      -ballRadius * 1.35,
-      math.max(ballRadius * 1.5, viewport.height * 0.18),
-    );
-    final end = origin + Offset(568 * scale, 607 * scale);
-    final firstControl = Offset(
-      viewport.width * 0.16,
-      math.max(ballRadius * 0.6, viewport.height * 0.04),
-    );
-    final secondControl = Offset(
-      end.dx + (viewport.width * 0.14),
-      end.dy - (viewport.height * 0.31),
-    );
-    final startDesign = toDesign(start);
-    final firstControlDesign = toDesign(firstControl);
-    final secondControlDesign = toDesign(secondControl);
-    final endDesign = toDesign(end);
-    return Path()
-      ..moveTo(startDesign.dx, startDesign.dy)
-      ..cubicTo(
-        firstControlDesign.dx,
-        firstControlDesign.dy,
-        secondControlDesign.dx,
-        secondControlDesign.dy,
-        endDesign.dx,
-        endDesign.dy,
-      );
-  }
-
-  void _paintBackboard(Canvas canvas) {
-    final paint = Paint()
-      ..color = HoopTraceColors.offWhite.withValues(alpha: opacity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 30
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final outer = Path()
-      ..moveTo(390, 379)
-      ..lineTo(767, 379)
-      ..lineTo(767, 642)
-      ..lineTo(329, 642)
-      ..lineTo(329, 417);
-    canvas.drawPath(outer, paint);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        const Rect.fromLTRB(457, 482, 636, 610),
-        const Radius.circular(3),
-      ),
-      paint..strokeWidth = 24,
-    );
-  }
-
-  void _paintRimAndNet(Canvas canvas, double swish) {
-    final reaction = math.sin(math.pi * swish);
-    canvas.save();
-    canvas.translate(0, reaction * 10);
-    final rimPaint = Paint()
-      ..color = HoopTraceColors.offWhite.withValues(alpha: opacity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 25
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawOval(const Rect.fromLTRB(416, 583, 681, 652), rimPaint);
-
-    final netSqueeze = 1 - reaction * 0.045;
-    canvas.translate(548, 642);
-    canvas.scale(netSqueeze, 1 - reaction * 0.025);
-    canvas.translate(-548, -642);
-    final net = Path()
-      ..moveTo(438, 636)
-      ..quadraticBezierTo(470, 724, 483, 807)
-      ..moveTo(657, 636)
-      ..quadraticBezierTo(626, 724, 613, 807)
-      ..moveTo(470, 642)
-      ..quadraticBezierTo(520, 720, 613, 807)
-      ..moveTo(626, 642)
-      ..quadraticBezierTo(576, 720, 483, 807)
-      ..moveTo(505, 642)
-      ..quadraticBezierTo(526, 721, 577, 793)
-      ..moveTo(590, 642)
-      ..quadraticBezierTo(570, 721, 518, 793);
-    canvas.drawPath(net, rimPaint..strokeWidth = 18);
-    canvas.restore();
-  }
-
-  void _paintBall(
-    Canvas canvas, {
-    required Offset center,
-    required Offset tangent,
-    required double rotationProgress,
-    required double opacity,
-    required double squeeze,
-  }) {
-    if (opacity <= 0) return;
-    final angle = math.atan2(tangent.dy, tangent.dx);
-    canvas.save();
-    canvas.translate(center.dx, center.dy);
-    canvas.rotate(angle * 0.16 + rotationProgress * math.pi * 0.72);
-    canvas.scale(1 + squeeze, 1 - squeeze);
-
-    final orange = Paint()
-      ..color = HoopTraceColors.orange.withValues(alpha: opacity)
-      ..style = PaintingStyle.fill;
-    final ballRect = Rect.fromCircle(center: Offset.zero, radius: 91);
-    canvas.drawOval(ballRect, orange);
-    canvas.clipPath(Path()..addOval(ballRect));
-    final seam = Paint()
-      ..color = HoopTraceColors.ink.withValues(alpha: opacity)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(const Offset(-91, 0), const Offset(91, 0), seam);
-    canvas.drawPath(
-      Path()
-        ..moveTo(-49, -80)
-        ..cubicTo(2, -42, 15, 42, 49, 80),
-      seam,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(48, -80)
-        ..cubicTo(22, -33, -21, 28, -73, 57),
-      seam,
-    );
-    canvas.drawPath(
-      Path()
-        ..moveTo(-91, -23)
-        ..cubicTo(-26, -31, 24, 6, 91, 47),
-      seam,
-    );
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _EntryScenePainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.opacity != opacity ||
-        oldDelegate.markExtent != markExtent;
   }
 }
 

@@ -28,6 +28,12 @@ void main() {
           ),
         ),
       );
+      await tester.runAsync(() async {
+        await precacheImage(
+          const AssetImage('assets/icons/hooptrace-app-icon-foreground.png'),
+          tester.element(find.byType(HoopTraceEntryFrame)),
+        );
+      });
       await tester.pumpAndSettle();
 
       await expectLater(

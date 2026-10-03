@@ -147,6 +147,7 @@ vite.config.ts.timestamp-*
 .worktrees/
 
 # Flutter / Dart
+__pycache__/
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies

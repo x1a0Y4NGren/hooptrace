@@ -375,10 +375,65 @@ void main() {
     );
   });
 
-  testWidgets('opening flight enters through the left screen edge', (
+  for (final frame in [
+    (name: 'pending handoff', mode: null, progress: 0.0),
+    (name: 'reduced handoff', mode: EntryMotionMode.reduced, progress: 0.0),
+    (name: 'reduced fade', mode: EntryMotionMode.reduced, progress: 0.5),
+    (name: 'standard handoff', mode: EntryMotionMode.standard, progress: 0.0),
+    (
+      name: 'standard bounce',
+      mode: EntryMotionMode.standard,
+      progress: 300 / 1320,
+    ),
+    (
+      name: 'standard landing',
+      mode: EntryMotionMode.standard,
+      progress: 680 / 1320,
+    ),
+    (
+      name: 'standard settling',
+      mode: EntryMotionMode.standard,
+      progress: 860 / 1320,
+    ),
+    (
+      name: 'standard final mark',
+      mode: EntryMotionMode.standard,
+      progress: 1160 / 1320,
+    ),
+  ]) {
+    testWidgets('${frame.name} keeps the selected mascot visible', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildHoopTraceTheme(),
+          home: HoopTraceEntryFrame(
+            key: hoopTraceEntrySceneKey,
+            mode: frame.mode,
+            progress: frame.progress,
+          ),
+        ),
+      );
+      final scene = find.byKey(hoopTraceEntrySceneKey);
+      final images = find.descendant(of: scene, matching: find.byType(Image));
+      expect(images, findsOneWidget);
+      final image = tester.widget<Image>(images);
+      expect(
+        image.image,
+        const AssetImage('assets/icons/hooptrace-app-icon-foreground.png'),
+      );
+      expect(image.opacity?.value ?? 1, 1);
+      expect(
+        find.descendant(of: scene, matching: find.byType(CustomPaint)),
+        findsNothing,
+      );
+    });
+  }
+
+  testWidgets('mascot bounce stays near the center without a flight trail', (
     tester,
   ) async {
-    const captureKey = Key('entry-flight-capture');
+    const captureKey = Key('entry-mascot-capture');
     await tester.pumpWidget(
       MaterialApp(
         theme: buildHoopTraceTheme(),
@@ -394,38 +449,52 @@ void main() {
         ),
       ),
     );
+    await tester.runAsync(() async {
+      await precacheImage(
+        const AssetImage('assets/icons/hooptrace-app-icon-foreground.png'),
+        tester.element(find.byType(HoopTraceEntryFrame)),
+      );
+    });
     await tester.pump();
 
     final boundary = tester.renderObject<RenderRepaintBoundary>(
       find.byKey(captureKey),
     );
-    final orangePixelsAtEdge = await tester.runAsync(() async {
+    final orangePixels = await tester.runAsync(() async {
       final image = await boundary.toImage();
       try {
         final bytes = await image.toByteData(
           format: ui.ImageByteFormat.rawRgba,
         );
         if (bytes == null) return null;
-        var count = 0;
+        var edgeCount = 0;
+        var centerCount = 0;
         final rgba = bytes.buffer.asUint8List();
         for (var y = 0; y < image.height; y++) {
-          for (var x = 0; x < 12; x++) {
+          for (var x = 0; x < image.width; x++) {
             final offset = (y * image.width + x) * 4;
             final red = rgba[offset];
             final green = rgba[offset + 1];
             final blue = rgba[offset + 2];
             if (red > 220 && green > 50 && green < 130 && blue < 80) {
-              count++;
+              if (x < 12) edgeCount++;
+              if (x > image.width * 0.3 &&
+                  x < image.width * 0.7 &&
+                  y > image.height * 0.3 &&
+                  y < image.height * 0.7) {
+                centerCount++;
+              }
             }
           }
         }
-        return count;
+        return (edge: edgeCount, center: centerCount);
       } finally {
         image.dispose();
       }
     });
-    expect(orangePixelsAtEdge, isNotNull);
-    expect(orangePixelsAtEdge!, greaterThan(5));
+    expect(orangePixels, isNotNull);
+    expect(orangePixels!.edge, 0);
+    expect(orangePixels.center, greaterThan(100));
   });
 }
 

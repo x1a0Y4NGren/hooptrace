@@ -1,5 +1,9 @@
 # HoopTrace
 
+<p align="center">
+  <img src="assets/icons/hooptrace-app-icon.png" width="160" alt="HoopTrace 独眼篮球小怪物应用图标">
+</p>
+
 [![Flutter CI](https://github.com/x1a0Y4NGren/hooptrace/actions/workflows/flutter-ci.yml/badge.svg)](https://github.com/x1a0Y4NGren/hooptrace/actions/workflows/flutter-ci.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/x1a0Y4NGren/hooptrace)](https://github.com/x1a0Y4NGren/hooptrace/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2f2a25.svg)](LICENSE)

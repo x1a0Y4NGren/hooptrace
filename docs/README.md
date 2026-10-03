@@ -20,6 +20,7 @@
 
 ## 设计与历史
 
+- [C「独眼球怪」正式标识与验证](design/brand/README.md)
 - [设计与实施记录的使用边界](superpowers/README.md)
 - [历史分支提示](branch-prompts/README.md)与[历史执行顺序](branch-execution-order.md)
 
