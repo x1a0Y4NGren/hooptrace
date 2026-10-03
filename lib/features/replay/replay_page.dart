@@ -976,9 +976,8 @@ class _ReplayOverview extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
     final scoreCount = controller.scoreEventCount;
-    final completeness = scoreCount == 0
-        ? 0
-        : (controller.locatedShotCount / scoreCount * 100).round();
+    final fieldGoalAttempts = controller.fieldGoalAttemptCount;
+    final completeness = (controller.locationCoverage * 100).round();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1033,10 +1032,20 @@ class _ReplayOverview extends StatelessWidget {
               value: '${controller.foulEventCount}',
             ),
             _Metric(
+              key: const Key('replay-location-coverage'),
               label: l10n.replayLocationCompleteness,
-              value: '$completeness%',
+              value: fieldGoalAttempts == 0
+                  ? l10n.replayNoData
+                  : '$completeness% · '
+                        '${controller.confirmedLocationCount}/$fieldGoalAttempts',
             ),
           ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          l10n.v2LocationScope,
+          key: const Key('replay-location-coverage-scope'),
+          style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 20),
         _PossessionSegmentsCard(data: controller.data),
@@ -1221,7 +1230,7 @@ class _ShotLocationReasonDialogState extends State<_ShotLocationReasonDialog> {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value});
+  const _Metric({required this.label, required this.value, super.key});
 
   final String label;
   final String value;

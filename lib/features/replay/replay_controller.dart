@@ -69,6 +69,8 @@ class ReplayEventData {
   final Duration elapsed;
   final String? note;
   final String? locationId;
+
+  /// Confirmed court point; pending locations are omitted by the data mapper.
   final CourtPoint? shotPoint;
 
   /// The persisted event vocabulary. [kind] remains the display category.
@@ -293,6 +295,33 @@ class ReplayController extends ChangeNotifier {
       .length;
 
   int get locatedShotCount => shotLocations.length;
+
+  /// Full-match coverage is independent of the timeline and court filters.
+  int get fieldGoalAttemptCount =>
+      _data.analytics?.fieldGoalAttemptCount ?? _fieldGoalAttempts.length;
+
+  int get confirmedLocationCount =>
+      _data.analytics?.confirmedLocationCount ??
+      _fieldGoalAttempts.where((event) => event.shotPoint != null).length;
+
+  double get locationCoverage =>
+      _data.analytics?.locationCoverage ??
+      (fieldGoalAttemptCount == 0
+          ? 0
+          : confirmedLocationCount / fieldGoalAttemptCount);
+
+  Iterable<ReplayEventData> get _fieldGoalAttempts => _data.events.where(
+    (event) =>
+        !event.isDeleted &&
+        event.side != null &&
+        switch (event.rawKind) {
+          EventKind.score || EventKind.fieldGoal || EventKind.miss => true,
+          null =>
+            event.kind == ReplayEventKind.score ||
+                event.kind == ReplayEventKind.miss,
+          _ => false,
+        },
+  );
 
   void setKindFilter(ReplayKindFilter value) {
     if (_kindFilter == value) return;
