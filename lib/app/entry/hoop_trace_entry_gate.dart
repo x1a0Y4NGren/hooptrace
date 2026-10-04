@@ -167,21 +167,40 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
   }
 
   Future<MotionPreference> _loadPreference(bool reduced) async {
-    if (reduced) return MotionPreference.reduced;
+    final elapsed = _probe == null ? null : (Stopwatch()..start());
+    var outcome = reduced ? 'accessible_navigation' : 'standard';
     try {
-      return await (widget.motionPreferenceLoader?.call() ??
-              Future.value(MotionPreference.standard))
-          .timeout(
-            _motion.entryPreferenceWait,
-            onTimeout: () => MotionPreference.reduced,
-          );
+      if (reduced) return MotionPreference.reduced;
+      final preference =
+          await (widget.motionPreferenceLoader?.call() ??
+                  Future.value(MotionPreference.standard))
+              .timeout(
+                _motion.entryPreferenceWait,
+                onTimeout: () {
+                  outcome = 'timeout';
+                  return MotionPreference.reduced;
+                },
+              );
+      if (outcome != 'timeout') outcome = preference.name;
+      return preference;
     } on Object {
+      outcome = 'error';
       return MotionPreference.reduced;
+    } finally {
+      if (elapsed != null) {
+        _probe?.preparation(
+          'preference',
+          elapsedUs: elapsed.elapsedMicroseconds,
+          outcome: outcome,
+        );
+      }
     }
   }
 
   Future<ui.Image?> _loadImage() async {
     var accepting = true;
+    final elapsed = _probe == null ? null : (Stopwatch()..start());
+    var outcome = 'decoded';
     try {
       return await (widget.imageLoader ?? _decodeBrandImage)()
           .then<ui.Image?>((image) {
@@ -195,12 +214,22 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
             HoopTraceEntryTimeline.imageWait,
             onTimeout: () {
               accepting = false;
+              outcome = 'timeout';
               return null;
             },
           );
     } on Object {
       accepting = false;
+      outcome = 'error';
       return null;
+    } finally {
+      if (elapsed != null) {
+        _probe?.preparation(
+          'image',
+          elapsedUs: elapsed.elapsedMicroseconds,
+          outcome: outcome,
+        );
+      }
     }
   }
 

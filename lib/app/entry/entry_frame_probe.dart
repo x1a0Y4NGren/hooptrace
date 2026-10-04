@@ -24,6 +24,7 @@ class EntryFrameProbe {
 
   final _frames = <FrameTiming>[];
   final _marks = <Map<String, Object>>[];
+  final _preparation = <String, Object>{};
   int _startedAt = 0;
   bool _registered = false;
   bool _disposed = false;
@@ -35,6 +36,15 @@ class EntryFrameProbe {
   void mark(String phase) {
     if (!_enabled || _disposed || _completion != null) return;
     _marks.add({'phase': phase, 'time_us': developer.Timeline.now});
+  }
+
+  void preparation(
+    String stage, {
+    required int elapsedUs,
+    required String outcome,
+  }) {
+    if (!_enabled || _disposed || _completion != null) return;
+    _preparation[stage] = {'elapsed_us': elapsedUs, 'outcome': outcome};
   }
 
   /// Keep the callback alive after the last visual frame so the engine's
@@ -68,6 +78,7 @@ class EntryFrameProbe {
         'diagnostic': _enabled,
         'started_at_us': _startedAt,
         'marks': _marks,
+        'preparation': _preparation,
         'frame_count': _frames.length,
         'flush_ms': _flushDelay.inMilliseconds,
       });
