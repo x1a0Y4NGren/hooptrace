@@ -175,6 +175,9 @@ class PregameState {
 }
 
 class PregameController {
+  static const minTargetScore = 1;
+  static const maxTargetScore = 999;
+
   PregameController({
     PregameState state = const PregameState(),
     List<RuleTemplate> templates = const [],
@@ -337,7 +340,7 @@ class PregameController {
 
   void setTargetScore(int value) {
     _state = _state.copyWith(
-      targetScore: value.clamp(1, 99),
+      targetScore: value.clamp(minTargetScore, maxTargetScore),
       targetScoreOverridden: true,
     );
   }

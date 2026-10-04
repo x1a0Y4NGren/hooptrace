@@ -31,6 +31,11 @@ void main() {
       page: () => const PregamePage(),
     ),
     (
+      name: 'pregame_target',
+      size: const Size(390, 844),
+      page: () => const PregamePage(),
+    ),
+    (
       name: 'scoring',
       size: const Size(731, 411),
       page: () => const ScoringPage(matchId: 'golden-scoring'),
@@ -70,6 +75,24 @@ void main() {
             ),
           );
           await tester.pumpAndSettle();
+          if (feature.name == 'pregame_target') {
+            await tester.ensureVisible(
+              find.byKey(const Key('pregame-advanced')),
+            );
+            await tester.tap(find.byKey(const Key('pregame-advanced')));
+            await tester.pumpAndSettle();
+            await tester.ensureVisible(
+              find.byKey(const Key('pregame-target-edit')),
+            );
+            await tester.tap(find.byKey(const Key('pregame-target-edit')));
+            await tester.pumpAndSettle();
+            await tester.enterText(
+              find.byKey(const Key('pregame-target-input')),
+              '1000',
+            );
+            await tester.tap(find.byKey(const Key('pregame-target-confirm')));
+            await tester.pumpAndSettle();
+          }
           final renderedTheme = Theme.of(
             tester.element(
               find.byKey(const Key('editorial-feature-golden-root')),
@@ -86,7 +109,9 @@ void main() {
             reason: 'Chinese must use the production fallback chain.',
           );
           await expectLater(
-            find.byKey(const Key('editorial-feature-golden-root')),
+            feature.name == 'pregame_target'
+                ? find.byType(MaterialApp)
+                : find.byKey(const Key('editorial-feature-golden-root')),
             matchesGoldenFile(hoopTraceGoldenFile(name)),
           );
           expect(tester.takeException(), isNull);

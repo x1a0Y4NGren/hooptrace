@@ -1819,6 +1819,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get pregameTargetScore => 'Target score';
 
   @override
+  String get pregameEditTargetScore => 'Edit target score';
+
+  @override
+  String get pregameConfirmTargetScore => 'Confirm';
+
+  @override
+  String pregameTargetScoreRange(int min, int max) {
+    return 'Enter a whole number from $min to $max';
+  }
+
+  @override
   String get pregamePoint => 'points';
 
   @override

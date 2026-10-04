@@ -3474,6 +3474,24 @@ abstract class AppLocalizations {
   /// **'目标分'**
   String get pregameTargetScore;
 
+  /// No description provided for @pregameEditTargetScore.
+  ///
+  /// In zh, this message translates to:
+  /// **'编辑目标分'**
+  String get pregameEditTargetScore;
+
+  /// No description provided for @pregameConfirmTargetScore.
+  ///
+  /// In zh, this message translates to:
+  /// **'确认'**
+  String get pregameConfirmTargetScore;
+
+  /// No description provided for @pregameTargetScoreRange.
+  ///
+  /// In zh, this message translates to:
+  /// **'请输入 {min}～{max} 的整数'**
+  String pregameTargetScoreRange(int min, int max);
+
   /// No description provided for @pregamePoint.
   ///
   /// In zh, this message translates to:

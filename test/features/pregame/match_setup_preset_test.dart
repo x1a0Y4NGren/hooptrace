@@ -1,6 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/core/data/commands/match_command_service.dart';
 import 'package:hooptrace/core/data/repositories/player_repository.dart';
+import 'package:hooptrace/core/data/repositories/match_repository.dart';
+import 'package:hooptrace/core/domain/rules/rule_engine.dart';
+import 'package:hooptrace/core/domain/scoring/score_state.dart';
 import 'package:hooptrace/core/domain/domain_enums.dart';
 import 'package:hooptrace/core/domain/entities/clock_state.dart';
 import 'package:hooptrace/core/domain/entities/match.dart';
@@ -16,6 +19,46 @@ import 'package:hooptrace/features/pregame/start_match_mapper.dart';
 import '../../test_helpers/test_database.dart';
 
 void main() {
+  for (final target in [100, 999]) {
+    test(
+      'stored target $target survives recent setup and rematch with end hint',
+      () async {
+        final database = createTestDatabase();
+        addTearDown(database.close);
+        final now = DateTime.utc(2026, 10, 5);
+        final controller = PregameController(
+          matchIdFactory: () => 'target-$target',
+        )..setTargetScore(target);
+        await MatchCommandService(database, now: () => now).start(
+          buildStartMatchCommand(controller.createMatchSetup(), now: now),
+        );
+        final stored = (await MatchRepository(
+          database,
+        ).getMatchDetail('target-$target'))!;
+        expect(stored.match.ruleTemplateSnapshot.targetScore, target);
+        final preset = MatchSetupPreset.fromMatchDetail(stored);
+        for (final reused in [preset, preset.swapped()]) {
+          final setup = PregameController(
+            initialPreset: reused,
+          ).createMatchSetup();
+          expect(setup.targetScore, target);
+          expect(setup.matchId, isNot('target-$target'));
+        }
+        final hints = RuleEngine().evaluate(
+          template: stored.match.ruleTemplateSnapshot,
+          score: ScoreState(redScore: target - 1, blueScore: 0),
+          scoringSide: TeamSide.red,
+          scoringPoints: 1,
+        );
+        expect(
+          hints.map((hint) => hint.type),
+          contains(RuleHintType.targetReached),
+        );
+        expect(hints.every((hint) => !hint.isBlocking), isTrue);
+      },
+    );
+  }
+
   test('rematch copies setup fields and allocates identity only at start', () {
     final detail = _finishedMatch();
     final preset = MatchSetupPreset.fromMatchDetail(detail);

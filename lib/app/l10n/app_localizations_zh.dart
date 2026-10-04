@@ -1746,6 +1746,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get pregameTargetScore => '目标分';
 
   @override
+  String get pregameEditTargetScore => '编辑目标分';
+
+  @override
+  String get pregameConfirmTargetScore => '确认';
+
+  @override
+  String pregameTargetScoreRange(int min, int max) {
+    return '请输入 $min～$max 的整数';
+  }
+
+  @override
   String get pregamePoint => '分';
 
   @override

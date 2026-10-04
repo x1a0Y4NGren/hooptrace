@@ -85,6 +85,7 @@ class _PregamePageState extends State<PregamePage> {
   bool _redNameUsesLocalizedDefault = true;
   bool _blueNameUsesLocalizedDefault = true;
   bool _starting = false;
+  bool _editingTargetScore = false;
   bool _creatingPlayer = false;
   final List<Player> _createdPlayers = [];
 
@@ -499,6 +500,7 @@ class _PregamePageState extends State<PregamePage> {
                                   _NumberSetting(
                                     label: l10n.pregameTargetScore,
                                     value: state.targetScore,
+                                    onEdit: _editTargetScore,
                                     onChanged: (value) {
                                       setState(() {
                                         _controller.setTargetScore(value);
@@ -783,6 +785,25 @@ class _PregamePageState extends State<PregamePage> {
       );
     } finally {
       if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  Future<void> _editTargetScore() async {
+    if (_editingTargetScore || _starting) return;
+    _editingTargetScore = true;
+    try {
+      final value = await showDialog<int>(
+        context: context,
+        builder: (_) =>
+            _TargetScoreDialog(initialValue: _controller.state.targetScore),
+      );
+      if (!mounted || value == null) return;
+      setState(() {
+        _controller.setTargetScore(value);
+        _clearValidation();
+      });
+    } finally {
+      _editingTargetScore = false;
     }
   }
 
@@ -1144,9 +1165,11 @@ class _NumberSetting extends StatelessWidget {
     required this.label,
     required this.value,
     required this.onChanged,
+    required this.onEdit,
   });
 
   final String label;
+  final VoidCallback onEdit;
   final int value;
   final ValueChanged<int> onChanged;
 
@@ -1163,27 +1186,145 @@ class _NumberSetting extends StatelessWidget {
           Row(
             children: [
               IconButton.outlined(
+                key: const Key('pregame-target-decrease'),
                 tooltip: '$label −1',
                 style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
-                onPressed: () => onChanged(value - 1),
+                onPressed: value <= PregameController.minTargetScore
+                    ? null
+                    : () => onChanged(value - 1),
                 icon: const Icon(Icons.remove),
               ),
               Expanded(
-                child: Text(
-                  '$value${l10n.pregamePoint}',
-                  textAlign: TextAlign.center,
+                child: Semantics(
+                  button: true,
+                  label: l10n.pregameEditTargetScore,
+                  value: '$value${l10n.pregamePoint}',
+                  child: OutlinedButton(
+                    key: const Key('pregame-target-edit'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                    onPressed: onEdit,
+                    child: ExcludeSemantics(
+                      child: Text(
+                        '$value${l10n.pregamePoint}',
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
                 ),
               ),
               IconButton.outlined(
+                key: const Key('pregame-target-increase'),
                 tooltip: '$label +1',
                 style: IconButton.styleFrom(minimumSize: const Size(48, 48)),
-                onPressed: () => onChanged(value + 1),
+                onPressed: value >= PregameController.maxTargetScore
+                    ? null
+                    : () => onChanged(value + 1),
                 icon: const Icon(Icons.add),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TargetScoreDialog extends StatefulWidget {
+  const _TargetScoreDialog({required this.initialValue});
+
+  final int initialValue;
+
+  @override
+  State<_TargetScoreDialog> createState() => _TargetScoreDialogState();
+}
+
+class _TargetScoreDialogState extends State<_TargetScoreDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _inputController;
+  bool _completed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final text = '${widget.initialValue}';
+    _inputController = TextEditingController.fromValue(
+      TextEditingValue(
+        text: text,
+        selection: TextSelection(baseOffset: 0, extentOffset: text.length),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _inputController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_completed || ModalRoute.of(context)?.isCurrent != true) return;
+    if (!_formKey.currentState!.validate()) return;
+    _complete(int.parse(_inputController.text.trim()));
+  }
+
+  void _complete([int? value]) {
+    if (_completed || ModalRoute.of(context)?.isCurrent != true) return;
+    _completed = true;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context) ?? AppLocalizationsZh();
+    final rangeMessage = l10n.pregameTargetScoreRange(
+      PregameController.minTargetScore,
+      PregameController.maxTargetScore,
+    );
+    return AlertDialog(
+      scrollable: true,
+      title: Text(l10n.pregameTargetScore),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          key: const Key('pregame-target-input'),
+          controller: _inputController,
+          autofocus: true,
+          keyboardType: TextInputType.number,
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(
+            labelText: l10n.pregameTargetScore,
+            helperText: rangeMessage,
+            helperMaxLines: 3,
+            errorMaxLines: 3,
+          ),
+          validator: (text) {
+            final input = (text ?? '').trim();
+            final value = int.tryParse(input);
+            if (!RegExp(r'^[0-9]+$').hasMatch(input) ||
+                value == null ||
+                value < PregameController.minTargetScore ||
+                value > PregameController.maxTargetScore) {
+              return rangeMessage;
+            }
+            return null;
+          },
+          onFieldSubmitted: (_) => _submit(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('pregame-target-cancel'),
+          onPressed: _complete,
+          child: Text(l10n.cancelAction),
+        ),
+        FilledButton(
+          key: const Key('pregame-target-confirm'),
+          onPressed: _submit,
+          child: Text(l10n.pregameConfirmTargetScore),
+        ),
+      ],
     );
   }
 }
