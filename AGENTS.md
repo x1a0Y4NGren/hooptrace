@@ -24,6 +24,8 @@ Replacement and safety-copy rollback must protect the current data before mutati
 
 For Drift schema/query changes, run `dart run build_runner build --delete-conflicting-outputs` and include generated changes. Update both ARB files and run `flutter gen-l10n` when changing localized text.
 
+For startup changes in the 2.0 candidate, retain the approved C logo and native/Flutter geometry, keep startup silent, and preserve bounded loading, smooth skip, reduced/disabled motion, terminal states, and one playback per process. The gate owns decoded images; scoring feedback remains independent.
+
 Keep core features offline-capable. Review privacy and architecture for new network behavior. Never commit signing keys, `key.properties`, device databases, build output, or real player data.
 
 ## Proportionate Verification
@@ -33,6 +35,8 @@ Use the validation matrix in CONTRIBUTING. Documentation-only edits need content
 Test observable behavior and inspect changed goldens. Reuse successful checks while their relevant inputs and environment remain unchanged; rerun for new changes, failures, or concrete concerns. Android integration tests can overwrite `app-debug.apk`; rebuild before manual installation.
 
 Run Android integration tests on a dedicated test device or isolated Android user (`--device-user <id>`): the runner can uninstall that user's app. File close/reopen tests do not establish process-restart recovery; use an actual file database and cold restart when that behavior is under verification.
+
+Keep startup evidence tied to its source commit, build mode, renderer, and device. Distinguish rendered previews, standard motion, and fallback runs; preserve failed samples and the approved frame budget. Restore temporary device settings after verification.
 
 ## Collaboration and Delivery
 

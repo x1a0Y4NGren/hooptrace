@@ -20,7 +20,7 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 
 > 历史升级提示（`v0.1.0` → `v1.0.0`）：先导出需要保留的资料，再清除旧应用数据后安装 `v1.0.0`。该历史版本不会静默迁移或清空旧数据库。升级 2.0 候选请按下方指南保留现有数据。
 
-当前开发候选为 **`2.0.0+4`，尚未正式发布**。它串起开赛、现场记录、赛后总结和球员成长，并加强替换恢复保护。已公开的正式版仍为上方的 `v1.0.0`；候选版尚缺可用签名配置、同证覆盖升级、远端 CI 和 macOS iOS 无签名构建验收。查看[中英文候选说明与验收记录](docs/release/v2.0.0-candidate.md)及[升级与数据备份指南](docs/release/v2.0.0-upgrade.md)。
+当前开发候选为 **`2.0.0+4`，尚未正式发布**。它串起开赛、现场记录、赛后总结和球员成长，并加强替换恢复保护。最新应用源码 `ec9efae` 已采用 C「独眼球怪」及 Q 弹启动动效，1125 项测试与静态分析通过；完整旅程的 API 24／36 结果保留 `94bb58e` 来源。启动动效的 16.7ms 帧预算尚未通过，完整连续设备录屏及真机流畅度仍待验。候选版还缺正式签名与同证覆盖升级、远端 CI 和 macOS iOS 无签名构建验收。查看[候选验收](docs/release/v2.0.0-candidate.md)、[动效记录](docs/design/brand/entry-motion.md)及[升级指南](docs/release/v2.0.0-upgrade.md)。
 
 ## 先看比赛，不看说明书
 
@@ -64,7 +64,7 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 ## 当前阵容
 
 - 当前正式版：[HoopTrace `v1.0.0`](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v1.0.0)，Android APK 已使用项目正式证书签名发布。
-- 当前开发候选：`2.0.0+4`。数据库仍为 schema 3，JSON 仍为格式 2；本地实现与所列验收已完成，正式签名、同证升级、远端 CI 和 macOS iOS 编译仍未完成，不代表发布就绪。
+- 当前开发候选：`2.0.0+4`，应用源码 `ec9efae`。数据库仍为 schema 3，JSON 仍为格式 2；验收来源与剩余门槛见 [HANDOFF.md](HANDOFF.md)。
 - 当前平台：Android 优先，最低 Android API 24，目标 Android API 36。
 - Android Application ID：`io.github.x1a0y4ngren.hooptrace`。
 - iOS 无签名编译已纳入 CI，但尚未完成真机验收和正式发布。
@@ -146,6 +146,8 @@ Bug、想法、文档改进和代码贡献都欢迎。提交 Issue 或 Pull Requ
 ## 设计与动效资产
 
 HoopTrace `v1.0.0` 使用统一的“黑场编辑部”界面：近黑比赛顶栏、冷白内容面和克制的竞技橙共同维持信息层级，红蓝只负责表达球队与比赛数据。比分、计时和现场操作优先保证快速辨认，不让装饰抢走比赛注意力。
+
+2.0 候选统一使用已审核的 C「独眼球怪」平台图标和启动画面；Flutter 启动层采用原图纹理网格，提供约一秒的 Q 弹跳跃、上半部水波与收尾余波，全程静音。原图与资源来源见[品牌记录](docs/design/brand/README.md)，设计参数、预览及设备验收范围见[启动动效记录](docs/design/brand/entry-motion.md)。
 
 `assets/animations/paint_ball.json` 与 `assets/animations/paint_splash.json` 是为 HoopTrace 原创的、自包含 Lottie JSON 动效，不含外部资源，随应用本地打包并支持离线运行。运行时使用 `lottie 3.3.3`，其 MIT 许可文本记录在 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 

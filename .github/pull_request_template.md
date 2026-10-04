@@ -19,6 +19,7 @@ Choose checks using [CONTRIBUTING.md](../CONTRIBUTING.md#测试要求). Document
 按贡献指南选择验证范围，填写实际执行或复用的命令、结果及适用版本。纯文档修改无需 Flutter 测试或 APK 构建。
 
 - Commands and results / 命令与结果:
+- Evidence source commit, toolchain, build mode, and device / 证据的源码、工具链、构建模式与设备:
 - Visual evidence, when appearance changed / 有视觉变化时的截图:
 - Required checks blocked by the environment, if any / 必要检查的环境阻碍（如有）:
 
