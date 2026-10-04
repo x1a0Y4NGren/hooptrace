@@ -30,6 +30,7 @@
 ## 2.0 候选
 
 - [双语发行说明与逐项验收](release/v2.0.0-candidate.md)
+- [目标分 1～999 与手动输入验收](release/v2.0.0-target-score.md)
 - [升级、兼容与备份契约](release/v2.0.0-upgrade.md)
 - [截图清单](release/screenshots-checklist.md)与[原图来源](release/v2.0.0-screenshots.json)
 - [2.0 设计](superpowers/specs/2026-09-24-hooptrace-v2-design.md)与[实施记录](superpowers/plans/2026-09-24-hooptrace-v2.md)
