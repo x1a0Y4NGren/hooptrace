@@ -2,17 +2,16 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:hooptrace/app/design_system/editorial_motion.dart';
 import 'package:hooptrace/app/design_system/editorial_tokens.dart';
 import 'package:hooptrace/app/entry/entry_creature.dart';
+import 'package:hooptrace/app/entry/entry_brand_image.dart';
 import 'package:hooptrace/app/entry/entry_frame_probe.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
 const hoopTraceEntryOverlayKey = Key('hooptrace-entry-overlay');
 const hoopTraceEntrySceneKey = Key('hooptrace-entry-scene');
 const hoopTraceEntryWaitingKey = Key('hooptrace-entry-waiting');
-const _brandAsset = 'assets/icons/hooptrace-app-icon-foreground.png';
 
 enum EntryMotionMode { standard, reduced, disabled }
 
@@ -202,7 +201,12 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
     final elapsed = _probe == null ? null : (Stopwatch()..start());
     var outcome = 'decoded';
     try {
-      return await (widget.imageLoader ?? _decodeBrandImage)()
+      final load =
+          widget.imageLoader ??
+          () => decodeEntryBrandImage(
+            devicePixelRatio: View.of(context).devicePixelRatio,
+          );
+      return await load()
           .then<ui.Image?>((image) {
             if (!accepting) {
               image.dispose();
@@ -425,6 +429,9 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
                       waitingLabel: !_ready && _showWaitingHint
                           ? widget.waitingLabel
                           : null,
+                      onRenderFallback: _probe == null
+                          ? null
+                          : () => _probe.mark('mesh_fallback'),
                     );
                   },
                 ),
@@ -445,6 +452,7 @@ class HoopTraceEntryFrame extends StatelessWidget {
     this.motionStrength = 1,
     this.opacity,
     this.waitingLabel,
+    this.onRenderFallback,
     super.key,
   }) : assert(progress >= 0 && progress <= 1);
 
@@ -455,6 +463,7 @@ class HoopTraceEntryFrame extends StatelessWidget {
   final double motionStrength;
   final double? opacity;
   final String? waitingLabel;
+  final VoidCallback? onRenderFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -468,6 +477,7 @@ class HoopTraceEntryFrame extends StatelessWidget {
                 image: image!,
                 progress: mode == EntryMotionMode.standard ? progress : 0,
                 motionStrength: motionStrength,
+                onFallback: onRenderFallback,
               ),
       ),
     );
@@ -564,24 +574,12 @@ class _StaticBrand extends StatelessWidget {
     child: Transform.scale(
       scale: .78,
       child: Image.asset(
-        _brandAsset,
+        entryBrandAsset,
         filterQuality: FilterQuality.high,
         errorBuilder: (context, error, stack) => const SizedBox.shrink(),
       ),
     ),
   );
-}
-
-Future<ui.Image> _decodeBrandImage() async {
-  final data = await rootBundle.load(_brandAsset);
-  final codec = await ui.instantiateImageCodec(
-    data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-  );
-  try {
-    return (await codec.getNextFrame()).image;
-  } finally {
-    codec.dispose();
-  }
 }
 
 double _entryOpacity(double progress) {

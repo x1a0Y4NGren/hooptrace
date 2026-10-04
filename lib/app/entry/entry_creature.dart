@@ -20,12 +20,14 @@ class EntryCreature extends StatefulWidget {
     required this.progress,
     this.motionStrength = 1,
     this.verticesBuilder,
+    this.onFallback,
     super.key,
   });
 
   final ui.Image image;
   final double progress;
   final double motionStrength;
+  final VoidCallback? onFallback;
 
   /// Allows a test to reproduce a graphics backend allocation failure.
   @visibleForTesting
@@ -40,6 +42,7 @@ class _EntryCreatureState extends State<EntryCreature> {
   ui.ImageShader? _shader;
   bool _meshFailed = false;
   final _positions = Float32List(EntryCreatureMesh.vertexCount * 2);
+  final _meshPaint = Paint();
 
   @override
   void initState() {
@@ -63,9 +66,11 @@ class _EntryCreatureState extends State<EntryCreature> {
         Float64List.fromList([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
         filterQuality: ui.FilterQuality.high,
       );
+      _meshPaint.shader = _shader;
     } on Object {
       // A renderer without mesh support must still show the original bitmap.
       _meshFailed = true;
+      widget.onFallback?.call();
     }
   }
 
@@ -117,16 +122,13 @@ class _EntryCreatureState extends State<EntryCreature> {
             textureCoordinates: mesh.textureCoordinates,
             indices: mesh.indices,
           );
-      canvas.drawVertices(
-        vertices,
-        BlendMode.srcOver,
-        Paint()..shader = shader,
-      );
+      canvas.drawVertices(vertices, BlendMode.srcOver, _meshPaint);
       return true;
     } on Object {
       // Latch the fallback without a reentrant setState during paint. Later
       // frames continue drawing the static image and do not retry allocation.
       _meshFailed = true;
+      widget.onFallback?.call();
       return false;
     } finally {
       vertices?.dispose();
@@ -186,6 +188,8 @@ class EntryCreatureMesh {
   final _normalizedX = Float32List(vertexCount);
   final _waveWeights = Float32List(vertexCount);
   final _rippleWeights = Float32List(vertexCount);
+  final _columnWaves = Float64List(cells + 1);
+  final _columnRipples = Float64List(cells + 1);
 
   Float32List samplePositions(EntryMotionPose pose, {Float32List? into}) {
     final positions = into ?? Float32List(vertexCount * 2);
@@ -197,17 +201,25 @@ class EntryCreatureMesh {
     // This bump crosses the visible body's width, not the transparent padding.
     final rippleCenter = 0.18 + 0.64 * pose.rippleProgress;
     const rippleRadius = 0.064;
+    // Each column shares its horizontal wave. Preserve double precision and
+    // the original Float32 normalized coordinates while evaluating only once.
+    for (var column = 0; column <= cells; column++) {
+      final x = _normalizedX[column];
+      _columnWaves[column] = pose.waveAmplitude == 0
+          ? 0
+          : pose.waveAmplitude *
+                math.sin(
+                  2 * math.pi * ((x - 0.2) / 0.6 - 2 * pose.waveProgress),
+                );
+      _columnRipples[column] = pose.rippleAmplitude == 0
+          ? 0
+          : -pose.rippleAmplitude *
+                _smoothStep(1 - (x - rippleCenter).abs() / rippleRadius);
+    }
     for (var vertex = 0; vertex < vertexCount; vertex++) {
-      final x = _normalizedX[vertex];
-      final mainWave =
-          pose.waveAmplitude *
-          math.sin(2 * math.pi * ((x - 0.2) / 0.6 - 2 * pose.waveProgress)) *
-          _waveWeights[vertex];
-      final rippleProfile = _smoothStep(
-        1 - (x - rippleCenter).abs() / rippleRadius,
-      );
-      final ripple =
-          -pose.rippleAmplitude * rippleProfile * _rippleWeights[vertex];
+      final column = vertex % (cells + 1);
+      final mainWave = _columnWaves[column] * _waveWeights[vertex];
+      final ripple = _columnRipples[column] * _rippleWeights[vertex];
       final localX =
           (_basePositions[vertex * 2] - center) * scale * pose.scaleX;
       final localY =

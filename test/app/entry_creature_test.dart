@@ -133,6 +133,7 @@ void main() {
       double progress, {
       double strength = 1,
       EntryVerticesBuilder? verticesBuilder,
+      VoidCallback? onFallback,
     }) async {
       await tester.pumpWidget(
         Directionality(
@@ -145,6 +146,7 @@ void main() {
                 progress: progress,
                 motionStrength: strength,
                 verticesBuilder: verticesBuilder,
+                onFallback: onFallback,
               ),
             ),
           ),
@@ -174,6 +176,7 @@ void main() {
     expect(await render(1), orderedEquals(start));
     expect(await render(0.33, strength: 0), orderedEquals(start));
     var failedAllocations = 0;
+    var fallbacks = 0;
     ui.Vertices failAllocation(
       Float32List positions,
       Float32List textureCoordinates,
@@ -184,14 +187,23 @@ void main() {
     }
 
     expect(
-      await render(0.33, verticesBuilder: failAllocation),
+      await render(
+        0.33,
+        verticesBuilder: failAllocation,
+        onFallback: () => fallbacks++,
+      ),
       orderedEquals(start),
     );
     expect(
-      await render(0.48, verticesBuilder: failAllocation),
+      await render(
+        0.48,
+        verticesBuilder: failAllocation,
+        onFallback: () => fallbacks++,
+      ),
       orderedEquals(start),
     );
     expect(failedAllocations, 1);
+    expect(fallbacks, 1);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

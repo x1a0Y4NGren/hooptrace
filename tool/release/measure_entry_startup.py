@@ -4,6 +4,8 @@ Build with --profile --dart-define=HOOPTRACE_ENTRY_PROFILE=true, then install
 that APK on the synthetic Android user before running this tool. This tool
 never installs, uninstalls, clears app data, changes settings, or records video.
 Its only device mutations are force-stop and explicit activity launch.
+Collection is the default; --require-standard and --enforce-budget opt into
+acceptance gates. Gate failures retain every requested run before exit 1.
 """
 
 import argparse
@@ -129,6 +131,43 @@ def aggregate(probes, budget_ms):
     }
 
 
+def evaluate_gates(probes, report, require_standard, enforce_budget, collection_error=None):
+    """Evaluate optional acceptance gates without filtering measurement evidence."""
+    failures = []
+    if collection_error is not None:
+        failures.append({'gate': 'collection', **collection_error})
+    if require_standard:
+        for index, probe in enumerate(probes, 1):
+            playing_phases = list(dict.fromkeys(
+                mark['phase'] for mark in probe['summary']['marks']
+                if mark['phase'].startswith('playing_')
+            ))
+            disqualifying_phases = list(dict.fromkeys(
+                mark['phase'] for mark in probe['summary']['marks']
+                if mark['phase'] in ('skip', 'mesh_fallback')
+            ))
+            if playing_phases != ['playing_standard'] or disqualifying_phases:
+                failure = {
+                    'gate': 'standard_motion', 'run': index, 'playing_phases': playing_phases,
+                }
+                if disqualifying_phases:
+                    failure['disqualifying_phases'] = disqualifying_phases
+                failures.append(failure)
+    if enforce_budget:
+        visual = report['phases'].get('visual', {})
+        for metric in ('build', 'raster'):
+            p95_ms = visual.get(metric, {}).get('p95_ms')
+            if p95_ms is None or p95_ms > report['budget_ms']:
+                failures.append({
+                    'gate': 'visual_budget', 'metric': metric,
+                    'p95_ms': p95_ms, 'budget_ms': report['budget_ms'],
+                })
+    return {
+        'require_standard': require_standard, 'enforce_budget': enforce_budget,
+        'passed': not failures, 'failures': failures,
+    }
+
+
 class Device:
     def __init__(self, args):
         self.args = args
@@ -197,6 +236,8 @@ class Device:
         log = ''
         while time.monotonic() < deadline:
             log = self.run('logcat', '-d', '-v', 'raw', '--pid', str(process_id), '-T', log_start)
+            # Preserve incomplete or invalid probes before parsing can reject them.
+            (self.args.output / f'run-{index:02}.log').write_text(log, encoding='utf-8')
             probe = parse_records(log)
             if probe:
                 probe['launch'] = {
@@ -205,7 +246,7 @@ class Device:
                     'focused_window': focus,
                     'utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 }
-                return probe, '\n'.join(line for line in log.splitlines() if PREFIX in line) + '\n'
+                return probe, log
             if self.processes() != [process_id]:
                 raise RuntimeError('App process exited or changed before the probe finished.')
             time.sleep(.2)  # Bounded condition polling, not a fixed startup delay.
@@ -222,12 +263,17 @@ def main():
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--timeout', type=float, default=30)
     parser.add_argument('--budget-ms', type=float, default=16.7)
+    parser.add_argument('--require-standard', action='store_true',
+                        help='Fail unless every requested run plays standard motion without skip or mesh fallback; all runs are saved.')
+    parser.add_argument('--enforce-budget', action='store_true',
+                        help='Fail when aggregate visible-phase build or raster p95 exceeds --budget-ms, or has no samples.')
     parser.add_argument('--output', type=pathlib.Path, required=True)
     parser.add_argument('--apk', type=pathlib.Path, required=True, help='Installed Profile APK, fingerprinted only; never installed by this tool.')
     parser.add_argument('--source-commit', required=True)
     args = parser.parse_args()
-    if args.runs < 1 or args.timeout <= 0 or args.budget_ms <= 0:
-        parser.error('runs, timeout, and budget must be positive')
+    if (args.runs < 1 or not math.isfinite(args.timeout) or args.timeout <= 0
+            or not math.isfinite(args.budget_ms) or args.budget_ms <= 0):
+        parser.error('runs must be positive; timeout and budget must be finite and positive')
     if args.output.exists() and any(args.output.iterdir()):
         parser.error('output directory must be new or empty; existing evidence is never overwritten')
     with args.apk.open('rb') as apk_file:
@@ -245,18 +291,51 @@ def main():
     }
     (args.output / 'provenance.json').write_text(json.dumps(provenance, indent=2) + '\n', encoding='utf-8')
     probes = []
+    collection_error = None
     for index in range(1, args.runs + 1):
-        probe, log = device.cold_start(index)
+        try:
+            probe, log = device.cold_start(index)
+        except Exception as error:
+            collection_error = {
+                'run': index, 'error_type': type(error).__name__, 'message': str(error),
+            }
+            (args.output / f'run-{index:02}.error.json').write_text(
+                json.dumps(collection_error, indent=2) + '\n', encoding='utf-8',
+            )
+            break
         probes.append(probe)
         (args.output / f'run-{index:02}.json').write_text(json.dumps(probe, indent=2) + '\n', encoding='utf-8')
         (args.output / f'run-{index:02}.log').write_text(log, encoding='utf-8')
         print(f'Run {index}/{args.runs}: PID {probe["launch"]["pid"]}, {len(probe["frames"])} frames', flush=True)
-    device.verify_installed_apk(apk_sha256)
+    if collection_error is None:
+        try:
+            device.verify_installed_apk(apk_sha256)
+        except Exception as error:
+            collection_error = {
+                'stage': 'post_collection_apk_verification',
+                'error_type': type(error).__name__, 'message': str(error),
+            }
+            (args.output / 'collection-error.json').write_text(
+                json.dumps(collection_error, indent=2) + '\n', encoding='utf-8',
+            )
     report = aggregate(probes, args.budget_ms)
     report['provenance'] = provenance
+    report['requested_runs'] = args.runs
+    report['collection_error'] = collection_error
+    report['gates'] = evaluate_gates(
+        probes, report, args.require_standard, args.enforce_budget, collection_error,
+    )
+    report['status'] = (
+        'collection_failed' if collection_error is not None
+        else 'gate_failed' if not report['gates']['passed'] else 'collected'
+    )
     (args.output / 'aggregate.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
     print(json.dumps(report['phases'], indent=2))
+    if not report['gates']['passed']:
+        print(json.dumps(report['gates'], indent=2))
+        return 1
+    return 0
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())
