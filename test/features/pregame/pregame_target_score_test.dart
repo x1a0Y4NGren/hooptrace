@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
@@ -23,6 +25,24 @@ void main() {
     expect(controller.createMatchSetup().targetScore, 999);
     controller.setTargetScore(0);
     expect(controller.createMatchSetup().targetScore, 1);
+  });
+
+  testWidgets('target score is a labelled actionable accessibility button', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await _openSettings(tester);
+      final node = tester.getSemantics(find.bySemanticsLabel('编辑目标分'));
+      final data = node.getSemanticsData();
+      expect(data.value, '11分');
+      expect(data.hasAction(SemanticsAction.tap), isTrue);
+      node.owner!.performAction(node.id, SemanticsAction.tap);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+    } finally {
+      semantics.dispose();
+    }
   });
 
   testWidgets('manual target is selected, confirmed and passed to start', (

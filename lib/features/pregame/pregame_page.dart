@@ -1197,6 +1197,8 @@ class _NumberSetting extends StatelessWidget {
               Expanded(
                 child: Semantics(
                   button: true,
+                  excludeSemantics: true,
+                  onTap: onEdit,
                   label: l10n.pregameEditTargetScore,
                   value: '$value${l10n.pregamePoint}',
                   child: OutlinedButton(
@@ -1205,11 +1207,9 @@ class _NumberSetting extends StatelessWidget {
                       minimumSize: const Size(48, 48),
                     ),
                     onPressed: onEdit,
-                    child: ExcludeSemantics(
-                      child: Text(
-                        '$value${l10n.pregamePoint}',
-                        textAlign: TextAlign.center,
-                      ),
+                    child: Text(
+                      '$value${l10n.pregamePoint}',
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
