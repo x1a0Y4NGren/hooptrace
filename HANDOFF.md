@@ -1,8 +1,16 @@
 # HoopTrace 2.0 候选交接记录
 
-更新：2026-10-05 · 版本 `2.0.0+4` · 最新应用源码 `6d1b6cc068975d0aacfb92d10fb9828803f4e227` · 完整旅程验收检查点 `94bb58e094736dfeaf42e524e308236de876a059`。
+更新：2026-10-05 · 版本 `2.0.0+4` · 最新应用源码 `a51203cceebba5c692c6978d0e37625c31bcbc5e` · 历史完整旅程验收检查点 `94bb58e094736dfeaf42e524e308236de876a059`。
 
-本轮在隔离worktree `C:/Users/48029/.codex/worktrees/hooptrace-v2/hooptrace`、分支 `codex/hooptrace-v2` 完成可执行范围。v2 实施期间，原 `D:/GitHub/hooptrace` 的 24 项既有文档修改完整保留；未push、合并、创建tag或GitHub Release。公开正式版仍为 v1.0.0，**不标记发布就绪**。
+继续在隔离 worktree `C:/Users/48029/.codex/worktrees/hooptrace-v2/hooptrace`、分支 `codex/hooptrace-v2` 执行。原 `D:/GitHub/hooptrace` 的既有文档修改完整保留，当前 27 项逐文件 hash 未变。本轮按明确授权推送候选分支并运行 CI；未合并 main、创建 PR、tag 或 GitHub Release。公开正式版仍为 v1.0.0，**不标记发布就绪**。
+
+## 发布前任务（2026-10-05）
+
+最新源码增加 Profile 准备阶段诊断、按显示尺寸解码和逐列复用水波计算，正式 Logo／48×48 网格／节奏不变。设备验收发现动态无障碍或动画模式切换会丢弃终场确认，已修复并补三项 RED→GREEN 回归。格式、分析及 1157 项全量 Flutter 测试通过，原 Golden 未改变。备份观察工具独立审查的三项问题修复后，Windows Python 45 项与 WSL shell 6 项通过。
+
+独立 API36 使用 NVIDIA 宿主 GPU、Impeller OpenGLES，原模拟器 user10 未动。最终十次 Profile 冷启动为 6 次标准／4 次降级，构建／绘制 p95 为 10.202／55.829ms，**性能门槛仍失败**；完整标准启动到首页的最终连续录屏已取得，录屏不替代帧预算。真实 v1 源码生成的 schema 2 合成库已在 Debug 冷进程升级到 schema 3，原 11 表与审计顺序保留，重启后按正确顺序继续两次撤回。正式 keystore 公开证书与 v1 APK 相同，正式签名配置仍缺失，不能以此 Debug 检查代替同证覆盖升级。
+
+最终候选 CI [37268869963](https://github.com/x1a0Y4NGren/hooptrace/actions/runs/37268869963) 对应 `a51203c`，5/5 作业全部通过；已修复首轮 Android action shell 解析和 Swift nullable registrar 编译错误，API24／36 全部集成、Android fresh 可复现及 macOS iOS 无签名编译均有当前证据。API24 的离线旅程／100与999／重复开始／冷进程撤回和大字体键盘已验证；API36 的实际 JSON／PNG 分享、授权撤销 Worker、重新授权及安全副本替换／回退通过，完整度与混合成长样本按当前结果归档。自然基线于北京时间 2026-10-05 15:01:08 开始，最早 10-06 15:01:08 后方可验收；新 WorkSpec `4e982fc6-7a21-4d4d-bace-ebca8bbd05ad`，观察区间冻结应用操作。当前线程每天 16:00 继续核验（automation `hooptrace`），结果仍 pending；设备／基线路径与恢复临时设置步骤见下方验收。最终 Debug／Profile 的 hash、录屏、原始测量及逐项状态见[本轮验收](docs/release/v2.0.0-pre-release-verification.md)，签名步骤见[同证升级准备](docs/release/v2.0.0-signing-upgrade-verification.md)，自然调度规范见[备份设备观察](docs/release/v2.0.0-backup-device-verification.md)。后续文档提交不改变这些 APK 来源；本轮不进行发行收尾。
 
 ## 目标分编辑（2026-10-05）
 
@@ -50,6 +58,6 @@ Profile 与 Debug 最终构建成功。调试 APK 为 `D:/DevCache/HoopTraceV2Ar
 
 ## 仍需条件
 
-正式keystore存在且公开证书与v1一致，但没有可用签名配置/凭据；私钥与正式同证升级未验证。远端CI无当前通过证据，Windows没有macOS iOS无签名编译条件。它们是发行阻断项，Debug/未签名包不得替代。自然24小时调度、失效授权后台Worker、实体折叠屏及跨runner复现范围仍未验；不扩张已记录模拟器/受控fixture结论。
+正式 keystore 公开证书与 v1 一致，但没有可用签名配置／凭据；正式同证升级及正式包设备验收仍阻断。最终候选远端 CI、两份 fresh Android 可复现与 macOS iOS 无签名编译已通过。启动标准动作十次／16.7ms 绘制预算仍失败；自然 24 小时实际写入待观察，授权失效 Worker 本轮结果见上方新验收。实体折叠屏与跨 runner 复现未纳入本轮已验范围；不扩张模拟器／受控 fixture 结论。
 
 完成剩余门槛后按[发行清单](docs/release/release-checklist.md)复核。后续纯文档提交不改变上面的应用来源；没有新的发布授权。
