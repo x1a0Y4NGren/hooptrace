@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -362,6 +363,29 @@ void main() {
     pending.complete(lateImage);
     await tester.pump();
     expect(lateImage.debugDisposed, isTrue);
+  });
+
+  testWidgets('a stalled loader cannot beat the wall-clock image deadline', (
+    tester,
+  ) async {
+    final lateImage = image.clone();
+    await tester.pumpWidget(
+      harness(
+        imageLoader: () {
+          // Reproduce a UI stall: the source Future wins the callback race,
+          // although the image is already beyond the preparation deadline.
+          sleep(
+            HoopTraceEntryTimeline.imageWait + const Duration(milliseconds: 20),
+          );
+          return Future.value(lateImage);
+        },
+      ),
+    );
+    await _start(tester);
+    expect(_frame(tester).mode, EntryMotionMode.reduced);
+    expect(lateImage.debugDisposed, isTrue);
+    await tester.pumpAndSettle();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
   });
 
   testWidgets(

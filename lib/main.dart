@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hooptrace/app/app_metadata.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
+import 'package:hooptrace/app/entry/entry_diagnostic_binding.dart';
 import 'package:hooptrace/core/data/app_database.dart';
 import 'package:hooptrace/core/data/app_database_provider.dart';
+import 'package:hooptrace/core/diagnostics/startup_diagnostics.dart';
 import 'package:hooptrace/core/export/automatic_backup_scheduler.dart';
 import 'package:hooptrace/core/export/automatic_backup_service.dart';
 import 'package:hooptrace/core/export/device_automatic_backup_storage.dart';
@@ -13,6 +15,10 @@ import 'package:hooptrace/core/export/json_backup_codec.dart';
 import 'package:hooptrace/core/settings/motion_preference_cache.dart';
 
 void main(List<String> arguments) {
+  if (StartupDiagnostics.enabled &&
+      entryAnimationEnabledFromEntrypointArguments(arguments)) {
+    EntryDiagnosticBinding();
+  }
   runApp(
     HoopTraceApp(
       showEntryAnimation: entryAnimationEnabledFromEntrypointArguments(

@@ -107,6 +107,7 @@ class EntryFrameProbe {
   /// probe owns its short flush interval even if the gate is removed.
   void dispose() {
     if (_completion != null) return;
+    StartupDiagnostics.stop();
     _disposed = true;
     _flushTimer?.cancel();
     _unregister();

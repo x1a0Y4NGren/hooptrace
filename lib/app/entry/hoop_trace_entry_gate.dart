@@ -200,7 +200,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
   Future<ui.Image?> _loadImage() async {
     var accepting = true;
     final startedAt = StartupDiagnostics.start();
-    final elapsed = _probe == null ? null : (Stopwatch()..start());
+    final elapsed = Stopwatch()..start();
     var outcome = 'decoded';
     try {
       final load =
@@ -210,7 +210,13 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
           );
       return await StartupDiagnostics.measureSync('image_loader_call', load)
           .then<ui.Image?>((image) {
-            if (!accepting) {
+            // A synchronous loader or UI stall can delay the Timer while the
+            // source Future wins the callback race. Enforce the same deadline
+            // against a monotonic clock before accepting that late image.
+            if (!accepting ||
+                elapsed.elapsed > HoopTraceEntryTimeline.imageWait) {
+              accepting = false;
+              outcome = 'timeout';
               image.dispose();
               return null;
             }
@@ -230,13 +236,11 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
       outcome = 'error';
       return null;
     } finally {
-      if (elapsed != null) {
-        _probe?.preparation(
-          'image',
-          elapsedUs: elapsed.elapsedMicroseconds,
-          outcome: outcome,
-        );
-      }
+      _probe?.preparation(
+        'image',
+        elapsedUs: elapsed.elapsedMicroseconds,
+        outcome: outcome,
+      );
     }
   }
 

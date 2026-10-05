@@ -8,11 +8,12 @@ abstract final class StartupDiagnostics {
       bool.fromEnvironment('HOOPTRACE_ENTRY_PROFILE');
 
   static final _spans = <Map<String, Object>>[];
+  static var _finished = false;
 
-  static int? start() => enabled ? developer.Timeline.now : null;
+  static int? start() => enabled && !_finished ? developer.Timeline.now : null;
 
   static void end(String stage, int? startedAt) {
-    if (startedAt == null) return;
+    if (startedAt == null || _finished) return;
     final endedAt = developer.Timeline.now;
     _spans.add({
       'stage': stage,
@@ -23,7 +24,7 @@ abstract final class StartupDiagnostics {
   }
 
   static T measureSync<T>(String stage, T Function() action) {
-    if (!enabled) return action();
+    if (!enabled || _finished) return action();
     final startedAt = start();
     try {
       return action();
@@ -33,8 +34,14 @@ abstract final class StartupDiagnostics {
   }
 
   static List<Map<String, Object>> takeSpans() {
+    _finished = true;
     final result = List<Map<String, Object>>.of(_spans);
     _spans.clear();
     return result;
+  }
+
+  static void stop() {
+    _finished = true;
+    _spans.clear();
   }
 }

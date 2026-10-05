@@ -31,7 +31,10 @@ Future<ui.Image> decodeEntryBrandImage({
   StartupDiagnostics.end('image_codec', codecStarted);
   try {
     final frameStarted = StartupDiagnostics.start();
-    final frame = await codec.getNextFrame();
+    final frame = await StartupDiagnostics.measureSync(
+      'image_frame_call',
+      codec.getNextFrame,
+    );
     StartupDiagnostics.end('image_frame', frameStarted);
     return frame.image;
   } finally {
