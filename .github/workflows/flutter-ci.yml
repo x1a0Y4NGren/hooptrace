@@ -72,6 +72,7 @@ jobs:
         run: >-
           python3 -m unittest -v
           tool.release.tests.test_measure_entry_startup
+          tool.release.tests.test_compare_entry_startup_runs
           tool.release.tests.test_observe_automatic_backup
           tool.release.tests.test_ci_android_integration
 
