@@ -89,7 +89,6 @@ void main() {
     await language.setPreference(AppLanguagePreference.english);
     await tester.pumpAndSettle();
     expect(_entryGate(tester).startupStatus, EntryStartupStatus.ready);
-    expect(_entryGate(tester).canPrepareChildEarly!(), isTrue);
     expect(tester.state(find.byType(HoopTraceEntryGate)), same(entryState));
     expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
     expect(find.byKey(const Key('home-start-scoring')), findsOneWidget);
@@ -234,39 +233,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(HistoryPage), findsOneWidget);
-    expect(_entryGate(tester).canPrepareChildEarly!(), isFalse);
     expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
-
-  testWidgets('player editor deep link preserves autofocus after entry', (
-    tester,
-  ) async {
-    final database = createTestDatabase();
-    tester.platformDispatcher.defaultRouteNameTestValue = '/players/new';
-    addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
-    await tester.pumpWidget(
-      HoopTraceApp(
-        database: database,
-        initialMotionPreference: MotionPreference.standard,
-        entryPlaybackSession: EntryPlaybackSession(),
-      ),
-    );
-    await _pumpUntil(
-      tester,
-      () => _entryGate(tester).startupStatus == EntryStartupStatus.ready,
-    );
-    expect(_entryGate(tester).canPrepareChildEarly!(), isFalse);
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const Key('player-nickname')), findsNothing);
-    expect(tester.testTextInput.isVisible, isFalse);
-    await tester.pumpAndSettle();
-    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
-    final editable = tester.widget<EditableText>(
-      find.byType(EditableText).first,
-    );
-    expect(editable.focusNode.hasFocus, isTrue);
-    expect(tester.testTextInput.isVisible, isTrue);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

@@ -61,7 +61,6 @@ class HoopTraceEntryGate extends StatefulWidget {
     this.rendererReadyLoader,
     this.presentationReadyLoader,
     this.playbackSession,
-    this.canPrepareChildEarly,
     super.key,
   });
 
@@ -73,10 +72,6 @@ class HoopTraceEntryGate extends StatefulWidget {
   final EntryRendererReadyLoader? rendererReadyLoader;
   final EntryRendererReadyLoader? presentationReadyLoader;
   final EntryPlaybackSession? playbackSession;
-
-  /// Only opt in pages whose mounting has no focus or platform side effects.
-  /// Evaluated when staging, so a changed deep link keeps its normal timing.
-  final bool Function()? canPrepareChildEarly;
 
   @override
   State<HoopTraceEntryGate> createState() => _HoopTraceEntryGateState();
@@ -101,7 +96,6 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
   bool _skipRevealsContent = false;
   bool _showWaitingHint = false;
   bool _firstFrameDeferred = false;
-  bool _presentationCompleted = false;
   double _skipFrom = 0;
   double _skipOpacity = 1;
 
@@ -181,12 +175,10 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
     _probe?.mark('handoff');
     final presented = await _loadPresentationReady();
     if (!mounted || !_visible || _skipping || _performanceDone) return;
-    _presentationCompleted = true;
     if (!presented) {
       _mode = EntryMotionMode.reduced;
       setState(() {});
     }
-    _stageChild();
     // Submit the matching handoff before the first animated vsync.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -357,15 +349,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
   }
 
   void _stageChild() {
-    if (!_ready || _childMounted || _skipping) {
-      return;
-    }
-    // Prepare the read-only home beneath the opaque mark before the jump.
-    // Other routes retain their timing: mounting can focus input, rotate the
-    // screen or open a paused-match panel even while covered by the overlay.
-    if (_controller.value < .76 &&
-        (!_presentationCompleted ||
-            widget.canPrepareChildEarly?.call() != true)) {
+    if (!_ready || _childMounted || _skipping || _controller.value < .76) {
       return;
     }
     setState(() => _childMounted = true);
@@ -497,7 +481,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (_childMounted) RepaintBoundary(child: widget.child),
+        if (_childMounted) widget.child,
         if (_visible)
           Positioned.fill(
             child: BlockSemantics(

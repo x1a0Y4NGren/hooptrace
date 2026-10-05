@@ -167,8 +167,6 @@ class _HoopTraceAppViewState extends ConsumerState<_HoopTraceAppView> {
                 playbackSession:
                     widget.entryPlaybackSession ?? _processEntryPlaybackSession,
                 startupStatus: startupStatus,
-                canPrepareChildEarly: () =>
-                    routerConfig.routeInformationProvider.value.uri.path == '/',
                 waitingLabel: AppLocalizations.of(
                   context,
                 )!.entryPreparingRecords,
