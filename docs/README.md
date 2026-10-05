@@ -31,6 +31,7 @@
 
 - [双语发行说明与逐项验收](release/v2.0.0-candidate.md)
 - [发布前 T1–T4 验收、最终源码与产物](release/v2.0.0-pre-release-verification.md)
+- [取消长期监控后的剩余验收与 D 盘清理](release/v2.0.0-remaining-acceptance.md)
 - [启动性能续验、原生定位与当前 APK](release/v2.0.0-startup-performance.md)
 - [启动性能环境验收、全部对照与复建步骤](release/v2.0.0-startup-lab.md)
 - [原证书核验及真实 v1 升级准备](release/v2.0.0-signing-upgrade-verification.md)
