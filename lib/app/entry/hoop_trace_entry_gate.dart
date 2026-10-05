@@ -497,7 +497,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
     return Stack(
       fit: StackFit.expand,
       children: [
-        if (_childMounted) widget.child,
+        if (_childMounted) RepaintBoundary(child: widget.child),
         if (_visible)
           Positioned.fill(
             child: BlockSemantics(
