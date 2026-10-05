@@ -68,6 +68,13 @@ jobs:
       - name: Run unit and widget tests
         run: flutter test --reporter expanded
 
+      - name: Test startup measurement and backup observation gates
+        run: >-
+          python3 -m unittest -v
+          tool.release.tests.test_measure_entry_startup
+          tool.release.tests.test_observe_automatic_backup
+          tool.release.tests.test_ci_android_integration
+
       - name: Upload golden failure diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -211,13 +218,7 @@ jobs:
           emulator-options: >-
             -no-window -gpu swiftshader_indirect -no-snapshot -noaudio
             -no-boot-anim -camera-back none
-          script: |
-            flutter test integration_test/main_loop_test.dart -d emulator-5554
-            flutter test integration_test/v2_file_recovery_test.dart -d emulator-5554
-            if [ "${{ matrix.api-level }}" = "36" ]; then
-              flutter test integration_test/player_comparison_flow_test.dart -d emulator-5554
-              flutter test integration_test/command_performance_test.dart -d emulator-5554
-            fi
+          script: bash tool/release/run_android_integration_ci.sh ${{ matrix.api-level }}
 
   ios-no-sign:
     name: iOS no-sign compile
