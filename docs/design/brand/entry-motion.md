@@ -27,7 +27,9 @@ Android 初始 Surface 创建／resize 完成后开始图像与偏好准备：�
 
 ## 验证记录
 
-2026-10-05 最新应用源码 `f4ffcea`：原生就绪与展示回执、真实 100ms deadline 和交接闪动修复通过 59 项相关回归、1171 项全量 Flutter、分析及 7 项原生单元测试，原 Golden 无更新。独立 API36／NVIDIA host GPU／Impeller GLES 十次均播放标准动作，585 个可见帧 build／raster p95 为 **3.472／19.686ms**，绘制门槛仍失败。11.025367 秒完整标准启动至首页录屏已检查；最新源码 trace 确认静止首帧与原生移除回执先于动画开始。最终 CI 五项通过，API24 首次安装超时与单项重跑均有原始记录；当前 APK、SHA-256、失败样本与定位见[启动性能续验](../../release/v2.0.0-startup-performance.md)。
+2026-10-05 最新应用源码 `996146f`：首页提前准备／绘制隔离试验未证明收益，最终全部撤回。正式动作及页面时机保持 `f4ffcea` 行为，仅在 Profile 新增 handoff 诊断并将原生退出与可见静止准备纳入 presented 门槛。1171 项全量 Flutter、原 Golden 与分析通过，十次全部标准动作，620帧构建／绘制 p95 **3.287／30.827ms**，绘制仍阻断；3.034056秒标准动作至首页原片已检查。当前源码的 [CI 37332931443](https://github.com/x1a0Y4NGren/hooptrace/actions/runs/37332931443) 首轮五项全部通过：质量、API24／36 集成、两份 fresh 源码未签名 Android 可复现构建和 macOS iOS 无签名编译。完整日志与远端产物 metadata 已保存。 当前包、SHA、原始实验与范围见[启动续验](../../release/v2.0.0-startup-performance.md)。
+
+2026-10-05 前一轮源码 `f4ffcea`：原生就绪与展示回执、真实 100ms deadline 和交接闪动修复通过 59 项相关回归、1171 项全量 Flutter、分析及 7 项原生单元测试，原 Golden 无更新。独立 API36／NVIDIA host GPU／Impeller GLES 十次均播放标准动作，585 个可见帧 build／raster p95 为 **3.472／19.686ms**，绘制门槛仍失败。11.025367 秒完整标准启动至首页录屏已检查；最新源码 trace 确认静止首帧与原生移除回执先于动画开始。最终 CI 五项通过，API24 首次安装超时与单项重跑均有原始记录；当前 APK、SHA-256、失败样本与定位见[启动性能续验](../../release/v2.0.0-startup-performance.md)。
 
 以下 `a51203c` 和更早记录保留原来源，不表示当前包的完成状态。
 

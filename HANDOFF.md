@@ -1,14 +1,16 @@
 # HoopTrace 2.0 候选交接记录
 
-更新：2026-10-05 · 版本 `2.0.0+4` · 最新应用源码 `f4ffcea946647e532b11ce61bb17bc70fcadd636` · 历史完整旅程验收检查点 `94bb58e094736dfeaf42e524e308236de876a059`。
+更新：2026-10-05 · 版本 `2.0.0+4` · 最新应用源码 `996146ff5c57efd5c4920dbb5e2955413af33af2` · 历史完整旅程验收检查点 `94bb58e094736dfeaf42e524e308236de876a059`。
 
 继续在隔离 worktree `C:/Users/48029/.codex/worktrees/hooptrace-v2/hooptrace`、分支 `codex/hooptrace-v2` 执行。原 `D:/GitHub/hooptrace` 的既有文档修改完整保留，当前 27 项逐文件 hash 未变。本轮按明确授权推送候选分支并运行 CI；未合并 main、创建 PR、tag 或 GitHub Release。公开正式版仍为 v1.0.0，**不标记发布就绪**。
 
 ## 启动性能续验（2026-10-05）
 
-本轮继续 T1，新增独立 `emulator-5560`，保留原 main 27 项未提交文档与自然备份观察 `emulator-5556`。通过原生 trace 定位初次 shader 准备阻塞、修复迟到图像绕过 100ms Timer 的竞争，并在 Surface 就绪后读取图像与偏好。录屏另发现 Android 退出淡出遮住跳跃开头，已改为静止首帧提交后等待启动图移除回执，再开始动作；展示超时降级，迟到回执不重播。正式 Logo／网格／轨迹／数据库顺序不变。
+本轮以首页提前挂载和绘制隔离各做十次实验，同一旧包前后绘制 p95 17.761／25.990ms 表明环境波动较大，收益未获证明，两项实验实现全部撤回。最终 `996146f` 相对 `f4ffcea` 仅保留 Profile handoff mark 和更完整的 Python presented 测量；原启动／页面时机、Logo、网格、轨迹、数据库顺序与期限不变。最终本地格式、分析、1171 项全量 Flutter、原 Golden 和 Python 59 项（53通过、6项 POSIX 跳过）通过。
 
-最终源码本地格式、分析、1171 项全量 Flutter、59 项相关动效及 7 项原生单元测试通过。`f4ffcea` 默认合成十次均播放标准动作，585 个可见帧构建／绘制 p95 **3.472／19.686ms**，构建通过、绘制预算仍失败。11.025367 秒完整标准启动至首页录屏已检查，交接闪动修复；Debug 已覆盖安装并通过空比赛文件库冷进程 smoke 与同 PID 返回前台，测试设置恢复。最终 [CI 五项通过](https://github.com/x1a0Y4NGren/hooptrace/actions/runs/37290812914/attempts/2)，API24 安装超时后单项重跑，原失败日志保留；详情、两个 APK／SHA-256 和全部来源见[启动性能续验](docs/release/v2.0.0-startup-performance.md)。自然观察包继续固定 `a51203c`，最早 10-06 15:01:08 后才有 24h 验收资格；没有操作或重置观察设备。
+独立 `emulator-5560` API36／NVIDIA host GPU／Impeller GLES 的最终十次全为标准动作；620 个 presented 帧构建／绘制 p95 **3.287／30.827ms**，原 visual 为 1.641／24.653ms，**绘制仍失败，T1 未完成**。新工具包含原生交接等待与可见静止准备，旧日志兼容原 visual；全部失败样本保留。3.034056 秒完整原片及当前 Debug／Profile 已核验，Debug 空比赛文件库冷进程 smoke／返回前台通过，首次设备读取失败及新目录重试均留证。T1 临时设置和原 foreground user0 已恢复。当前源码的 [CI 37332931443](https://github.com/x1a0Y4NGren/hooptrace/actions/runs/37332931443) 首轮五项全部通过：质量、API24／36 集成、两份 fresh 源码未签名 Android 可复现构建和 macOS iOS 无签名编译。完整日志与远端产物 metadata 已保存。
+
+自然备份 `emulator-5556` 与防休眠进程已停止，最后同 boot 记录停在 10-05 22:32:56，距原基线仅 27110 秒／27109.78 秒；旧区间不能通过。原 `a51203c` APK 来源、基线及中断前后 status 保留，未重启或重置，新的完整区间需要另行授权。详情及原始记录见[启动续验](docs/release/v2.0.0-startup-performance.md)和[备份设备观察](docs/release/v2.0.0-backup-device-verification.md)。下方旧记录保留历史来源，不表示当前观察设备仍在运行。
 
 ## 前一轮发布前任务（a51203c，2026-10-05）
 
@@ -64,6 +66,6 @@ Profile 与 Debug 最终构建成功。调试 APK 为 `D:/DevCache/HoopTraceV2Ar
 
 ## 仍需条件
 
-正式 keystore 公开证书与 v1 一致，但没有可用签名配置／凭据；正式同证升级及正式包设备验收仍阻断。最新 `f4ffcea` 十次标准动作与完整 CI 已通过，16.7ms 绘制预算仍失败。自然 24 小时实际写入仍待观察，授权失效 Worker 及历史完整旅程保持 `a51203c` 的原来源。实体折叠屏与跨 runner 复现未纳入本轮已验范围；不扩张模拟器／受控 fixture 结论。
+正式 keystore 公开证书与 v1 一致，但没有可用签名配置／凭据；正式同证升级及正式包设备验收仍阻断。最新 `996146f` 十次均为标准动作，presented 绘制 p95 30.827ms 超过 16.7ms；最新 CI 五项通过。自然观察区间因设备停止中断，需新完整区间，不能继续按原 10-06 下限判通过。授权失效 Worker 及历史旅程保持 `a51203c` 来源；不扩张模拟器／受控 fixture 结论。
 
 完成剩余门槛后按[发行清单](docs/release/release-checklist.md)复核。后续纯文档提交不改变上面的应用来源；没有新的发布授权。
