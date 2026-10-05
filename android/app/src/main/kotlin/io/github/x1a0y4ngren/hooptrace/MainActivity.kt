@@ -21,6 +21,7 @@ class MainActivity : FlutterActivity() {
     private var entryMotionChannel: MethodChannel? = null
     private var entryRendererChannel: MethodChannel? = null
     private val entrySurfaceReadiness = EntrySurfaceReadiness()
+    private val entryPresentationReadiness = EntrySurfaceReadiness()
     private var entrySurfaceHolder: SurfaceHolder? = null
     private val entrySurfaceCallback = object : SurfaceHolder.Callback {
         override fun surfaceCreated(holder: SurfaceHolder) = Unit
@@ -54,7 +55,15 @@ class MainActivity : FlutterActivity() {
             splashScreen.setOnExitAnimationListener { splash ->
                 splash.remove()
                 updateSystemUiOverlays()
+                entryPresentationReadiness.surfaceReady()
             }
+        }
+    }
+
+    override fun onFlutterUiDisplayed() {
+        super.onFlutterUiDisplayed()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            entryPresentationReadiness.surfaceReady()
         }
     }
 
@@ -131,6 +140,9 @@ class MainActivity : FlutterActivity() {
                     "waitUntilReady" -> entrySurfaceReadiness.waitUntilReady {
                         result.success(it)
                     }
+                    "waitUntilPresented" -> entryPresentationReadiness.waitUntilReady {
+                        result.success(it)
+                    }
                     else -> result.notImplemented()
                 }
             }
@@ -149,6 +161,10 @@ class MainActivity : FlutterActivity() {
         entrySurfaceHolder?.removeCallback(entrySurfaceCallback)
         entrySurfaceHolder = null
         entrySurfaceReadiness.dispose()
+        entryPresentationReadiness.dispose()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.clearOnExitAnimationListener()
+        }
         entryRendererChannel?.setMethodCallHandler(null)
         entryRendererChannel = null
         entryMotionChannel?.setMethodCallHandler(null)

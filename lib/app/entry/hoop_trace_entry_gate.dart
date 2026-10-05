@@ -31,6 +31,7 @@ abstract final class HoopTraceEntryTimeline {
   static const fadeStart = Duration(milliseconds: 860);
   static const imageWait = Duration(milliseconds: 100);
   static const rendererWait = Duration(seconds: 2);
+  static const presentationWait = Duration(seconds: 2);
   static const waitingHint = Duration(seconds: 2);
 }
 
@@ -58,6 +59,7 @@ class HoopTraceEntryGate extends StatefulWidget {
     this.motionPreferenceLoader,
     this.imageLoader,
     this.rendererReadyLoader,
+    this.presentationReadyLoader,
     this.playbackSession,
     super.key,
   });
@@ -68,6 +70,7 @@ class HoopTraceEntryGate extends StatefulWidget {
   final EntryMotionPreferenceLoader? motionPreferenceLoader;
   final EntryImageLoader? imageLoader;
   final EntryRendererReadyLoader? rendererReadyLoader;
+  final EntryRendererReadyLoader? presentationReadyLoader;
   final EntryPlaybackSession? playbackSession;
 
   @override
@@ -167,6 +170,14 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
         : EntryMotionMode.standard;
     setState(() {});
     _releaseFirstFrame();
+    // The first draw lets Android release its splash. Waiting before that draw
+    // would deadlock the handoff; starting before the reply hides the jump.
+    final presented = await _loadPresentationReady();
+    if (!mounted || !_visible || _skipping || _performanceDone) return;
+    if (!presented) {
+      _mode = EntryMotionMode.reduced;
+      setState(() {});
+    }
     // Submit the matching handoff before the first animated vsync.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -176,6 +187,32 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
       });
       WidgetsBinding.instance.scheduleFrame();
     });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  Future<bool> _loadPresentationReady() async {
+    final elapsed = _probe == null ? null : (Stopwatch()..start());
+    var outcome = 'presented';
+    try {
+      await (widget.presentationReadyLoader ?? waitForEntryPresentation)()
+          .timeout(HoopTraceEntryTimeline.presentationWait);
+      return true;
+    } on TimeoutException {
+      outcome = 'timeout';
+    } on MissingPluginException {
+      outcome = 'unavailable';
+    } on Object {
+      outcome = 'error';
+    } finally {
+      if (elapsed != null) {
+        _probe?.preparation(
+          'presentation',
+          elapsedUs: elapsed.elapsedMicroseconds,
+          outcome: outcome,
+        );
+      }
+    }
+    return false;
   }
 
   Future<void> _loadRendererReady() async {

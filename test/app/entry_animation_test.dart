@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_theme.dart';
 import 'package:hooptrace/app/entry/hoop_trace_entry_gate.dart';
+import 'package:hooptrace/app/entry/entry_renderer_ready.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
 void main() {
@@ -28,6 +29,7 @@ void main() {
     EntryMotionPreferenceLoader? preferenceLoader,
     EntryImageLoader? imageLoader,
     EntryRendererReadyLoader? rendererReadyLoader,
+    EntryRendererReadyLoader? presentationReadyLoader,
     EntryPlaybackSession? session,
     MediaQueryData media = const MediaQueryData(size: Size(390, 844)),
     VoidCallback? onChildTap,
@@ -41,6 +43,7 @@ void main() {
         motionPreferenceLoader: preferenceLoader,
         imageLoader: imageLoader ?? () async => image.clone(),
         rendererReadyLoader: rendererReadyLoader ?? () async {},
+        presentationReadyLoader: presentationReadyLoader ?? () async {},
         playbackSession: session,
         child: GestureDetector(
           key: const Key('entry-child'),
@@ -432,6 +435,90 @@ void main() {
     await _start(tester);
     expect(_frame(tester).mode, EntryMotionMode.standard);
     await tester.pumpAndSettle();
+  });
+
+  testWidgets('the native splash must be removed before the jump starts', (
+    tester,
+  ) async {
+    final presented = Completer<bool>();
+    const channel = MethodChannel(
+      'io.github.x1a0y4ngren.hooptrace/entry_renderer',
+    );
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      channel,
+      (_) => presented.future,
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    await tester.pumpWidget(
+      harness(presentationReadyLoader: waitForEntryPresentation),
+    );
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(_frame(tester).progress, 0);
+    presented.complete(true);
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(_frame(tester).progress, greaterThan(0));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('presentation timeout uses reduced motion without replaying', (
+    tester,
+  ) async {
+    final presented = Completer<void>();
+    await tester.pumpWidget(
+      harness(presentationReadyLoader: () => presented.future),
+    );
+    await _start(tester);
+    await tester.pump(HoopTraceEntryTimeline.presentationWait);
+    await _start(tester);
+    expect(_frame(tester).mode, EntryMotionMode.reduced);
+    await tester.pumpAndSettle();
+    presented.complete();
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('terminal startup cancels pending native splash removal', (
+    tester,
+  ) async {
+    final presented = Completer<void>();
+    Future<void> waitForPresentation() => presented.future;
+    await tester.pumpWidget(
+      harness(presentationReadyLoader: waitForPresentation),
+    );
+    await _start(tester);
+    await tester.pumpWidget(
+      harness(
+        status: EntryStartupStatus.failure,
+        presentationReadyLoader: waitForPresentation,
+      ),
+    );
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    presented.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('skip consumes an entry still waiting for the native splash', (
+    tester,
+  ) async {
+    final presented = Completer<void>();
+    await tester.pumpWidget(
+      harness(presentationReadyLoader: () => presented.future),
+    );
+    await _start(tester);
+    await tester.tap(find.byKey(hoopTraceEntrySceneKey));
+    await tester.pumpAndSettle();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    presented.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
   });
 
   testWidgets('terminal startup cancels a pending renderer preparation', (

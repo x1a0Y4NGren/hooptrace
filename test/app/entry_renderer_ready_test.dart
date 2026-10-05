@@ -39,6 +39,24 @@ void main() {
       return false;
     });
     await waitForEntryRenderer();
+    await waitForEntryPresentation();
     expect(calls, 0);
+  });
+
+  test('Android awaits removal of the native splash', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return true;
+    });
+    await waitForEntryPresentation();
+    expect(calls.single.method, 'waitUntilPresented');
+  });
+
+  test('disposing the host cannot grant a presentation reply', () async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    messenger.setMockMethodCallHandler(channel, (_) async => false);
+    await expectLater(waitForEntryPresentation(), throwsStateError);
   });
 }

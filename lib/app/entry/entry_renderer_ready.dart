@@ -13,3 +13,11 @@ Future<void> waitForEntryRenderer() async {
   final ready = await _channel.invokeMethod<bool>('waitUntilReady');
   if (ready != true) throw StateError('Entry surface unavailable');
 }
+
+/// Called only after Flutter submits its matching static first frame. Android
+/// replies after removing the native splash (or first display before API 31).
+Future<void> waitForEntryPresentation() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+  final presented = await _channel.invokeMethod<bool>('waitUntilPresented');
+  if (presented != true) throw StateError('Entry presentation unavailable');
+}
