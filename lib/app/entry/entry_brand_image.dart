@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:hooptrace/app/entry/entry_motion_pose.dart';
+import 'package:hooptrace/core/diagnostics/startup_diagnostics.dart';
 
 const entryBrandAsset = 'assets/icons/hooptrace-app-icon-foreground.png';
 
@@ -10,19 +11,29 @@ const entryBrandAsset = 'assets/icons/hooptrace-app-icon-foreground.png';
 Future<ui.Image> decodeEntryBrandImage({
   required double devicePixelRatio,
 }) async {
-  final data = await rootBundle.load(entryBrandAsset);
+  final assetStarted = StartupDiagnostics.start();
+  final data = await StartupDiagnostics.measureSync(
+    'image_asset_call',
+    () => rootBundle.load(entryBrandAsset),
+  );
+  StartupDiagnostics.end('image_asset', assetStarted);
   final targetWidth =
       (EntryMotionPose.canvasExtent *
               EntryMotionPose.baseScale *
               devicePixelRatio)
           .ceil();
+  final codecStarted = StartupDiagnostics.start();
   final codec = await ui.instantiateImageCodec(
     data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
     targetWidth: targetWidth,
     allowUpscaling: false,
   );
+  StartupDiagnostics.end('image_codec', codecStarted);
   try {
-    return (await codec.getNextFrame()).image;
+    final frameStarted = StartupDiagnostics.start();
+    final frame = await codec.getNextFrame();
+    StartupDiagnostics.end('image_frame', frameStarted);
+    return frame.image;
   } finally {
     codec.dispose();
   }

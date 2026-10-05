@@ -58,7 +58,11 @@ def parse_records(log):
         for metric in ('build_us', 'raster_us', 'total_us'):
             if frame[metric] < 0:
                 raise ValueError('Negative frame duration.')
-    return {'summary': summary, 'frames': frames}
+    result = {'summary': summary, 'frames': frames}
+    preparation_spans = [record for record in records if record.get('type') == 'preparation_span']
+    if preparation_spans:
+        result['preparation_spans'] = preparation_spans
+    return result
 
 
 def percentile(values, fraction):

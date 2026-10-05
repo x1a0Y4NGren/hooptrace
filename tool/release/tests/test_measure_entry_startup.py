@@ -73,6 +73,18 @@ class ProbeParsingTest(unittest.TestCase):
         })
         self.assertEqual(measurement.parse_records(log(records(probe))), probe)
 
+    def test_preserves_preparation_spans_without_changing_frame_samples(self):
+        probe = fixture()
+        spans = [{
+            'type': 'preparation_span', 'stage': 'image_asset',
+            'started_at_us': 110, 'ended_at_us': 180, 'elapsed_us': 70,
+        }]
+        parsed = measurement.parse_records(log([*spans, *records(probe)]))
+        self.assertEqual(parsed['preparation_spans'], spans)
+        self.assertEqual(parsed['frames'], probe['frames'])
+        self.assertEqual(measurement.aggregate([parsed], 16.7),
+                         measurement.aggregate([probe], 16.7))
+
     def test_rejects_missing_duplicate_or_trailing_frame(self):
         probe = fixture()
         for invalid in (

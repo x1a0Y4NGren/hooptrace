@@ -7,6 +7,7 @@ import 'package:hooptrace/app/design_system/editorial_tokens.dart';
 import 'package:hooptrace/app/entry/entry_creature.dart';
 import 'package:hooptrace/app/entry/entry_brand_image.dart';
 import 'package:hooptrace/app/entry/entry_frame_probe.dart';
+import 'package:hooptrace/core/diagnostics/startup_diagnostics.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
 const hoopTraceEntryOverlayKey = Key('hooptrace-entry-overlay');
@@ -198,6 +199,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
 
   Future<ui.Image?> _loadImage() async {
     var accepting = true;
+    final startedAt = StartupDiagnostics.start();
     final elapsed = _probe == null ? null : (Stopwatch()..start());
     var outcome = 'decoded';
     try {
@@ -206,7 +208,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
           () => decodeEntryBrandImage(
             devicePixelRatio: View.of(context).devicePixelRatio,
           );
-      return await load()
+      return await StartupDiagnostics.measureSync('image_loader_call', load)
           .then<ui.Image?>((image) {
             if (!accepting) {
               image.dispose();
@@ -217,6 +219,7 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
           .timeout(
             HoopTraceEntryTimeline.imageWait,
             onTimeout: () {
+              StartupDiagnostics.end('image_timeout_callback', startedAt);
               accepting = false;
               outcome = 'timeout';
               return null;

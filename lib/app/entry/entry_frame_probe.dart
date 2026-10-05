@@ -5,6 +5,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:hooptrace/core/diagnostics/startup_diagnostics.dart';
 
 /// Opt-in diagnostics for a Profile build. No callbacks or output in normal
 /// builds, and no filesystem, database, or network access.
@@ -57,6 +58,9 @@ class EntryFrameProbe {
     final completion = _completion = Completer<void>();
     _flushTimer = Timer(_flushDelay, () {
       _unregister();
+      for (final span in StartupDiagnostics.takeSpans()) {
+        _emit({'type': 'preparation_span', ...span});
+      }
       for (var index = 0; index < _frames.length; index++) {
         final frame = _frames[index];
         _emit({
