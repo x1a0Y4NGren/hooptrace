@@ -31,6 +31,7 @@
 
 - [双语发行说明与逐项验收](release/v2.0.0-candidate.md)
 - [发布前 T1–T4 验收、最终源码与产物](release/v2.0.0-pre-release-verification.md)
+- [启动性能续验、原生定位与当前 APK](release/v2.0.0-startup-performance.md)
 - [原证书核验及真实 v1 升级准备](release/v2.0.0-signing-upgrade-verification.md)
 - [自然备份与授权失效 Worker 观察](release/v2.0.0-backup-device-verification.md)
 - [目标分 1～999 与手动输入验收](release/v2.0.0-target-score.md)
