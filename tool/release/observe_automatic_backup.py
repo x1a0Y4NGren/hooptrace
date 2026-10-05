@@ -8,6 +8,7 @@ All device data and output must stay outside Git checkouts.
 """
 
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import re
@@ -131,13 +132,13 @@ def stable_database(adb, device_path, output):
                 local.with_name(local.name + '-wal').write_bytes(first[1])
             # Writable host scratch permits SQLite to rebuild SHM. Device files
             # never receive a checkpoint, connection, lock or write.
-            with sqlite3.connect(local) as connection:
+            with closing(sqlite3.connect(local)) as connection:
                 connection.execute('PRAGMA query_only=ON')
                 if connection.execute('PRAGMA integrity_check').fetchone()[0] != 'ok':
                     raise ValueError(f'SQLite integrity_check failed: {device_path}')
                 if connection.execute('PRAGMA foreign_key_check').fetchall():
                     raise ValueError(f'SQLite foreign_key_check failed: {device_path}')
-                with sqlite3.connect(output) as destination:
+                with closing(sqlite3.connect(output)) as destination:
                     connection.backup(destination)
         return {'device_path': device_path, 'stable_read_pairs': 2,
                 'base_sha256': sha256(first[0]),
@@ -147,7 +148,7 @@ def stable_database(adb, device_path, output):
 
 
 def app_database_summary(path):
-    with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as connection:
+    with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as connection:
         connection.row_factory = sqlite3.Row
         if connection.execute('PRAGMA user_version').fetchone()[0] != 3:
             raise ValueError('Expected app database schema 3')
@@ -165,7 +166,7 @@ def app_database_summary(path):
 
 
 def work_database_summary(path):
-    with sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True) as connection:
+    with closing(sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True)) as connection:
         connection.row_factory = sqlite3.Row
         rows = connection.execute(
             'SELECT w.* FROM WorkSpec w JOIN WorkName n ON n.work_spec_id=w.id '
@@ -289,15 +290,27 @@ def snapshot(args):
         raise
 
 
-def worker_success(before, after):
+def worker_result_epochs(before, after, result):
     work_id = before['work']['id']
+    epochs = []
     for line in after['worker_log_lines']:
         match = re.match(r'\s*(\d+(?:\.\d+)?)\s', line)
-        if (match and 'Worker result SUCCESS' in line and WORKER in line and
+        if (match and f'Worker result {result}' in line and WORKER in line and
                 re.search(r'\bid=' + re.escape(work_id) + r'[,\s\]]', line) and
                 before['android_epoch_end'] <= float(match[1]) <= after['android_epoch_end']):
-            return float(match[1])
-    return None
+            epochs.append(float(match[1]))
+    return epochs
+
+
+def worker_success(before, after):
+    epochs = worker_result_epochs(before, after, 'SUCCESS')
+    last = after['settings'].get(PREFIX + 'lastBackupAt')
+    if last:
+        backup_at = utc_epoch(last)
+        matching = [epoch for epoch in epochs if 0 <= epoch - backup_at <= 600]
+        if matching:
+            return max(matching)
+    return max(epochs, default=None)
 
 
 def compare_snapshots(before, after, mode, unforced_interval=False,
@@ -385,7 +398,8 @@ def compare_snapshots(before, after, mode, unforced_interval=False,
         if {(item['display_name'], item['sha256']) for item in before['provider_files']} != {
                 (item['display_name'], item['sha256']) for item in after['provider_files']}:
             failures.append('Provider backup files changed under the revoked grant')
-        if after['work'].get('run_attempt_count', 0) > before['work'].get('run_attempt_count', 0):
+        if (after['work'].get('run_attempt_count', 0) > before['work'].get('run_attempt_count', 0)
+                or worker_result_epochs(before, after, 'RETRY')):
             failures.append('Worker retried; missing-authorization skip has not been established')
         if not failures and not pending:
             report['worker_outcome'] = 'inferred_missing_authorization'

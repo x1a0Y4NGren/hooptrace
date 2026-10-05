@@ -4,6 +4,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -65,6 +66,60 @@ def successful_after(before):
 
 
 class ObserverEvidenceTest(unittest.TestCase):
+    def test_stable_host_copy_closes_files_before_windows_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = root / 'original.sqlite'
+            connection = sqlite3.connect(original)
+            try:
+                connection.execute('CREATE TABLE synthetic(value TEXT)')
+                connection.execute("INSERT INTO synthetic VALUES ('fixed-row')")
+                connection.commit()
+            finally:
+                connection.close()
+            payload = original.read_bytes()
+
+            class ReadOnlyAdb:
+                def private(self, filename, optional=False):
+                    return None if filename.endswith('-wal') else payload
+
+            output = root / 'copy.sqlite'
+            observer.stable_database(ReadOnlyAdb(), 'app_flutter/hooptrace.sqlite', output)
+            connection = sqlite3.connect(output)
+            try:
+                self.assertEqual(connection.execute('SELECT value FROM synthetic').fetchall(),
+                                 [('fixed-row',)])
+            finally:
+                connection.close()
+            output.rename(root / 'closed.sqlite')
+            self.assertFalse(any(root.glob('hooptrace-observer-*')))
+
+    def test_natural_early_noop_success_does_not_hide_later_backup(self):
+        before = baseline()
+        after = successful_after(before)
+        after['worker_log_lines'].insert(0, after['worker_log_lines'][-1]
+                                        .replace('186401.000', '100010.000'))
+        report = self.verify(before, after, restored_sha256='c' * 64)
+        self.assertEqual(report['status'], 'passed')
+        self.assertEqual(report['worker_success_epoch'], 186401)
+
+    def test_revoked_retry_then_success_fails_even_when_final_counter_is_zero(self):
+        before = baseline()
+        before['persisted_write_grant'] = False
+        before['settings']['backup.automatic.dirtySince'] = '1970-01-01T00:00:00.000Z'
+        after = copy.deepcopy(before)
+        after.update(android_epoch_start=100100, android_epoch_end=100101,
+                     uptime_seconds=10100)
+        after['work']['period_count'] = 2
+        success = successful_after(before)['worker_log_lines'][-1]
+        after['worker_log_lines'] = [success.replace('186401.000', '100010.000')
+                                    .replace('SUCCESS', 'RETRY'),
+                                    success.replace('186401.000', '100100.000')]
+        report = observer.compare_snapshots(before, after, mode='revoked',
+                                             revocation_verified=True)
+        self.assertEqual(report['status'], 'failed')
+        self.assertIn('retried', ' '.join(report['failures']))
+
     def test_complete_natural_evidence_with_exact_restore_hash_passes(self):
         before = baseline()
         after = successful_after(before)
