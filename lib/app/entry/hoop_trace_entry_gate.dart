@@ -146,13 +146,14 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
   }
 
   Future<void> _prepare({required bool reduced}) async {
-    // Resolve the preference while Android prepares its initial surface.
-    final preference = _loadPreference(reduced);
     await _loadRendererReady();
     if (!mounted || !_visible || _skipping || _performanceDone) {
       _releaseFirstFrame();
       return;
     }
+    // Both platform-backed preparation deadlines start after the surface.
+    // On a first run the uncached preference reply also needs the UI thread.
+    final preference = _loadPreference(reduced);
     final image = await _loadImage();
     final chosen = await preference;
     if (!mounted || !_visible || _skipping || _performanceDone) {

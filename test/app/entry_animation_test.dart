@@ -414,6 +414,26 @@ void main() {
     await tester.pumpAndSettle();
   });
 
+  testWidgets('a first-run preference reply waits on the same native surface', (
+    tester,
+  ) async {
+    final surface = Completer<void>();
+    await tester.pumpWidget(
+      harness(
+        rendererReadyLoader: () => surface.future,
+        preferenceLoader: () async {
+          await surface.future;
+          return MotionPreference.standard;
+        },
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    surface.complete();
+    await _start(tester);
+    expect(_frame(tester).mode, EntryMotionMode.standard);
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('terminal startup cancels a pending renderer preparation', (
     tester,
   ) async {
