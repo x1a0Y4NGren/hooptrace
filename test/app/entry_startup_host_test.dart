@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hooptrace/app/app_providers.dart';
 import 'package:hooptrace/app/entry/hoop_trace_entry_gate.dart';
+import 'package:hooptrace/app/entry/entry_renderer_ready.dart';
 import 'package:hooptrace/app/hoop_trace_app.dart';
 import 'package:hooptrace/app/l10n/app_localizations_zh.dart';
 import 'package:hooptrace/core/settings/language_preferences.dart';
@@ -14,6 +16,17 @@ import 'package:hooptrace/features/history/history_page.dart';
 import '../test_helpers/test_database.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const rendererChannel = MethodChannel(entryRendererChannelName);
+  setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(rendererChannel, (_) async => true);
+  });
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(rendererChannel, null);
+  });
+
   testWidgets('slow startup keeps the brand visible without a spinner', (
     tester,
   ) async {

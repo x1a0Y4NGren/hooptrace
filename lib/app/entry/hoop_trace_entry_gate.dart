@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hooptrace/app/design_system/editorial_motion.dart';
 import 'package:hooptrace/app/design_system/editorial_tokens.dart';
 import 'package:hooptrace/app/entry/entry_creature.dart';
 import 'package:hooptrace/app/entry/entry_brand_image.dart';
 import 'package:hooptrace/app/entry/entry_frame_probe.dart';
+import 'package:hooptrace/app/entry/entry_renderer_ready.dart';
 import 'package:hooptrace/core/diagnostics/startup_diagnostics.dart';
 import 'package:hooptrace/core/settings/scoring_feedback.dart';
 
@@ -28,6 +30,7 @@ abstract final class HoopTraceEntryTimeline {
   static const rippleEnd = Duration(milliseconds: 760);
   static const fadeStart = Duration(milliseconds: 860);
   static const imageWait = Duration(milliseconds: 100);
+  static const rendererWait = Duration(seconds: 2);
   static const waitingHint = Duration(seconds: 2);
 }
 
@@ -35,6 +38,7 @@ typedef EntryMotionPreferenceLoader = Future<MotionPreference> Function();
 
 /// Returns a decoded image owned by the gate. Late results are also disposed.
 typedef EntryImageLoader = Future<ui.Image> Function();
+typedef EntryRendererReadyLoader = Future<void> Function();
 
 class EntryPlaybackSession {
   bool _claimed = false;
@@ -53,6 +57,7 @@ class HoopTraceEntryGate extends StatefulWidget {
     this.waitingLabel,
     this.motionPreferenceLoader,
     this.imageLoader,
+    this.rendererReadyLoader,
     this.playbackSession,
     super.key,
   });
@@ -62,6 +67,7 @@ class HoopTraceEntryGate extends StatefulWidget {
   final String? waitingLabel;
   final EntryMotionPreferenceLoader? motionPreferenceLoader;
   final EntryImageLoader? imageLoader;
+  final EntryRendererReadyLoader? rendererReadyLoader;
   final EntryPlaybackSession? playbackSession;
 
   @override
@@ -140,8 +146,13 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
   }
 
   Future<void> _prepare({required bool reduced}) async {
-    // Start both bounded waits together so preference I/O adds no decode delay.
+    // Resolve the preference while Android prepares its initial surface.
     final preference = _loadPreference(reduced);
+    await _loadRendererReady();
+    if (!mounted || !_visible || _skipping || _performanceDone) {
+      _releaseFirstFrame();
+      return;
+    }
     final image = await _loadImage();
     final chosen = await preference;
     if (!mounted || !_visible || _skipping || _performanceDone) {
@@ -164,6 +175,30 @@ class _HoopTraceEntryGateState extends State<HoopTraceEntryGate>
       });
       WidgetsBinding.instance.scheduleFrame();
     });
+  }
+
+  Future<void> _loadRendererReady() async {
+    final elapsed = _probe == null ? null : (Stopwatch()..start());
+    var outcome = 'ready';
+    try {
+      await (widget.rendererReadyLoader ?? waitForEntryRenderer)().timeout(
+        HoopTraceEntryTimeline.rendererWait,
+        onTimeout: () => outcome = 'timeout',
+      );
+    } on MissingPluginException {
+      // Hosts without this optional bridge retain the bounded image fallback.
+      outcome = 'unavailable';
+    } on Object {
+      outcome = 'error';
+    } finally {
+      if (elapsed != null) {
+        _probe?.preparation(
+          'renderer',
+          elapsedUs: elapsed.elapsedMicroseconds,
+          outcome: outcome,
+        );
+      }
+    }
   }
 
   Future<MotionPreference> _loadPreference(bool reduced) async {

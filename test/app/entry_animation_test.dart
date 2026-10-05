@@ -27,6 +27,7 @@ void main() {
     EntryStartupStatus status = EntryStartupStatus.ready,
     EntryMotionPreferenceLoader? preferenceLoader,
     EntryImageLoader? imageLoader,
+    EntryRendererReadyLoader? rendererReadyLoader,
     EntryPlaybackSession? session,
     MediaQueryData media = const MediaQueryData(size: Size(390, 844)),
     VoidCallback? onChildTap,
@@ -39,6 +40,7 @@ void main() {
         waitingLabel: 'Opening local records…',
         motionPreferenceLoader: preferenceLoader,
         imageLoader: imageLoader ?? () async => image.clone(),
+        rendererReadyLoader: rendererReadyLoader ?? () async {},
         playbackSession: session,
         child: GestureDetector(
           key: const Key('entry-child'),
@@ -384,6 +386,74 @@ void main() {
     await _start(tester);
     expect(_frame(tester).mode, EntryMotionMode.reduced);
     expect(lateImage.debugDisposed, isTrue);
+    await tester.pumpAndSettle();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+  });
+
+  testWidgets('renderer readiness precedes the bounded image preparation', (
+    tester,
+  ) async {
+    final surface = Completer<void>();
+    var imageLoads = 0;
+    await tester.pumpWidget(
+      harness(
+        rendererReadyLoader: () => surface.future,
+        imageLoader: () async {
+          imageLoads++;
+          return image.clone();
+        },
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(imageLoads, 0);
+    expect(_frame(tester).mode, isNull);
+    surface.complete();
+    await _start(tester);
+    expect(imageLoads, 1);
+    expect(_frame(tester).mode, EntryMotionMode.standard);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('terminal startup cancels a pending renderer preparation', (
+    tester,
+  ) async {
+    final surface = Completer<void>();
+    var imageLoads = 0;
+    Future<ui.Image> loadImage() async {
+      imageLoads++;
+      return image.clone();
+    }
+
+    await tester.pumpWidget(
+      harness(
+        rendererReadyLoader: () => surface.future,
+        imageLoader: loadImage,
+      ),
+    );
+    await tester.pumpWidget(
+      harness(
+        status: EntryStartupStatus.failure,
+        rendererReadyLoader: () => surface.future,
+        imageLoader: loadImage,
+      ),
+    );
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    surface.complete();
+    await tester.pump();
+    expect(imageLoads, 0);
+  });
+
+  testWidgets('a missing renderer notification cannot hang startup', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      harness(rendererReadyLoader: () => Completer<void>().future),
+    );
+    await tester.pump(
+      HoopTraceEntryTimeline.rendererWait + const Duration(milliseconds: 1),
+    );
+    await _start(tester);
+    expect(_frame(tester).mode, EntryMotionMode.standard);
     await tester.pumpAndSettle();
     expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
   });
