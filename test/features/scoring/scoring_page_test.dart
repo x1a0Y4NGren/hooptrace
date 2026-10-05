@@ -1370,6 +1370,57 @@ void main() {
     expect(blueScore, 0);
   });
 
+  for (final change in ['accessibility', 'preference', 'disabled']) {
+    testWidgets('finish confirmation survives $change motion changes', (
+      tester,
+    ) async {
+      final controller = ScoringController(matchId: 'finish-motion-$change');
+      await controller.recordScoreCommitted(side: TeamSide.red, points: 2);
+      final preference = ValueNotifier(MotionPreference.standard);
+      final media = ValueNotifier(const MediaQueryData());
+      addTearDown(preference.dispose);
+      addTearDown(media.dispose);
+      var finishCalls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => ValueListenableBuilder<MediaQueryData>(
+            valueListenable: media,
+            builder: (context, data, _) =>
+                MediaQuery(data: data, child: child!),
+          ),
+          home: ScoringPage(
+            controller: controller,
+            motionPreferenceListenable: preference,
+            onFinishWithCoverage: (red, blue, coverage) async {
+              expect(red, 2);
+              expect(blue, 0);
+              expect(coverage, TrackingCoverage.scoresOnly);
+              finishCalls++;
+            },
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('scoring-finish')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('match-controls-finish')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('scoring-finish-confirm')), findsOneWidget);
+      switch (change) {
+        case 'accessibility':
+          media.value = const MediaQueryData(accessibleNavigation: true);
+        case 'preference':
+          preference.value = MotionPreference.reduced;
+        case 'disabled':
+          media.value = const MediaQueryData(disableAnimations: true);
+      }
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('scoring-finish-confirm')));
+      await tester.pumpAndSettle();
+      expect(finishCalls, 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('canceling final confirmation keeps the gray court draft', (
     tester,
   ) async {

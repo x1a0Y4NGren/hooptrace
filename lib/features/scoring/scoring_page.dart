@@ -310,7 +310,9 @@ class _ScoringPageState extends State<ScoringPage>
         ? ScoringMotionMode.reduced
         : ScoringMotionMode.standard;
     if (next == _motionMode) return;
-    _cancelAllMotions();
+    // A visual preference change must not discard a pending match command or
+    // its confirmation. Controller/lifecycle changes still invalidate actions.
+    _cancelAllMotions(invalidateActions: false);
     _motionCoordinator.removeListener(_handleMotionChanged);
     _motionCoordinator.dispose();
     _motionMode = next;
@@ -331,8 +333,8 @@ class _ScoringPageState extends State<ScoringPage>
     if (state != AppLifecycleState.resumed) _cancelAllMotions();
   }
 
-  void _cancelAllMotions() {
-    _actionGeneration++;
+  void _cancelAllMotions({bool invalidateActions = true}) {
+    if (invalidateActions) _actionGeneration++;
     _motionTicker?.stop();
     _motionElapsed = Duration.zero;
     for (final event in [
