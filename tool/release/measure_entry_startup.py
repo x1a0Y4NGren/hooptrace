@@ -6,6 +6,8 @@ never installs, uninstalls, clears app data, changes settings, or records video.
 Its only device mutations are force-stop and explicit activity launch.
 Collection is the default; --require-standard and --enforce-budget opt into
 acceptance gates. Gate failures retain every requested run before exit 1.
+New probes include the native handoff and visible static preparation in the
+presented budget range. Legacy probes retain the motion-only visual range.
 """
 
 import argparse
@@ -52,6 +54,10 @@ def parse_records(log):
         raise ValueError('Probe has no playing phase; startup animation was bypassed.')
     if any(left['time_us'] > right['time_us'] for left, right in zip(marks, marks[1:])):
         raise ValueError('Probe phase timestamps are unordered.')
+    handoffs = [mark for mark in marks if mark['phase'] == 'handoff']
+    playing = next(mark['time_us'] for mark in marks if mark['phase'].startswith('playing_'))
+    if len(handoffs) > 1 or handoffs and handoffs[0]['time_us'] > playing:
+        raise ValueError('Expected at most one handoff mark before motion starts.')
     if not frames:
         raise ValueError('Probe contains no FrameTiming samples.')
     for frame in frames:
@@ -90,10 +96,11 @@ def summarize_frames(frames, budget_ms):
 def phase_frames(probe):
     marks = probe['summary']['marks']
     finish_us = marks[-1]['time_us']
-    result = {'initializing': [], 'visual': [], 'startup': [], 'post_finish': []}
+    result = {'initializing': [], 'visual': [], 'presented': [], 'startup': [], 'post_finish': []}
     for mark in marks[:-1]:
         result.setdefault(mark['phase'], [])
     playing = next(mark['time_us'] for mark in marks if mark['phase'].startswith('playing_'))
+    presented = next((mark['time_us'] for mark in marks if mark['phase'] == 'handoff'), playing)
     for frame in probe['frames']:
         timestamp = frame['build_start_us']
         if timestamp > finish_us:
@@ -102,6 +109,8 @@ def phase_frames(probe):
         result['startup'].append(frame)
         if timestamp >= playing:
             result['visual'].append(frame)
+        if timestamp >= presented:
+            result['presented'].append(frame)
         phase = 'initializing'
         for mark in marks[:-1]:
             if mark['time_us'] <= timestamp:
@@ -113,6 +122,8 @@ def phase_frames(probe):
 def aggregate(probes, budget_ms):
     grouped = {}
     runs = []
+    handoff_runs = sum(any(mark['phase'] == 'handoff' for mark in probe['summary']['marks'])
+                       for probe in probes)
     for probe in probes:
         phases = phase_frames(probe)
         runs.append({name: summarize_frames(frames, budget_ms) for name, frames in phases.items()})
@@ -129,6 +140,9 @@ def aggregate(probes, budget_ms):
         'percentile_method': 'nearest rank over individual frames, no warmup samples discarded',
         'phase_method': 'FrameTiming build_start_us against Timeline.now phase marks; pre-gate first frame is initializing',
         'visual_method': 'first playing mark through finished, including settle/wait/reveal',
+        'presented_method': 'handoff through finished, including native splash wait and visible static preparation; legacy probes without handoff use first playing mark',
+        'presented_runs': {'handoff': handoff_runs, 'legacy_visual_fallback': len(probes) - handoff_runs},
+        'budget_phase': 'presented' if handoff_runs else 'visual',
         'total_note': 'total includes pipeline latency; build and raster separately determine work-budget overruns',
         'phases': {name: summarize_frames(frames, budget_ms) for name, frames in grouped.items()},
         'per_run': runs,
@@ -158,12 +172,13 @@ def evaluate_gates(probes, report, require_standard, enforce_budget, collection_
                     failure['disqualifying_phases'] = disqualifying_phases
                 failures.append(failure)
     if enforce_budget:
-        visual = report['phases'].get('visual', {})
+        budget_phase = report.get('budget_phase', 'visual')
+        measured = report['phases'].get(budget_phase, {})
         for metric in ('build', 'raster'):
-            p95_ms = visual.get(metric, {}).get('p95_ms')
+            p95_ms = measured.get(metric, {}).get('p95_ms')
             if p95_ms is None or p95_ms > report['budget_ms']:
                 failures.append({
-                    'gate': 'visual_budget', 'metric': metric,
+                    'gate': budget_phase + '_budget', 'metric': metric,
                     'p95_ms': p95_ms, 'budget_ms': report['budget_ms'],
                 })
     return {
@@ -270,7 +285,7 @@ def main():
     parser.add_argument('--require-standard', action='store_true',
                         help='Fail unless every requested run plays standard motion without skip or mesh fallback; all runs are saved.')
     parser.add_argument('--enforce-budget', action='store_true',
-                        help='Fail when aggregate visible-phase build or raster p95 exceeds --budget-ms, or has no samples.')
+                        help='Fail when aggregate presented-phase build or raster p95 exceeds --budget-ms, or has no samples; legacy probes without handoff use visual.')
     parser.add_argument('--output', type=pathlib.Path, required=True)
     parser.add_argument('--apk', type=pathlib.Path, required=True, help='Installed Profile APK, fingerprinted only; never installed by this tool.')
     parser.add_argument('--source-commit', required=True)

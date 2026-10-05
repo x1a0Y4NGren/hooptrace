@@ -33,6 +33,7 @@ void main() {
     EntryPlaybackSession? session,
     MediaQueryData media = const MediaQueryData(size: Size(390, 844)),
     VoidCallback? onChildTap,
+    bool prepareChildEarly = false,
   }) => MaterialApp(
     theme: buildHoopTraceTheme(),
     home: MediaQuery(
@@ -45,11 +46,16 @@ void main() {
         rendererReadyLoader: rendererReadyLoader ?? () async {},
         presentationReadyLoader: presentationReadyLoader ?? () async {},
         playbackSession: session,
+        canPrepareChildEarly: () => prepareChildEarly,
         child: GestureDetector(
           key: const Key('entry-child'),
           behavior: HitTestBehavior.opaque,
           onTap: onChildTap,
-          child: const ColoredBox(color: Colors.blue),
+          child: Semantics(
+            label: 'Prepared page action',
+            button: true,
+            child: const ColoredBox(color: Colors.blue),
+          ),
         ),
       ),
     ),
@@ -119,6 +125,77 @@ void main() {
       tester.element(find.byKey(const Key('entry-child'))),
       same(childElement),
     );
+  });
+
+  testWidgets(
+    'safe page prepares after handoff before motion and stays mounted',
+    (tester) async {
+      final surface = Completer<void>();
+      final presented = Completer<void>();
+      await tester.pumpWidget(
+        harness(
+          prepareChildEarly: true,
+          rendererReadyLoader: () => surface.future,
+          presentationReadyLoader: () => presented.future,
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('entry-child')), findsNothing);
+      surface.complete();
+      await _start(tester);
+      expect(find.byKey(const Key('entry-child')), findsNothing);
+      expect(_frame(tester).progress, 0);
+      presented.complete();
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const Key('entry-child')), findsOneWidget);
+      expect(_frame(tester).progress, 0);
+      final element = tester.element(find.byKey(const Key('entry-child')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+      expect(
+        tester.element(find.byKey(const Key('entry-child'))),
+        same(element),
+      );
+    },
+  );
+
+  testWidgets('early preparation waits for database readiness', (tester) async {
+    await tester.pumpWidget(
+      harness(status: EntryStartupStatus.loading, prepareChildEarly: true),
+    );
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.byKey(const Key('entry-child')), findsNothing);
+    await tester.pumpWidget(harness(prepareChildEarly: true));
+    expect(find.byKey(const Key('entry-child')), findsOneWidget);
+    expect(_frame(tester).progress, lessThan(.76));
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsOneWidget);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('prepared page stays inaccessible until smooth skip completes', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    var taps = 0;
+    await tester.pumpWidget(
+      harness(prepareChildEarly: true, onChildTap: () => taps++),
+    );
+    await _start(tester);
+    await tester.pump(const Duration(milliseconds: 330));
+    expect(find.byKey(const Key('entry-child')), findsOneWidget);
+    expect(find.bySemanticsLabel('Prepared page action'), findsNothing);
+    await tester.tap(find.byKey(hoopTraceEntryOverlayKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 121));
+    await tester.pump();
+    expect(find.byKey(hoopTraceEntryOverlayKey), findsNothing);
+    expect(taps, 0);
+    expect(find.bySemanticsLabel('Prepared page action'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('entry-child')));
+    expect(taps, 1);
+    semantics.dispose();
   });
 
   testWidgets('skip during reveal never flashes the opaque mark back', (

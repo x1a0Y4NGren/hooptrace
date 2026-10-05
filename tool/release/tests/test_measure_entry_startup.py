@@ -45,6 +45,12 @@ def fixture():
     }
 
 
+def handoff_fixture():
+    probe = fixture()
+    probe['summary']['marks'].insert(1, {'phase': 'handoff', 'time_us': 150})
+    return probe
+
+
 def records(probe):
     return [*probe['frames'], probe['summary']]
 
@@ -72,6 +78,17 @@ class ProbeParsingTest(unittest.TestCase):
             },
         })
         self.assertEqual(measurement.parse_records(log(records(probe))), probe)
+
+    def test_accepts_handoff_before_motion_and_rejects_late_or_duplicate_handoff(self):
+        probe = handoff_fixture()
+        self.assertEqual(measurement.parse_records(log(records(probe))), probe)
+        late = fixture()
+        late['summary']['marks'].insert(2, {'phase': 'handoff', 'time_us': 250})
+        duplicate = handoff_fixture()
+        duplicate['summary']['marks'].insert(2, {'phase': 'handoff', 'time_us': 180})
+        for invalid in (late, duplicate):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                measurement.parse_records(log(records(invalid)))
 
     def test_preserves_preparation_spans_without_changing_frame_samples(self):
         probe = fixture()
@@ -130,9 +147,27 @@ class FrameSummaryTest(unittest.TestCase):
         expected = {
             'initializing': [0, 1], 'playing_standard': [2], 'settled': [3],
             'reveal': [4, 5], 'startup': [0, 1, 2, 3, 4, 5],
-            'visual': [2, 3, 4, 5], 'post_finish': [6],
+            'visual': [2, 3, 4, 5], 'presented': [2, 3, 4, 5], 'post_finish': [6],
         }
         self.assertEqual({key: [value['index'] for value in values] for key, values in phases.items()}, expected)
+
+    def test_presented_includes_static_preparation_without_changing_visual_or_startup(self):
+        phases = measurement.phase_frames(handoff_fixture())
+        expected = {
+            'initializing': [0], 'handoff': [1], 'playing_standard': [2],
+            'settled': [3], 'reveal': [4, 5], 'startup': [0, 1, 2, 3, 4, 5],
+            'visual': [2, 3, 4, 5], 'presented': [1, 2, 3, 4, 5], 'post_finish': [6],
+        }
+        self.assertEqual({key: [value['index'] for value in values] for key, values in phases.items()}, expected)
+
+    def test_mixed_sources_report_handoff_and_legacy_fallback_explicitly(self):
+        report = measurement.aggregate([handoff_fixture(), fixture()], 16.7)
+        self.assertEqual(report['budget_phase'], 'presented')
+        self.assertEqual(report['presented_runs'], {'handoff': 1, 'legacy_visual_fallback': 1})
+        self.assertEqual(report['phases']['visual']['frame_count'], 8)
+        self.assertEqual(report['phases']['presented']['frame_count'], 9)
+        self.assertEqual(report['phases']['startup']['frame_count'], 12)
+        self.assertIn('legacy', report['presented_method'])
 
     def test_percentiles_and_strict_budget_treat_build_and_raster_separately(self):
         frames = [
@@ -265,6 +300,60 @@ class MeasurementGatesTest(unittest.TestCase):
         self.assertEqual(report['phases']['visual']['build']['p95_ms'], 16.7)
         self.assertEqual(report['phases']['visual']['raster']['p95_ms'], 16.7)
         self.assertEqual(report['phases']['visual']['total']['p95_ms'], 80)
+        self.assertEqual(report['budget_phase'], 'visual')
+        self.assertEqual(report['presented_runs'], {'handoff': 0, 'legacy_visual_fallback': 2})
+
+    def test_slow_static_preparation_fails_presented_budget_and_preserves_every_run(self):
+        for metric in ('build', 'raster'):
+            probe = handoff_fixture()
+            probe['frames'][1][metric + '_us'] = 16701
+            with self.subTest(metric=metric):
+                code, files = self.run_measurement([probe, handoff_fixture()], '--require-standard', '--enforce-budget')
+                self.assertEqual(code, 1)
+                self.assertEqual(set(files), {
+                    'provenance.json', 'aggregate.json', 'run-01.json', 'run-01.log',
+                    'run-02.json', 'run-02.log',
+                })
+                report = json.loads(files['aggregate.json'])
+                self.assertEqual(report['status'], 'gate_failed')
+                self.assertEqual(report['budget_phase'], 'presented')
+                self.assertEqual(report['phases']['visual'][metric]['p95_ms'], 1 if metric == 'build' else 2)
+                self.assertEqual(report['phases']['presented'][metric]['p95_ms'], 16.701)
+                self.assertEqual(report['gates']['failures'], [{
+                    'gate': 'presented_budget', 'metric': metric, 'p95_ms': 16.701, 'budget_ms': 16.7,
+                }])
+                self.assertEqual(json.loads(files['run-01.json'])['frames'], probe['frames'])
+                self.assertEqual(measurement.parse_records(files['run-01.log'])['frames'], probe['frames'])
+
+    def test_handoff_budget_boundary_includes_preparation_and_preserves_motion_range(self):
+        probe = handoff_fixture()
+        probe['frames'][0]['build_us'] = probe['frames'][0]['raster_us'] = 90000
+        probe['frames'][6]['build_us'] = probe['frames'][6]['raster_us'] = 90000
+        for sample in probe['frames'][1:6]:
+            sample['build_us'] = sample['raster_us'] = 16700
+        code, files = self.run_measurement([probe], '--require-standard', '--enforce-budget')
+        self.assertEqual(code, 0)
+        report = json.loads(files['aggregate.json'])
+        self.assertEqual(report['budget_phase'], 'presented')
+        self.assertEqual(report['phases']['presented']['frame_count'], 5)
+        self.assertEqual(report['phases']['presented']['raster']['p95_ms'], 16.7)
+        self.assertEqual(report['phases']['startup']['raster']['max_ms'], 90)
+        self.assertEqual(report['phases']['post_finish']['raster']['max_ms'], 90)
+
+    def test_missing_presented_samples_fail_and_keep_raw_evidence(self):
+        probe = handoff_fixture()
+        probe['frames'] = [frame(0, 50), frame(1, 501)]
+        probe['summary']['frame_count'] = 2
+        code, files = self.run_measurement([probe], '--enforce-budget')
+        self.assertEqual(code, 1)
+        report = json.loads(files['aggregate.json'])
+        self.assertEqual(report['phases']['presented']['frame_count'], 0)
+        self.assertEqual(report['gates']['failures'], [
+            {'gate': 'presented_budget', 'metric': 'build', 'p95_ms': None, 'budget_ms': 16.7},
+            {'gate': 'presented_budget', 'metric': 'raster', 'p95_ms': None, 'budget_ms': 16.7},
+        ])
+        self.assertEqual(json.loads(files['run-01.json'])['frames'], probe['frames'])
+        self.assertEqual(measurement.parse_records(files['run-01.log'])['frames'], probe['frames'])
 
     def test_mixed_reduced_run_fails_after_saving_every_run_and_final_result(self):
         reduced = fixture()
@@ -306,6 +395,21 @@ class MeasurementGatesTest(unittest.TestCase):
         self.assertEqual(report['requested_runs'], 1)
         self.assertEqual(report['runs'], 0)
         self.assertFalse(report['gates']['passed'])
+        self.assertEqual(report['collection_error'], error)
+
+    def test_invalid_handoff_preserves_complete_raw_log_before_collection_failure(self):
+        probe = fixture()
+        probe['summary']['marks'].insert(2, {'phase': 'handoff', 'time_us': 250})
+        raw_log = log(records(probe)) + '\ntrailing device diagnostic\n'
+        code, files = self.run_measurement([probe], '--enforce-budget', incomplete_log=raw_log)
+        self.assertEqual(code, 1)
+        self.assertEqual(files['run-01.log'], raw_log)
+        self.assertNotIn('run-01.json', files)
+        error = json.loads(files['run-01.error.json'])
+        self.assertEqual(error['error_type'], 'ValueError')
+        self.assertIn('handoff', error['message'])
+        report = json.loads(files['aggregate.json'])
+        self.assertEqual(report['status'], 'collection_failed')
         self.assertEqual(report['collection_error'], error)
 
     def test_budget_failure_reports_build_and_raster_independently(self):
