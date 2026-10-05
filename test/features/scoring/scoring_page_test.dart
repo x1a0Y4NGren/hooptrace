@@ -3911,6 +3911,85 @@ void main() {
     });
   });
 
+  for (final mode in [ClockMode.countUp, ClockMode.countdown]) {
+    testWidgets(
+      '${mode.name} clock counts elapsed time once after scoring and re-entry',
+      (tester) async {
+        await withTestDatabase((database) async {
+          final anchor = DateTime.utc(2026, 8, 23, 9);
+          var now = anchor;
+          final service = MatchCommandService(database, now: () => now);
+          final start = await service.start(
+            _startPageCommand(
+              'page-clock-${mode.name}',
+              timerEnabled: true,
+              clockMode: mode,
+              createdAt: anchor,
+              startedAt: anchor,
+            ),
+          );
+          final controller = ScoringController.fromCommittedProjection(
+            start,
+            service,
+            nowUtc: () => now,
+          );
+          now = anchor.add(const Duration(seconds: 30));
+          expect(
+            await controller.recordScoreCommitted(
+              side: TeamSide.blue,
+              points: 2,
+            ),
+            isTrue,
+          );
+          expect(controller.clock!.elapsedSeconds, 30);
+          now = anchor.add(const Duration(seconds: 32));
+          await tester.pumpWidget(
+            MaterialApp(
+              home: ScoringPage(controller: controller, clockNowUtc: () => now),
+            ),
+          );
+          expect(
+            find.text(mode == ClockMode.countUp ? '00:32' : '09:28'),
+            findsOneWidget,
+          );
+
+          await tester.pumpWidget(const SizedBox.shrink());
+          final restored = ScoringController(
+            commandService: service,
+            committedProjection: await service.record(
+              RecordMatchEventCommand(
+                commandId: 'page-clock-${mode.name}-re-entry',
+                matchId: start.match.id,
+                type: EventKind.fieldGoal,
+                side: TeamSide.red,
+                points: 1,
+                outcome: ShotOutcome.made,
+                occurredAt: now,
+              ),
+            ),
+            nowUtc: () => now,
+          );
+          now = anchor.add(const Duration(seconds: 40));
+          await tester.pumpWidget(
+            MaterialApp(
+              home: ScoringPage(controller: restored, clockNowUtc: () => now),
+            ),
+          );
+          expect(
+            find.text(mode == ClockMode.countUp ? '00:40' : '09:20'),
+            findsOneWidget,
+          );
+          final clock = await database.select(database.matchClocks).getSingle();
+          expect(clock.accumulatedSeconds, 0);
+          expect(clock.runningSinceUtc?.toUtc(), anchor);
+          await tester.pumpWidget(const SizedBox.shrink());
+          controller.dispose();
+          restored.dispose();
+        });
+      },
+    );
+  }
+
   testWidgets('scoring page swaps injected controllers when rebuilt', (
     tester,
   ) async {

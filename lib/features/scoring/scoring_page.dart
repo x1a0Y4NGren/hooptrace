@@ -462,7 +462,12 @@ class _ScoringPageState extends State<ScoringPage>
     final persisted = _controller.clock;
     if (!_controller.timerEnabled || persisted == null) return null;
     return ClockEngine().project(
-      state: persisted.normalizedState,
+      // A running projection already includes elapsed time in normalizedState
+      // while retaining its original anchor. Re-project the stored state so
+      // that interval is counted once; preserve terminal recovery/expiry.
+      state: persisted.requiresPersistence
+          ? persisted.normalizedState
+          : persisted.state,
       now: _nowUtc(),
     );
   }
