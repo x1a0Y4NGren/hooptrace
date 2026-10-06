@@ -4,7 +4,23 @@
 
 继续在隔离 worktree `C:/Users/48029/.codex/worktrees/hooptrace-v2/hooptrace`、分支 `codex/hooptrace-v2` 执行。原 `D:/GitHub/hooptrace` 的既有文档修改完整保留，当前 27 项逐文件 hash 未变。本轮按批准计划正常推送候选 `2ef56aa`，包含应用 `480984f` 的完整远端 CI 首次五项全部通过；后续文档提交不改变实际 CI／APK 来源。未合并 main、创建 PR、tag 或 GitHub Release。公开正式版仍为 v1.0.0，**不标记发布就绪**。
 
-## 正式签名续验：口令恢复阻断（2026-10-06）
+## 新正式签名与正式包续验（2026-10-06）
+
+维护者确认没有现有用户，批准保留应用 ID 并创建新正式签名。原证书覆盖升级与旧用户迁移本轮免验，不记录为通过；无需继续找回旧口令。原 keystore 保留且哈希未变。新口令在本机随机生成，DPAPI 当前用户加密与 owner／SYSTEM ACL 保护，C／D 本机加密副本回读通过；它们不等于两份离线备份，发行收尾仍需维护者保存可恢复的离线密钥与口令。
+
+正式 Release 候选已构建：应用源码 `480984fd61dc59dd907e435eb12e7b0eb30e11e4`，干净构建检查点 `462e9d1ec12c7db2bdddd09161ebf29001932ba0`；APK SHA-256 `bdd9df0bac226a334c64616a3bfdc54eebd5633ad467850046e1acd27b4293cf`，新证书 SHA-256 `2820ba06e898be1152d38536492282127e9fb0734a0863bb42db63f8a75611dd`。版本 `2.0.0+4`、schema 3、JSON 2 不变；包名不变、不可调试、min24／target36、allowBackup=false、SQLite 三 ABI 及正式签名已核验。当前应用／工作流输入未改，复用 `2ef56aa`／run `37429173938` 五项 CI，未将未签名可复现结果称为新已签名 APK 字节复现。
+
+仓库外根目录 `D:/DevCache/HoopTraceV2Artifacts/new-signing-480984f-20261006/` 保存正式 APK、公开包检查、截图／XML／文件库及分享证明。API36 已实测 100 分终场、999 最近配置双击仅建一场、零出手完整记录、FG／FT 各 50%、成长三场场均 34.3、真实文件库冷进程恢复及撤回，PNG／JSON／三文件 CSV 系统分享、损坏备份拒绝、安全副本替换／回退、不可用目录不破坏现有数据。
+
+**API24／36 正式包核心验收已完成，保留各项实际范围。** API24 手输目标100、双击仅建一场；计时显示按Android epoch／anchor核对，两次真实冷进程以新PID继续按序撤回。100配置再赛改999后取消不建比赛，最近配置999双击只有一个新ID、零事件、时钟0及默认scoresOnly；零出手显式完整仍无百分比。新档案保留当场姓名，完整复盘返回正确，成长两场场均1.0。系统实际接收PNG 187,680字节、SHA-256 `65228bbb613b91cd0dc7963686c59948cad24e0cbc073d813cb332b0ad90d29c`；两场JSON正常导出并生产恢复。新增第三场后经正常SAF替换3→2，再安全副本回退2→3，11组全字段canonical相同、5事件／31审计插入顺序相同、保留两份副本；派生缓存2→3单独记录。关键证明为 `device-api24/b18-cold-undo-proof.json`、`d38-preset-repeat-proof.json`、`g49-replace-rollback-proof.json`，不复用旧Debug结果冒称正式包通过。
+
+API36实际正式包JSON为434,432字节，SHA-256 `d364fd24a5571c08752479a3f548e00928cab566ef05296a335f54800fb4d8f5`；生产codec恢复12组／154行、再次导出字节一致。精确证明为 `host-validation/formal-two-match-utf8/synthetic-selftest-proof.json`，SHA-256 `7e3b97c04fd4ee8ef9bf4ef4dc84d63027acc0f49029f55fcf0c027d59ab7740`。API24实际JSON为57,556字节、SHA-256 `68a0b26b8181de15f616e3147028f0a2634fc0432a8af85ef9848eb4a8004319`，生产codec恢复12组／46行、完整字段和持久顺序相同，往返字节一致；证明 `host-validation/formal-api24-two-match-utf8/synthetic-selftest-proof.json` SHA-256 `1a7cbdaf6d54a67d0f2b6196c37eb1c9243b53acf1d669b4b5b957d42a56628d`，独立附件哈希检查通过。这些都是设备UI实际导出的合成数据，不冒称自然Worker调度通过。
+
+API24首个模拟器因compositor失败，尚未安装APK；调整原生合成／pipe后在host OpenGL下完成验收，原失败保留。旧系统SAF RecyclerView不响应ADB注入tap，实际改用D-pad选取文件，正常SAF回调和替换事务通过；该环节不声称触控验证通过。API36大字体首次两张screencap全黑，保留原片；后续两张正常、数字键盘Enter提交100成功。200%英文辅助说明行截断，数字及按钮可用，视觉限制保留；旧Vulkan ANR根因未证明消除。
+
+两台临时AVD已按记录恢复设置并通过avdmanager删除，原Pixel保留，ADB无运行设备；结束采样D／C可用55.18／23.34GiB。原key与main27文件哈希不变，814份公开文本未含真实口令值，C／D本机加密副本回读解密一致。完整当前范围见[正式包验收](docs/release/v2.0.0-formal-package-verification.md)和[签名策略](docs/release/v2.0.0-signing-upgrade-verification.md)。本轮新签名与正式包核心验收完成；自然调度未实测且非阻断，无长期监控。发行前仍需可恢复的离线密钥备份、上述限制复核及发行收尾，**不标记发布就绪**；未合并main、创建PR／tag／Release或发布商店。以下各历史检查点保持当时来源和状态，不作为当前设备仍在运行或旧签名仍阻断的说明。
+
+## 历史正式签名续验：口令恢复阻断（2026-10-06，策略调整前）
 
 用户授权继续签名／升级后，重新核验原 keystore 哈希 `7dec9b85729f4594181e51bf71c0d1ffcf9936d3a7465c820c5867719ef3d03c`、正式 v1 APK 和原证书均一致；实际 v1 schema 2 基线再次通过 11 原表／rowid／审计顺序、完整性和外键核验。应用源码仍为 `480984f`，干净构建检查点为 `c7ac5fe`；原 CI `2ef56aa` 的五项成功输入不变。
 
@@ -104,6 +120,6 @@ Profile 与 Debug 最终构建成功。调试 APK 为 `D:/DevCache/HoopTraceV2Ar
 
 ## 仍需条件
 
-正式 keystore 公开证书与 v1 一致，但没有可用签名配置／凭据；正式同证升级及正式包设备验收仍阻断。最新应用源码 `480984f` 本地通过，CI 提交 `2ef56aa` 首次五项全部成功；`996146f` 启动输入未变，10-06 硬件 GPU 环境 40 次标准动作与独立录屏通过，保留该原来源。工具 `89ed822` 的旧 CI 保留原来源，新计时修复已有独立完整 CI 记录。用户已将 24 小时自然调度改为非阻断项并取消长期监控；旧区间仍为中断 pending，应用自动备份功能保留。授权失效 Worker 及历史旅程保持 `a51203c` 来源；不扩张模拟器／受控 fixture 结论。
+新正式签名与 API24／36 核心正式包验收已完成，原证书升级按无现有用户情况免验。发行前还需可恢复的离线密钥／口令备份，复核大字体提示截断、首次黑截图与 API24 系统选择器触控限制；旧 Vulkan ANR 根因未证明消除。实际范围与未完成项见顶部及[正式包记录](docs/release/v2.0.0-formal-package-verification.md)。最新应用 `480984f`、完整 CI `2ef56aa` 五项通过；`996146f` 的 40 次标准启动与录屏保留原模式、设备和输入。自然调度未实测且非阻断、监控已取消，授权失效 Worker 保持 `a51203c` 来源；不扩张模拟器或合成数据结论。
 
 完成剩余门槛后按[发行清单](docs/release/release-checklist.md)复核。后续纯文档提交不改变上面的应用来源；没有新的发布授权。

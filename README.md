@@ -18,9 +18,11 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 
 **[下载 v1.0.0 正式版](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v1.0.0)** · [查看本次更新](docs/release/v1.0.0-release-notes.md) · [隐私说明](PRIVACY.md) · [参与贡献](CONTRIBUTING.md)
 
-> 历史升级提示（`v0.1.0` → `v1.0.0`）：先导出需要保留的资料，再清除旧应用数据后安装 `v1.0.0`。该历史版本不会静默迁移或清空旧数据库。升级 2.0 候选请按下方指南保留现有数据。
+> 历史升级提示（`v0.1.0` → `v1.0.0`）：先导出需要保留的资料，再清除旧应用数据后安装 `v1.0.0`。该历史版本不会静默迁移或清空旧数据库。2.0 候选使用新的正式证书，不能直接覆盖历史 v1；安装与备份边界见下方指南。
 
-当前开发候选为 **`2.0.0+4`，尚未正式发布**。它串起开赛、现场记录、赛后总结和球员成长，并加强替换恢复保护。最新应用源码 `480984f` 修复记分及重进页面后计时显示重复累计，1173 项本地测试及分析通过；实际 JSON 恢复与 API36 Debug 续验见[计时与设备记录](docs/release/v2.0.0-clock-device-verification.md)。C「独眼球怪」、Q 弹启动与目标分 1～999 保留；启动输入未变，可复用原 `996146f` 的 40 次标准动作[环境验收](docs/release/v2.0.0-startup-lab.md)。包含该修复的候选 `2ef56aa` [完整 CI 首次五项通过](docs/release/v2.0.0-final-ci-verification.md)；正式签名、同证升级与正式包验收仍待完成。24 小时自然备份调度未完成实测，已按用户选择列为非阻断项并取消长期监控；自动备份功能保留。查看[发布前验收](docs/release/v2.0.0-pre-release-verification.md)、[候选记录](docs/release/v2.0.0-candidate.md)及[升级指南](docs/release/v2.0.0-upgrade.md)。
+当前开发候选为 **`2.0.0+4`，尚未正式发布**。它串起开赛、现场记录、赛后总结和球员成长，并加强替换恢复保护。最新应用源码 `480984f` 修复计时显示重复累计，1173 项本地测试与分析通过，候选 `2ef56aa` [完整 CI 首次五项通过](docs/release/v2.0.0-final-ci-verification.md)。C「独眼球怪」、Q 弹启动与目标分 1～999 保留；启动输入未变，原 `996146f` 的 40 次标准动作[环境验收](docs/release/v2.0.0-startup-lab.md)保持其来源。
+
+维护者确认没有现有用户后，已使用新正式证书构建 Release 候选，**API24／36 正式包核心流程验收已完成**：目标100／999、真实冷进程撤回、JSON恢复和安全副本替换／回退均有实际证据，系统分享保留各平台的检查范围。API24系统文件选择以D-pad完成，未证明该环节触控可用；200%字体辅助行截断和旧Vulkan ANR根因限制仍记录在案。两台临时AVD已恢复设置并删除。原证书覆盖升级免验、不记通过；发行前仍需可恢复的离线签名备份及发行收尾，**不标记发布就绪**。24小时自然备份调度未实测且非阻断，长期监控已取消，应用自动备份保留。查看[正式包验收](docs/release/v2.0.0-formal-package-verification.md)、[发布前记录](docs/release/v2.0.0-pre-release-verification.md)、[候选记录](docs/release/v2.0.0-candidate.md)及[安装与备份指南](docs/release/v2.0.0-upgrade.md)。
 
 ## 先看比赛，不看说明书
 
@@ -64,7 +66,7 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 ## 当前阵容
 
 - 当前正式版：[HoopTrace `v1.0.0`](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v1.0.0)，Android APK 已使用项目正式证书签名发布。
-- 当前开发候选：`2.0.0+4`，应用源码 `6d1b6cc`。数据库仍为 schema 3，JSON 仍为格式 2；验收来源与剩余门槛见 [HANDOFF.md](HANDOFF.md)。
+- 当前开发候选：`2.0.0+4`，应用源码 `480984f`，正式候选 APK 构建检查点 `462e9d1`。数据库仍为 schema 3，JSON 仍为格式 2；验收来源与剩余门槛见 [HANDOFF.md](HANDOFF.md)。
 - 当前平台：Android 优先，最低 Android API 24，目标 Android API 36。
 - Android Application ID：`io.github.x1a0y4ngren.hooptrace`。
 - iOS 无签名编译已纳入 CI，但尚未完成真机验收和正式发布。
