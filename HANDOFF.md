@@ -4,6 +4,14 @@
 
 继续在隔离 worktree `C:/Users/48029/.codex/worktrees/hooptrace-v2/hooptrace`、分支 `codex/hooptrace-v2` 执行。原 `D:/GitHub/hooptrace` 的既有文档修改完整保留，当前 27 项逐文件 hash 未变。本轮按批准计划正常推送候选 `2ef56aa`，包含应用 `480984f` 的完整远端 CI 首次五项全部通过；后续文档提交不改变实际 CI／APK 来源。未合并 main、创建 PR、tag 或 GitHub Release。公开正式版仍为 v1.0.0，**不标记发布就绪**。
 
+## 正式签名续验：口令恢复阻断（2026-10-06）
+
+用户授权继续签名／升级后，重新核验原 keystore 哈希 `7dec9b85729f4594181e51bf71c0d1ffcf9936d3a7465c820c5867719ef3d03c`、正式 v1 APK 和原证书均一致；实际 v1 schema 2 基线再次通过 11 原表／rowid／审计顺序、完整性和外键核验。应用源码仍为 `480984f`，干净构建检查点为 `c7ac5fe`；原 CI `2ef56aa` 的五项成功输入不变。
+
+已准备仓库外本机遮蔽口令窗口及正式构建入口，10 项合成辅助检查通过；Java Properties 真实解码、特殊字符、配置不覆盖／发布失败、错误口令日志不泄漏均验证。固定 Temurin 17.0.20+8 通过 492 个逐文件校验的硬链接保留在 `C:/Users/48029/.hooptrace/toolchains/temurin-17.0.20+8`，不受 `flutter clean` 删除，没有重复下载或 D 盘二进制复制，也未改全局 Flutter／Java 配置。
+
+用户随后确认两个口令遗忘或不确定。本机窗口已关闭；两工作区、`.hooptrace`、文档同步和项目验收目录的限定配置文件名搜索均无副本。没有生成 `key.properties`、真实私钥探针或正式 v2 APK，未猜测口令、创建替代证书、新建 AVD 或恢复长期监控。现阶段需维护者找回原口令或旧配置；正式签名／同证升级／正式包设备继续阻断，不能将准备工作记作通过。材料在 `D:/DevCache/HoopTraceV2Artifacts/signed-upgrade-480984f-20261006/`，详情见[签名准备记录](docs/release/v2.0.0-signing-upgrade-verification.md)。本次仅提交本地交接文档，不推送或发布。
+
 ## 当前候选完整 CI（2026-10-06）
 
 CI 提交 `2ef56aaad86f55f9d9a95379bf23a0f8ac516e78`、应用源码 `480984f`；[37429173938 / attempt 1](https://github.com/x1a0Y4NGren/hooptrace/actions/runs/37429173938) 首次 **5/5 作业全部成功**：质量／Debug、API24 两项集成、API36 四项集成、两份 fresh 未签名 Android 完整字节一致、macOS iOS 无签名 Release。1173 项远端 Flutter、63 项工具及 16 项 schema 通过；查询历史／复盘为 15.951／48.247ms，API36 命令 p95 为 37.332ms／100 样本，原门槛不变。
