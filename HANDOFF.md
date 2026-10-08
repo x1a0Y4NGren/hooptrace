@@ -1,5 +1,13 @@
 # HoopTrace 2.0 发行交接记录
 
+## 本轮任务收尾（2026-10-09）
+
+维护者确认本轮结束。v2.0.0 的实现、适用验收、正式发行和公开包复验已完成；已知限制继续如实保留，不再等待自然备份观察或建立长期监控。签名 tag 与 APK 来源不变，收尾仅修改交接文档。
+
+两台专用 AVD 已恢复设置并删除，原 Pixel 保留；候选的 `build` 和 `.dart_tool` 已清理，共移除 1,263,860,806 字节的逻辑缓存。204 份未跟踪验证记录、失败图像及本机配置另存为当前 Windows 用户 DPAPI 加密归档，逐项回读哈希通过；17 份 Python 字节码缓存无需保留。归档位于 `C:/Users/48029/.hooptrace/task-archives/hooptrace-v2-20261009/`，清单、恢复说明及工作树归档实际回执保存在 `D:/DevCache/HoopTraceV2Artifacts/release-20261008/task-closeout/`。仓库外的正式 APK、CI 原始日志、失败样本、密钥及可移植签名恢复包继续保留原位置。
+
+远端 main 已包含 v2.0.0；原 `D:/GitHub/hooptrace` 检出仍为旧提交，32 个用户文件保持原哈希，未为同步版本而覆盖或暂存它们。后续维护请以远端 main 或签名 tag 为源码依据，并先核对实际工作区版本。已合并候选工作树按 Codex 可恢复归档处理，具体成功或保留状态以仓库外回执为准。
+
 ## 当前状态：已公开发行（2026-10-09）
 
 [v2.0.0](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v2.0.0) GitHub 正式发行和公开包核验已完成。版本 `2.0.0+4`／schema 3／JSON2；签名 tag、干净正式构建及[五项完整 CI](https://github.com/x1a0Y4NGren/hooptrace/actions/runs/37810025006) 均绑定 `96bb6d15b8b2e62e6139ab9f4a5af69c8d4a8812`，应用源码 `dd1a315894c248acf547aa140a538c9619499829`。后续纯文档提交不改变 APK 来源。
