@@ -16,13 +16,13 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 
 > **永久承诺：HoopTrace 官方项目将始终免费并保持开源。** 官方版本不会加入付费墙、订阅、广告或闭源核心功能。
 
-**[下载 v1.0.0 正式版](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v1.0.0)** · [查看本次更新](docs/release/v1.0.0-release-notes.md) · [隐私说明](PRIVACY.md) · [参与贡献](CONTRIBUTING.md)
+**[下载 v2.0.0](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v2.0.0)** · [查看本次更新](docs/release/v2.0.0-release-notes.md) · [安装与备份](docs/release/v2.0.0-upgrade.md) · [隐私说明](PRIVACY.md) · [参与贡献](CONTRIBUTING.md)
 
-> 历史升级提示（`v0.1.0` → `v1.0.0`）：先导出需要保留的资料，再清除旧应用数据后安装 `v1.0.0`。该历史版本不会静默迁移或清空旧数据库。2.0 候选使用新的正式证书，不能直接覆盖历史 v1；安装与备份边界见下方指南。
+> **安装提示：v2 使用新的正式签名，不能覆盖安装历史 v1。** 若旧版有需要保留的记录，请先导出完整 JSON，确认文件已保存在应用之外，再卸载旧版、安装 v2 并恢复。卸载会移除应用私有数据；CSV 和战报图片不能恢复数据库。
 
-当前开发候选为 **`2.0.0+4`，尚未正式发布**。它串起开赛、现场记录、赛后总结和球员成长，并加强替换恢复保护。最新应用源码 `480984f` 修复计时显示重复累计，1173 项本地测试与分析通过，候选 `2ef56aa` [完整 CI 首次五项通过](docs/release/v2.0.0-final-ci-verification.md)。C「独眼球怪」、Q 弹启动与目标分 1～999 保留；启动输入未变，原 `996146f` 的 40 次标准动作[环境验收](docs/release/v2.0.0-startup-lab.md)保持其来源。
+**HoopTrace 2.0** 串起开赛、现场记录、赛后总结和球员成长：比赛／历史／球员三个主入口，目标分 1～999 可直接输入，赛后可关联档案、再来一场或分享战报。新的 C「独眼球怪」标识配合静音 Q 弹启动，替换恢复与安全副本回退都先保护当前数据。
 
-维护者确认没有现有用户后，已使用新正式证书构建 Release 候选，**API24／36 正式包核心流程验收已完成**：目标100／999、真实冷进程撤回、JSON恢复和安全副本替换／回退均有实际证据，系统分享保留各平台的检查范围。API24系统文件选择以D-pad完成，未证明该环节触控可用；200%字体辅助行截断和旧Vulkan ANR根因限制仍记录在案。两台临时AVD已恢复设置并删除。原证书覆盖升级免验、不记通过；发行前仍需可恢复的离线签名备份及发行收尾，**不标记发布就绪**。24小时自然备份调度未实测且非阻断，长期监控已取消，应用自动备份保留。查看[正式包验收](docs/release/v2.0.0-formal-package-verification.md)、[发布前记录](docs/release/v2.0.0-pre-release-verification.md)、[候选记录](docs/release/v2.0.0-candidate.md)及[安装与备份指南](docs/release/v2.0.0-upgrade.md)。
+本次版本为 **`2.0.0+4`**，数据库 schema 3、JSON 格式 2。实际构建、CI、设备和公开下载核验的提交及文件哈希统一记录在[发行记录](docs/release/v2.0.0-release-record.md)，历史候选证据保留各自来源。自动备份默认关闭；自然 24 小时调度未实测，系统后台任务不保证准点执行。
 
 ## 先看比赛，不看说明书
 
@@ -35,7 +35,7 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
   <img src="fastlane/metadata/android/zh-CN/images/phoneScreenshots/3-summary.png" width="45%" alt="HoopTrace 2.0 赛果与比分走势">
 </p>
 
-<p align="center"><sub>2.0 候选的实际 Android 画面，使用虚构球员与演示对局。截图来自独立对局，拍摄版本与状态见<a href="docs/release/v2.0.0-screenshots.json">截图记录</a>。</sub></p>
+<p align="center"><sub>2.0 的实际 Android 画面，使用虚构球员与演示对局。截图来自独立对局，拍摄版本与状态见<a href="docs/release/v2.0.0-screenshots.json">截图记录</a>。</sub></p>
 
 ## 三步打完一场球
 
@@ -53,7 +53,7 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 - 得分、落点、未中、犯规、罚球、球权、备注和自定义事件均可按提交顺序逐步撤回。
 - 蓝红双方未中点可在当前计分页独立隐藏；白底配球队色叉号，在明暗主题下都能与命中点区分。
 - 罚球、球权、备注和自定义事件收进“更多”，现场界面保持清爽。
-- 自定义球员名称、规则模板、目标分和计时设置。
+- 自定义球员名称、规则模板、1～999 目标分和计时设置；目标分可点击手动输入。
 - 本机比赛历史、事件时间线、投篮图、比分走势、单场统计与球员生涯分析。
 - 比赛、历史、球员三个主入口；最近结果直达总结，球员列表直达生涯。
 - FG% 与 FT% 分开计算；未完整记录出手或分母为零时不显示可信命中率，落点图只表达已记录样本。
@@ -65,8 +65,8 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 
 ## 当前阵容
 
-- 当前正式版：[HoopTrace `v1.0.0`](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v1.0.0)，Android APK 已使用项目正式证书签名发布。
-- 当前开发候选：`2.0.0+4`，应用源码 `480984f`，正式候选 APK 构建检查点 `462e9d1`。数据库仍为 schema 3，JSON 仍为格式 2；验收来源与剩余门槛见 [HANDOFF.md](HANDOFF.md)。
+- 当前版本：[HoopTrace `v2.0.0`](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v2.0.0)，Android `2.0.0+4`，使用新的正式签名；历史 v1 不能直接覆盖安装。
+- 应用源码 `c99a443`，数据库 schema 3、JSON 格式 2；构建与验收来源见[发行记录](docs/release/v2.0.0-release-record.md)。
 - 当前平台：Android 优先，最低 Android API 24，目标 Android API 36。
 - Android Application ID：`io.github.x1a0y4ngren.hooptrace`。
 - iOS 无签名编译已纳入 CI，但尚未完成真机验收和正式发布。

@@ -4,9 +4,9 @@
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-10-08（发行准备，`2.0.0+4`）
+## [2.0.0] - 2026-10-08
 
-当前尚未公开发布，最终发布状态由发行收尾核定。主要变化见[双语发行说明](docs/release/v2.0.0-release-notes.md)，验证范围见[候选记录](docs/release/v2.0.0-candidate.md)，安装与备份步骤见[升级指南](docs/release/v2.0.0-upgrade.md)。
+主要变化见[双语发行说明](docs/release/v2.0.0-release-notes.md)，实际构建和验证见[发行记录](docs/release/v2.0.0-release-record.md)，安装与备份步骤见[升级指南](docs/release/v2.0.0-upgrade.md)。
 
 **Android 签名变更：** 本版使用新正式证书，与历史 v1 证书不同，不能直接覆盖安装。已有安装需先导出并确认收到完整 JSON 备份，再卸载旧版、安装新版并恢复。CSV 与图片不能替代完整备份；卸载会移除应用私有数据库和内部安全副本。
 
@@ -91,7 +91,7 @@
 - 计分页顶部信息在小屏横屏和长球员名称下保持稳定布局。
 - 未配置正式密钥时，上游 Release 构建明确失败；未签名构建必须显式选择。
 
-[Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/v2.0.0...HEAD
 [2.0.0]: docs/release/v2.0.0-release-notes.md
 [1.0.0]: https://github.com/x1a0Y4NGren/hooptrace/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v0.1.0
