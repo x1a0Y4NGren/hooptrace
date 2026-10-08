@@ -1,0 +1,46 @@
+name: V2 Linux golden refresh (temporary)
+
+on:
+  push:
+    branches: [codex/hooptrace-v2]
+    paths: [.github/workflows/v2-golden-refresh.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  goldens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.41.9
+          channel: stable
+          cache: true
+      - name: Bind platform and toolchain evidence
+        run: |
+          mkdir golden-refresh-evidence
+          git rev-parse HEAD > golden-refresh-evidence/source.txt
+          uname -a > golden-refresh-evidence/platform.txt
+          flutter --version --machine > golden-refresh-evidence/flutter.json
+          python3 -c 'import json; v=json.load(open("golden-refresh-evidence/flutter.json")); assert v["frameworkRevision"] == "00b0c91f06209d9e4a41f71b7a512d6eb3b9c694"'
+      - run: flutter pub get --enforce-lockfile
+      - name: Generate actual Linux baselines
+        run: |
+          flutter test --reporter expanded --update-goldens test/features/pregame/pregame_target_score_layout_test.dart
+          flutter test --reporter expanded --update-goldens test/app/editorial_feature_goldens_test.dart --plain-name "editorial golden pregame_target"
+      - name: Verify without updating
+        run: |
+          flutter test --reporter expanded test/features/pregame/pregame_target_score_layout_test.dart
+          flutter test --reporter expanded test/app/editorial_feature_goldens_test.dart --plain-name "editorial golden pregame_target"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: hooptrace-v2-linux-goldens
+          path: |
+            test/features/pregame/goldens/*_linux.png
+            test/app/goldens/pregame_target*_linux.png
+            golden-refresh-evidence/
+          if-no-files-found: error
+          retention-days: 7
