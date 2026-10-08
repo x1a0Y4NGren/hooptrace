@@ -4,7 +4,7 @@
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-10-08
+## [2.0.0] - 2026-10-09
 
 主要变化见[双语发行说明](docs/release/v2.0.0-release-notes.md)，实际构建和验证见[发行记录](docs/release/v2.0.0-release-record.md)，安装与备份步骤见[升级指南](docs/release/v2.0.0-upgrade.md)。
 
