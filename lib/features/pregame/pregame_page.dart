@@ -1284,6 +1284,7 @@ class _TargetScoreDialogState extends State<_TargetScoreDialog> {
     );
     return AlertDialog(
       insetPadding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(minWidth: 320),
       scrollable: true,
       title: Text(l10n.pregameTargetScore),
       content: Form(

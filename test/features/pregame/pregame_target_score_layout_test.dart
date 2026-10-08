@@ -40,6 +40,26 @@ void main() {
           expect(tester.takeException(), isNull);
         },
       );
+      testWidgets(
+        '$language $mode target range remains visible with Android nonlinear 200%',
+        (tester) async {
+          await _openDialog(
+            tester,
+            language: language,
+            brightness: brightness,
+            textScaler: const _AndroidLargeTextScaler(),
+          );
+          final rangeMessage = language == 'en'
+              ? 'Enter a whole number from 1 to 999'
+              : '请输入 1～999 的整数';
+          _expectRangeVisible(tester, rangeMessage);
+          await tester.enterText(find.byKey(_input), '1000');
+          await tester.tap(find.byKey(const Key('pregame-target-confirm')));
+          await tester.pumpAndSettle();
+          _expectRangeVisible(tester, rangeMessage);
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   }
 }
@@ -48,6 +68,7 @@ Future<void> _openDialog(
   WidgetTester tester, {
   required String language,
   required Brightness brightness,
+  TextScaler textScaler = const TextScaler.linear(2),
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(360, 640);
@@ -66,7 +87,7 @@ Future<void> _openDialog(
       supportedLocales: AppLocalizations.supportedLocales,
       theme: buildHoopTraceTheme(brightness: brightness),
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(2)),
+        data: MediaQuery.of(context).copyWith(textScaler: textScaler),
         child: child!,
       ),
       home: const PregamePage(),
@@ -82,6 +103,32 @@ Future<void> _openDialog(
   tester.view.viewInsets = const FakeViewPadding(bottom: 255);
   tester.view.padding = const FakeViewPadding(top: 24);
   await tester.pumpAndSettle();
+}
+
+// Android's 200% system curve grows small text more than headings. A smaller
+// intrinsic heading width must not force the actions onto two rows.
+// Source: android.googlesource.com/platform/frameworks/base/+/refs/heads/main/
+// core/java/android/content/res/FontScaleConverterFactory.java (scaleKey 2f).
+class _AndroidLargeTextScaler extends TextScaler {
+  const _AndroidLargeTextScaler();
+
+  static const _sp = [8.0, 10.0, 12.0, 14.0, 18.0, 20.0, 24.0, 30.0, 100.0];
+  static const _dp = [16.0, 20.0, 24.0, 26.0, 30.0, 34.0, 36.0, 38.0, 100.0];
+
+  @override
+  double get textScaleFactor => 2;
+
+  @override
+  double scale(double fontSize) {
+    if (fontSize <= _sp.first) return fontSize * 2;
+    for (var i = 1; i < _sp.length; i++) {
+      if (fontSize <= _sp[i]) {
+        final fraction = (fontSize - _sp[i - 1]) / (_sp[i] - _sp[i - 1]);
+        return _dp[i - 1] + fraction * (_dp[i] - _dp[i - 1]);
+      }
+    }
+    return fontSize;
+  }
 }
 
 void _expectRangeVisible(WidgetTester tester, String message) {
