@@ -6,8 +6,8 @@ Security fixes are provided for the latest published HoopTrace release. The
 2.0 development branch remains an unpublished candidate; local Debug packages
 and unsigned reproducibility artifacts do not establish a production release.
 
-HoopTrace 仅为最新正式版本提供安全修复；2.0 开发分支仍是未发布候选，
-本地 Debug 包和未签名复现产物不代表正式发行。候选状态与未完成的门槛见
+HoopTrace 仅为最新正式版本提供安全修复；2.0 的实际发行来源与验收范围见发行记录，
+本地 Debug 包和未签名复现产物不代表正式发行。发行状态与已知范围见
 [HANDOFF.md](HANDOFF.md)。
 
 ## Report privately / 私密报告
