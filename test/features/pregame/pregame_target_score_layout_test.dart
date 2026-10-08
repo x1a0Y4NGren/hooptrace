@@ -60,6 +60,26 @@ void main() {
           expect(tester.takeException(), isNull);
         },
       );
+      testWidgets(
+        '$language $mode target range remains visible above a 312dp keyboard',
+        (tester) async {
+          await _openDialog(
+            tester,
+            language: language,
+            brightness: brightness,
+            keyboardInset: 312,
+          );
+          final rangeMessage = language == 'en'
+              ? 'Enter a whole number from 1 to 999'
+              : '请输入 1～999 的整数';
+          _expectRangeVisible(tester, rangeMessage);
+          await tester.enterText(find.byKey(_input), '1000');
+          await tester.tap(find.byKey(const Key('pregame-target-confirm')));
+          await tester.pumpAndSettle();
+          _expectRangeVisible(tester, rangeMessage);
+          expect(tester.takeException(), isNull);
+        },
+      );
     }
   }
 }
@@ -69,6 +89,7 @@ Future<void> _openDialog(
   required String language,
   required Brightness brightness,
   TextScaler textScaler = const TextScaler.linear(2),
+  double keyboardInset = 255,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(360, 640);
@@ -100,7 +121,7 @@ Future<void> _openDialog(
   await tester.ensureVisible(find.byKey(_edit));
   await tester.tap(find.byKey(_edit));
   await tester.pumpAndSettle();
-  tester.view.viewInsets = const FakeViewPadding(bottom: 255);
+  tester.view.viewInsets = FakeViewPadding(bottom: keyboardInset);
   tester.view.padding = const FakeViewPadding(top: 24);
   await tester.pumpAndSettle();
 }
@@ -159,9 +180,13 @@ void _expectRangeVisible(WidgetTester tester, String message) {
   expect(input.top, greaterThanOrEqualTo(viewport.top));
   expect(input.bottom, lessThanOrEqualTo(viewport.bottom));
   for (final action in ['pregame-target-confirm', 'pregame-target-cancel']) {
-    final button = tester.getRect(find.byKey(Key(action)));
-    expect(button.height, greaterThanOrEqualTo(48));
-    expect(button.bottom, lessThanOrEqualTo(640 - 255));
+    final actionFinder = find.byKey(Key(action));
+    final button = tester.getRect(actionFinder);
+    expect(tester.getSize(actionFinder).height, greaterThanOrEqualTo(48));
+    final keyboardTop =
+        (tester.view.physicalSize.height - tester.view.viewInsets.bottom) /
+        tester.view.devicePixelRatio;
+    expect(button.bottom, lessThanOrEqualTo(keyboardTop));
   }
 }
 
