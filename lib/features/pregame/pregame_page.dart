@@ -1283,6 +1283,7 @@ class _TargetScoreDialogState extends State<_TargetScoreDialog> {
       PregameController.maxTargetScore,
     );
     return AlertDialog(
+      insetPadding: const EdgeInsets.all(16),
       scrollable: true,
       title: Text(l10n.pregameTargetScore),
       content: Form(

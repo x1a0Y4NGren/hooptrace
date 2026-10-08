@@ -1,0 +1,126 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hooptrace/app/app_theme.dart';
+import 'package:hooptrace/app/l10n/app_localizations.dart';
+import 'package:hooptrace/features/pregame/pregame_page.dart';
+
+import '../../support/golden_fonts.dart';
+
+const _edit = Key('pregame-target-edit');
+const _input = Key('pregame-target-input');
+
+void main() {
+  setUpAll(loadHoopTraceGoldenFonts);
+
+  for (final language in ['en', 'zh']) {
+    for (final brightness in Brightness.values) {
+      final mode = brightness == Brightness.light ? 'light' : 'dark';
+      testWidgets(
+        '$language $mode target range remains visible at 200% with keyboard',
+        (tester) async {
+          await _openDialog(tester, language: language, brightness: brightness);
+          final rangeMessage = language == 'en'
+              ? 'Enter a whole number from 1 to 999'
+              : '请输入 1～999 的整数';
+          _expectRangeVisible(tester, rangeMessage);
+          await _expectGolden(
+            tester,
+            'target_range_${language}_${mode}_200_keyboard',
+          );
+
+          await tester.enterText(find.byKey(_input), '1000');
+          await tester.tap(find.byKey(const Key('pregame-target-confirm')));
+          await tester.pumpAndSettle();
+          _expectRangeVisible(tester, rangeMessage);
+          await _expectGolden(
+            tester,
+            'target_error_${language}_${mode}_200_keyboard',
+          );
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
+}
+
+Future<void> _openDialog(
+  WidgetTester tester, {
+  required String language,
+  required Brightness brightness,
+}) async {
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(360, 640);
+  tester.view.padding = const FakeViewPadding(top: 24, bottom: 24);
+  tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 24);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetPadding);
+  addTearDown(tester.view.resetViewPadding);
+  addTearDown(tester.view.resetViewInsets);
+  await tester.pumpWidget(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      locale: Locale(language),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      theme: buildHoopTraceTheme(brightness: brightness),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(2)),
+        child: child!,
+      ),
+      home: const PregamePage(),
+    ),
+  );
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.byKey(const Key('pregame-advanced')));
+  await tester.tap(find.byKey(const Key('pregame-advanced')));
+  await tester.pumpAndSettle();
+  await tester.ensureVisible(find.byKey(_edit));
+  await tester.tap(find.byKey(_edit));
+  await tester.pumpAndSettle();
+  tester.view.viewInsets = const FakeViewPadding(bottom: 255);
+  tester.view.padding = const FakeViewPadding(top: 24);
+  await tester.pumpAndSettle();
+}
+
+void _expectRangeVisible(WidgetTester tester, String message) {
+  final range = find.text(message);
+  expect(range, findsOneWidget);
+  final paragraph = tester.renderObject<RenderParagraph>(range);
+  final viewport = tester.getRect(
+    find
+        .ancestor(of: range, matching: find.byType(SingleChildScrollView))
+        .first,
+  );
+  final textBounds = tester.getRect(range);
+  expect(paragraph.didExceedMaxLines, isFalse);
+  expect(
+    textBounds.bottom,
+    lessThanOrEqualTo(viewport.bottom),
+    reason:
+        'The complete target range must fit above the action buttons. '
+        'Text bounds: $textBounds; scroll viewport: $viewport.',
+  );
+  expect(textBounds.top, greaterThanOrEqualTo(viewport.top));
+  final input = tester.getRect(
+    find.descendant(
+      of: find.byKey(_input),
+      matching: find.byType(EditableText),
+    ),
+  );
+  expect(input.top, greaterThanOrEqualTo(viewport.top));
+  expect(input.bottom, lessThanOrEqualTo(viewport.bottom));
+  for (final action in ['pregame-target-confirm', 'pregame-target-cancel']) {
+    final button = tester.getRect(find.byKey(Key(action)));
+    expect(button.height, greaterThanOrEqualTo(48));
+    expect(button.bottom, lessThanOrEqualTo(640 - 255));
+  }
+}
+
+Future<void> _expectGolden(WidgetTester tester, String name) async {
+  await expectLater(
+    find.byType(MaterialApp),
+    matchesGoldenFile(hoopTraceGoldenFile(name)),
+  );
+}
