@@ -4,9 +4,11 @@
 
 ## [Unreleased]
 
-## [2.0.0] - 候选版本（`2.0.0+4`，未发布）
+## [2.0.0] - 2026-10-08（发行准备，`2.0.0+4`）
 
-发行、升级与待验项目见[候选记录](docs/release/v2.0.0-candidate.md)和[升级指南](docs/release/v2.0.0-upgrade.md)。正式发布版本仍为 `v1.0.0`。
+当前尚未公开发布，最终发布状态由发行收尾核定。主要变化见[双语发行说明](docs/release/v2.0.0-release-notes.md)，验证范围见[候选记录](docs/release/v2.0.0-candidate.md)，安装与备份步骤见[升级指南](docs/release/v2.0.0-upgrade.md)。
+
+**Android 签名变更：** 本版使用新正式证书，与历史 v1 证书不同，不能直接覆盖安装。已有安装需先导出并确认收到完整 JSON 备份，再卸载旧版、安装新版并恢复。CSV 与图片不能替代完整备份；卸载会移除应用私有数据库和内部安全副本。
 
 ### Added
 
@@ -42,7 +44,6 @@
 - 动态无障碍或动画模式改变时保留正在确认的终场操作，避免点击确认后比赛仍未结束。
 - 修复 Android 集成 CI 的多行条件脚本与 iOS 启动偏好通道的可空 registrar 编译错误。
 - 复盘总览统一按已记录投篮出手计算确认落点覆盖，筛选不改变全场值；大字体下分析标题、关键回合和比分走势可读，走势保持按需渲染；竖屏按屏幕方向布局，避免英文大字体被挤成两列。
-
 - 分享报告按内容高度生成，完整显示全部指标、记录范围及长名称；小横屏和大字体下分享与取消操作保持可用。
 - 启动内置规则写入前修复旧备份触发器，解决启用自动备份后冷启动的 SQLite 重复键错误，保留数据库、授权目录和备份配置。
 - 替换恢复前不再依赖系统分享保护旧数据；安全副本失败会阻断替换，SQLite 写预留覆盖采集、文件保存及恢复事务，阻止并发业务写入。
@@ -90,6 +91,6 @@
 - 未配置正式密钥时，上游 Release 构建明确失败；未签名构建必须显式选择。
 
 [Unreleased]: https://github.com/x1a0Y4NGren/hooptrace/compare/v1.0.0...HEAD
-[2.0.0]: docs/release/v2.0.0-candidate.md
+[2.0.0]: docs/release/v2.0.0-release-notes.md
 [1.0.0]: https://github.com/x1a0Y4NGren/hooptrace/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v0.1.0

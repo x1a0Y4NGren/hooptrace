@@ -1,11 +1,13 @@
-HoopTrace is an offline scoring, replay, and player-growth tool for one-on-one basketball. This metadata describes the 2.0.0 candidate; it is not a published release.
+HoopTrace is an offline app for one-on-one basketball. Start quickly, record on court, understand your results, and build a player history.
 
-Start with temporary names, existing profiles, or a new player. Reuse the last setup, swap sides, review the rules, and choose whether you will mainly keep score or record every shot. The landscape workspace keeps points, misses, fouls, locations, and undo close at hand, with save status, retry feedback, and a skippable guide.
+Match, History, and Players tabs retain your browsing state. Start with temporary names, existing profiles, or a new player. Reuse the last setup, swap sides, and review the rules. Tap the target score to enter an integer from 1 to 999. Choose whether you will mainly keep score or record every shot; both use the same landscape workspace, with points, misses, fouls, locations, undo, save status, retry feedback, and a skippable guide.
 
-Confirm the final score and recording scope, then open a result summary, full replay, or share report. Link a temporary participant to a profile or start a fresh rematch. Player careers and comparisons show recorded evidence: field-goal and free-throw percentages use separate denominators, and incomplete or zero-attempt samples show no percentage.
+Confirm the final score and recording scope, then open a result summary, full replay, or share report. Link a temporary participant to a profile while keeping their match name, or start a fresh rematch. Player careers and comparisons show recorded evidence: field-goal and free-throw percentages use separate denominators, and incomplete or zero-attempt samples show no percentage. Growth charts, two-match comparisons, and 7/30/90-day windows help you see changes over time.
 
 Export complete JSON, readable CSV, or a replay image. Replacement and rollback require a verified private safety copy; active matches block replacement. The two latest valid copies are normally retained. Export and import share a 32 MiB, 100,000-rows-per-table, 200,000-total-row capacity contract. Private copies do not replace an external backup.
 
 All records stay on the device by default. There is no account, cloud sync, advertising, analytics, tracking, or personal-data upload. Optional automatic backup is off by default and writes only to a user-approved folder. The official HoopTrace project remains permanently free and open source under the MIT License.
 
-Simplified Chinese and English, system/light/dark themes, large text, and adaptive layouts are supported. Android is the candidate validation platform; iOS is not formally released. Official signing, same-certificate upgrade, remote CI, and macOS iOS build acceptance remain pending.
+The black, white, and orange cyclops basketball icon has a silent elastic launch bounce with a wave and a brief final ripple. Skip it or use reduced/disabled motion. Simplified Chinese and English, system/light/dark themes, system font settings, and adaptive layouts are available.
+
+Android is the current release platform; iOS is not formally released. Version 2.0 uses a new certificate and cannot update the historical v1 package in place. To retain old records, export a complete JSON backup and confirm it is saved, then uninstall v1, install v2, and restore. Uninstalling deletes private app data; internal safety copies do not replace an external JSON backup.

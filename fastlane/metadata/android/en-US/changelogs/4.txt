@@ -1,5 +1,6 @@
-2.0.0 candidate, not yet released.
-New cyclops basketball icon and bounce intro. Match, History and Players tabs; quick setup; save feedback and guide; summaries, profile linking and rematches.
-Separate FG%/FT%, honest incomplete samples and 13-column player CSV.
-Verified private safety copies before replacement or rollback; export/import share capacity limits.
-Schema 3 and JSON format 2 retained. Signing, same-certificate upgrade and final platform acceptance remain pending.
+Enter target scores from 1 to 999. Fixed repeated clock accumulation.
+Cyclops icon with a silent elastic bounce and wave.
+Match/History/Players tabs, quick setup, save feedback, summaries, profile linking, growth comparisons and rematches.
+Separate FG%/FT%; honest incomplete samples. Verified safety copies before recovery.
+JSON format 2/schema 3; format 1/schema 2 supported.
+New certificate: export and save full JSON, uninstall historical v1, install v2, then restore.

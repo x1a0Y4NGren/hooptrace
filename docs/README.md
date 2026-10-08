@@ -29,6 +29,8 @@
 
 ## 2.0 候选
 
+- [本次 GitHub 发行执行、签名恢复与公开产物核验](release/v2.0.0-release-record.md)
+- [面向用户的双语 2.0 发行说明](release/v2.0.0-release-notes.md)
 - [双语发行说明与逐项验收](release/v2.0.0-candidate.md)
 - [发布前 T1–T4 验收、最终源码与产物](release/v2.0.0-pre-release-verification.md)
 - [取消长期监控后的剩余验收与 D 盘清理](release/v2.0.0-remaining-acceptance.md)
