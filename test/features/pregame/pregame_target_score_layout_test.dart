@@ -179,6 +179,30 @@ void _expectRangeVisible(WidgetTester tester, String message) {
   );
   expect(input.top, greaterThanOrEqualTo(viewport.top));
   expect(input.bottom, lessThanOrEqualTo(viewport.bottom));
+  final label = find.descendant(
+    of: find.byKey(_input),
+    matching: find.text(message.startsWith('Enter') ? 'Target score' : '目标分'),
+  );
+  final labelRender = tester.renderObject<RenderParagraph>(label);
+  final labelBounds = MatrixUtils.transformRect(
+    labelRender.getTransformTo(null),
+    labelRender.paintBounds,
+  );
+  final surface = tester.getRect(
+    find.descendant(
+      of: find.byType(AlertDialog),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is Material && widget.type == MaterialType.card,
+      ),
+    ),
+  );
+  expect(
+    labelBounds.top,
+    greaterThanOrEqualTo(surface.top),
+    reason:
+        'The floating label must stay within the dialog surface. '
+        'Label bounds: $labelBounds; surface: $surface.',
+  );
   for (final action in ['pregame-target-confirm', 'pregame-target-cancel']) {
     final actionFinder = find.byKey(Key(action));
     final button = tester.getRect(actionFinder);

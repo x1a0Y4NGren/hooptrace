@@ -1287,32 +1287,35 @@ class _TargetScoreDialogState extends State<_TargetScoreDialog> {
       constraints: const BoxConstraints(minWidth: 320),
       scrollable: true,
       semanticLabel: l10n.pregameTargetScore,
-      content: Form(
-        key: _formKey,
-        child: TextFormField(
-          key: const Key('pregame-target-input'),
-          controller: _inputController,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            labelText: l10n.pregameTargetScore,
-            helperText: rangeMessage,
-            helperMaxLines: 3,
-            errorMaxLines: 3,
+      content: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: Form(
+          key: _formKey,
+          child: TextFormField(
+            key: const Key('pregame-target-input'),
+            controller: _inputController,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: l10n.pregameTargetScore,
+              helperText: rangeMessage,
+              helperMaxLines: 3,
+              errorMaxLines: 3,
+            ),
+            validator: (text) {
+              final input = (text ?? '').trim();
+              final value = int.tryParse(input);
+              if (!RegExp(r'^[0-9]+$').hasMatch(input) ||
+                  value == null ||
+                  value < PregameController.minTargetScore ||
+                  value > PregameController.maxTargetScore) {
+                return rangeMessage;
+              }
+              return null;
+            },
+            onFieldSubmitted: (_) => _submit(),
           ),
-          validator: (text) {
-            final input = (text ?? '').trim();
-            final value = int.tryParse(input);
-            if (!RegExp(r'^[0-9]+$').hasMatch(input) ||
-                value == null ||
-                value < PregameController.minTargetScore ||
-                value > PregameController.maxTargetScore) {
-              return rangeMessage;
-            }
-            return null;
-          },
-          onFieldSubmitted: (_) => _submit(),
         ),
       ),
       actions: [
