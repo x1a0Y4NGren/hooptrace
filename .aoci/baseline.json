@@ -1,0 +1,3559 @@
+{
+  "version": 1,
+  "created_at": "2026-10-07T06:13:57Z",
+  "updated_at": "2026-10-09T04:20:05Z",
+  "files": {
+    ".gitattributes": {
+      "role": "index",
+      "sha256": "062eeb3cbfdda4fd21fc96f22e12899fdc5a70e031bce3d9b5da033fae14e1c4",
+      "size": 306,
+      "normalized_sha256": "4b51e045761ad62a302666eed7cc1c0b9c4912314d7f525d4f7e5457ec6491a5"
+    },
+    ".github/ISSUE_TEMPLATE/bug_report.yml": {
+      "role": "index",
+      "sha256": "0c928762085782e0564e776f90544d3902a1b68e52cce98f531800af8872c010",
+      "size": 2074,
+      "normalized_sha256": "81e0a8761f84695220afaa99ae9cf08fba7cef948953362b774e1991c9b10cd3"
+    },
+    ".github/ISSUE_TEMPLATE/config.yml": {
+      "role": "index",
+      "sha256": "845f5a2fc59c386b042e64092f32bc5a3fbc37a3921e5700fdeca8f2e32f31bc",
+      "size": 234,
+      "normalized_sha256": "8adc32c6561a93509147bbf0cacaad41914fe04e0260735f273be3f1b318b134"
+    },
+    ".github/ISSUE_TEMPLATE/feature_request.yml": {
+      "role": "index",
+      "sha256": "af50e79885bfbd67c04dfc6434a2d7c915e3cd7bf414e9a9adf6afde702e42f3",
+      "size": 1206,
+      "normalized_sha256": "8416566a1a307327c6ba0839ec29f1e19f8b41e5ff4ac6750c795aa693ba94e1"
+    },
+    ".github/dependabot.yml": {
+      "role": "index",
+      "sha256": "c2dfaacfef4a6e1561553549b93212384cd4e8e2f8e569ded323005d5a2872ee",
+      "size": 120,
+      "normalized_sha256": "e0f89c3d5b2bc229bb4844d8c2e8cec80f6ba9d6a74e3ff79856c6f568417a2b"
+    },
+    ".github/pull_request_template.md": {
+      "role": "index",
+      "sha256": "8e9fd74d14335c8a014645c7a0f11a235a97d02d1c2c7c5caa9b14f9033b9a8b",
+      "size": 1536,
+      "normalized_sha256": "402c89cf44a04b75c16e475dde9cf373c1fe4c4b948df9bfc522533f3862e460"
+    },
+    ".github/workflows/flutter-ci.yml": {
+      "role": "index",
+      "sha256": "ce7fc4dd72aa384987aab5b94cf3a6d59247f5fa166ad8c23d45e582d39501f6",
+      "size": 8585,
+      "normalized_sha256": "92f19acd2d1427a22ec55073f19480eb92d1d75d7d824c90023a4493f033544e"
+    },
+    ".gitignore": {
+      "role": "index",
+      "sha256": "7901786a8a9f57288422167e6cfa508ffa0ebddc5d0e62db829a43054e6eb091",
+      "size": 2790,
+      "normalized_sha256": "5cc1944b76890f73f654963d0aeddaf21a9acd4fa710a11fb2f21979f56b21dc"
+    },
+    ".metadata": {
+      "role": "index",
+      "sha256": "162d8ce080cf5e194842a61a37034ef79506b8a55ee70d931e20209cd96dfbca",
+      "size": 1147,
+      "normalized_sha256": "bcc061622b45710173b542923f0d38ef073a39141124261c65e414849a1e5b39"
+    },
+    ".superpowers/sdd/2026-08-22-hooptrace-1-0/task-3-report.md": {
+      "role": "index",
+      "sha256": "a3abbb9e150d63dc5c4f220699af98b9b2caaf9d669de3c41d6ca891ab6cb8ef",
+      "size": 8234,
+      "normalized_sha256": "6332c6a2c2806c961683ba61ce3954a338804e39cce6274725ebfe21e05b17d7"
+    },
+    ".superpowers/sdd/2026-08-22-hooptrace-1-0/task-4-report.md": {
+      "role": "index",
+      "sha256": "0c616ed415ec66e5dbe16b4dd6126b9faf9b6b909e7ef5357fc9727bf335e284",
+      "size": 10163,
+      "normalized_sha256": "74c309ecc327178a4e0ec6d885b86d4a654a71035bac3302c48d71c327b2d24e"
+    },
+    ".superpowers/sdd/2026-08-26-editorial-ui-redesign/task-7-report.md": {
+      "role": "index",
+      "sha256": "f1b7359e95f038b3fc667e29b0e1e78aec058ce201e6ee27d50b985ef96cc7ce",
+      "size": 5486,
+      "normalized_sha256": "18155c0730d1f44e7e63408359915a6b1f8ad046313d9865a93a972d6f45ba6b"
+    },
+    ".superpowers/sdd/hooptrace-black-court-app-icon/task-1-contact-sheet.png": {
+      "role": "index",
+      "sha256": "1956abaaea095e2902c054c27c2d3e65e7228631d70ac24924d8fc0695e2f365",
+      "size": 167739
+    },
+    ".superpowers/sdd/hooptrace-black-court-app-icon/task-1-emulator-launcher.png": {
+      "role": "index",
+      "sha256": "0b9df0e383cee6e26d0e6a416ba8f31447cd9346042ecfc9328ef40e0e130f0a",
+      "size": 254919
+    },
+    ".superpowers/sdd/hooptrace-black-court-app-icon/task-1-emulator-themed-launcher.png": {
+      "role": "index",
+      "sha256": "deeaf42dd4a0e30f40eea28039419ffee6cfb8e92e9410c0dee900f6c229a6ed",
+      "size": 1252289
+    },
+    ".superpowers/sdd/hooptrace-black-court-app-icon/task-1-report.md": {
+      "role": "index",
+      "sha256": "1324393734b74b3967b69a604c00cc933f1122804802a24231f774935d86571c",
+      "size": 17891,
+      "normalized_sha256": "293f9018cf032d18be4372bf2d296fcb0eaab99d7f51d6f89ec19967379fb21d"
+    },
+    "AGENTS.md": {
+      "role": "index",
+      "sha256": "1d6307a65bf407f72cbff712e7574bd5dd720c52aebeff2a3488f4adb2ca6a12",
+      "size": 18387,
+      "normalized_sha256": "e34fa19c98b8cd0bf02ef91536c134d8fe67e2c735b79cf882b925e546e89020"
+    },
+    "CHANGELOG.md": {
+      "role": "index",
+      "sha256": "099089ed2aaf0b8473b970b888e22f46d76c867ebc5915e21cd08e602586cc4e",
+      "size": 7824,
+      "normalized_sha256": "82fe9eaee7180a91b9cd14ae7b502f04f0b29b909cc17107c66e45012091f26d"
+    },
+    "CONTRIBUTING.md": {
+      "role": "index",
+      "sha256": "63b16d05d38f4ad2ad2d182be298caea5dbf8a88c0e1b675a10c09fc13856b41",
+      "size": 8269,
+      "normalized_sha256": "bfcb07a98df22cb36b208af771eec50b73bd82d1ed59e56b3ee18201a911f559"
+    },
+    "HANDOFF.md": {
+      "role": "index",
+      "sha256": "db4770ef0f89fb068034bb307831b33161252359ccb7db130a29cc1b326f6e91",
+      "size": 34988,
+      "normalized_sha256": "5adc389fcde6502d8592df2c74a9d28766c218a90ef770b5afd2d082cc50634c"
+    },
+    "LICENSE": {
+      "role": "index",
+      "sha256": "aaa323f5ffaf2e2e33a07cd794600cdb7e98fe3e496a2ab12834d6c57048f1bb",
+      "size": 1089,
+      "normalized_sha256": "acbf518c1b23d031d820c9b9c6c5a1afbf73c6e08700ddda0edcc9b3e3b37d51"
+    },
+    "PRIVACY.md": {
+      "role": "index",
+      "sha256": "a0664175ca5e5aee8c36d06af2aa316f09b54f59f3f4b09400775b1e73b1fbeb",
+      "size": 4701,
+      "normalized_sha256": "a8a8c4de69ae6167ec66c67f4a939ddf9962bba5f5345730a77e41053bdaede8"
+    },
+    "README.md": {
+      "role": "index",
+      "sha256": "61d44cd1fda9f7181e2a61e198da4bc4126b135ee24214216756c39b55fbb5d1",
+      "size": 11371,
+      "normalized_sha256": "b376af5c3ba65a97d825a6cf63ba96ef9792f0758865d85533a05a80a5167fb3"
+    },
+    "SECURITY.md": {
+      "role": "index",
+      "sha256": "4e4428a343c5a0651a5d8c92e5cec2209d5dbf8e5fa06ff3e46bf9297781611c",
+      "size": 2557,
+      "normalized_sha256": "b1bb5ec2661a29896e6d13eeec29500cf9552e1e9a30bd58db5121c1e40e162d"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "role": "index",
+      "sha256": "ba51e8f7442dc60b29c3f748900f40ff97a226f982e7a611a999dc7a212230ed",
+      "size": 1569592,
+      "normalized_sha256": "ba51e8f7442dc60b29c3f748900f40ff97a226f982e7a611a999dc7a212230ed"
+    },
+    "analysis_options.yaml": {
+      "role": "index",
+      "sha256": "8d88f1e6c5df6b7b1ec33f5c73dff3104b57ef478000a767e843b9fbad15fda9",
+      "size": 187,
+      "normalized_sha256": "7c1e12fc2cf0dad602b9f4315f78c56d37d36ad4ecc9fa885480d12da6b1fa20"
+    },
+    "android/.gitignore": {
+      "role": "index",
+      "sha256": "5604039028ce53cc0c9cb9a73b755ec94212742cb751c38bda3bea645e7545bb",
+      "size": 223,
+      "normalized_sha256": "4b5a480e56e119de4d695821df2db34bf9a2da19ce0aef34aed6fabc91718606"
+    },
+    "android/app/build.gradle.kts": {
+      "role": "index",
+      "sha256": "a1066d46ea01bccb7f37b4cf0dea2efc5a6682b0ee5e9e27e5c0503df951027a",
+      "size": 3573,
+      "normalized_sha256": "58866106ac0621bc2587f758831911c0423dbde1c089d1a18799fac955605d96"
+    },
+    "android/app/src/debug/AndroidManifest.xml": {
+      "role": "index",
+      "sha256": "b01a4541a8144c15bc617bab7eb267c99fa1476368fbbda5a12cdbf4e316a34c",
+      "size": 385,
+      "normalized_sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b"
+    },
+    "android/app/src/main/AndroidManifest.xml": {
+      "role": "index",
+      "sha256": "249e9fd770082192a7f4b30ec0941217f4e0aaf2c6e1876bd204480531312194",
+      "size": 2473,
+      "normalized_sha256": "593e31028b507247e4621828d26f47fa29f7b7e8f4c3258bfa27360088c20d0c"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AndroidWindowPolicy.kt": {
+      "role": "index",
+      "sha256": "e35944bf0db83fe1150a3f1e917c1636334c0f1daaee3737d3d11795354853db",
+      "size": 1821,
+      "normalized_sha256": "711729137e709ad9f5aaf4482a3cf621f132fde48bc81c581c0dc4c58c34f30b"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupChannelDelegate.kt": {
+      "role": "index",
+      "sha256": "cebd941b5038176d851ebff3409e9bddfec62fa38133e20c68f896bba52f48c6",
+      "size": 4265,
+      "normalized_sha256": "234600cc9b577fbc01a716ef366c65c264b911a37a378960747814bac049ec8f"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupDirectoryPickerDelegate.kt": {
+      "role": "index",
+      "sha256": "743d5b6a9c5ecaa3de5a53ee62fcd2ba119f71d643c21bb3d85160d85f250c15",
+      "size": 4416,
+      "normalized_sha256": "15013f497449815585645df17820196fe7e8e4c787bf36aa4798673e02416b90"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupFilePolicy.kt": {
+      "role": "index",
+      "sha256": "ce660573ff36e9efe7af0d96dc83fc9136d72f90facaf3db9ef495b842faf257",
+      "size": 1064,
+      "normalized_sha256": "82e40653227a6dcda9a78a41db881f61cddc0046fc21230e18e324d519039e9d"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupStorageDelegate.kt": {
+      "role": "index",
+      "sha256": "6e47c6ca4908446e25a4c72743dc33a6eefea179312c66240ade48aaf6b3506a",
+      "size": 9248,
+      "normalized_sha256": "b8ba73f0f354fa023000c93368207baf059daa05d3f38ce3af8e4b51a3f13025"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupWorkManager.kt": {
+      "role": "index",
+      "sha256": "004ec4c0a3ea4094254c4fd91489eb2888c5420e8eb9080fb08eb02d283a28ce",
+      "size": 1489,
+      "normalized_sha256": "be86f8cb17d8db58546bd2ddead00ed487dfb7a80d3ddb131ff06cd690ab594f"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupWorkPolicy.kt": {
+      "role": "index",
+      "sha256": "07894d0829e0a537033766bf9e0f110a3c3decb6e8ea6d7c268d09654e8752d1",
+      "size": 1322,
+      "normalized_sha256": "73e0ac636450adb49356a46c225f439a8dbac4ab7cb785861e8522e1f357d14b"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupWorker.kt": {
+      "role": "index",
+      "sha256": "22ef29d07d9fd4535deb145c2e1017b1ea4cb2219829cea9bd9f4018a844eaa4",
+      "size": 5044,
+      "normalized_sha256": "4a5d0f19e37b8906142e4ceae1a5eb0a1b9030913cad39adc0f86127b2ae83d9"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/EntrySurfaceReadiness.kt": {
+      "role": "index",
+      "sha256": "3814c0fe83af214707cd32af7a405b6aa1738ecff44b6a808beb9d68b3e3b98d",
+      "size": 942,
+      "normalized_sha256": "e71cd27db7a147748fef2c2f72ff325999f2bd9500b42943179abbd7e6f760ff"
+    },
+    "android/app/src/main/kotlin/io/github/x1a0y4ngren/hooptrace/MainActivity.kt": {
+      "role": "index",
+      "sha256": "68a1650b60a9a631fa1b7539ced2ea2c3b4357b407df2845ef40222a30d7810a",
+      "size": 8401,
+      "normalized_sha256": "997d9702e6950c9e9313b55a8c2b0f907ab4b3580da73acd6d64c8e7145fdca4"
+    },
+    "android/app/src/main/res/drawable-hdpi/ic_launcher_foreground.png": {
+      "role": "index",
+      "sha256": "931f5353e69e8a77ba6cb430c5b863c99403fa9f91023c7d13915db3d92fb3ba",
+      "size": 5167
+    },
+    "android/app/src/main/res/drawable-hdpi/ic_launcher_monochrome.png": {
+      "role": "index",
+      "sha256": "70e55b35086cf3760f3006ee572dbde567aee2d2ceffc61ac5a4f6deefa14c4c",
+      "size": 4656
+    },
+    "android/app/src/main/res/drawable-hdpi/launch_hoop.png": {
+      "role": "index",
+      "sha256": "24192fc7f8b95ae36cc9bc3cf9dc9438e01ae935bb16d8645a30bded74a67da1",
+      "size": 11041
+    },
+    "android/app/src/main/res/drawable-mdpi/ic_launcher_foreground.png": {
+      "role": "index",
+      "sha256": "b3824edaa487c692fc6409f3d7e287feab31550d767b83f6d71c44fd5057633f",
+      "size": 2896
+    },
+    "android/app/src/main/res/drawable-mdpi/ic_launcher_monochrome.png": {
+      "role": "index",
+      "sha256": "7c8c58a55749c10180ff56296ea34140f9da6d058ce2e38740dca7dca8fb1b84",
+      "size": 2626
+    },
+    "android/app/src/main/res/drawable-mdpi/launch_hoop.png": {
+      "role": "index",
+      "sha256": "438911c9231e3eb74eb7f418cfc4657b191a724a69cd5e9ca276304570cb8b7f",
+      "size": 6804
+    },
+    "android/app/src/main/res/drawable-v21/launch_background.xml": {
+      "role": "index",
+      "sha256": "6dce5c8340df00b64c268c9b9587d81ac61669636bcfb3d5eaaf59806fdc3540",
+      "size": 318,
+      "normalized_sha256": "fb0f5185c87fa111ac285e3bfe40bb824526d6b5f3c3dcdbe0c79714e83540ca"
+    },
+    "android/app/src/main/res/drawable-xhdpi/ic_launcher_foreground.png": {
+      "role": "index",
+      "sha256": "d7a06c2f5e94aadbdf2ec9bec862b6864c8e5182c6dad8a3143627d5e81f0f4a",
+      "size": 7735
+    },
+    "android/app/src/main/res/drawable-xhdpi/ic_launcher_monochrome.png": {
+      "role": "index",
+      "sha256": "0cc6e22f901195fd2e7a49ad4f28689e1809b8f01ff3994e36b0e587df8aa59e",
+      "size": 6963
+    },
+    "android/app/src/main/res/drawable-xhdpi/launch_hoop.png": {
+      "role": "index",
+      "sha256": "0d01ee3700839cea0e53c6bdde9c791e444131b8048904150ee168583de3f162",
+      "size": 16074
+    },
+    "android/app/src/main/res/drawable-xxhdpi/ic_launcher_foreground.png": {
+      "role": "index",
+      "sha256": "136a9cd4b9b1d168830cfe195ec326e5a6a297e7d2a4b8664e4819e66be91053",
+      "size": 13082
+    },
+    "android/app/src/main/res/drawable-xxhdpi/ic_launcher_monochrome.png": {
+      "role": "index",
+      "sha256": "1e7f26c428c1ac8dcc27da074fafbf7bf8f4dcaf088b23a4dc709f92165caf48",
+      "size": 12059
+    },
+    "android/app/src/main/res/drawable-xxhdpi/launch_hoop.png": {
+      "role": "index",
+      "sha256": "e6e453fc856208d87d763fcd1fa39e6bd5ad888c55cc8f30449c43009484ae3c",
+      "size": 28830
+    },
+    "android/app/src/main/res/drawable-xxxhdpi/ic_launcher_foreground.png": {
+      "role": "index",
+      "sha256": "81aedf6ee01560d5176b27c9d8094bbfc20cb60b7a4cc0cd96faff73c682cd92",
+      "size": 18478
+    },
+    "android/app/src/main/res/drawable-xxxhdpi/ic_launcher_monochrome.png": {
+      "role": "index",
+      "sha256": "cd54ae4bdc0eb4d38e07e754fcc7a7929c6ccad310e7b1d504eee68db4f202e1",
+      "size": 17190
+    },
+    "android/app/src/main/res/drawable-xxxhdpi/launch_hoop.png": {
+      "role": "index",
+      "sha256": "d5708ed09c34c4e2c335e3c789fb86e90df5fdf86d3c97acc0111010bb080437",
+      "size": 46021
+    },
+    "android/app/src/main/res/drawable/launch_background.xml": {
+      "role": "index",
+      "sha256": "6dce5c8340df00b64c268c9b9587d81ac61669636bcfb3d5eaaf59806fdc3540",
+      "size": 318,
+      "normalized_sha256": "fb0f5185c87fa111ac285e3bfe40bb824526d6b5f3c3dcdbe0c79714e83540ca"
+    },
+    "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml": {
+      "role": "index",
+      "sha256": "e071a8516287e0bacccc1a14a62502f3e1eda8360b2aad3c88c390ccbfa77122",
+      "size": 275,
+      "normalized_sha256": "32715ff646f6b9fef7c321138e4a14556c4a1f98a87b06070b56f41643dad718"
+    },
+    "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml": {
+      "role": "index",
+      "sha256": "e071a8516287e0bacccc1a14a62502f3e1eda8360b2aad3c88c390ccbfa77122",
+      "size": 275,
+      "normalized_sha256": "32715ff646f6b9fef7c321138e4a14556c4a1f98a87b06070b56f41643dad718"
+    },
+    "android/app/src/main/res/mipmap-anydpi-v33/ic_launcher.xml": {
+      "role": "index",
+      "sha256": "b936a640ceca8d1da24d4356afd82d0b6f4c5ca3744ae04db3b2b453b1252814",
+      "size": 347,
+      "normalized_sha256": "bbaf996b7b1356da55819d20c1920c34e20b1288fe7cec441aefeda5ea53d24a"
+    },
+    "android/app/src/main/res/mipmap-anydpi-v33/ic_launcher_round.xml": {
+      "role": "index",
+      "sha256": "b936a640ceca8d1da24d4356afd82d0b6f4c5ca3744ae04db3b2b453b1252814",
+      "size": 347,
+      "normalized_sha256": "bbaf996b7b1356da55819d20c1920c34e20b1288fe7cec441aefeda5ea53d24a"
+    },
+    "android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+      "role": "index",
+      "sha256": "7016c5b513ed498a08052ff6a7a1e798753d856ac0f0470756a191b4d34839ec",
+      "size": 2909
+    },
+    "android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": {
+      "role": "index",
+      "sha256": "7016c5b513ed498a08052ff6a7a1e798753d856ac0f0470756a191b4d34839ec",
+      "size": 2909
+    },
+    "android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+      "role": "index",
+      "sha256": "9ac6d8286550ce97b1432899b4b1a07f5fc09bfde102edac21a08c08d4e2a189",
+      "size": 1741
+    },
+    "android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": {
+      "role": "index",
+      "sha256": "9ac6d8286550ce97b1432899b4b1a07f5fc09bfde102edac21a08c08d4e2a189",
+      "size": 1741
+    },
+    "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+      "role": "index",
+      "sha256": "8cdaedb616b3637ab2e7a7498bf4a31cad63aa72ceead0e26ef9e8a53a261c6c",
+      "size": 4365
+    },
+    "android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": {
+      "role": "index",
+      "sha256": "8cdaedb616b3637ab2e7a7498bf4a31cad63aa72ceead0e26ef9e8a53a261c6c",
+      "size": 4365
+    },
+    "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+      "role": "index",
+      "sha256": "ec94bb384111178241619a89847478ce8bafff001910c713022ae06c87743bc6",
+      "size": 7662
+    },
+    "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": {
+      "role": "index",
+      "sha256": "ec94bb384111178241619a89847478ce8bafff001910c713022ae06c87743bc6",
+      "size": 7662
+    },
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+      "role": "index",
+      "sha256": "0414b9ceb9575952d3993f7e169bc8bb49a9806cc25e4ad71280924f369375b8",
+      "size": 11717
+    },
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": {
+      "role": "index",
+      "sha256": "0414b9ceb9575952d3993f7e169bc8bb49a9806cc25e4ad71280924f369375b8",
+      "size": 11717
+    },
+    "android/app/src/main/res/values-night-v31/styles.xml": {
+      "role": "index",
+      "sha256": "b6715fa53e34c30211e1926d31c43e4ae0665dec9e8da04417a7a0d9722b0d01",
+      "size": 812,
+      "normalized_sha256": "96dfb1c5b5615f03840002dad526583383c07232c1636e4800f77f3a182a28a2"
+    },
+    "android/app/src/main/res/values-night/styles.xml": {
+      "role": "index",
+      "sha256": "86e6469cd01b14cddc113de64877a5ede21a8ee46e46abce928feec68663a578",
+      "size": 1013,
+      "normalized_sha256": "b2c1da92bf7253fd9253c7c595fce35207f994fa5c70236393de2d9d3ccb9627"
+    },
+    "android/app/src/main/res/values-v31/styles.xml": {
+      "role": "index",
+      "sha256": "8ae81858641da7f92e01930d062779e0f77f99ddd85ff1c82b62e6c37bc1a38b",
+      "size": 812,
+      "normalized_sha256": "a624b0646efbeddc6d67c5d4a6d58cc02f381b577b27a1705183ac29c77aa635"
+    },
+    "android/app/src/main/res/values/colors.xml": {
+      "role": "index",
+      "sha256": "af34194131f646d72c43e44088bc9ffe66c0a708fd9ab34abb075988d8912752",
+      "size": 178,
+      "normalized_sha256": "c9c6345130f6fdda969f19b1c740884bc2925597484dca686f3ba5e2e678921f"
+    },
+    "android/app/src/main/res/values/styles.xml": {
+      "role": "index",
+      "sha256": "bc209e04409ee4f773675674d693d7ed600391862dad6bf290f47669ce65788b",
+      "size": 1014,
+      "normalized_sha256": "1f32736bd3c0d56f316be5619711aca60a0c2c4e0527450f1d59736863027fa7"
+    },
+    "android/app/src/profile/AndroidManifest.xml": {
+      "role": "index",
+      "sha256": "b01a4541a8144c15bc617bab7eb267c99fa1476368fbbda5a12cdbf4e316a34c",
+      "size": 385,
+      "normalized_sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b"
+    },
+    "android/app/src/test/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupFilePolicyTest.kt": {
+      "role": "index",
+      "sha256": "d33de104ad2b2ca0b5011d2001bc46b0a8053f3e0953c93e25f7cb1e9c5a279e",
+      "size": 1390,
+      "normalized_sha256": "6cc5432809c26ef379ec0c50044712b4cc7d3371edb9655c74f17d3de38bb738"
+    },
+    "android/app/src/test/kotlin/io/github/x1a0y4ngren/hooptrace/AutomaticBackupWorkPolicyTest.kt": {
+      "role": "index",
+      "sha256": "0d13a490a44abe782a5b26b628e069d6cf5e834bdfeb90d585038f606dda30fa",
+      "size": 1043,
+      "normalized_sha256": "6e0773432db943cfe412528c1ddc0310d28c88d865cdf506c15396c185a7110d"
+    },
+    "android/app/src/test/kotlin/io/github/x1a0y4ngren/hooptrace/EntrySurfaceReadinessTest.kt": {
+      "role": "index",
+      "sha256": "5e0c74fcf5378d9eb1a01262a78072b86d7a39a326a4ad09c8beec0e60b41b71",
+      "size": 1530,
+      "normalized_sha256": "0c3213a43efb7e45dbc1070669440b213431aa5d80a28fa378ad5d2589dc8369"
+    },
+    "android/build.gradle.kts": {
+      "role": "index",
+      "sha256": "218f400e3fff31c9c986a2535dfb974560e1b4d33cc27b7c1fee96a2b7e44454",
+      "size": 561,
+      "normalized_sha256": "6a26dba2cb8dfba1e74f540b0d17a89d96c1301d3c3bfda14348bed257fddcba"
+    },
+    "android/gradle.properties": {
+      "role": "index",
+      "sha256": "1888df8f168eb770ca0f540b7bf84091e6b31b0d5ac55e4de518590b8f7ed8e5",
+      "size": 140,
+      "normalized_sha256": "5539cf5f17c53900a72cf0065e450f0a8ba5b929dd2b364724c1296d0285d9dc"
+    },
+    "android/gradle/wrapper/gradle-wrapper.jar": {
+      "role": "index",
+      "sha256": "7d3a4ac4de1c32b59bc6a4eb8ecb8e612ccd0cf1ae1e99f66902da64df296172",
+      "size": 43764
+    },
+    "android/gradle/wrapper/gradle-wrapper.properties": {
+      "role": "index",
+      "sha256": "baa779cae53719cb2387f9121b73ded3dff07802ef0d11d5c8d7baca9c71784c",
+      "size": 294,
+      "normalized_sha256": "76f73c4dad52d87a63c86de2db2cf17b82dc26b6f31dce93fa02012bf50006b2"
+    },
+    "android/gradlew": {
+      "role": "index",
+      "sha256": "f96a757581fe5292465e3f3393380bd11fd8086d450b92e7c693da6513f583fe",
+      "size": 8070,
+      "normalized_sha256": "f96a757581fe5292465e3f3393380bd11fd8086d450b92e7c693da6513f583fe"
+    },
+    "android/gradlew.bat": {
+      "role": "index",
+      "sha256": "af835f98787e9269af5a046edcb821a592fed372139df7b947b471a63cfc236b",
+      "size": 2763,
+      "normalized_sha256": "c46a27c79007746de5922b17abb6230d64ad8b1ba3ad1585ee5c6543c2a9b129"
+    },
+    "android/hooptrace_android.iml": {
+      "role": "index",
+      "sha256": "c8e0091edeca4e766e9dcf948e59c86a0427381fb5e31768ae396eedde5f1dfc",
+      "size": 1630,
+      "normalized_sha256": "90d961bc4ccb4b0ae3f75ce495c273f08745a55c50bd213e259723fc341d0193"
+    },
+    "android/settings.gradle.kts": {
+      "role": "index",
+      "sha256": "4d438e37bd80ccc48ded4892c9026994cabe8cfb9c20d2947a609248495c869b",
+      "size": 798,
+      "normalized_sha256": "a9b5756048f668d4ebf355116678fd334cd5f2169b7d4518ad19b8df14d3af36"
+    },
+    "aoci.code.txt": {
+      "role": "index",
+      "sha256": "87d536a05055640c25dbae68be5366c02c60e6db7581ce36cbf6c13bef0c4880",
+      "size": 184488,
+      "normalized_sha256": "87d536a05055640c25dbae68be5366c02c60e6db7581ce36cbf6c13bef0c4880"
+    },
+    "aoci.meta.txt": {
+      "role": "index",
+      "sha256": "fbc304fa05182547e96f1f8404c7c30ad6c366bba9589523f1019c2c1da0427c",
+      "size": 1989,
+      "normalized_sha256": "fbc304fa05182547e96f1f8404c7c30ad6c366bba9589523f1019c2c1da0427c"
+    },
+    "aoci.txt": {
+      "role": "index",
+      "sha256": "3b1d2f0d776627d2a3a71c017181f53fac56342b8c32731270b2174cf1185155",
+      "size": 298,
+      "normalized_sha256": "3b1d2f0d776627d2a3a71c017181f53fac56342b8c32731270b2174cf1185155"
+    },
+    "assets/animations/paint_ball.json": {
+      "role": "index",
+      "sha256": "568412f515ad53de6b332eaf7fa5adb9d871f5b50357e572dcdac222701a04d6",
+      "size": 2232,
+      "normalized_sha256": "ff8bbd51a6711b1a7012e226187d130cb85513ed91e560027f545c81bafc3b36"
+    },
+    "assets/animations/paint_splash.json": {
+      "role": "index",
+      "sha256": "aca97739b0cd5d80a23be286aaaaed386d822359706e418a1470f90c899545cf",
+      "size": 2362,
+      "normalized_sha256": "79b78190f055b7ae6d29a77c9194ccb4fe748499758d138c382a750aa58be307"
+    },
+    "assets/audio/README.md": {
+      "role": "index",
+      "sha256": "62d466467fa337ac0bf916e295191f93d16c41d0c9a4b475c8ef2538b4cad367",
+      "size": 492,
+      "normalized_sha256": "3fc1aea67f60b41fa98a55073e5ff174f15d66886a75df44868fed73277f10cd"
+    },
+    "assets/audio/entry_swish.wav": {
+      "role": "index",
+      "sha256": "edf2e8ddf25b96f52b6649b4426396d28069b15f5cfc745ea2f3c3437d073584",
+      "size": 15920
+    },
+    "assets/fonts/BarlowCondensed-Bold.ttf": {
+      "role": "observe",
+      "sha256": "e476562ec9c1e16cf16475895b511f08c804f438cc9a9f80a44ea50a0eeb5b65",
+      "size": 109912
+    },
+    "assets/fonts/BarlowCondensed-Medium.ttf": {
+      "role": "observe",
+      "sha256": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "size": 103360
+    },
+    "assets/fonts/BarlowCondensed-SemiBold.ttf": {
+      "role": "observe",
+      "sha256": "7b619d14bc2327509a9ef32b0890f709626f7ecc9ff61191c2a4314c5499d2d9",
+      "size": 109428
+    },
+    "assets/fonts/NotoSansSC-Regular.otf": {
+      "role": "observe",
+      "sha256": "faa6c9df652116dde789d351359f3d7e5d2285a2b2a1f04a2d7244df706d5ea9",
+      "size": 8331336
+    },
+    "assets/fonts/OFL-NotoSansSC.txt": {
+      "role": "observe",
+      "sha256": "88f117575237307bdd86a17ef15e21790fc9a662fe4dfb103ca1ca077f0d9982",
+      "size": 4393,
+      "normalized_sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2"
+    },
+    "assets/fonts/OFL.txt": {
+      "role": "observe",
+      "sha256": "e1d28aeb8efb0f18e2c27e73592a86cf890df3c27c1351bd3dbdb434322f854f",
+      "size": 4469,
+      "normalized_sha256": "10b0e6bb43166a50fbe7cde2895bd7f703738a5da843acb5c97c95dc9ea26817"
+    },
+    "assets/fonts/README.md": {
+      "role": "observe",
+      "sha256": "27d5a2be5774ce2a5e893874f0c05e7766f2e19e11e391ed82044c2c46fd2893",
+      "size": 532,
+      "normalized_sha256": "5db8ad9b3dbc8eeb6468cfbca667374f904ee8442bc7646107d63d7de3eba8ec"
+    },
+    "assets/icons/README.md": {
+      "role": "index",
+      "sha256": "a74467429a76cd1de23cc1d50916f0accf19667110bd7e6f4f91615d756f25fb",
+      "size": 3186,
+      "normalized_sha256": "3da9708943811836d8e06f1112b8b5f31cffdc2350c11e32e3fb0aba9cd3ea17"
+    },
+    "assets/icons/hooptrace-app-icon-foreground.png": {
+      "role": "index",
+      "sha256": "609407f70a2bd6386ff650f3d7c6c65ef470c30d84f5e38bdb9fefdfc2e5dd80",
+      "size": 55557
+    },
+    "assets/icons/hooptrace-app-icon.png": {
+      "role": "index",
+      "sha256": "2734453ba1366105e40e3dafc8d6ea64787e4f7c8e21161aca36d08a369bd2d5",
+      "size": 68296
+    },
+    "assets/icons/hooptrace-entry-hoop.png": {
+      "role": "index",
+      "sha256": "37a8e675bc4869129c0bcc0f7a30769fb61e54a860273ef8b8c98ad34ccb0394",
+      "size": 16740
+    },
+    "docs/README.md": {
+      "role": "index",
+      "sha256": "17fa967d74fbd9f748e8c880beb2b478def4ab2042209b80bc9672eea307f035",
+      "size": 3165,
+      "normalized_sha256": "0b998760a045649006b75c5a5b41eec493ef79558b7059ff51b941af858305c3"
+    },
+    "docs/branch-execution-order.md": {
+      "role": "index",
+      "sha256": "7de8363e10b16543ae7a63eabef66a48bb43a718d8fe2d35d7bd6b6457de2a0d",
+      "size": 4476,
+      "normalized_sha256": "7de8363e10b16543ae7a63eabef66a48bb43a718d8fe2d35d7bd6b6457de2a0d"
+    },
+    "docs/branch-prompts/01-flutter-scaffold.md": {
+      "role": "index",
+      "sha256": "0b9df10701857688ae8a8932d5e7577e9b352a8cc3ac230d2c059d366c980ac1",
+      "size": 1408,
+      "normalized_sha256": "0b9df10701857688ae8a8932d5e7577e9b352a8cc3ac230d2c059d366c980ac1"
+    },
+    "docs/branch-prompts/02-domain-data-kernel.md": {
+      "role": "index",
+      "sha256": "1d136e16fe56b38feb79301f0bce653b4944591c6aa5d24bbfd782ab1fc4a8d7",
+      "size": 1454,
+      "normalized_sha256": "1d136e16fe56b38feb79301f0bce653b4944591c6aa5d24bbfd782ab1fc4a8d7"
+    },
+    "docs/branch-prompts/03-scoring-main-loop.md": {
+      "role": "index",
+      "sha256": "71f70e87c22fadfd463027d5043a21d40999f8989f288a27ddc4ea1cac6a72b7",
+      "size": 1464,
+      "normalized_sha256": "71f70e87c22fadfd463027d5043a21d40999f8989f288a27ddc4ea1cac6a72b7"
+    },
+    "docs/branch-prompts/04-replay-history.md": {
+      "role": "index",
+      "sha256": "92267ed99102374e21a1b6cc5877ce7cf58eb0c05bc4afbe002df8a96b15f949",
+      "size": 1251,
+      "normalized_sha256": "92267ed99102374e21a1b6cc5877ce7cf58eb0c05bc4afbe002df8a96b15f949"
+    },
+    "docs/branch-prompts/05-players-settings-project.md": {
+      "role": "index",
+      "sha256": "990a703cebb2e9ac043b7adfe76feb898e9d29341c31c64218f374dfa9397f6f",
+      "size": 1415,
+      "normalized_sha256": "990a703cebb2e9ac043b7adfe76feb898e9d29341c31c64218f374dfa9397f6f"
+    },
+    "docs/branch-prompts/06-rules-audit-edit.md": {
+      "role": "index",
+      "sha256": "e9cd561d85a746359da909f0b8c62cb4aebce559b37af606a9b1cb2517f60aaf",
+      "size": 1308,
+      "normalized_sha256": "e9cd561d85a746359da909f0b8c62cb4aebce559b37af606a9b1cb2517f60aaf"
+    },
+    "docs/branch-prompts/07-analytics.md": {
+      "role": "index",
+      "sha256": "3c9eccdabc7f0d4c48e7d168759804d3914378365eca3acdb0f5a49e1b2b0674",
+      "size": 1260,
+      "normalized_sha256": "3c9eccdabc7f0d4c48e7d168759804d3914378365eca3acdb0f5a49e1b2b0674"
+    },
+    "docs/branch-prompts/08-export-backup.md": {
+      "role": "index",
+      "sha256": "69c9539f319a9d61fc669d395de95c6956d1be75d52de00c9b59ad7eaa65bff1",
+      "size": 1328,
+      "normalized_sha256": "69c9539f319a9d61fc669d395de95c6956d1be75d52de00c9b59ad7eaa65bff1"
+    },
+    "docs/branch-prompts/09-release-ci.md": {
+      "role": "index",
+      "sha256": "58f6bc8867e56d0961339a6629d5fa6477110f44d1c2f60d8fc8ef73a00ef9ee",
+      "size": 1371,
+      "normalized_sha256": "58f6bc8867e56d0961339a6629d5fa6477110f44d1c2f60d8fc8ef73a00ef9ee"
+    },
+    "docs/branch-prompts/README.md": {
+      "role": "index",
+      "sha256": "33b9fb749a7dbeeef4a9e10d83a59678a7d95eafc315bfd544475c2516b3f766",
+      "size": 793,
+      "normalized_sha256": "33b9fb749a7dbeeef4a9e10d83a59678a7d95eafc315bfd544475c2516b3f766"
+    },
+    "docs/design/brand/README.md": {
+      "role": "index",
+      "sha256": "c1625b74ac3f753bef44df0d8ad1510e422714746fa2e4ed39e307c007740fd7",
+      "size": 2323,
+      "normalized_sha256": "d54eb67238714616c2256382b654d140fb351578cacef08766d54c6fa2a5d6d3"
+    },
+    "docs/design/brand/entry-motion.md": {
+      "role": "index",
+      "sha256": "2ea35b389a27aec8c09202cabacfaea95e43a7a52da4b11a233978fcf3552c40",
+      "size": 8789,
+      "normalized_sha256": "aa27050fe188613dd2f65e23dd13241e49d2da2a7978f5ca6ce10a13a3f49eb4"
+    },
+    "docs/design/brand/source.json": {
+      "role": "index",
+      "sha256": "b39af8dac597afc1633a39fc9d28efc4677874a5d4c00694dbc5b47ace7b9757",
+      "size": 1964,
+      "normalized_sha256": "c7f820373f93064359d0835d6d83a33c27bf585513b48e39c1757ed704db5972"
+    },
+    "docs/design/brand/verification.md": {
+      "role": "index",
+      "sha256": "1554cfd99f58b278e8b22d14119364f65c13c2ce6a9868b8a2fa230f41d13ef3",
+      "size": 4280,
+      "normalized_sha256": "4bdc17aad46ce336f7c8dd88593547dc7e78ee0db083c310d27cda1d5780d5fc"
+    },
+    "docs/release/fdroid-notes.md": {
+      "role": "index",
+      "sha256": "4b2b0ece478afcc6189378ee61bcd98cfe5bec33a603c4e3028848c6e3571068",
+      "size": 7065,
+      "normalized_sha256": "8c6091a60e516c572d3f802ae5ae8cbd0cb798b79ec02a0319024a1ded32bfee"
+    },
+    "docs/release/performance.md": {
+      "role": "index",
+      "sha256": "dcbb48d5d5575990dac173280ee4edca0a2e7d5748746e1ba5d7b6887ea980fe",
+      "size": 6165,
+      "normalized_sha256": "9a3141506cf5555247da7ce348ca47421fe01e49cf639a70329a702ab2a41b95"
+    },
+    "docs/release/release-checklist.md": {
+      "role": "index",
+      "sha256": "f8e127e00a32f7756494e299abb46cf06cea59b97e242fc002f3d0977ae4e939",
+      "size": 8981,
+      "normalized_sha256": "70a9387b09eecbe2fcfbf9c566741668a5cfa48e52668ac903036af25bbdd837"
+    },
+    "docs/release/reproducible-builds.md": {
+      "role": "index",
+      "sha256": "ce128f8f1a566be5b2b841fa2083d69c8c950961fa1220a181fe4009d05e7c38",
+      "size": 10645,
+      "normalized_sha256": "d6583f3eb26836c5d7800a81819bc32ce774b96acd2c7a8e5b0d84075b4129af"
+    },
+    "docs/release/screenshots-checklist.md": {
+      "role": "index",
+      "sha256": "d7c0878c4c951e9ef8bfffcb510bd33cfe0078aa32bd26b3d67ad31e77f79057",
+      "size": 6274,
+      "normalized_sha256": "46f7ba26395b8260fa171d16a9779b43a69e22351f767a34f24be7c08b4af109"
+    },
+    "docs/release/source-build-1.0.md": {
+      "role": "index",
+      "sha256": "7e5cebc3a4411ecabd84b9107f6fd782d624ade4eae87d3c599a07f6861ce134",
+      "size": 4121,
+      "normalized_sha256": "4588d8a84db03977e51ff641c149443b270901fd840a9dd91b69d122d390b5f6"
+    },
+    "docs/release/v0.1.0-release-notes.md": {
+      "role": "index",
+      "sha256": "0647022745e9efa79f5c2de0c2d182e0cfe11656af9fbb29922a9b73e1c57dc0",
+      "size": 1820,
+      "normalized_sha256": "c6df2a7b66983d6d159a89bf18c77789660ef42b207ea13e200e6c3d08940798"
+    },
+    "docs/release/v0.1.0-release-record.md": {
+      "role": "index",
+      "sha256": "122353f6484740c53e379a6b035a29bda9d48a2441775f8c400c131467e5ef18",
+      "size": 4353,
+      "normalized_sha256": "51f9fea620c25e1f482f6fbe06a3cd56d661079555d1fd7976dc2b8131c96247"
+    },
+    "docs/release/v1.0.0-release-notes.md": {
+      "role": "index",
+      "sha256": "81e6fa9180abdba7a5330156f0d760ef97464aac6ebb23df59107edfc05c1b28",
+      "size": 3456,
+      "normalized_sha256": "e8f145d6b9496f437b6a2c8280322280732113e67cec5bde071aaf31b464b659"
+    },
+    "docs/release/v2.0.0-backup-device-verification.md": {
+      "role": "index",
+      "sha256": "7cb8d79691dc76803c5c1ce3d6608a7a337c32e3ad71a55877aba0a4335c91fc",
+      "size": 19950,
+      "normalized_sha256": "171bef93a7700e51b856b97104820fa0ed0f9f96c74700c07ffb5c18367db1a5"
+    },
+    "docs/release/v2.0.0-candidate.md": {
+      "role": "index",
+      "sha256": "1bd0b71481004602a6aa9629f580f0385ea717483caa0fb54a892e773a737983",
+      "size": 30180,
+      "normalized_sha256": "7c1241875bd39c2062a1fa25ced2e3c8b1aebeebc3988a77851f407b5f1bea77"
+    },
+    "docs/release/v2.0.0-clock-device-verification.md": {
+      "role": "index",
+      "sha256": "30c270202fbaeb64422885dc49eb26dd47a45a45abdba24c41de774529fa25e8",
+      "size": 9882,
+      "normalized_sha256": "60d833b40d7bea6ed85520ddab858e92cb170bcee30504b56d238c8e9b949c06"
+    },
+    "docs/release/v2.0.0-final-ci-verification.md": {
+      "role": "index",
+      "sha256": "ed2fe818cfe0b8638593b25795b6710876d2b8d0bf4c4e3928f2e57fdc6c30ff",
+      "size": 7187,
+      "normalized_sha256": "7bb97d1c8a08943501f5963a1bc90b85df58a41cec3a454029794d7e1f353537"
+    },
+    "docs/release/v2.0.0-formal-package-verification.md": {
+      "role": "index",
+      "sha256": "d835c52b8bba1f08aedb7190277ca4b1b53fc6c9d61c9781c354cc6630c09776",
+      "size": 11462,
+      "normalized_sha256": "fac0f9c4cdd33a357e7eaf87dc3f360babcb60067aeb897a566e82a76d5954c7"
+    },
+    "docs/release/v2.0.0-pre-release-verification.md": {
+      "role": "index",
+      "sha256": "b82719383239087f9469b01b87712107c2dabb7e05b5a9980a6ea2a95cadeb7e",
+      "size": 25283,
+      "normalized_sha256": "5129368378ccfbd74702b5deb80abc02cbcc4d5663809cf4e267124d5ccba350"
+    },
+    "docs/release/v2.0.0-release-notes.md": {
+      "role": "index",
+      "sha256": "44afef0711e262049439af2c3dfc171a35c517ac155598b2ac39a6bd921f8826",
+      "size": 8425,
+      "normalized_sha256": "6dbbfd91346ab3864fd126ba87a3e2f56c1a1b9a0409541c4e8b45e8c1605d0b"
+    },
+    "docs/release/v2.0.0-release-record.md": {
+      "role": "index",
+      "sha256": "c483a2ac9e5e93dc70cdc8dcdd1029af9cb183372144686956f0b0f9c224a352",
+      "size": 14047,
+      "normalized_sha256": "3d23e27d83d20141e1de4998b5dac6836045e5aa262809f5072f864ac060d39b"
+    },
+    "docs/release/v2.0.0-remaining-acceptance.md": {
+      "role": "index",
+      "sha256": "3ffcc57e7b1488f44ea787ced9635d1573f36aaaa9448438395e0967b27f9bdb",
+      "size": 9934,
+      "normalized_sha256": "eae95cae8f0e9ba1db0dd816a9c95a5f409ed09987957c56fdcd082cd69b5c23"
+    },
+    "docs/release/v2.0.0-screenshots.json": {
+      "role": "index",
+      "sha256": "fb29d06bc65327f771a9340a463423f2bca838ad0b852ca501bb831488d20368",
+      "size": 17338,
+      "normalized_sha256": "423d53927d26b3b4d00974138440dc2cd1702af9b3a21f1abb7f1057af6846c1"
+    },
+    "docs/release/v2.0.0-signing-upgrade-verification.md": {
+      "role": "index",
+      "sha256": "dd9982f6160615822a00130285f62b6885d73e997a2f265ba8c970c0961eb5f8",
+      "size": 24411,
+      "normalized_sha256": "31919db2da7674d6920af7f19657dcbfe38531b61c6788a2a2c8b407b9f0b05a"
+    },
+    "docs/release/v2.0.0-startup-lab.md": {
+      "role": "index",
+      "sha256": "7ba358bd49505b3ce5398729a4636a4847f9255f3afc35f3de3987815f939a69",
+      "size": 10594,
+      "normalized_sha256": "522a21fdccc26eda6f76f947dea8dff4ef28e2c4222b83b935c5592255a2b1e5"
+    },
+    "docs/release/v2.0.0-startup-performance.md": {
+      "role": "index",
+      "sha256": "ca1a5224f93e9f29c74fe1f5b3b2e7f9d9b94d6c7c1aac963c810a20f17a0c25",
+      "size": 17503,
+      "normalized_sha256": "9e8ddc2db2c2b7a71e45c7e12e847e599ab7ec3a7c004988286b6de898b94476"
+    },
+    "docs/release/v2.0.0-target-score.md": {
+      "role": "index",
+      "sha256": "77831459e96531ff5c0c8e1c72d466caae2aeb88265f3815465b07d4fd8c1356",
+      "size": 4837,
+      "normalized_sha256": "607d0fb075e3bcc3b29acede1f8c0ec2954a946faa5f7c31eb14bc4cafe0df07"
+    },
+    "docs/release/v2.0.0-upgrade.md": {
+      "role": "index",
+      "sha256": "acfe996b3ae5145ab9423b1715f3e079b39d5de64f9085a2310dae41708da382",
+      "size": 11041,
+      "normalized_sha256": "e7c17f4750988c0143c1edb1b3e14ae94b39a24f6b18aca1208bf059a54e3be1"
+    },
+    "docs/superpowers/README.md": {
+      "role": "index",
+      "sha256": "787961d58c601a2a065523b4c2d21189b2086ad4f5ec7300976abbf62b2d361d",
+      "size": 1477,
+      "normalized_sha256": "787961d58c601a2a065523b4c2d21189b2086ad4f5ec7300976abbf62b2d361d"
+    },
+    "docs/superpowers/plans/2026-05-12-hooptrace-first-release.md": {
+      "role": "index",
+      "sha256": "5834e38193a8e35d8fdc1efbb154cff16fdec13c046b7d5bc8c407ad4b222147",
+      "size": 70238,
+      "normalized_sha256": "75cbbb88a4fbc0565ab4b40cb139ea0672f62bc8576587309f7b7cac151fefda"
+    },
+    "docs/superpowers/plans/2026-08-22-hooptrace-1-0.md": {
+      "role": "index",
+      "sha256": "ed7352570c4289f01d42d344cf5fb8a2bc21d0e836f2a026afeb6c4af3731f5f",
+      "size": 20376,
+      "normalized_sha256": "0247dbaec54911f96cbdc1adfc9100651c28ccf577c9a51e123407b2ce5b87dc"
+    },
+    "docs/superpowers/plans/2026-08-25-unified-scoring-route-fix.md": {
+      "role": "index",
+      "sha256": "e622ee4d5eb60a5ea37e3ad147591802ade9b2ae080c34ed8516f7c3267f1785",
+      "size": 7172,
+      "normalized_sha256": "fc2c5ad7f0d832273ba94270bd3139b671c66c8fa4e31faae2d5ff75ab14faf5"
+    },
+    "docs/superpowers/plans/2026-08-26-editorial-ui-redesign.md": {
+      "role": "index",
+      "sha256": "c99fe949e46537bc1803aca9a3da7a97b93d17d908a6b70af7fdcbb4eba14995",
+      "size": 10375,
+      "normalized_sha256": "4694f9d07122fab2a2925b7b44e2f266b311583cc1a9f82134fc516377d24368"
+    },
+    "docs/superpowers/plans/2026-08-28-hooptrace-1-1-player-comparison.md": {
+      "role": "index",
+      "sha256": "10d7a13f2751b7dad57e621c5b8c696da9b617fc96c989ebbf5409a4678df55a",
+      "size": 9876,
+      "normalized_sha256": "286eea0ea40e7e224c2fdb1860b2bfce84a7dec8dccfa5f96fe1980403c44339"
+    },
+    "docs/superpowers/plans/2026-09-24-hooptrace-v2.md": {
+      "role": "index",
+      "sha256": "7711842d3f631fadc9e811ca55dde48eda80a0d96ae3e6edafd2261a0673cac5",
+      "size": 7273,
+      "normalized_sha256": "baaced2d4c35c33ca262a29dba37405c094be5d972e9fb6c9321beef830c6eb1"
+    },
+    "docs/superpowers/plans/2026-10-05-v2-pre-release-verification.md": {
+      "role": "index",
+      "sha256": "bc4fe71ef6d63462a25549f1974f7cdb1c76c8b504251f66f70bc7c83a49dc55",
+      "size": 4343,
+      "normalized_sha256": "bc6d954053684e5cc4807ff146185d598d271a6ac1a3f542b027e399ebe8cd8f"
+    },
+    "docs/superpowers/plans/2026-10-06-hooptrace-v2-final-ci.md": {
+      "role": "index",
+      "sha256": "8de22c834f4bde52f05f586d053a7f56ce31ea9220813f9c6611efaac8e2b408",
+      "size": 3350,
+      "normalized_sha256": "79e20ab9afdc72514abf44ae6829e4808ce346c82fc3f778d61d8f282a3d2364"
+    },
+    "docs/superpowers/specs/2026-05-12-hooptrace-design.md": {
+      "role": "index",
+      "sha256": "0d0f7ee854bf79d867e58fe7e812ff5dce88079578e60dee3985b57e307f1772",
+      "size": 13859,
+      "normalized_sha256": "0d0f7ee854bf79d867e58fe7e812ff5dce88079578e60dee3985b57e307f1772"
+    },
+    "docs/superpowers/specs/2026-09-24-hooptrace-v2-design.md": {
+      "role": "index",
+      "sha256": "1ae5b768b5ba75f55d8873fd7a7a5dfc6af1edc735f9a2ad887feeaa44970937",
+      "size": 4089,
+      "normalized_sha256": "de1339c4904808b86db5572b6661af1846efc0c4910495bb9261dc656cd7e0b6"
+    },
+    "drift_schemas/drift_schema_v2.json": {
+      "role": "index",
+      "sha256": "a50a0496f83da47cb2780efbbda4cbd31f7d4c6bee7e1d1f28f86eb1378575a7",
+      "size": 44438,
+      "normalized_sha256": "f86596e171b1d161f4fc2e1d8e306858642d2416dd87eebf3b42e2857a08849e"
+    },
+    "drift_schemas/drift_schema_v3.json": {
+      "role": "index",
+      "sha256": "bb9d89a87771204168f94e191f04ea0a49e9d5e32bb23403d6e8bfd75c3361e9",
+      "size": 53784,
+      "normalized_sha256": "cc7956aa81b333cadc099de3552afaf283ffbc4604550b420fe433296805f970"
+    },
+    "fastlane/metadata/android/en-US/changelogs/1.txt": {
+      "role": "index",
+      "sha256": "a9e5f9a90698447b427ac0b40151f6cdbb0ad37b6463cc5b0bc10c6a4f735a14",
+      "size": 216,
+      "normalized_sha256": "419f3eb7c1e5f902db4fa588ef2a2571610ac86b62fc2a718d3c40c063ccfd9c"
+    },
+    "fastlane/metadata/android/en-US/changelogs/2.txt": {
+      "role": "index",
+      "sha256": "3c280ba3504dfa8afb03b08d3263116f8d0f393328fc148edd906c7bc6b90ae8",
+      "size": 391,
+      "normalized_sha256": "50562cd417286c2f49958688af91b211d2919c723c48cca657fc2f49098307be"
+    },
+    "fastlane/metadata/android/en-US/changelogs/3.txt": {
+      "role": "index",
+      "sha256": "bd36be649a36793c9e3ce867a572f9a9116b00e415e40914ed1877e052e63bff",
+      "size": 372,
+      "normalized_sha256": "f88a28ad2149437b8cdb2c6faa4bc83e9d7c2471a07b0c4f024b65367f1a4700"
+    },
+    "fastlane/metadata/android/en-US/changelogs/4.txt": {
+      "role": "index",
+      "sha256": "30a7d2eff275680964a3b48327a9effeefea8abc4bfa264a5ca922de201c4bfd",
+      "size": 479,
+      "normalized_sha256": "e6f53fb5367c1308256472c995a3afc6afba1afe6cb06aed6e563dd1147b4f01"
+    },
+    "fastlane/metadata/android/en-US/full_description.txt": {
+      "role": "index",
+      "sha256": "41e2ce8cc159f1d94b138e83e54c7ac33e23626153f6ea63a900bae68b2bfa1c",
+      "size": 2405,
+      "normalized_sha256": "6b0e07be9d2c8503b71826d9c14141cf42dbdc6567a4ee52305b1e22feb1a687"
+    },
+    "fastlane/metadata/android/en-US/images/icon.png": {
+      "role": "index",
+      "sha256": "24863b8e00c9f329a755b750b4c19253d9ef0ffadfad8fd8eda7d4f64dc3ad55",
+      "size": 200243
+    },
+    "fastlane/metadata/android/en-US/images/phoneScreenshots/1-home.png": {
+      "role": "index",
+      "sha256": "1f1820f570fb83247a06cf14ab6ca796db798e70c1a07fab3e37bbefca22398f",
+      "size": 51659
+    },
+    "fastlane/metadata/android/en-US/images/phoneScreenshots/2-scoring.png": {
+      "role": "index",
+      "sha256": "015c29c9ce7339a414e909c5b87e7350477dd841099a7f8b308944c138f9e1fb",
+      "size": 77729
+    },
+    "fastlane/metadata/android/en-US/images/phoneScreenshots/3-replay.png": {
+      "role": "index",
+      "sha256": "c7c3f20e1e3d4572ba4598e08692c5cbf3b0706d94e32b9412ea348e94820827",
+      "size": 102936
+    },
+    "fastlane/metadata/android/en-US/images/phoneScreenshots/4-history.png": {
+      "role": "index",
+      "sha256": "951c13d7c8d8c10e8578801f205672f40c0a7e52efda654a6dbceaae8b26cbb7",
+      "size": 68575
+    },
+    "fastlane/metadata/android/en-US/short_description.txt": {
+      "role": "index",
+      "sha256": "468e11bc79d86e9604ed2b6122e739ce866aa3034219a7948d1e7fc5b0990699",
+      "size": 69,
+      "normalized_sha256": "24ef203fb4ba565916bef189d7ad96e0e14c55196b24d420cc8b820e272a0ca1"
+    },
+    "fastlane/metadata/android/zh-CN/changelogs/1.txt": {
+      "role": "index",
+      "sha256": "b06a3e3703877acbdac8795c43f441d7a95b680d6850c096c0190b94342a1914",
+      "size": 206,
+      "normalized_sha256": "aa86773b620cd84132eca8da1f127aee4f75879877b16b3943bb891711ae8792"
+    },
+    "fastlane/metadata/android/zh-CN/changelogs/2.txt": {
+      "role": "index",
+      "sha256": "fca9b54730c0b3d3700634df5741c52ae1855d93fc0a3a3b276504c15a17ed11",
+      "size": 338,
+      "normalized_sha256": "48f49de09b5e09111126e5e0cd43a97fa30d83be21c4f8cddbdaf31652bad4cb"
+    },
+    "fastlane/metadata/android/zh-CN/changelogs/3.txt": {
+      "role": "index",
+      "sha256": "08ea1f55933adf092fc132dc91383a1f5a88863ab18c0ab856ee0e27b24a9eaf",
+      "size": 317,
+      "normalized_sha256": "58c538634d14139941e004eb1c6a3af1003ee3eca2ebd507a82d490a06fbe86a"
+    },
+    "fastlane/metadata/android/zh-CN/changelogs/4.txt": {
+      "role": "index",
+      "sha256": "6cf57726d7d84c6b9dd3f9544ffec69a272d2991b19f4b85597ce3d42aead92b",
+      "size": 504,
+      "normalized_sha256": "0a2f83b1a96ebf6f9a8fb2c39e64eb6e457c1f997773b2116d41d26c2a1a244a"
+    },
+    "fastlane/metadata/android/zh-CN/full_description.txt": {
+      "role": "index",
+      "sha256": "abea151547e8cef56fb00911decd0a8a91107644b904a307730429bea2192a01",
+      "size": 2002,
+      "normalized_sha256": "af386bb859b612644d8254fa3418dc7037c332931e9acc00edc4e32d49f72053"
+    },
+    "fastlane/metadata/android/zh-CN/images/icon.png": {
+      "role": "index",
+      "sha256": "24863b8e00c9f329a755b750b4c19253d9ef0ffadfad8fd8eda7d4f64dc3ad55",
+      "size": 200243
+    },
+    "fastlane/metadata/android/zh-CN/images/phoneScreenshots/1-home.png": {
+      "role": "index",
+      "sha256": "1f1820f570fb83247a06cf14ab6ca796db798e70c1a07fab3e37bbefca22398f",
+      "size": 51659
+    },
+    "fastlane/metadata/android/zh-CN/images/phoneScreenshots/2-scoring.png": {
+      "role": "index",
+      "sha256": "015c29c9ce7339a414e909c5b87e7350477dd841099a7f8b308944c138f9e1fb",
+      "size": 77729
+    },
+    "fastlane/metadata/android/zh-CN/images/phoneScreenshots/3-replay.png": {
+      "role": "index",
+      "sha256": "c7c3f20e1e3d4572ba4598e08692c5cbf3b0706d94e32b9412ea348e94820827",
+      "size": 102936
+    },
+    "fastlane/metadata/android/zh-CN/images/phoneScreenshots/4-history.png": {
+      "role": "index",
+      "sha256": "951c13d7c8d8c10e8578801f205672f40c0a7e52efda654a6dbceaae8b26cbb7",
+      "size": 68575
+    },
+    "fastlane/metadata/android/zh-CN/short_description.txt": {
+      "role": "index",
+      "sha256": "9551af5b1ad7fe2a2f85a969d25fadc9326cf6ebd45d2e4ef10bc2ae3a88c905",
+      "size": 68,
+      "normalized_sha256": "f39f955cbf3c891e4b87558ee636a17c4e8ce3bdbc30044222a0e790cb7b9c6d"
+    },
+    "integration_test/command_performance_test.dart": {
+      "role": "index",
+      "sha256": "52e744cbd62a0221bd229d199cc2fe5d937b848cadb7d3f1827e7138f0f6d2f4",
+      "size": 2624,
+      "normalized_sha256": "cab773d88c0b6ffd62a86408a674e89e72e8a83a31c99c5153ab83d26ef2935e"
+    },
+    "integration_test/main_loop_test.dart": {
+      "role": "index",
+      "sha256": "efcf354fad4e6a6f29c84f875e0a394ce3f2c7a9c46de89a09b8ae43b7465312",
+      "size": 16329,
+      "normalized_sha256": "62952640ba7dc356a0017912a43d26e0edec61377611324d82397d52ab979f0b"
+    },
+    "integration_test/player_comparison_flow_test.dart": {
+      "role": "index",
+      "sha256": "e86b2092d3cc9dcd21b882384fd0750e102fd44af258b23552543ef6b2ce2838",
+      "size": 9429,
+      "normalized_sha256": "93f13ec8798f3b89924c852e5eb4bd4176df6606408a9b90cea67d37226ee0b2"
+    },
+    "integration_test/v2_file_recovery_test.dart": {
+      "role": "index",
+      "sha256": "1512f34d1bdfc2fbf43d0312787767e9c422888b02e8fbcf46fe2575afaa669c",
+      "size": 13256,
+      "normalized_sha256": "52be7e5a7b553c1a304030d0dc14740381d8c77087a6f225966ccfa1e8559cee"
+    },
+    "ios/.gitignore": {
+      "role": "index",
+      "sha256": "e85b4db8ba6ed14708e5f7d3c60336e5a3067ce11329b84aa8ba5d98603ee253",
+      "size": 603,
+      "normalized_sha256": "37380775aeb2499662b7aca80f4ac4c95ae827c3ba2bfa179aa3e9af4812c623"
+    },
+    "ios/Flutter/AppFrameworkInfo.plist": {
+      "role": "index",
+      "sha256": "e51cfa76fca1ae586244b43bf97423577315d2906394c1e7768ef43b8d23e161",
+      "size": 744,
+      "normalized_sha256": "da12038f9b2688a8a26160fea2609fa8fcb11421448c109f09c0f573efe7698d"
+    },
+    "ios/Flutter/Debug.xcconfig": {
+      "role": "index",
+      "sha256": "c0d1da54718e75f2028962b689258ecc741abf7cdaed50483aa5225264d0a7d7",
+      "size": 31,
+      "normalized_sha256": "a82d7765b37116ee4821d2cd1d65942febf8032353757ffb0826eabde785b4a6"
+    },
+    "ios/Flutter/Release.xcconfig": {
+      "role": "index",
+      "sha256": "c0d1da54718e75f2028962b689258ecc741abf7cdaed50483aa5225264d0a7d7",
+      "size": 31,
+      "normalized_sha256": "a82d7765b37116ee4821d2cd1d65942febf8032353757ffb0826eabde785b4a6"
+    },
+    "ios/Podfile": {
+      "role": "index",
+      "sha256": "196ba9707e48157e439609c15c69badbfc57ee1a3e6eec99ad5bd0b70e9eacc1",
+      "size": 1322,
+      "normalized_sha256": "196ba9707e48157e439609c15c69badbfc57ee1a3e6eec99ad5bd0b70e9eacc1"
+    },
+    "ios/Runner.xcodeproj/project.pbxproj": {
+      "role": "index",
+      "sha256": "968a1df1402c6034acf57a28193de32c696c31f5df821e9cc5df018bdd477af2",
+      "size": 24785,
+      "normalized_sha256": "4b65c6b51288a99d8f94fb06b9c90cee53c800f0cfca85342ca5c0590057fe3b"
+    },
+    "ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata": {
+      "role": "index",
+      "sha256": "ac28b35c2b940210bec0fff8e424b07fd0efe9112ab178a10533583f251a386c",
+      "size": 142,
+      "normalized_sha256": "7f3b00b5c3fdb45242d7b87e1e5c4e25d1fa8129a16c94295ecc4e8ea2235c5f"
+    },
+    "ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist": {
+      "role": "index",
+      "sha256": "d557c2c32fc6258ec28981fa45dc847b76c9968beb90a2e26d13ef9c4ea45c30",
+      "size": 246,
+      "normalized_sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542"
+    },
+    "ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings": {
+      "role": "index",
+      "sha256": "dd64c0308ab2971c456871b990b24a008bdc3ece09833e8dbe9675e33a496e74",
+      "size": 234,
+      "normalized_sha256": "11b247bc6796892d67c9a821d18604db4dd6a880981b34f38460b9866e6b247f"
+    },
+    "ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme": {
+      "role": "index",
+      "sha256": "570c49fd61c67330efb75097018d1b0df0c68d03667631105a5acf5621112b1b",
+      "size": 3934,
+      "normalized_sha256": "2dd28b879e66081e28a3324cf2bee7ab2f70be9a3e50e08926b7366dadff7d6e"
+    },
+    "ios/Runner.xcworkspace/contents.xcworkspacedata": {
+      "role": "index",
+      "sha256": "706a4c812f2a1e220e6785c27580020d58048e2ae4d30d1280f3c43344ce6b38",
+      "size": 159,
+      "normalized_sha256": "46c3c9702ff7c5584e11c954d943cfb6e07fb26e3fbd072ddbc0f388aa352de1"
+    },
+    "ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist": {
+      "role": "index",
+      "sha256": "d557c2c32fc6258ec28981fa45dc847b76c9968beb90a2e26d13ef9c4ea45c30",
+      "size": 246,
+      "normalized_sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542"
+    },
+    "ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings": {
+      "role": "index",
+      "sha256": "dd64c0308ab2971c456871b990b24a008bdc3ece09833e8dbe9675e33a496e74",
+      "size": 234,
+      "normalized_sha256": "11b247bc6796892d67c9a821d18604db4dd6a880981b34f38460b9866e6b247f"
+    },
+    "ios/Runner/AppDelegate.swift": {
+      "role": "index",
+      "sha256": "5ceec7250ac15cdc1198426102d033744c46c78db2bca4b804e96ba66801d13e",
+      "size": 1543,
+      "normalized_sha256": "d0788661ae7709bef923c9fffe01ba9b0ec913a38c3fadc94e25cabd196e6bc1"
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json": {
+      "role": "index",
+      "sha256": "5f8b941b774bde4496d73347c1f79cbdd786bb76fbdab9ed1f3f0cb78a0fb0d3",
+      "size": 2641,
+      "normalized_sha256": "3b1e214f466ffedff74baa5598ad5c4421130eea6bc8d57b8fe23435e8280ae4"
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png": {
+      "role": "index",
+      "sha256": "2734453ba1366105e40e3dafc8d6ea64787e4f7c8e21161aca36d08a369bd2d5",
+      "size": 68296
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png": {
+      "role": "index",
+      "sha256": "a26fa9bf8b60033c70ba97ab60e4cd68ba0e448f95a42f1e3ab46d07504b21e3",
+      "size": 619
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png": {
+      "role": "index",
+      "sha256": "07341eac7c6dd7e83c8db2c33e249a99280e6c9dd858777f221060b7bdbcd8de",
+      "size": 1388
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png": {
+      "role": "index",
+      "sha256": "f1d6d37e9073b6fe1b743eeec6e61f6f36814af4dd4b2bb0cd01e399dd34064d",
+      "size": 2329
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png": {
+      "role": "index",
+      "sha256": "db94e540110983fb85be2f2e56e8f2505bad287a701d16c885f574255c7583f7",
+      "size": 962
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png": {
+      "role": "index",
+      "sha256": "819d33ccc1dbe33507ae226bfa09808b6352345ec9cbbb6e4f5accd653f091f0",
+      "size": 2251
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png": {
+      "role": "index",
+      "sha256": "f67f3aed8641095acde9fc5dde8d15afc5bc828bb8437abdc113a042a1848112",
+      "size": 3823
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png": {
+      "role": "index",
+      "sha256": "07341eac7c6dd7e83c8db2c33e249a99280e6c9dd858777f221060b7bdbcd8de",
+      "size": 1388
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png": {
+      "role": "index",
+      "sha256": "650cdab30ec41f00fb5a72c2e1cdae48d1dee423cf0802620da774fe6e436f20",
+      "size": 3340
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png": {
+      "role": "index",
+      "sha256": "3fb590f7942a2556bb6559488415b66fa421764c98b8a9ef47eb73b8e5d0d1e2",
+      "size": 6022
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png": {
+      "role": "index",
+      "sha256": "3fb590f7942a2556bb6559488415b66fa421764c98b8a9ef47eb73b8e5d0d1e2",
+      "size": 6022
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png": {
+      "role": "index",
+      "sha256": "4daf6bd4be6e748ee5a9758754c957e7d71c62c780439f1c0a7de1897b53fa74",
+      "size": 10580
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png": {
+      "role": "index",
+      "sha256": "56adea93adc5e8cf453b93b53e3012fa0b69832c784275ba9f630acb2bf9f692",
+      "size": 3168
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png": {
+      "role": "index",
+      "sha256": "122fdafad1f725f4c459a8b23805eef53e14c7142491134582523e5f928f87ba",
+      "size": 8324
+    },
+    "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png": {
+      "role": "index",
+      "sha256": "49a7585282d7cff58151e0300923522746a10f0fdf3b96cf31c37f4006cfff9b",
+      "size": 9649
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json": {
+      "role": "index",
+      "sha256": "fbd112a9f3b541a1d811f71ac8e4fe68b6176687d973a5f4d99b7aa4a722e94e",
+      "size": 414,
+      "normalized_sha256": "ccc7950fd5f5b82067c85f667940a9d59189151460761ece8098ca78daa19469"
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png": {
+      "role": "index",
+      "sha256": "438911c9231e3eb74eb7f418cfc4657b191a724a69cd5e9ca276304570cb8b7f",
+      "size": 6804
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png": {
+      "role": "index",
+      "sha256": "0d01ee3700839cea0e53c6bdde9c791e444131b8048904150ee168583de3f162",
+      "size": 16074
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png": {
+      "role": "index",
+      "sha256": "e6e453fc856208d87d763fcd1fa39e6bd5ad888c55cc8f30449c43009484ae3c",
+      "size": 28830
+    },
+    "ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md": {
+      "role": "index",
+      "sha256": "c51833a2802a8a09ac661e87a7abf5329bd3770f078f133e263562780efa157c",
+      "size": 407,
+      "normalized_sha256": "c6b358e0dd33304feddd396ce43a10b355c2d6715f1c497fa67c218fbf4b0ba2"
+    },
+    "ios/Runner/Base.lproj/LaunchScreen.storyboard": {
+      "role": "index",
+      "sha256": "dad15b19121971fe18a2da9996bbb1bb1f2404e36c24ea1f179acc9f4e7a0ea8",
+      "size": 2699,
+      "normalized_sha256": "755376cb271c64bca45afa8fb25e29039bce1faa7f8e2bd24d4fd2bcfb169df6"
+    },
+    "ios/Runner/Base.lproj/Main.storyboard": {
+      "role": "index",
+      "sha256": "dcea4686c02065e56217fd19fcfb73d7509b41872e7486126149d47a18559363",
+      "size": 1631,
+      "normalized_sha256": "fd367b6c43006d61b730f674970dd48b9f662c8f2264e52ffc1558102a2c9f2d"
+    },
+    "ios/Runner/Info.plist": {
+      "role": "index",
+      "sha256": "c23497fc93e3b5cfeec7990af2a0a893c329054460bbc33efa4c2ba89370783a",
+      "size": 2286,
+      "normalized_sha256": "3cc1f940e77e4e62d0e152815cc25cbba5ebca8dbc2da0bb729de2d15cae46e1"
+    },
+    "ios/Runner/Runner-Bridging-Header.h": {
+      "role": "index",
+      "sha256": "efe657d8b27f7f8595a0d416bffb33fe7d93bd2869d81f7353b556c439d7a1a7",
+      "size": 39,
+      "normalized_sha256": "1a8d11d01d1cc92c650c9c9ed35299240052d4683a15a719a2315ef44185e074"
+    },
+    "ios/Runner/SceneDelegate.swift": {
+      "role": "index",
+      "sha256": "edce811c671ca0a6ccb14753e14e16deb0d89a0adf4f1b685e362d87d8f4c366",
+      "size": 82,
+      "normalized_sha256": "add68b905971dedfcc0d0b5b7118030de5925ba8c081ad9815463699e3a444ad"
+    },
+    "ios/RunnerTests/RunnerTests.swift": {
+      "role": "index",
+      "sha256": "c0e04141287eb7f9c9f3d31cf5be8cb626a9ea71351206c9121578e8b8f480c3",
+      "size": 297,
+      "normalized_sha256": "5e8f4908dacea6f29b2a790e4d38bf5fded69096063f9a27a2f21584d62b30c0"
+    },
+    "l10n.yaml": {
+      "role": "index",
+      "sha256": "74dfb78ebee6a49655d1baca9292ff1ebd79522777a3db7d446bdc675325dc30",
+      "size": 136,
+      "normalized_sha256": "09a9e174776601a94452416b495320d042d3309d0a261e76fd37528dd4dbf5eb"
+    },
+    "lib/app/app_metadata.dart": {
+      "role": "index",
+      "sha256": "33914f891fa1112de8ac51b9effd2a2f4b3df2f14e2cffca4add8a101b4ba32d",
+      "size": 40,
+      "normalized_sha256": "569bb0046f29f22edbdaf9c231d2948c917028f5b2d2e9f351da532b20159ccb"
+    },
+    "lib/app/app_providers.dart": {
+      "role": "index",
+      "sha256": "21e84a1433336f607e968aa770b080dc0c4be6c38d267edb4042d15debc79f03",
+      "size": 15934,
+      "normalized_sha256": "95ac1f2189616273adcb3703e8f5dbccd4785e4a41d4d4a680b23e420d339495"
+    },
+    "lib/app/app_router.dart": {
+      "role": "index",
+      "sha256": "d747c0f6390f32bcad49626561d7e9df118cd279daf5e3d97b3c35ad866ac703",
+      "size": 690,
+      "normalized_sha256": "ef7369b79b4292ec5db3156c94d0070200cc5f872c60a2a4879dae2c8ddd51f3"
+    },
+    "lib/app/app_theme.dart": {
+      "role": "index",
+      "sha256": "d195342fd6b0c7ff4b8a4904ccdd35ce17364aaaa3b9e9de27070b94a8051d8b",
+      "size": 6484,
+      "normalized_sha256": "7644250351d7e57ac4867406f03a398ee87dcbdae3ba3a83cbb50401a6449b94"
+    },
+    "lib/app/design_system/design_system.dart": {
+      "role": "index",
+      "sha256": "fc01327b5b474c4759edb581fc30a76130d23a8cd24f254b030c4c9cd6786794",
+      "size": 379,
+      "normalized_sha256": "3652a00078ddccc89237168a6ea12eb505cb69542e66deba38e5f1dd32721ae0"
+    },
+    "lib/app/design_system/editorial_color_helpers.dart": {
+      "role": "index",
+      "sha256": "d4b95d5bf106e524dc5d9a73a4c72f526e0ca808d143658c40c475641c0f0b22",
+      "size": 1255,
+      "normalized_sha256": "76948fabb5d66f9c9c878bde517bcae1fa44624048c03aac262685fcf8ef3ed5"
+    },
+    "lib/app/design_system/editorial_court_lines.dart": {
+      "role": "index",
+      "sha256": "73c3dfcfa46be913dd291736eeaf677749fbc1a458abcc8b84402aa92712c56d",
+      "size": 1577,
+      "normalized_sha256": "f52b98e4d1ccfcaf277aa06b4a97e55ce710487818edadfb45cdf737fc731db9"
+    },
+    "lib/app/design_system/editorial_masthead.dart": {
+      "role": "index",
+      "sha256": "f90b00db37e57b12f7e45176b4fbf45989b51f22de69180056d921048060b623",
+      "size": 4091,
+      "normalized_sha256": "0a0b293b623019ead251ceaa399a2441ad9310ecb6b8c0f6f367bd058b219b3e"
+    },
+    "lib/app/design_system/editorial_motion.dart": {
+      "role": "index",
+      "sha256": "d0360cc678bd386380e467f9b41d635f0892914fc99248db46ba9206c945c997",
+      "size": 5896,
+      "normalized_sha256": "8618c7de9cf5c356d3c7e4e92183b676a8d5729b2979fc71f195871895ede862"
+    },
+    "lib/app/design_system/editorial_primitives.dart": {
+      "role": "index",
+      "sha256": "7abcf601e68bdf79c96edbe25a4e484b13dec868425b569b79613b702693d951",
+      "size": 6029,
+      "normalized_sha256": "7825c2079012457e71be591e693a8e15b191f70a83386f6bc6e47b90c3988dcf"
+    },
+    "lib/app/design_system/editorial_rows.dart": {
+      "role": "index",
+      "sha256": "e1631d6e11f582e0bd4ad2a0f343f5e9f06a96db05315ca9a3a26b9f4638b478",
+      "size": 3374,
+      "normalized_sha256": "54226f0d88323f482a2109d4c83b10c0cbbdb5b81075fff6a5a1c3a08fad8b8c"
+    },
+    "lib/app/design_system/editorial_scaffold.dart": {
+      "role": "index",
+      "sha256": "af5e04f8e16de4cd3e5833491f2fae9d912dce94029ef02570782d3431164953",
+      "size": 2365,
+      "normalized_sha256": "508eed714f273f5fde16985f152055933ce9999393ae7a7a29b3e0bae4c0eb3a"
+    },
+    "lib/app/design_system/editorial_score.dart": {
+      "role": "index",
+      "sha256": "7a926d701ae45aa78964205c9ea02791511c051c257b3cf229f7f5f74ad8779e",
+      "size": 6857,
+      "normalized_sha256": "5146c035eee34b7fcaf52b0d0363efd53eee33ff95ac0e9b5f85c4dcabaad1e4"
+    },
+    "lib/app/design_system/editorial_states.dart": {
+      "role": "index",
+      "sha256": "349c7b15dd4db5359ad009d2fd50d89d0ef507f579b22c0c9ba0604d07fe97da",
+      "size": 5031,
+      "normalized_sha256": "49751ff970c8313a9c01a0b904270c228b08e8fb00704c00f41ca2c7a70b50ce"
+    },
+    "lib/app/design_system/editorial_theme.dart": {
+      "role": "index",
+      "sha256": "ad8dc2a2ac8c1768e71a20b22f9b2646bff8192883685929dafcb13f34d11963",
+      "size": 5116,
+      "normalized_sha256": "79b59f411059a912e9be8c10db96006b3bd8bff88196652b8d2a1de6436115bb"
+    },
+    "lib/app/design_system/editorial_tokens.dart": {
+      "role": "index",
+      "sha256": "7fba330f9f65fa8c46695152b285aec9870577d52b2b3fc6bf4f82ab57fcae59",
+      "size": 2300,
+      "normalized_sha256": "6c36f86d33bc72da70689556fe29437394e8d78da8d44d6d27c4ea0921e431ba"
+    },
+    "lib/app/design_system/recording_confirmation.dart": {
+      "role": "index",
+      "sha256": "545878f6dac37cd1e5eb2bf3e360ab6db9cf76b96a1726f11b3f0378151a0fed",
+      "size": 2635,
+      "normalized_sha256": "bcca70ecb71dfed952184ce888eda31652a82704922f49c8e470c247411ddd30"
+    },
+    "lib/app/design_system/score_flow_chart.dart": {
+      "role": "index",
+      "sha256": "809083996a0a0f0caaaaeabfd6f7a6dad5065ae4eac50fc4e9687f457339991f",
+      "size": 2814,
+      "normalized_sha256": "d96f53f8c6dd5e9028a0023d94564e2635b8c3545a5c3bab96cf1734acee453c"
+    },
+    "lib/app/entry/entry_brand_image.dart": {
+      "role": "index",
+      "sha256": "dcd3223f80ff5a865ab8ca39583bde43377e1011acb08e2e74e84e7e73a9947e",
+      "size": 1522,
+      "normalized_sha256": "5a7dae6bd0bf48cfca12684b12c741823fe199c8a3a26b7c928077f56b062b0e"
+    },
+    "lib/app/entry/entry_creature.dart": {
+      "role": "index",
+      "sha256": "9aef1d067885ebcaa1fde9075b0f6d954155365f4ea1c70f266c92880a89f305",
+      "size": 9930,
+      "normalized_sha256": "8396eefc67531f6529bf9a7151a858ead1fffe43c89655bc1dc9f095087bf5c6"
+    },
+    "lib/app/entry/entry_diagnostic_binding.dart": {
+      "role": "index",
+      "sha256": "047eaec734d1350206ca9aabe1344ac7dbf444036ec2c0e7a932a29f90c68725",
+      "size": 450,
+      "normalized_sha256": "7764d35554705a1a33bfe3c40dd8e92c07325714960d45d05c367b8a1beecbb5"
+    },
+    "lib/app/entry/entry_feedback.dart": {
+      "role": "index",
+      "sha256": "5029904aae62516772665345d9e750be5382480c5434dba610acf82ce06bb665",
+      "size": 2271,
+      "normalized_sha256": "3818fecb823a4642c39370aff519ad405354b18c41141551c9f54db8553f6b6e"
+    },
+    "lib/app/entry/entry_frame_probe.dart": {
+      "role": "index",
+      "sha256": "6cd5df5deec04d537d8214212ecf2f7ec4bc577f56ad75df8f90fe669d36a2ed",
+      "size": 3914,
+      "normalized_sha256": "0ab9f695702cc67f99b98e8c566fea9cacb5d444ff985deac58efa085f11622c"
+    },
+    "lib/app/entry/entry_motion_pose.dart": {
+      "role": "index",
+      "sha256": "4f318e6414be5484702d84f04aead8c0d13c802ad01abe3b0a83e3a3ae69d108",
+      "size": 3946,
+      "normalized_sha256": "685140aa449b17f9d416a02be686f952f9c431a4f4f7e99d2cfa73bfdef04398"
+    },
+    "lib/app/entry/entry_renderer_ready.dart": {
+      "role": "index",
+      "sha256": "a83bb81f972c45a189983e0440202520b51c0193b21bdca3d1df27d028a2f641",
+      "size": 1176,
+      "normalized_sha256": "aa550724cf92dfb279a38c886824648807959f0889f7ff594e36ad45a370c8ed"
+    },
+    "lib/app/entry/hoop_trace_entry_gate.dart": {
+      "role": "index",
+      "sha256": "4a0d7a055e41dc41dc8fcf4e5b50ce7fe03424ecc1d3071f86c8e5601de801ff",
+      "size": 21502,
+      "normalized_sha256": "6f29ca5c3f11b0c4afa47b18d4b4956fb778e16bf2fb81424fa170795e55f61f"
+    },
+    "lib/app/hoop_trace_app.dart": {
+      "role": "index",
+      "sha256": "fcdbf00f3cb346313df195ba2f1fc1738a005bb1c8559b0ea4bb3884152050d4",
+      "size": 10182,
+      "normalized_sha256": "9e8c5182a8c3fd9072cc50e4b3863c23080affe8ff5e87562b06703fac7d4739"
+    },
+    "lib/app/l10n/app_en.arb": {
+      "role": "index",
+      "sha256": "61446016b7a60e735c71ec41d218e24c1d20826224e2ae29403a2b45e0ae42fb",
+      "size": 41837,
+      "normalized_sha256": "90dcf6227a156469b255b782961c4dbd81df3d29ac7c3338688775243752ed89"
+    },
+    "lib/app/l10n/app_localizations.dart": {
+      "role": "index",
+      "sha256": "615171aac8691c2424bb1f1c6c87a8de1d4138b6afdce6116252cc85c0a69bc2",
+      "size": 143995,
+      "normalized_sha256": "2e10388d5ae6cff77cbc4803cff8a24fd66b7249970d310a40addd99d5ebe635"
+    },
+    "lib/app/l10n/app_localizations_en.dart": {
+      "role": "index",
+      "sha256": "7fdcb266b33156e81c87099ad6bd7f5a4b13ee400625a3deeed03c0a04c92de8",
+      "size": 63690,
+      "normalized_sha256": "8807610b50135ce3b927c85954790ef8ba89ec20a38ef658022155e510dba958"
+    },
+    "lib/app/l10n/app_localizations_zh.dart": {
+      "role": "index",
+      "sha256": "543c77adb37368bd673ab57f02c12b842fadc480d5db60ad75d3ebe7cc9aa355",
+      "size": 61928,
+      "normalized_sha256": "60df621dab0529fca5eeaf337fa4b7e3d254fd99aa84d720f7208ee71e60a7b9"
+    },
+    "lib/app/l10n/app_zh.arb": {
+      "role": "index",
+      "sha256": "887e0ee334d19e5021ef435d0656d6bce7cef0b510ee2cfc13e52ca6e8faf292",
+      "size": 41852,
+      "normalized_sha256": "86694b89290d58a0b079073b58938c27d7b581612bddd6ec5592b7c839542e8c"
+    },
+    "lib/app/l10n/rule_template_localizations.dart": {
+      "role": "index",
+      "sha256": "02d49fa03b00ac59374c68ea2208f8980f4fab72051b7ed3446b336fa3ee2c7e",
+      "size": 1359,
+      "normalized_sha256": "0cff50bdd2b15371d08c4a2028db1b5c4604f53e7505baea453465cd3ff280ad"
+    },
+    "lib/app/match_session_coordinator.dart": {
+      "role": "index",
+      "sha256": "13efb51a422543049c4662abb3994dcb6c6cf851e279286403e38ef6a73c651b",
+      "size": 7607,
+      "normalized_sha256": "337bb26ac38c86546560dd9dec0fe28fce11a14c0dd2a90993f445e52611b1fb"
+    },
+    "lib/app/match_view_data_mapper.dart": {
+      "role": "index",
+      "sha256": "7a5b6309622d872c5c2fdb361120c365dd96a1c6493f842ef2fd762c6d0b5e40",
+      "size": 5386,
+      "normalized_sha256": "ec322e36d1ad7a4be6aaf762d5e94019deec46c728be3c74abd5464f91ce5e41"
+    },
+    "lib/app/orientation_shell.dart": {
+      "role": "index",
+      "sha256": "064278be58467f01d0384fc15e06f99131c46ace3b7c3fd459b3f5bba5b32c17",
+      "size": 2915,
+      "normalized_sha256": "5ed4c5b1d79f1bfa6a849985d12cf93ffe971d09fefc462c7ec47e506a78528f"
+    },
+    "lib/app/player_routes.dart": {
+      "role": "index",
+      "sha256": "9906ee3cec56636c3480a0c34ccd81dbc15943dac59546f91280839854f1991b",
+      "size": 5331,
+      "normalized_sha256": "a83a52f22356802c37df6eb36eb220177151ee2306c4b43780cdeea33dc638cb"
+    },
+    "lib/app/provider_router.dart": {
+      "role": "index",
+      "sha256": "0d114a324f83e664e7d2a0868032c0e8124c498fe287337338d97ca7218ac8ce",
+      "size": 48059,
+      "normalized_sha256": "3d2d8d9c0861fa4a47c283426431cc65543fdd26ec21a9fceab5cafc5cdbe5f9"
+    },
+    "lib/app/route_status.dart": {
+      "role": "index",
+      "sha256": "bf0e8ae3184c0e946b4082316665e80e468568b58274d6c3db12f48642690131",
+      "size": 2919,
+      "normalized_sha256": "2cafd65de4bf43ab5254527d94fe1bc665709eb58ad890636c03f5415cc40de3"
+    },
+    "lib/app/summary_route.dart": {
+      "role": "index",
+      "sha256": "aa893dd46781cccc5c2805f89f1c8dc4cdaa1eda2688dea582fef12f334452fe",
+      "size": 10618,
+      "normalized_sha256": "8312fd65c860b52af982c3415f12f7ae67e658a489cffcfe1832e451c3c103a7"
+    },
+    "lib/core/audit/audit_diff.dart": {
+      "role": "index",
+      "sha256": "4789f680890a743695bc5f32aed7957f5ebc0ded1447b69293fc62b6e674cfab",
+      "size": 164,
+      "normalized_sha256": "fecc44e039face2b635c488c36c2a916ec8e3d3311811b87906a5eb0cafb4de2"
+    },
+    "lib/core/audit/audit_log_entry.dart": {
+      "role": "index",
+      "sha256": "79f4355207a2efe7dc057d7c4f3d26e64448d76a7648968de81daac5d90b38be",
+      "size": 1367,
+      "normalized_sha256": "6b73b14c883f64d1fab8c91eeda27ac53f44262b9d8b2f0afb4a8d492eda821d"
+    },
+    "lib/core/data/app_database.dart": {
+      "role": "index",
+      "sha256": "cb118e91ac4b6523cb8505f758e88dd317122ff8372c57bbab641174d549c5b1",
+      "size": 23046,
+      "normalized_sha256": "120d966d23ef4ba620857e9b850414e4b9450984abefff169af41a09e0d1f442"
+    },
+    "lib/core/data/app_database.g.dart": {
+      "role": "index",
+      "sha256": "df28fe551746ef93b6e43b59e7b390acc9e7f6b7d22362ca5c7da86e4b2fb622",
+      "size": 424739,
+      "normalized_sha256": "5ef9414297f4f2000af547eaae1c2b52bd3f775d091b2f1fa7b743b8c7a4f491"
+    },
+    "lib/core/data/app_database_provider.dart": {
+      "role": "index",
+      "sha256": "1bf48819c24647b604328e6d75b5b15d5ea1f7aa7a0fe16f891d35b641944e54",
+      "size": 3171,
+      "normalized_sha256": "213dcd4b6911fcc7eca5e15114213eac1fe59ca896d4b5d84ea23f96de84c4a3"
+    },
+    "lib/core/data/commands/match_command_service.dart": {
+      "role": "index",
+      "sha256": "928b53bc1b9f0e08f061fec55143382661e09af7b601a491c45d3fa3bb2f8648",
+      "size": 170010,
+      "normalized_sha256": "555f09406d272c13172009ec037186c9100a6f906047e3530d36ef5c5477750e"
+    },
+    "lib/core/data/match_clock_service.dart": {
+      "role": "index",
+      "sha256": "26ce99259e3d091e9e303778700780bfc417bf7f9f262e1b3b33f96de6578b1d",
+      "size": 264,
+      "normalized_sha256": "ec5e15980a77c3ae42581973ca686de0736832444e13bffbf34217b545303ed6"
+    },
+    "lib/core/data/match_command_service.dart": {
+      "role": "index",
+      "sha256": "e5f603a3dfd375ffe473e6a8c307d197f7fe74bd2663bad55b4f2fc706f9ca2a",
+      "size": 47,
+      "normalized_sha256": "5a32fcf5f58aa14f5cab389aa94ebcf32164b9d11d37eabd826b7e9facb8df1f"
+    },
+    "lib/core/data/migrations.dart": {
+      "role": "index",
+      "sha256": "51b492eb7f8798efdb601bdf46bb40e401eb3dc651832cc381ef6e1d7fb43e17",
+      "size": 38,
+      "normalized_sha256": "95c97128e1cbafa2fb2ebd143cab9e569b15ccf881d7f53dd014aa6262570bca"
+    },
+    "lib/core/data/repositories/match_lifecycle_repository.dart": {
+      "role": "index",
+      "sha256": "03e965b889267777dfcd7e7ed4ab566005505d8f83273e484c85f87f43936a53",
+      "size": 2810,
+      "normalized_sha256": "aef39f507590cf0aea856fc03ed6e04647f4d68d7ef2ca8f91f45c9150f9879b"
+    },
+    "lib/core/data/repositories/match_repository.dart": {
+      "role": "index",
+      "sha256": "c9ca9447a53190d88dcdaf406f15fd295ef3fa5396e627d93e5953fcb878289d",
+      "size": 45177,
+      "normalized_sha256": "a0f88aaf7bcef8d5daa5731ad05c79e09e939f24dffcce2a474be36f44727c3d"
+    },
+    "lib/core/data/repositories/player_analytics_snapshot_repository.dart": {
+      "role": "index",
+      "sha256": "fee740e3a5967668f0e6b96fd9f1983c892c41fe11b1677bbfe9267d6453c092",
+      "size": 9307,
+      "normalized_sha256": "3fdabbf3a9dea9f90af2f236607407c77ea3345455e8856d49e410ee7d66333c"
+    },
+    "lib/core/data/repositories/player_career_repository.dart": {
+      "role": "index",
+      "sha256": "5c72a6a38d7928fed43f4b1af41728373acfbaa34b2f30ab26a82f5b28c03bbc",
+      "size": 11241,
+      "normalized_sha256": "55351afada5a19832c9b1864962c4ad3c1e1f4a133f31a59f9cff71d455a7f09"
+    },
+    "lib/core/data/repositories/player_comparison_repository.dart": {
+      "role": "index",
+      "sha256": "8b33ed726e29aa07bb475cbb554344dcc1058da621d4501f470cf3857047617e",
+      "size": 8879,
+      "normalized_sha256": "adc13424a9a8de7384f871d8882d8daa3e99ef8336ec1c185fcb80f178d23415"
+    },
+    "lib/core/data/repositories/player_repository.dart": {
+      "role": "index",
+      "sha256": "2bdf33bc098475cfc5694dc4cf0cd1e0a5af0d499bc087648311374e2cd5233e",
+      "size": 1723,
+      "normalized_sha256": "73e52a4b02a841c8118e82d5870b3001b5070670fec6f9c33c318d5bb685da1d"
+    },
+    "lib/core/data/repositories/rule_template_repository.dart": {
+      "role": "index",
+      "sha256": "4d9ecbfbc399bb3446aae9958f834a13b3c0c3678be4ee405d4062da1d4a6770",
+      "size": 4295,
+      "normalized_sha256": "fbaf9c15a7ce66d92d22c284d61159f1e02d877d8b356a61eb21ea705f4fda7a"
+    },
+    "lib/core/data/schema_v2.dart": {
+      "role": "index",
+      "sha256": "eb73bdbc5ecb8ae49e06c194743eb811eaa16ede29097e621f7aa369bca34a25",
+      "size": 708,
+      "normalized_sha256": "1886d4249a4df8cdb40c294688061b07dfed221734b5310581ee62ddcad8d0dd"
+    },
+    "lib/core/diagnostics/startup_diagnostics.dart": {
+      "role": "index",
+      "sha256": "ed4ec21e055c6aaf6d6810ef5bbb929c93c0e4f80f26cae9aff96262356baa67",
+      "size": 1340,
+      "normalized_sha256": "10c529915cc349c2eb5ec9924a536ce34342518f039a19b419421048e973e521"
+    },
+    "lib/core/domain/analytics/match_analytics.dart": {
+      "role": "index",
+      "sha256": "c863a77b7eab2b216d5cfebbb02b2663ecf8ba28a12dd34c8b7b60b24e1ea8eb",
+      "size": 8745,
+      "normalized_sha256": "7f5e582441a89b6b3dce11013f63913da1c64db57958a72d866a033993c431b4"
+    },
+    "lib/core/domain/analytics/match_analytics_calculator.dart": {
+      "role": "index",
+      "sha256": "81cc4b9ea24201154682c9d573c33cd820176d914ae79277b596d587d0999c49",
+      "size": 11049,
+      "normalized_sha256": "d6e029bf9304f40a01a3e46db7027a99861247419b1c262125c9ab2ddc8d3140"
+    },
+    "lib/core/domain/analytics/player_analytics_snapshot.dart": {
+      "role": "index",
+      "sha256": "9e28833c0a48fcca3fb220da6bfabf50e593e3a4c40b3793c0c4f4e5245cb4fa",
+      "size": 3168,
+      "normalized_sha256": "9037a7da1f47a3f4162c135fdaf4dbb4eced9a9337318612573b0fb9fc2f00da"
+    },
+    "lib/core/domain/analytics/player_analytics_snapshot_calculator.dart": {
+      "role": "index",
+      "sha256": "7ad0aa12a5e9c3f6df2b6bf62a2f2b7b1e71ccff977b5f06c0a4e2dbe25d3f2b",
+      "size": 4677,
+      "normalized_sha256": "1df742cda25cbe7a89177f04833dc1b8bbfb4787bf81b84b5a47e9fe36e16676"
+    },
+    "lib/core/domain/analytics/player_career_aggregate.dart": {
+      "role": "index",
+      "sha256": "1f5c71c25f37e6669f1c791faaf628cf55c963ff2c0212272f93d04aea9d0e03",
+      "size": 9779,
+      "normalized_sha256": "3a3b67eca38989cbe4bc6016a358f927cb9ff60efc8d456e15da3dc8b17aefaf"
+    },
+    "lib/core/domain/analytics/player_comparison.dart": {
+      "role": "index",
+      "sha256": "a0af7727147257cd48020cd6f5bef0fceb72a8a6e9527057ad31e546d07ea161",
+      "size": 11608,
+      "normalized_sha256": "88f8732817072f6da5ea289ce862378fb0357ff94f62bbf514241fe3bdb9389c"
+    },
+    "lib/core/domain/clock/clock_engine.dart": {
+      "role": "index",
+      "sha256": "d7aea324cd5e61102b41ef48c20439a2975463d3e9c63e373012827c67313b6e",
+      "size": 4596,
+      "normalized_sha256": "c22b08efb4cc7778256e1e6997b17eba604d7a2b3e0c842d2796f2c9d0ea7dc0"
+    },
+    "lib/core/domain/domain_enums.dart": {
+      "role": "index",
+      "sha256": "3ecb73119fd8958fbda49f24008b5d8ac6537b88e41982d4f09beef1fb193232",
+      "size": 2172,
+      "normalized_sha256": "faa9aba12b24bd20ea9154958047429793681785091f1646df867eeb16ff11a0"
+    },
+    "lib/core/domain/entities/active_session.dart": {
+      "role": "index",
+      "sha256": "ef68c58c650024af171bbbb1d40e263b87d836e377180b24b7a27fcbe2cbfbb2",
+      "size": 281,
+      "normalized_sha256": "5fec856acc41bdfa632ab30f80f459ec66ce772f10d260141aa50eb2494abb55"
+    },
+    "lib/core/domain/entities/clock_state.dart": {
+      "role": "index",
+      "sha256": "645cd88d2f8e55fa1020ea240ecb50a177babf00226275d2beb4aee2e962ef60",
+      "size": 2210,
+      "normalized_sha256": "f5cd62e9971872b2e50b9a5f6d2533ebdd9b58b61c63ef97a5640c3d77b2bdf3"
+    },
+    "lib/core/domain/entities/event_mutation.dart": {
+      "role": "index",
+      "sha256": "3c97e7a3d66365ce9d4a8150e51b726db92f63a813baf9a3b77f6c4f00304e19",
+      "size": 250,
+      "normalized_sha256": "78643b30a79961ee1feae58a56b7def90b6fbda25d87dda00a7491a474c3477d"
+    },
+    "lib/core/domain/entities/match.dart": {
+      "role": "index",
+      "sha256": "72838f0128ce8c724239e9c81c3b370ca8f288010ce92275c82e8b934294efd3",
+      "size": 4441,
+      "normalized_sha256": "30dabcfd7db76183eee1f259228c32cd3e6ba43e9424d4185b821ce9aef1fe03"
+    },
+    "lib/core/domain/entities/match_detail.dart": {
+      "role": "index",
+      "sha256": "a8e78a7be6f3a099ade0bfe24fc48efd979ac66c980b536e104bd77fadbffa8f",
+      "size": 5954,
+      "normalized_sha256": "374cb12233794e091b9e7b607e46e272fa188ed289f76d1fd045567b71c0b88b"
+    },
+    "lib/core/domain/entities/match_event.dart": {
+      "role": "index",
+      "sha256": "de65dcb4dbcd295e6f037c622f95eeb9700c658e1ece97e9b581dc802fb3da3d",
+      "size": 3503,
+      "normalized_sha256": "3ab1f71d7009812a72a518db5d98cfbdaae82302f19b0c3caf87537ca5fdcd4f"
+    },
+    "lib/core/domain/entities/match_history_entry.dart": {
+      "role": "index",
+      "sha256": "319af69c8acfcfb8f393f65d2f5345a7a5e2c9c29950c1cfa1e12357bfa47e74",
+      "size": 3870,
+      "normalized_sha256": "835bae0be745a391c37a1fda85b2efb124422ec5e1f37f70dd1d44e09e98959a"
+    },
+    "lib/core/domain/entities/match_participant.dart": {
+      "role": "index",
+      "sha256": "80405c489e107c4353d1c14cbc7d5dbe48e5907a61cb09cf2a8c97bfcca49d23",
+      "size": 44,
+      "normalized_sha256": "ab35158dfbd9a9640000abab546e7672d1e0428c82f07be4568a3133b62e69b3"
+    },
+    "lib/core/domain/entities/match_setup_preset.dart": {
+      "role": "index",
+      "sha256": "5f61b619815f01f5b057be16bb97f34021bfee4b97dd4f5385632d5177609e62",
+      "size": 3207,
+      "normalized_sha256": "ee7b01a749bf3294749a844d299c0ead794ab9b8d97483d6e9859a5c5e5e799b"
+    },
+    "lib/core/domain/entities/player.dart": {
+      "role": "index",
+      "sha256": "37c3bf8dde99921f8ffa4ab738228c5778a9702f55f5a37209441a5dbebc01a1",
+      "size": 373,
+      "normalized_sha256": "d6c41c632c768880d0aa34eff5f3114da941a9e96e704a4a99a2134bb57bf277"
+    },
+    "lib/core/domain/entities/possession_segment.dart": {
+      "role": "index",
+      "sha256": "68207466ba1d15cfb865d4503556c630b39e6dadae60fb7bff821dcf62bd9645",
+      "size": 678,
+      "normalized_sha256": "6af3c90362bddd6f75653bf31813e9d25ed97dde8d98ab5e8867bccce5435369"
+    },
+    "lib/core/domain/entities/rule_template.dart": {
+      "role": "index",
+      "sha256": "6554db112e38d0d93a9c4f710717c9f6da9831420e485fcf109cb79675e53e4a",
+      "size": 1924,
+      "normalized_sha256": "51aaa0a96538ca8e0f436bea416be0e4934553db2b9e18f89e1cf7a66a2cd0a1"
+    },
+    "lib/core/domain/entities/shot_location.dart": {
+      "role": "index",
+      "sha256": "8db1d508927f03bc6f708f90b5774314512ab60493ec09335e654d5ba8e7b76a",
+      "size": 393,
+      "normalized_sha256": "c456ad42c86a84b956e5e6f2a77f4a0e35593c8ab49247902b5540470cdb3b86"
+    },
+    "lib/core/domain/rules/rule_engine.dart": {
+      "role": "index",
+      "sha256": "3d16f2c45a7a75bbe4d7d78ba235bba7de0336e5855ddf445750000c46892943",
+      "size": 4499,
+      "normalized_sha256": "fb6480849e517d5e959220e672e80a6b6886f777ecad2c1a137295045ca89f89"
+    },
+    "lib/core/domain/scoring/score_state.dart": {
+      "role": "index",
+      "sha256": "a0609c724c572011c9518859ed94dcc622640939801897fe45cfa3e516997321",
+      "size": 204,
+      "normalized_sha256": "02c2536a775ae245e134b362d14282c022c0b6751ae2c309286faf98dbf917a8"
+    },
+    "lib/core/domain/scoring/scoring_reducer.dart": {
+      "role": "index",
+      "sha256": "59f7879b15bc47af625cdc616b1ec418b9f4995d32655c91f52a56907cc7b04a",
+      "size": 1037,
+      "normalized_sha256": "885fef355cc8eb2bf7d638c28da650562340343c0bff6d1a1fc5a3b5137f827e"
+    },
+    "lib/core/domain/value_objects/court_point.dart": {
+      "role": "index",
+      "sha256": "1ca14a4112751c7f390fac14413526bbdeb61a23622bfd5097e9c6d7827e96aa",
+      "size": 482,
+      "normalized_sha256": "4d517e742f7e8242fe161d64adb2b2cff4bb65d9a876aa9fdd463ac9f9cda25e"
+    },
+    "lib/core/domain/value_objects/team_side.dart": {
+      "role": "index",
+      "sha256": "d41152de94cadcc452ae5413e23b4d9fcbfa4a25af72424d5d222692ba870f5a",
+      "size": 120,
+      "normalized_sha256": "a7698a500b5d418d17f55653a96430f230016d250f892129aeae2f5befaaa198"
+    },
+    "lib/core/export/automatic_backup_scheduler.dart": {
+      "role": "index",
+      "sha256": "81559f2a7c07b0775d807a5ba12f8b6cfd1fd84d744c5c164f9e0286ce6e70c9",
+      "size": 1338,
+      "normalized_sha256": "fe5af204aaff6796c83d49407f33aa4b4ac079cc0e56dd63eb4bbb74fd4a731b"
+    },
+    "lib/core/export/automatic_backup_service.dart": {
+      "role": "index",
+      "sha256": "b72efa7dcb776d9d854a8b7c78400b796c6f3839be8afc16280b18769301dd62",
+      "size": 23117,
+      "normalized_sha256": "a69c97d9d44fee1b512252dcf5a6acaa330310c40e8e42ad711202f6d916040b"
+    },
+    "lib/core/export/backup_manifest.dart": {
+      "role": "index",
+      "sha256": "d1adfdc366de048f042fded2d0eb0f502dff848082e3ac7b7412477f32639ef5",
+      "size": 1428,
+      "normalized_sha256": "67ec71efa286fccd1a30aa3e6e74a0dad0082f0346b80402d65e57cb2fa47cc2"
+    },
+    "lib/core/export/backup_merge_service.dart": {
+      "role": "index",
+      "sha256": "f9659fd3429614731dcb5a6e33fbc8e799d029d44aeb570b66e12101dd381e82",
+      "size": 33262,
+      "normalized_sha256": "842cf0afa28d4100a8b303760a257c4aaac0c7d227e8d084386a7b629bbbaf4c"
+    },
+    "lib/core/export/backup_retention.dart": {
+      "role": "index",
+      "sha256": "8c017cbfbb02ee8cd526941dbb30da9987df487893381b7390b1bbc27f3fdce6",
+      "size": 510,
+      "normalized_sha256": "f59a8a67664b347e59c8fc7b0b77bccc3cbf885ac793ac1c535f2fab5880496a"
+    },
+    "lib/core/export/csv_exporter.dart": {
+      "role": "index",
+      "sha256": "9d6acb20fe671ce3ac762c2b5db2a1603b1da0b68b95cd63332fbe34bbdd8513",
+      "size": 4872,
+      "normalized_sha256": "44ae383b567fc574dbd3dc26ffa6084cae7655dc3431d4b4fe08f97e0e974b2f"
+    },
+    "lib/core/export/device_automatic_backup_storage.dart": {
+      "role": "index",
+      "sha256": "0cb271529f0e0d705ad826a5a3c06780a4904596f5a642adaf2a786d7c48b966",
+      "size": 5444,
+      "normalized_sha256": "23c664b57abd23687ec55ffe541b285c3efb717ecca8b7dfcbbe0d93869f36c3"
+    },
+    "lib/core/export/device_export_gateway.dart": {
+      "role": "index",
+      "sha256": "23d5904a545051c738bb7b99a563503f0eabc9711b7ec45c2e329608c4ad3b3c",
+      "size": 2519,
+      "normalized_sha256": "e7d804286a5805d3ecf53eceb79266831c372292480692167a1badeb927ef2c6"
+    },
+    "lib/core/export/export_coordinator.dart": {
+      "role": "index",
+      "sha256": "9b4aaa7a7aa3125fd9b58e400cefe96b146cca1f39e402cbc21b50b4493a0894",
+      "size": 12750,
+      "normalized_sha256": "fc9aaf5afd3155a57baff32c6c8eef4e48f1ccac41bb7109914ce50e50eb822f"
+    },
+    "lib/core/export/json_backup_codec.dart": {
+      "role": "index",
+      "sha256": "ae1740162c4e3caf87525c870fe898c02ebc41186dfd72d5bae0545cde496458",
+      "size": 44454,
+      "normalized_sha256": "6277a9fdcdae9ae83c467b65f8c56fcc952d67bef5e343be0f2cab8cd43c17be"
+    },
+    "lib/core/export/replay_image_exporter.dart": {
+      "role": "index",
+      "sha256": "cfc94140d27003dc5b3819720ed087d9212acd62615e4405dd66c2339d17a2fd",
+      "size": 961,
+      "normalized_sha256": "fd5dcbfe02aaa4fb427930d8967d7e553a2dd321118bb8451a2b21bebb1bd9b1"
+    },
+    "lib/core/export/safety_backup_store.dart": {
+      "role": "index",
+      "sha256": "fc4f47be1e47805c37cf26fee0a526895655b0dcaca9e2a43a343bf7bf1ba3dc",
+      "size": 7340,
+      "normalized_sha256": "4f6c1cf8b7bba20b89375e658f56d2798a445635b2d6bda182d0ba79d2d875a6"
+    },
+    "lib/core/settings/language_preferences.dart": {
+      "role": "index",
+      "sha256": "d40278a0cb6779297f31f1bf182a4b98c40daccaac242917e19240ccc4586c30",
+      "size": 4727,
+      "normalized_sha256": "72c940c53fb1033bf883313b79c1ef52e5dc2b3453eab59e8975eeef454dfb72"
+    },
+    "lib/core/settings/motion_preference_cache.dart": {
+      "role": "index",
+      "sha256": "33b3a92e058d07da2900f0ec0991225861e306edc3c8bd68e4fe339b588b11c6",
+      "size": 2106,
+      "normalized_sha256": "206e1db3464c189967e3cf3a7c692f240f1f151ccde966e7ad86c373f8649fc1"
+    },
+    "lib/core/settings/scoring_feedback.dart": {
+      "role": "index",
+      "sha256": "102dff3e0b7834f2e4e1acccef799cfdc8078a24bf22420ff00e1caf4dab039f",
+      "size": 9964,
+      "normalized_sha256": "eb3e8a178bb92c182ac56da78b41f5e8e76af9469dc17f35cdcd98afb714c528"
+    },
+    "lib/core/settings/scoring_guide_preferences.dart": {
+      "role": "index",
+      "sha256": "b7a943c361a69ddec06cf2ef725cff1de2ffe274e6936ed36cf7dafb543616d1",
+      "size": 671,
+      "normalized_sha256": "85573161ecdc75cbb507d370a5cbcfdc58b194516eeb888b95ae558f779aa8f9"
+    },
+    "lib/core/settings/theme_preferences.dart": {
+      "role": "index",
+      "sha256": "7a09f0e8781ba8408f8a90b2fde280f4b6a9451bad11a92a4a5ceef0c83ce7a5",
+      "size": 4746,
+      "normalized_sha256": "08fbf0f2d76389271eb53f8f541c720a0857bdc4a82afa5633c125fec819c5c5"
+    },
+    "lib/features/history/history_controller.dart": {
+      "role": "index",
+      "sha256": "27376e99b28a0569612e9d0f3184704f33436dd996b92a2311994d3b45a0f9d1",
+      "size": 14273,
+      "normalized_sha256": "a8395094a21a552a8fe79613f6e67b6be0e36de60a0561b5731ab0efdb506a23"
+    },
+    "lib/features/history/history_page.dart": {
+      "role": "index",
+      "sha256": "3f30a1ab08d781ba7ecec8adf6c6255b64b24208c39aa91064b0e46e785990fb",
+      "size": 34025,
+      "normalized_sha256": "4142dd73538ab92ad230c7f1099c1948510a1dfefc716ffd52f3d08e89203ec2"
+    },
+    "lib/features/home/home_page.dart": {
+      "role": "index",
+      "sha256": "81140eecf46c195752ab3af4f86f66d6037cef88c0fbdcc23ad18cb9f0730e30",
+      "size": 15883,
+      "normalized_sha256": "d409de8b10bcb9d8b339cdf0d882d47c67ae27e82dfe75e0439e1488b8ba2c56"
+    },
+    "lib/features/players/player_career_controller.dart": {
+      "role": "index",
+      "sha256": "f63d415413d3d39bff8cb3b2c9b26cefcc056fdd56de142ac8271b35d9d8e23b",
+      "size": 3046,
+      "normalized_sha256": "9e56b18cc1434a3595ff813d3445eb47c3d6f9c8ee1c6d42c60aeb75b56d9398"
+    },
+    "lib/features/players/player_career_page.dart": {
+      "role": "index",
+      "sha256": "72525098761ea6f3f1f7159e75e94729d9e96d0a4c449b31ccbf521018664a99",
+      "size": 29660,
+      "normalized_sha256": "070f41e8a37a25c261e4ed213888d714ef2814d2ecad37745fe335257ebc0c2d"
+    },
+    "lib/features/players/player_comparison_controller.dart": {
+      "role": "index",
+      "sha256": "e11aa067cf0ede09fa16111005844e502b32a107ac4cc30d22d6b881ca9e0ca2",
+      "size": 7100,
+      "normalized_sha256": "81f8c71a1f1a370ef626dac886ee5ed9e040902c78078853352ff999c29ef5cd"
+    },
+    "lib/features/players/player_comparison_page.dart": {
+      "role": "index",
+      "sha256": "093d92a9562c252964b06eb68186db57d71a0cb95a4d92f6032faaf3e3d34323",
+      "size": 30769,
+      "normalized_sha256": "c5ead3d1c5c824be94837c53d92b1c0a77f592118ad9b6944a0462e0dfa24e13"
+    },
+    "lib/features/players/player_editor_page.dart": {
+      "role": "index",
+      "sha256": "0fac7d545060087f241006520f0f0e5fe0b7e5b9512e458ebadd1bc453815afb",
+      "size": 10282,
+      "normalized_sha256": "7167728b7c0638671b8e4cec35968876637bbe09ca13e0bc1d40083e4dbd4649"
+    },
+    "lib/features/players/player_list_page.dart": {
+      "role": "index",
+      "sha256": "c3eb1a32c65253a31ace27ed8f3461b805f320a1644f9ad2950f1d9b5cbb04b8",
+      "size": 5479,
+      "normalized_sha256": "7c53681d6ef6dc26367c5caf3b60632a8e212a043367dde308c8fe3cd39f1564"
+    },
+    "lib/features/pregame/pregame_controller.dart": {
+      "role": "index",
+      "sha256": "8a9b423d25a236f20e499e5948a1f4846071b885d7a59777639dcb2350a9fc3c",
+      "size": 16155,
+      "normalized_sha256": "5c5f68d314502174cb413d09b48c690d0969dd01b6d7105bffc4f56ff36e7a8a"
+    },
+    "lib/features/pregame/pregame_page.dart": {
+      "role": "index",
+      "sha256": "13d9dfe4b7889c77a18d7029c38e1e448da52eb3253888776c7d261fec4a9c91",
+      "size": 50580,
+      "normalized_sha256": "f68cc4e3cb2dff51bc7d0c8e6787302d20fb6ce0ecf14d4a903cd62398143100"
+    },
+    "lib/features/pregame/start_match_mapper.dart": {
+      "role": "index",
+      "sha256": "f1b8ae4f2518e12d8ddd788758049bd2a4e25a9404019ad7e366f30fa0405e0e",
+      "size": 3218,
+      "normalized_sha256": "ac1296ad1e50f760807ff58266a47a332ed32823981b8d4a8b31f7b87720a13a"
+    },
+    "lib/features/project/external_link_launcher.dart": {
+      "role": "index",
+      "sha256": "2985beae314829042016e04f76cc293a2d9fe37ad8085a39b95b53583b58cf0b",
+      "size": 237,
+      "normalized_sha256": "280baed109cde0c7815e66eaf8e5c3e31438fee5bef103b372a6c3471a8d0142"
+    },
+    "lib/features/project/project_details_page.dart": {
+      "role": "index",
+      "sha256": "0f50f37ce89a6476274890b84733eaae16161ae68f0e27adaf793e00074f498c",
+      "size": 7665,
+      "normalized_sha256": "9e97c1254e6ca09316d9e8932163420f7d61df668bd9c084ad00ac3a001cb378"
+    },
+    "lib/features/replay/replay_controller.dart": {
+      "role": "index",
+      "sha256": "1c8662eadda6f3951548eb52fccaea6fb646cc8a585abb7dca979b61a48f85e6",
+      "size": 17106,
+      "normalized_sha256": "c21fa3f6d232061b8e6483a396a46d1d02943f004e30ca3455be62ce585b587c"
+    },
+    "lib/features/replay/replay_event_filter.dart": {
+      "role": "index",
+      "sha256": "e05e86b0f89abe59ff6a3504b922adb493b957407360ff6413dfa14b565ed134",
+      "size": 2085,
+      "normalized_sha256": "4b57feae69c76c14c8397687c9c9179f421c415fc7fc66d9685cc45f9c8b6714"
+    },
+    "lib/features/replay/replay_page.dart": {
+      "role": "index",
+      "sha256": "2e0baefc8cd0e1584387ac8b381a18f4e901040422aff30e25e66bc347c518d9",
+      "size": 49333,
+      "normalized_sha256": "a666dab716130be11ff3d2a4a4dea890fbce8ea1813f62dfb2647ad73e799fd8"
+    },
+    "lib/features/replay/widgets/replay_analytics_summary.dart": {
+      "role": "index",
+      "sha256": "f1cd1e4674b189e692237f4df591a5e58ec80722c11904f12d3fa6290511387d",
+      "size": 18755,
+      "normalized_sha256": "a0e08f4a7c67a63f2e99ffec7d8032591d6772a7a1b005419ad84f61b19e0d5d"
+    },
+    "lib/features/replay/widgets/replay_audit_sheet.dart": {
+      "role": "index",
+      "sha256": "2feaed633c4262328e292ce9786a990eb168d1be2c564cabf7e1e9df1a34ad2d",
+      "size": 7374,
+      "normalized_sha256": "c7e943fc52fa92f71f4024cfb1ec6a6aed223203bfdd0584e3825f16d0856f8a"
+    },
+    "lib/features/replay/widgets/replay_event_editor.dart": {
+      "role": "index",
+      "sha256": "85f317572de8279bbb429492e723295726faec7239ecb6494453124da34cee66",
+      "size": 17577,
+      "normalized_sha256": "90510610c1dff58a888a313ab75d2b09aa57764025ad2ccf06f0616eeeee5cfc"
+    },
+    "lib/features/replay/widgets/replay_timeline.dart": {
+      "role": "index",
+      "sha256": "b6f0980f62baeb439b7d12518eccb918557c695d41694f36d29b27a6d471fc44",
+      "size": 21724,
+      "normalized_sha256": "8ee69e50cfcebedcec17e8b3768151262fb67961c3dddf793e98a5d98729828d"
+    },
+    "lib/features/rules/rule_template_editor_page.dart": {
+      "role": "index",
+      "sha256": "e7cd818861500da274bdef0be3bb4fd809fa4fbb71d9a742c2d28629f420ae2b",
+      "size": 14084,
+      "normalized_sha256": "53647515683b4dd02eb8b456ea54d10c500154e29046416f2cc3ab412d62886d"
+    },
+    "lib/features/rules/rule_template_list_page.dart": {
+      "role": "index",
+      "sha256": "df2f56f5378703f7cf32a728b60635d33d58eb2372e5d4ab21bc2838c01cdc30",
+      "size": 6541,
+      "normalized_sha256": "dcd1950eded3c7a63345b3a626d30a091b4d2ab87a564e9aeee39c2183421f64"
+    },
+    "lib/features/scoring/motion/scoring_motion.dart": {
+      "role": "index",
+      "sha256": "bbe67fc9a1faebdbb2daa6d3baf5119b20b0aef81b69f1f394a8e2bb622d6242",
+      "size": 21263,
+      "normalized_sha256": "ff5b66868cb846b272e5b23c480f0981a73ca6ae2181d393c95524732c0eb974"
+    },
+    "lib/features/scoring/motion/scoring_motion_coordinator.dart": {
+      "role": "index",
+      "sha256": "3fccdb1b514e010b7f1fd772ae7a2630db16225dba36743c113af9d6b6813499",
+      "size": 224,
+      "normalized_sha256": "27bd25acbc6985ee2924136a3abdcb0f42d71ae172758f05cb0a4e5027512e3f"
+    },
+    "lib/features/scoring/motion/scoring_motion_event.dart": {
+      "role": "index",
+      "sha256": "e0ef38774984d47926705b60a6cd1ec103a01a5c1a51e469757b2704c5eee2f2",
+      "size": 100,
+      "normalized_sha256": "c5b50316fdd0abe2f0d426ebd7f8953fab3b8370252622a1cfb6430e3b1002d8"
+    },
+    "lib/features/scoring/motion/scoring_motion_geometry.dart": {
+      "role": "index",
+      "sha256": "4b58eac57bc6f126e1d1f94d9cdf812134b0ed89bf3bb74a5844d86285448d77",
+      "size": 98,
+      "normalized_sha256": "44d6cec6f7b3048ceca4211327906de8e623842e12deb93c9460b30e5ac6ea0c"
+    },
+    "lib/features/scoring/motion/scoring_motion_overlay.dart": {
+      "role": "index",
+      "sha256": "a09e5be9a301711f0c5a674c8b00eeb91ec62bc0f4d88a3358c110b16861247c",
+      "size": 213,
+      "normalized_sha256": "60e050575369a990c57116d1d36902530e5370763528b5e61bb7a00cd42a074d"
+    },
+    "lib/features/scoring/scoring_controller.dart": {
+      "role": "index",
+      "sha256": "ea69edbde463fa9663f6dfce8b61a3b45078e688288a494b5231c088e042a14c",
+      "size": 58393,
+      "normalized_sha256": "255266890cc7f8143d971a14734bdb1a2e794679483b962af2e29e94d6807bfb"
+    },
+    "lib/features/scoring/scoring_page.dart": {
+      "role": "index",
+      "sha256": "8e65b6e00eb3afc23be18304076c75fcf69b68c1416f0e32fa7d9497dc999ab7",
+      "size": 117930,
+      "normalized_sha256": "e4634ec32cffadfd91e8a697c135c7c7c5f332b1bdf83736354d1359bbe6e52a"
+    },
+    "lib/features/scoring/widgets/court_painter.dart": {
+      "role": "index",
+      "sha256": "9e5a6e0a9dc2c1e6f1663bbfe4d27dd8c407f2c634da26059fcaf351d36109c4",
+      "size": 14136,
+      "normalized_sha256": "09096f855261460a48fa7fe913fe3ac2ff276266f5903663024c20e3b83ed12c"
+    },
+    "lib/features/scoring/widgets/court_view.dart": {
+      "role": "index",
+      "sha256": "72f1e8eeb22e0cb1914e01d42189888714fc7a2a4133e2057b9271409a4bc671",
+      "size": 7533,
+      "normalized_sha256": "782a4f2318895fdfdff6a823d3e6cee697e6af16aeea805f9400b03e1471625d"
+    },
+    "lib/features/scoring/widgets/pending_location_bar.dart": {
+      "role": "index",
+      "sha256": "dcf3f78f9fa98b11b282f7af72816eb002c92f12c0922bf85a9b0f213765e34f",
+      "size": 1907,
+      "normalized_sha256": "0a19422ac78e9e52184db6530c229c98ac4ea067ee6cfd69f303a62761069992"
+    },
+    "lib/features/scoring/widgets/score_side_panel.dart": {
+      "role": "index",
+      "sha256": "9cb4ec92f642c4aaae651e48bcf6e5f42d38a8062502da4a78ada6793d97962a",
+      "size": 22506,
+      "normalized_sha256": "344f289be7063ec810c48a2e9652c844ff49c6d6709a63f9c8a901fccdfc1713"
+    },
+    "lib/features/scoring/widgets/scoring_guide.dart": {
+      "role": "index",
+      "sha256": "5156b992f78e3cc0522e0c588a9b50dedcbfb52bd6baf22efdaf9100db4246f6",
+      "size": 2441,
+      "normalized_sha256": "b3d4f9fd3c8620719c80cca40cb88f7170482e2625e4c32e39d8f278158ab245"
+    },
+    "lib/features/settings/data_management_page.dart": {
+      "role": "index",
+      "sha256": "dadf6f0c8a599baa080717867a2aa23c9376b27aaa81297dc43f4c4f0924e733",
+      "size": 18875,
+      "normalized_sha256": "07315979f4843d50a96aaf40f06f8f14561f4311f1e866da5d8629ef3c0179e2"
+    },
+    "lib/features/settings/settings_action_tile.dart": {
+      "role": "index",
+      "sha256": "0b5c47e62e185d001cf487ad76aba662ddb1f4fcf436b4d8bc078a5b2871c0f8",
+      "size": 2816,
+      "normalized_sha256": "0fe7bd58bc31d66d36179304ee1f67b6ee6c8b2bf5d2bbbc60eaede0b28ea821"
+    },
+    "lib/features/settings/settings_controller.dart": {
+      "role": "index",
+      "sha256": "e650dfa2cfcecb9da386a8d631e679f753bbed942fbd29f92123748ff5bd749c",
+      "size": 6728,
+      "normalized_sha256": "42ffdf54dfb0271678398986dbb1c99a079d0cdfdbdf24d4685cdbe7fec2a5ba"
+    },
+    "lib/features/settings/settings_error_message.dart": {
+      "role": "index",
+      "sha256": "c37e21631a7f24c093e2dedbb376f7c78e253e3d48b152140d6c4d9ab3b7c672",
+      "size": 1949,
+      "normalized_sha256": "213f328501c1ba27b21e72677de0be100b509ba20e150450d0d934482a5903cc"
+    },
+    "lib/features/settings/settings_page.dart": {
+      "role": "index",
+      "sha256": "69e21efcb041a055df3ad366d9af91f43bf7b2b197e1abc3073e4809d19f47b5",
+      "size": 23488,
+      "normalized_sha256": "5c55d6cb1e1d3b0a3e1fbf9ee0798765d67c0b232bb151b07a94bc986fb3d32f"
+    },
+    "lib/features/summary/match_summary_page.dart": {
+      "role": "index",
+      "sha256": "bd15e81ba9e706df6e5d621e1e9dc49177e3c93ecb105de5759ea6a538ffb0b3",
+      "size": 6902,
+      "normalized_sha256": "bc63e9c1be96334f6812837e7a79e55123248463b1de28ff65d726c5b88675c4"
+    },
+    "lib/main.dart": {
+      "role": "index",
+      "sha256": "12fdc4ec463324d3af07334b59f157550809777708ec3043ef7f323a06b3ab9a",
+      "size": 2721,
+      "normalized_sha256": "a97e0a0d66d32abbe0cf5d49c244c1bd5d50affaf037f503b7180d99bb789752"
+    },
+    "pubspec.lock": {
+      "role": "index",
+      "sha256": "b7a4be9072d89e3a47858baf940da4c941c5f5822cce373752637bdace5b65f8",
+      "size": 35588,
+      "normalized_sha256": "7853ea3a0260f65d932d9ca6692285f1671e9bd342806e84b1097fb53752e7db"
+    },
+    "pubspec.yaml": {
+      "role": "index",
+      "sha256": "afccbcbbaa2c7d7a070cbfac786bd4891eb8b7c41a03ab10f287a85de5842435",
+      "size": 1701,
+      "normalized_sha256": "0356fbc5685425e715f769a9d84e026c665e4c8ff230205b51fa9a8350c604f5"
+    },
+    "scripts/setup-worktrees.ps1": {
+      "role": "index",
+      "sha256": "ba398e0e7886d15835f83709932cc608313520d1971d4ed1b073cc3a6d2695f4",
+      "size": 5438,
+      "normalized_sha256": "ba398e0e7886d15835f83709932cc608313520d1971d4ed1b073cc3a6d2695f4"
+    },
+    "scripts/test-setup-worktrees.ps1": {
+      "role": "index",
+      "sha256": "0d81949cb4264bfa94f36f8acd5c48a9bf7a10c68a216a1a7cead4238e358bd5",
+      "size": 1244,
+      "normalized_sha256": "0d81949cb4264bfa94f36f8acd5c48a9bf7a10c68a216a1a7cead4238e358bd5"
+    },
+    "test/app/app_shell_test.dart": {
+      "role": "index",
+      "sha256": "943cce2ff43c2f6aea6f47e3ef39c4a9f7bd9a2661357e91a98b748df7c6d04c",
+      "size": 6509,
+      "normalized_sha256": "d52f86966ca410f5c88ab617cf6e3b2e6c555d604106349772bf5a88818af09d"
+    },
+    "test/app/app_theme_test.dart": {
+      "role": "index",
+      "sha256": "99ddbe9e271c8d7f75be7859847badbcbf254116a63bd66dd7a6c4663c4c49ee",
+      "size": 3444,
+      "normalized_sha256": "87703156371b1a5857cb13e391daf53cb20844c4f4c7522ae99f978ee6edc396"
+    },
+    "test/app/command_backed_scoring_test.dart": {
+      "role": "index",
+      "sha256": "d89a7dfe7460ed112f525335aa925723fff47c55578e1cc0145128b3c8c4d3da",
+      "size": 4287,
+      "normalized_sha256": "1f05a480a365d62df1f90eab2386188f4d8cd68162157287676c7eaabed77743"
+    },
+    "test/app/courtside_playbook_visual_test.dart": {
+      "role": "index",
+      "sha256": "459b1953d66f578035ba73d024e1ab7e90f12d421dfcce7f56af1a6a13ff90e5",
+      "size": 7051,
+      "normalized_sha256": "08441fbe1e85e940c0a0eec2c5ffb0ef793d18ca9039377809fd8ac8ecb79731"
+    },
+    "test/app/editorial_design_system_test.dart": {
+      "role": "index",
+      "sha256": "f51327790ba2cfde090df2c08881495a4aaa8ac6e0b7544e6e802645972d9436",
+      "size": 16476,
+      "normalized_sha256": "8a64380879a22725b4e590fedd0b1466621a929af1d9772d11bd4d00717a4429"
+    },
+    "test/app/editorial_feature_goldens_test.dart": {
+      "role": "index",
+      "sha256": "425d27c002dda588fa7bb39451bbe9988efacb6196b9f84942cbed90986629f3",
+      "size": 7129,
+      "normalized_sha256": "f58d4d285baeedc0331c10ebe18c29edf60344a982128805e11b1d770098e25c"
+    },
+    "test/app/editorial_golden_font_pipeline_test.dart": {
+      "role": "index",
+      "sha256": "520d89dd9aff8db559e8b702c30b61b5dbfbc46f86e53b9b889420af4f5054a3",
+      "size": 9146,
+      "normalized_sha256": "bdc0b3d8499264a7031519a967c72797e4acb96cd4741c1d7b9c3d8bbfe6fa93"
+    },
+    "test/app/entry_animation_golden_test.dart": {
+      "role": "index",
+      "sha256": "f315de98494dad2e9f28f2461c2288b28d9c44d6404ec80b90d5d0d0bc039a87",
+      "size": 4414,
+      "normalized_sha256": "1630aedac7fa738006b59d0622c8ac621720241bbcb39f54ea04b702c6650ca9"
+    },
+    "test/app/entry_animation_test.dart": {
+      "role": "index",
+      "sha256": "4e92e9e383812e3f823423f4d70e5bb8f26faa151b1c152ba3a47aa0ccd3e1d5",
+      "size": 23407,
+      "normalized_sha256": "b47dbe6100b63ec48dd8152723c09fdd50f46634870f0176789b00aadc6da06c"
+    },
+    "test/app/entry_assets_test.dart": {
+      "role": "index",
+      "sha256": "97ba529e3bfe1a6193ab740f028472ba8557cfaef28a0b9502cb2afc381fe6b9",
+      "size": 5000,
+      "normalized_sha256": "9adc5a4602ef360ee739d8512ddba5c098444834a56a57dae8e9288babfe92fe"
+    },
+    "test/app/entry_brand_image_test.dart": {
+      "role": "index",
+      "sha256": "8004bab95f876341afda45cf7dc1589a034c0d55dd885de51ec368bea019e496",
+      "size": 623,
+      "normalized_sha256": "527c59545b154a5d5d8698c948a74f48a0f4dcc299941b7c08b4d3ef9177a23b"
+    },
+    "test/app/entry_creature_test.dart": {
+      "role": "index",
+      "sha256": "4db429ab9f430eb51185169a5100816577506e997a566f8295730f7695682a4b",
+      "size": 8012,
+      "normalized_sha256": "da43118b513c2ce0c644cb81438836591b6b78a354fe0129996f269d5d637926"
+    },
+    "test/app/entry_motion_pose_test.dart": {
+      "role": "index",
+      "sha256": "d723cdfbda62d6f7ba88bc93fa270e7c9fda9190e209bd08a72b7760a05379e2",
+      "size": 4336,
+      "normalized_sha256": "750d57e8588a186e082cab9f0c0992b9d747da78d48a9080561c6d6849f08513"
+    },
+    "test/app/entry_renderer_ready_test.dart": {
+      "role": "index",
+      "sha256": "5baf64aadf2b6a13ba9338cde97a0eaca1811eea34993a81f0d5568f6534dcce",
+      "size": 2270,
+      "normalized_sha256": "9291ff8b0d89ae010b1d397f0050cf465bf1f7803765f44acb679fed5628f2be"
+    },
+    "test/app/entry_startup_host_test.dart": {
+      "role": "index",
+      "sha256": "eba14dc414683e7130773f0865f85267b6487a55ba37847b1c08bb8d84dce237",
+      "size": 12223,
+      "normalized_sha256": "6d14ddbe98fc38e71b48bd3afa78872735e58f7d830a3b8dc3171a44af95cce1"
+    },
+    "test/app/goldens/entry_brand.png": {
+      "role": "index",
+      "sha256": "2da4cdfc6556d947222b224a0f4ae250ea239baee34190c6fd41e4888a5d55e1",
+      "size": 17476
+    },
+    "test/app/goldens/entry_flight.png": {
+      "role": "index",
+      "sha256": "9384f264322d01b77637da4e8d7d9fa29fb249416fd81d73a75184b14b5f353b",
+      "size": 11234
+    },
+    "test/app/goldens/entry_handoff.png": {
+      "role": "index",
+      "sha256": "26271e3c46c3c1fe493f473522a029f6420910464e5ed5d4f95dc5284f7b12e2",
+      "size": 7560
+    },
+    "test/app/goldens/entry_lock.png": {
+      "role": "index",
+      "sha256": "712581da5b0177636c1b9f5c5192507612d7a46d7611e207fb64c09614df5849",
+      "size": 22160
+    },
+    "test/app/goldens/entry_swish.png": {
+      "role": "index",
+      "sha256": "cc864f232319627d23008668d922cbac6bea63193fda56f020076c07dcbd6427",
+      "size": 15509
+    },
+    "test/app/goldens/home_en_dark_large.png": {
+      "role": "index",
+      "sha256": "b4734959932f0775ac2a81704ed04d3ae3d6285025ebf1ceadebc56ab0c8c8da",
+      "size": 28671
+    },
+    "test/app/goldens/home_en_dark_large_linux.png": {
+      "role": "index",
+      "sha256": "3f2353a26ce60cbfa8f58d0f11e4c7f195da731beae82857c6e77f7b6e3dcf11",
+      "size": 35295
+    },
+    "test/app/goldens/home_en_light_compact.png": {
+      "role": "index",
+      "sha256": "fccd9732606673494184de2f719c6a40e49a00a3be46066eddca5c422069aba3",
+      "size": 31139
+    },
+    "test/app/goldens/home_en_light_compact_linux.png": {
+      "role": "index",
+      "sha256": "eb8b3bd664db8865b6592730b3e390971c4e15d1f3c51d78584e0795e4a39cf9",
+      "size": 40277
+    },
+    "test/app/goldens/home_zh_dark_large.png": {
+      "role": "index",
+      "sha256": "189a0332de0f9d979a76af0666a538d8a67836f4125f27be04b8fe34328d2bf7",
+      "size": 31815
+    },
+    "test/app/goldens/home_zh_dark_large_linux.png": {
+      "role": "index",
+      "sha256": "709c24bf7549162b48041fcdecb0155ed0f90ad9dd5527f04663072298b811f0",
+      "size": 37409
+    },
+    "test/app/goldens/home_zh_light_compact.png": {
+      "role": "index",
+      "sha256": "b41cec648c34682cbb3a4a414b178272cf5deb8a6ae6a58e3fa092adf9af5073",
+      "size": 35830
+    },
+    "test/app/goldens/home_zh_light_compact_linux.png": {
+      "role": "index",
+      "sha256": "bfd42eb94393e063cd33e75d3613cd633a9fae02f8a72ccfd9e69a094b6bd5d3",
+      "size": 43523
+    },
+    "test/app/goldens/player_comparison_zh_light_compact.png": {
+      "role": "index",
+      "sha256": "9aef82af61ac3004c78ae16593161f03df50ed54c7b939858242e07a84a93199",
+      "size": 47844
+    },
+    "test/app/goldens/pregame_en_dark.png": {
+      "role": "index",
+      "sha256": "d2624564328f1d58375929852e78c411b03b3a412b23ec0091cf465de1b4e58a",
+      "size": 32291
+    },
+    "test/app/goldens/pregame_en_dark_linux.png": {
+      "role": "index",
+      "sha256": "62868b3a41e28da8ecf0e071c88d4fc9b0c10280c3bea4cc48ec344aed23120c",
+      "size": 40526
+    },
+    "test/app/goldens/pregame_en_light.png": {
+      "role": "index",
+      "sha256": "22c13c5fd0d99b72013456e44f3bff5c8ece63d766f6977f385ec8a71481eafb",
+      "size": 32001
+    },
+    "test/app/goldens/pregame_en_light_linux.png": {
+      "role": "index",
+      "sha256": "ced6ef0d232679f48e42ebd213cf49f76259563b7a2c81b207c0e5586d6cbc10",
+      "size": 40613
+    },
+    "test/app/goldens/pregame_zh_dark.png": {
+      "role": "index",
+      "sha256": "67d2676b8dee1e9a8455e625214bed3127e801cbabe964a5043f7f1cf1473bc4",
+      "size": 38043
+    },
+    "test/app/goldens/pregame_zh_dark_linux.png": {
+      "role": "index",
+      "sha256": "c902d89a970a4cba2a01ee811e7baa8d24b21899add415016af96be401d3e5ba",
+      "size": 45109
+    },
+    "test/app/goldens/pregame_zh_light.png": {
+      "role": "index",
+      "sha256": "ffbd0a6e45b41c6872b263fbf37f8a2f3291ce769d359390809fe2657d25ac4e",
+      "size": 38389
+    },
+    "test/app/goldens/pregame_zh_light_linux.png": {
+      "role": "index",
+      "sha256": "4b8ec3dbb3e17038807eb2edf0d221528f93f286715437511ca0c67f384d9750",
+      "size": 44337
+    },
+    "test/app/goldens/replay_en_dark.png": {
+      "role": "index",
+      "sha256": "ed0531bdf369af6fcbad069909bc0a4ad42ed58d33223fbd89682c5ef2f7acb8",
+      "size": 23645
+    },
+    "test/app/goldens/replay_en_dark_linux.png": {
+      "role": "index",
+      "sha256": "d1ea0ace628e97fec2a1d0076ec64e958a59de64896b16b4047e36489ffe9d5e",
+      "size": 26864
+    },
+    "test/app/goldens/replay_en_light.png": {
+      "role": "index",
+      "sha256": "74e9adbad35b0237249cc04301a42da07e2bc7d7fb7fa8cb835e06d9e3568513",
+      "size": 23556
+    },
+    "test/app/goldens/replay_en_light_linux.png": {
+      "role": "index",
+      "sha256": "000814f4056ea93218592de616718c4eca5b07bc97ab01ab452b1d24f4322309",
+      "size": 26953
+    },
+    "test/app/goldens/replay_zh_dark.png": {
+      "role": "index",
+      "sha256": "cb766279fa0d815f4ba9bbf80ac2457ed7055ee3efcef89275f2a577ace8f0df",
+      "size": 27343
+    },
+    "test/app/goldens/replay_zh_dark_linux.png": {
+      "role": "index",
+      "sha256": "5fc26f186035f65e3abdb1438ee84aee5ecb1cdecda0632f7b4e939ce7101d27",
+      "size": 29061
+    },
+    "test/app/goldens/replay_zh_light.png": {
+      "role": "index",
+      "sha256": "f761df24632a57c001d4278e7e6631fb0b18b395c9ab2c1b046afdf0d814990b",
+      "size": 27332
+    },
+    "test/app/goldens/replay_zh_light_linux.png": {
+      "role": "index",
+      "sha256": "156f9245d1ae31595ea9a341bf087a97b86fb1bd1cb7fdba335b8f7367b14b06",
+      "size": 29014
+    },
+    "test/app/goldens/scoring_en_dark.png": {
+      "role": "index",
+      "sha256": "ff1b2aff831aacffbdb281709dbd46a6ca22dc6f31579c94384700cc74d79101",
+      "size": 30484
+    },
+    "test/app/goldens/scoring_en_dark_linux.png": {
+      "role": "index",
+      "sha256": "a0424a4d835edb1d49ef268d6fc3ebe64aa0e00152662ace029571bdf41b9035",
+      "size": 29720
+    },
+    "test/app/goldens/scoring_en_light.png": {
+      "role": "index",
+      "sha256": "f7ff14386f13ef3b43d832bf4d1462dd510fc872211a4d49bf79e5ce5a8be8d4",
+      "size": 30477
+    },
+    "test/app/goldens/scoring_en_light_linux.png": {
+      "role": "index",
+      "sha256": "0559198890e7fb0d685eae11dd4c514abf7a49c33ecc0b06b7bac5dbf50129fc",
+      "size": 29677
+    },
+    "test/app/goldens/scoring_zh_dark.png": {
+      "role": "index",
+      "sha256": "35dc8937ae75f3d8e483f0544498aad6fff167c385fe469cc259e4c60db414e0",
+      "size": 32840
+    },
+    "test/app/goldens/scoring_zh_dark_linux.png": {
+      "role": "index",
+      "sha256": "6a4163c62c7204e32400c2348e37cf10f3a7436105150f5d794f5a0a132f467d",
+      "size": 31876
+    },
+    "test/app/goldens/scoring_zh_light.png": {
+      "role": "index",
+      "sha256": "43c52f6c3591bf5c28f67e4fc95af78bca36babf2d34ef83a03dc0156e3165ba",
+      "size": 32836
+    },
+    "test/app/goldens/scoring_zh_light_linux.png": {
+      "role": "index",
+      "sha256": "c4924b45971378c2059e93d66b04a552b436b2ef5ea0abe1412bbe79884e9725",
+      "size": 31765
+    },
+    "test/app/ios_deployment_target_test.dart": {
+      "role": "index",
+      "sha256": "08973af03073b73ce4915a52bdb8167d40ab024e7e718f0fed9af1096bff720e",
+      "size": 990,
+      "normalized_sha256": "08973af03073b73ce4915a52bdb8167d40ab024e7e718f0fed9af1096bff720e"
+    },
+    "test/app/match_session_coordinator_test.dart": {
+      "role": "index",
+      "sha256": "663a29b87acfb6836ab81d4520718d605596af4375d327d2557728b0f498b4fe",
+      "size": 2518,
+      "normalized_sha256": "37e11639737679c50a432a46f717faf478b9117dc7f50b7e452fb8e0926478d6"
+    },
+    "test/app/match_view_data_mapper_test.dart": {
+      "role": "index",
+      "sha256": "a2b6f4f018a282021cda23518d5ba4c3c3f0758499b8896c99dd20345a128a21",
+      "size": 12801,
+      "normalized_sha256": "f6a5d038ae573ed5fd472865234befe1debd67e7e2c63524635c2afe345a0517"
+    },
+    "test/app/orientation_shell_test.dart": {
+      "role": "index",
+      "sha256": "a4a63e0577d1a39db9e91a53f4b37e1f23f17f92afbcc4cc10703b18a11c014b",
+      "size": 2601,
+      "normalized_sha256": "08e5e8f17a1933e3621df5bc7be2c91b38bf5512305291be91bf76b7a5154d1d"
+    },
+    "test/app/player_comparison_golden_test.dart": {
+      "role": "index",
+      "sha256": "0bb6755d05ac9928cacf4bd413bc9d3cdd23a3306de678ca3e4caf57de17f982",
+      "size": 4422,
+      "normalized_sha256": "a06d1ea2a875f8fda2d1a3e780d80d698e7254ecac1435587f99a1c8437528e8"
+    },
+    "test/app/player_comparison_route_test.dart": {
+      "role": "index",
+      "sha256": "f6fbbe2f7d1c36a68d39bc0064c723f39d05949e4770b3eb112f6ca8a8a8277e",
+      "size": 5246,
+      "normalized_sha256": "4f823f90d59c9433c2f6ec63d64ec23f47b559d19f2b8dc2115c74054ba46427"
+    },
+    "test/app/recording_confirmation_test.dart": {
+      "role": "index",
+      "sha256": "ae1f0b5b97ead7b5a5ddf019e561991f2b2881a059e27c113da03813ca7e2825",
+      "size": 1889,
+      "normalized_sha256": "a57f01b892e31ed1780c6e0d127fd171457b40003ee4fd769522629770d53103"
+    },
+    "test/app/replay_route_switch_test.dart": {
+      "role": "index",
+      "sha256": "1d6589ce9945d5e8575d18b114e71b175cf26e079f34ea96a6f959fd8da76e08",
+      "size": 2784,
+      "normalized_sha256": "e534adf0452356bdaec8c65b9fa32dfda3a3b0922e43f9263de9b27423a94188"
+    },
+    "test/app/settings_data_router_test.dart": {
+      "role": "index",
+      "sha256": "8aacbeaba0a9df39aa78e99cd964ca9644a464caaca217df982f85b16c113e3c",
+      "size": 3770,
+      "normalized_sha256": "58b71f93ed2f88c6a746a69f7a1911235d0e2fd450fa94e5d8509621b456d2df"
+    },
+    "test/app/task10_history_route_test.dart": {
+      "role": "index",
+      "sha256": "35dcfbaf96d0a248baf082a802f2a8a568c78d63091ae650f329889b659a062c",
+      "size": 3126,
+      "normalized_sha256": "e7785f2400146b987426414ece07bc247b0e3c64fd79c01a95caeaf161ebd9ed"
+    },
+    "test/app/task11_replay_route_test.dart": {
+      "role": "index",
+      "sha256": "7d1b218dffeee49ee5555a01a4a4359d1abea983a8bab26149ed797160d3a389",
+      "size": 3597,
+      "normalized_sha256": "c9d56af7b61a72378e7a66494db63e32c41323571d125e47246eab1f5d77821a"
+    },
+    "test/app/task12_player_career_route_test.dart": {
+      "role": "index",
+      "sha256": "56f348330332530037b9f9529aca2388ba47b9eb47b074e8bb95e26026a01b19",
+      "size": 2583,
+      "normalized_sha256": "e6d0b05dad94c4d6837603ddcf859445b5235a6f5f309f26a34aa03b2aa04da3"
+    },
+    "test/app/task14_imported_recovery_route_test.dart": {
+      "role": "index",
+      "sha256": "bc2bfd9f8106523bc1256ddabcbfab874a2b04ec4393f03eabdd2a55371614a1",
+      "size": 5667,
+      "normalized_sha256": "1605afebf5fb8d71a216f39b520019ee505e51c0aea874c01c43cb0d7b90e68e"
+    },
+    "test/app/task14_visual_accessibility_test.dart": {
+      "role": "index",
+      "sha256": "f43bbcb75416a91bf5a4bff2271caa356c23a623a03b19ddabf14f5bfd1ebe29",
+      "size": 6444,
+      "normalized_sha256": "cd716cbbfe23c2b5c84d79a5b4984a531b0b656ff5e47e4e53bf5444c7dfe0bd"
+    },
+    "test/app/task15_background_database_test.dart": {
+      "role": "index",
+      "sha256": "d3c20e918cb8c6897d01a166f697e897cbbe0e73c4f6c772d61a052bd30d0b5c",
+      "size": 798,
+      "normalized_sha256": "2500802668b7f06a80e33daec43736973301842da84805e1c45ac9f06efc32d1"
+    },
+    "test/app/task5_unified_scoring_integration_test.dart": {
+      "role": "index",
+      "sha256": "212b86fea9ccf2651c49c05906316135a0220b32c0c177b8878d21613f9dc7c8",
+      "size": 19021,
+      "normalized_sha256": "0adbc58504bc18970a295b4481d54cc532a43d8a5e67f7cd9d3fab578bb06a8c"
+    },
+    "test/app/task6_about_router_test.dart": {
+      "role": "index",
+      "sha256": "77e5e2fc00d949ceca2da43357c8cd32a8caff811912fc73f394176f3693c1bc",
+      "size": 5834,
+      "normalized_sha256": "e7a4a9e89ebf5414e9993f8bba4707b569b555001a03f47e00630e0fd67716d4"
+    },
+    "test/app/task6_editorial_localization_test.dart": {
+      "role": "index",
+      "sha256": "a09234943b8623343e48b6eb2c638c80c2c20f48376862885555fed5481a15e6",
+      "size": 2190,
+      "normalized_sha256": "614191ca00486ef286bef0a61f6169be8ddb339f894e525889c06accad067589"
+    },
+    "test/app/task6_leave_recovery_test.dart": {
+      "role": "index",
+      "sha256": "033386a39c22c5242cb5be85a6ae4696b13b1635e22c660e30bce72540339b04",
+      "size": 7724,
+      "normalized_sha256": "b75e7ff6be5098452c9316c8f29005d3d9a1cfdc26e65ec432e2ba6c96334c76"
+    },
+    "test/app/task6_leave_safety_test.dart": {
+      "role": "index",
+      "sha256": "8c6a176593464069cd10986d66b8ef2b782373aa9c0178e7085409d9b0684afc",
+      "size": 7062,
+      "normalized_sha256": "9d186cc63833885925253fa2c57eb29fc38f5f4b5010a268ce725672d04b3e75"
+    },
+    "test/app/task6_legacy_file_bootstrap_test.dart": {
+      "role": "index",
+      "sha256": "662731be1a6a60c6eafa225cfead30d3fd65ef1d79c23229b2549de475af1a7c",
+      "size": 2516,
+      "normalized_sha256": "ca50a8f632e1634e07658b4fe67d9b203b1558ee2673a4e9eff643361b2b05fa"
+    },
+    "test/app/task6_provider_recovery_test.dart": {
+      "role": "index",
+      "sha256": "9a2b960062ef031f574b80bac49913b69dac4c6117e2f38ad4c8a658bed9a0bc",
+      "size": 14032,
+      "normalized_sha256": "f481b7e2a9b944df427e951aca59b083b5e99e997756104ea7bc89b820070fb9"
+    },
+    "test/app/task6_resume_control_test.dart": {
+      "role": "index",
+      "sha256": "757139c2ca4692bee2ca83e9090c7d88df08c6c64498ca43f147549b33d2828a",
+      "size": 22660,
+      "normalized_sha256": "c3cf24b5062061ca5a224b800131235fddd0b8fa099525a80c65f4700a6a640b"
+    },
+    "test/app/task6_review_regression_test.dart": {
+      "role": "index",
+      "sha256": "c79090a99a9dd0f3caea425bffb6fe35368bd154ea4299b13e62e7e742372899",
+      "size": 40289,
+      "normalized_sha256": "1df31b718eb0b1a26e8f73d3e523b9cce04dec5191ff896546659d723852665d"
+    },
+    "test/app/task6_startup_restore_test.dart": {
+      "role": "index",
+      "sha256": "9a3307e37d3660191be53dd45738b270d00d99ac51979ef32d7a63675487d6be",
+      "size": 5820,
+      "normalized_sha256": "845978138b2f0cf7a72dabfd6916dda4929479572d6861b197e752eeb04bb159"
+    },
+    "test/app/task7_active_match_gate_test.dart": {
+      "role": "index",
+      "sha256": "804939eecf66d85dd601a07d7656b8ef3358f54b1f7f9d5f3b5e616f05d46ee0",
+      "size": 4328,
+      "normalized_sha256": "a08734a936b640ff5dfeb5efeab863519270c11101375ea46b8de23eac7c3afa"
+    },
+    "test/app/task7_editorial_ownership_test.dart": {
+      "role": "index",
+      "sha256": "7aa98e11c6310f69cc752c617a668e7c948926b7314d9aa7194fb4695cd01bf5",
+      "size": 3958,
+      "normalized_sha256": "34d202f5b4d1c8baf4f3c04b4aaeb86a6673f369e412205768cafa5dfec11f59"
+    },
+    "test/app/task7_pregame_provider_test.dart": {
+      "role": "index",
+      "sha256": "9c4bd6d8a697a80e361e4cc0dd64733683c7bea774fab556a23bd89986604a10",
+      "size": 1604,
+      "normalized_sha256": "654cef6ccb4678583633a6e840dd52236a434c17e158c80f250bccff2ab75ed2"
+    },
+    "test/app/task7_pregame_route_test.dart": {
+      "role": "index",
+      "sha256": "dde2e39119d075ae76adc2085936af3aabe62d3344595d696e80a320f3544c35",
+      "size": 1880,
+      "normalized_sha256": "6ed296202999c3b98623ff850b486432c3159f71c030668b5f824cbbf9a0cef9"
+    },
+    "test/app/task9_completion_route_test.dart": {
+      "role": "index",
+      "sha256": "4ca17fff216c026da9fdf1232c4cc62c12c1a238274ffd516baa859dafd1c0da",
+      "size": 20869,
+      "normalized_sha256": "89f9cea9ab87c06a5719c6a011df581eca6e272775dba1e18a9b4015cb62f9e3"
+    },
+    "test/app/theme_composition_test.dart": {
+      "role": "index",
+      "sha256": "a0a9bc42da5f161c3fbec3dded0e043ca7c6d65039624013aff18eb8887600d8",
+      "size": 6991,
+      "normalized_sha256": "703adba9227a2400dd5a0792db0151f27cc2d984380fc1387423df6f1d4ae00f"
+    },
+    "test/app/v2_history_refresh_test.dart": {
+      "role": "index",
+      "sha256": "42e06d4a45b492c3e84665f054c32caa8c920b2747deca06d0293d3846629780",
+      "size": 13152,
+      "normalized_sha256": "71460fed6531c2268cd6e0088a5f2af10af9578bbdddb0e2bf3055cbcf45e384"
+    },
+    "test/app/v2_navigation_summary_test.dart": {
+      "role": "index",
+      "sha256": "92b9a11cb9ad58d5350a8021a09c93565daf95829508513edf1c2d1aa9bc7ec7",
+      "size": 6477,
+      "normalized_sha256": "062379c606aa73d2db698cadde8684b1efc328e3e94d28c8e2d6af8c4ba476bc"
+    },
+    "test/core/audit/audit_log_test.dart": {
+      "role": "index",
+      "sha256": "db443632db48bb5bd7b8385aae1db2d0b62f29ade5a006d7fbf5f891a5e68241",
+      "size": 654,
+      "normalized_sha256": "331c38ddc1b75933e312943b4813d7c2897ca00e5054f641afe4a84940a4dfe1"
+    },
+    "test/core/data/audit_repository_test.dart": {
+      "role": "index",
+      "sha256": "52e8c1a7058497d2fac7f27ef00cdc0e1ffa8f22738d5943994eedb552b22331",
+      "size": 3433,
+      "normalized_sha256": "34fc96c45c20c4abacb4e03965da7a06111c8a33478ce5faf6684f3711e46cd9"
+    },
+    "test/core/data/backup_dirty_upsert_test.dart": {
+      "role": "index",
+      "sha256": "06ee79435e664493b4b05b6bbdec44ed98094bb7924f6505b152859bcf92a788",
+      "size": 8360,
+      "normalized_sha256": "db54c0f4db365bf293db0e166201f13d65cec6a125a848bdf1591208acd0b39e"
+    },
+    "test/core/data/match_clock_service_test.dart": {
+      "role": "index",
+      "sha256": "31f18cd808c3007d59e55694ee84d823a30f7a5250673a4f9ce8fe9f4dde811e",
+      "size": 92907,
+      "normalized_sha256": "e646eebfc335175551f845309e4513d7a600ab5933a0ed5a731e049c6c096630"
+    },
+    "test/core/data/match_command_review_test.dart": {
+      "role": "index",
+      "sha256": "749d37f82dc8240603c468268742e075d7094c91b04188bce3bf86e8f4182e9b",
+      "size": 13193,
+      "normalized_sha256": "f870efc0d17d806933a93bb237d3ec0bbf325b2ebba06fb620e7283420bb384b"
+    },
+    "test/core/data/match_command_service_test.dart": {
+      "role": "index",
+      "sha256": "40e159fda3bcef8b027f59546be103f93f5c196c17c2d84cb6cd8a3504215968",
+      "size": 16103,
+      "normalized_sha256": "837a9505d4182ea5ec04df3b3bdb7e5f4118ce3414a7adc965fbff280db58afc"
+    },
+    "test/core/data/match_repository_test.dart": {
+      "role": "index",
+      "sha256": "839e66488d7d17b48f1ba0ea7b02d47087caf93d3de597bbd817de5687de74d8",
+      "size": 14179,
+      "normalized_sha256": "9d04407c4f6dc7f52f04a6e5df0f2c9c337c5d480e22294254c569cc0d4a4485"
+    },
+    "test/core/data/player_analytics_snapshot_repository_test.dart": {
+      "role": "index",
+      "sha256": "c91901b0119617b08d168e53a678ea73994e8a43d1b897252d581670c8579164",
+      "size": 4868,
+      "normalized_sha256": "202997ba3e205438b92eba19a5019c75f4ebbb3cb1ea15e2f61ac41cf2cb1f1b"
+    },
+    "test/core/data/player_analytics_snapshot_schema_test.dart": {
+      "role": "index",
+      "sha256": "b8c0e682bc4c73a412e946afc7c1de016a9a6e292497f68532fbddac3206f636",
+      "size": 13691,
+      "normalized_sha256": "2a504f75a7cfc907a4d45a1309d5547a0b69a2d29d27cf6102fb51c796a6071a"
+    },
+    "test/core/data/player_career_repository_test.dart": {
+      "role": "index",
+      "sha256": "49eb9fb5072a9f39c34f48eddb67a7799154bced2227f65343da45a536555c28",
+      "size": 17573,
+      "normalized_sha256": "2282923ff35b591fa7c86e649260ee43ea79a9aa29d1e387409f8fa4bb38c791"
+    },
+    "test/core/data/player_comparison_repository_test.dart": {
+      "role": "index",
+      "sha256": "41c5d7fa0fac4629829bf5866a18a464e58294e7ced1c856620a7e64d6963230",
+      "size": 11519,
+      "normalized_sha256": "fb872f4b08a29be40719225b74142defd5ab869fba86bbca12680fa2e19f140d"
+    },
+    "test/core/data/player_repository_test.dart": {
+      "role": "index",
+      "sha256": "f0cfc639390edcef2c5d5534ef7b28e4e5173e9a4cabe759327d6426885d1811",
+      "size": 1697,
+      "normalized_sha256": "7698527639c65d6be688008ad87a126e8986ed3accf04aac5dd3bd8c755ac6de"
+    },
+    "test/core/data/rule_template_repository_test.dart": {
+      "role": "index",
+      "sha256": "53ecaf3ea566c90afbee6207bbd3c57c9b16fbe0aa478db87bc0e4439988c99d",
+      "size": 1719,
+      "normalized_sha256": "10a191e0561a2d82b67670c2e51b420e29faa28d074ed24881d8651870561368"
+    },
+    "test/core/data/schema_v2_fix_round1_test.dart": {
+      "role": "index",
+      "sha256": "62f8ec33d295509fd3bb31481241aaf68d65087547ec6ccad904b7fa3190e820",
+      "size": 15085,
+      "normalized_sha256": "6c964e50e0e1ac72d85a081dca5e3dfb6e96fe5d11a6cce186edd8083ec77cf7"
+    },
+    "test/core/data/schema_v2_test.dart": {
+      "role": "index",
+      "sha256": "7352821bb456788db2babb365a8728b3d355d2435c7c113ec08a0fd24ada861b",
+      "size": 10648,
+      "normalized_sha256": "6b51b76324640988866a4cc437f3ede1c34406b8f491585587a3343d06bc1660"
+    },
+    "test/core/data/task10_history_query_test.dart": {
+      "role": "index",
+      "sha256": "c1c13e4994fcc2efc5e5413b9e0795dd63855d64dd2dcd168a2eb83cdd542bdf",
+      "size": 16491,
+      "normalized_sha256": "9da42d5d66a4ed088109df09b03336013477e8aeba8badeadceefb3f3f45dccb"
+    },
+    "test/core/data/task11_replay_commands_test.dart": {
+      "role": "index",
+      "sha256": "338a8c00545d6e2c3b58c2c7914805bd33a4fd90e872db4c855236a05d4177da",
+      "size": 22454,
+      "normalized_sha256": "8ba09de7be5aab1bea326af5f85c6095769926f9c30f4e54e0e87f46d5f4b2ea"
+    },
+    "test/core/data/task7_link_participant_test.dart": {
+      "role": "index",
+      "sha256": "c56dffed30c2a57247f6ff1c7bc4a92f91fdd316c2351af427ea8dbdccd9fc29",
+      "size": 17357,
+      "normalized_sha256": "b68e3c4691a5b28acd2685b75c1e3241af6158ea0652a00db00794e41dd0e3af"
+    },
+    "test/core/data/task7_start_match_test.dart": {
+      "role": "index",
+      "sha256": "7f2936175153bc826f258550989276ddba2880b7d74d14497c4c104597600224",
+      "size": 9345,
+      "normalized_sha256": "cb1e10b046aa39a71c2c599d2542857084367a4a421089fdc5eda19b3f8df728"
+    },
+    "test/core/data/task9_rules_completion_test.dart": {
+      "role": "index",
+      "sha256": "d6611ea3b089329af04eab831bb8c9885abf9f4e43616a6789d2ab325ae256ca",
+      "size": 44075,
+      "normalized_sha256": "c0207c23620fec4edbaa01225c59b61ed8c1b8f2fa39aa0cab28ade8fbedf8b1"
+    },
+    "test/core/data/tracking_coverage_command_test.dart": {
+      "role": "index",
+      "sha256": "882a32731074315a74afee2cb56638f3d16601dea17c4693ef9fb37a43039774",
+      "size": 11029,
+      "normalized_sha256": "54fc18d5432681aadd3d5911b32d666dc1ff54caa653709833401bab2076859e"
+    },
+    "test/core/data/v2_file_upgrade_test.dart": {
+      "role": "index",
+      "sha256": "17ac1ba465b7a2dc3c26797fca4e3b20bcc0dd6b12a7af918f78daa4cecdac85",
+      "size": 9510,
+      "normalized_sha256": "de87414b98dbc1abf1d0c9db8d143b976cfc6bda11d0a45cb13608d32fa9fa23"
+    },
+    "test/core/domain/domain_entities_test.dart": {
+      "role": "index",
+      "sha256": "9cadf438eeda58bd0b2d2c84a933ebaa009719d1ff545670443d1b4ad664b098",
+      "size": 4655,
+      "normalized_sha256": "36112c70231467ea4f2f809ae5f12c8a0aad8c80a3fd4d51ee15c3807e15a7be"
+    },
+    "test/core/domain/match_analytics_test.dart": {
+      "role": "index",
+      "sha256": "2e0da7222ffbf62b4de6c79e88ab2787231e846604665648bd8d436d63100e02",
+      "size": 14583,
+      "normalized_sha256": "c8b46507b39e9e34bc2a9430e75b963957bdd6c30d9375d5fe2e4f32871564c5"
+    },
+    "test/core/domain/match_clock_test.dart": {
+      "role": "index",
+      "sha256": "b15e7960ef35926499875fa80b3f1658253820042abb65c5f164ee453e7bd1e4",
+      "size": 3291,
+      "normalized_sha256": "5ceca8cb0f05898a7056523597c9ee7091e417b16086f082e70edfbf39ec895d"
+    },
+    "test/core/domain/player_analytics_snapshot_calculator_test.dart": {
+      "role": "index",
+      "sha256": "7ec5a96252df63b88e63c1938fcb8a3ab76540b7121177a63d1d8a2a1a1675e1",
+      "size": 2295,
+      "normalized_sha256": "3dee0a3c7584a8228cc617403efc49abb9f70928276fa51e9357c14ba0ab1e01"
+    },
+    "test/core/domain/player_comparison_test.dart": {
+      "role": "index",
+      "sha256": "d489f585ad45efb19609e501c913eaac90d9fba6cee3afedc500e3be1bb8c589",
+      "size": 5349,
+      "normalized_sha256": "f3c85d4aa42896fbeda38d11755a54800de98ebf3a4e0310a4a636df253cb827"
+    },
+    "test/core/domain/possession_hint_test.dart": {
+      "role": "index",
+      "sha256": "9a85b4cd5c3535f93077cb2653a4b0b0c1ea1c0e23d9d3e761d0ac36471e6847",
+      "size": 1056,
+      "normalized_sha256": "674d69a157b91704c5ea78e7fe64c6a4b75a22aa0f403b4216e3f8b56372e264"
+    },
+    "test/core/domain/rule_engine_test.dart": {
+      "role": "index",
+      "sha256": "7dabbf184d119cb07d6ef51af1bed8a68bfa1886976835080c627f8d6c6a3a85",
+      "size": 2021,
+      "normalized_sha256": "2eecf2c4c62d277a9f0a974f6eaa2adb5686bb584dc4741ec835f393aa04e334"
+    },
+    "test/core/domain/scoring_reducer_test.dart": {
+      "role": "index",
+      "sha256": "cea806511edfa12e3a3766c00b26e0f9c5d0a148d82770ffb6ded2ed6f7b8431",
+      "size": 1281,
+      "normalized_sha256": "6e0fff59c57b791bf5030ab1bf1b4c2fa19be88e37fc3913d847a9a38920c169"
+    },
+    "test/core/domain/v2_recording_statistics_test.dart": {
+      "role": "index",
+      "sha256": "0e0094962983a1d916ae0bf713d0a05a0cce98b4daf6855784b2b7b190c8ef15",
+      "size": 1826,
+      "normalized_sha256": "b2c876d1a13dd32810c0da23298ea768012e096b234860b0f3ecdcba0713c9a7"
+    },
+    "test/core/export/automatic_backup_scheduler_test.dart": {
+      "role": "index",
+      "sha256": "795c0875cfb7379c0903076930d53f3740bc91b2425d260c84d52b689a0ead22",
+      "size": 3115,
+      "normalized_sha256": "fec6f7968bc56122f84802b1846d163b9182dfa1028ecf965eb2caecf86da41e"
+    },
+    "test/core/export/automatic_backup_service_test.dart": {
+      "role": "index",
+      "sha256": "df912aff3d2ce86833afac6e17e35c8fd61ab69a04a4a78e0a507e7bdb4ad7ed",
+      "size": 29159,
+      "normalized_sha256": "0839f0e5f1d47c386411f1eaedbf3065990918281d317d6f770183d156441c24"
+    },
+    "test/core/export/csv_exporter_test.dart": {
+      "role": "index",
+      "sha256": "ba4e9f8fc55e7ed8f819263920c68da5d140cd82834a0bed4d1aab9951b878a6",
+      "size": 4774,
+      "normalized_sha256": "f34466142cf0e5171bb00aeb0ce5013bc8c940377f1356f11c9923e81cd39e89"
+    },
+    "test/core/export/device_automatic_backup_storage_test.dart": {
+      "role": "index",
+      "sha256": "b36b53562721b90fe1ae8295a6be3fd4948abd9855b304ad74a39165ebe703f8",
+      "size": 8277,
+      "normalized_sha256": "eea142216387537e10d6144aa6f11a8db77753269d527265320545463c7f877e"
+    },
+    "test/core/export/export_coordinator_test.dart": {
+      "role": "index",
+      "sha256": "b845eec5f01925a305bad390ba36e7bb886b02abcb002609dcb1a780708499ab",
+      "size": 21945,
+      "normalized_sha256": "78360980200e18dbf4b1f9939fdcf9e8fadf3c56084ba1bc1baf81348a945a90"
+    },
+    "test/core/export/json_backup_codec_test.dart": {
+      "role": "index",
+      "sha256": "796d65c62ca96452aaa49ecbc74f742bfa5b176ff8b1ed86e97617c6e0a4104e",
+      "size": 32748,
+      "normalized_sha256": "586e732533d28fdb2f83ad52c35c8a686d232138d1aa2145a2b397460bddc0c6"
+    },
+    "test/core/export/player_analytics_snapshot_backup_test.dart": {
+      "role": "index",
+      "sha256": "c070ed7e3ea2837bcd11815a8b6066ce80125fdbfd66936ce2c51f4db53c84e1",
+      "size": 11156,
+      "normalized_sha256": "ecf030792d644b7d38f0ad175e0995014dc7430e4e4f44d5ffd159a575841bcc"
+    },
+    "test/core/export/replay_image_exporter_test.dart": {
+      "role": "index",
+      "sha256": "98fcd4f93b221a05ff066718ed1a1e36ec6d80161ea98cc4d7ad9c549ff0fea0",
+      "size": 1185,
+      "normalized_sha256": "928aea31b1fef1cdbe5d211ab1cf83bb901fe7715e63d736859f0df4b3e6bf99"
+    },
+    "test/core/export/safety_backup_restore_test.dart": {
+      "role": "index",
+      "sha256": "937d4f389ffc1907012bdb2698c4b25dff628a05ca6fd53370e6def0d3343236",
+      "size": 10096,
+      "normalized_sha256": "a91f8a872da39e0279d4c7a2e84719016b9006c9fcb9d432798a4e54d6c0928d"
+    },
+    "test/core/export/safety_backup_store_test.dart": {
+      "role": "index",
+      "sha256": "fb0a4360a87a8f3bb9a73ccb8eaf1872b4ae45173d85ed554a07ba6a212a73b7",
+      "size": 7569,
+      "normalized_sha256": "7c23ed71b861579563d6614da15a85c8b49a5b687f9bf79b5705cec906c8d13c"
+    },
+    "test/core/export/task13_backup_format_test.dart": {
+      "role": "index",
+      "sha256": "f8b9ceea10a27d83fd657288ea58aefd946a179aef7b325b5b897ae41da41297",
+      "size": 4069,
+      "normalized_sha256": "d3d99816d2420e8b8aff9d8ec15c107ca38425064dd8a8aa491ced4dbe598c0c"
+    },
+    "test/core/export/task13_backup_merge_test.dart": {
+      "role": "index",
+      "sha256": "2fd3f152dee48d9c9c34e029fda1ffd3e9c7bb726f85196823a97858edf6545b",
+      "size": 34956,
+      "normalized_sha256": "a39ff273427c57e7a47777295c60005ddf6eec177b02cd3ec22c1f50b24e5337"
+    },
+    "test/core/export/v2_command_backup_test.dart": {
+      "role": "index",
+      "sha256": "3a3d95ad39eb267f9e3bbde5fd48a54b0476889edbd1b9580571169140c97c61",
+      "size": 17009,
+      "normalized_sha256": "7c986237a8f7cb3839e1b808bf559aba5f50f4fb51793eca04ad148f6dad7160"
+    },
+    "test/core/settings/motion_preference_cache_test.dart": {
+      "role": "index",
+      "sha256": "a93a5c863b25eadf2ce5f12ca34b02e01e78fa786dd3bf0004cca7f37e0d9715",
+      "size": 2685,
+      "normalized_sha256": "256a98ddd700ed6742d3780a0bd70daf507086568759dddfb79937dc3e8ce25c"
+    },
+    "test/core/settings/scoring_feedback_test.dart": {
+      "role": "index",
+      "sha256": "917ccc20598bcef6cbcb04e43cfd0b8b2d6e2cd25c68d47cf5cb379afba1b4b6",
+      "size": 15237,
+      "normalized_sha256": "385ecfa2d89e3e2e1dfe8ebe3c9208d54e33d20ffb43f307c6c50d6859b06f2a"
+    },
+    "test/core/settings/theme_preferences_test.dart": {
+      "role": "index",
+      "sha256": "56b4ed725ec3dbc2071a8926e7b0896b1ef8936bc75701d13af696a6ab291de9",
+      "size": 1875,
+      "normalized_sha256": "0251bf05708f2f96b2ed5a9b03f18ee9575c53acaf6fea83856daf314e71fae3"
+    },
+    "test/features/history/editorial_history_page_test.dart": {
+      "role": "index",
+      "sha256": "0e9a33ccc5d2bd57d7a8d7bcb30895eedf6cca2cb6dc238ae75b9225c54ab559",
+      "size": 5606,
+      "normalized_sha256": "d1c863872e913b2347486b4eb39ea99eeedfda7a2b5605035e5a7ce3c74ec9ee"
+    },
+    "test/features/history/history_controller_test.dart": {
+      "role": "index",
+      "sha256": "f36c43b4054763543dad1d093a1c19698e85e02b9cc785fdde7f56d070ff0e8d",
+      "size": 11970,
+      "normalized_sha256": "2520d39a72d9cd41eef78b4029079b1ab8f90e729d4e29d6fc44e02a00a01680"
+    },
+    "test/features/history/history_page_test.dart": {
+      "role": "index",
+      "sha256": "6688107adce48115356a9c16cb5777e880fa71abdb3fd8d02b472ba830eeb192",
+      "size": 14546,
+      "normalized_sha256": "9b421f6ce22f7af55cf405c209c4db133c3e87ba163f3729546e6a4d96200e48"
+    },
+    "test/features/history/history_visible_refresh_test.dart": {
+      "role": "index",
+      "sha256": "60c9363fe1370cd69f2b99eb786ca628a1e5bda6401ce22132765583c3e602c4",
+      "size": 10906,
+      "normalized_sha256": "2426d02bdd5cebf9b08cd0f9758aa32a1d5a7c247f78655deb3da3eeef050da9"
+    },
+    "test/features/home/home_page_test.dart": {
+      "role": "index",
+      "sha256": "5e18c08bac131f788bca681bd94e8cd4428a5b08436da44987ee808f0f8c726e",
+      "size": 13825,
+      "normalized_sha256": "7629ddc27c5d812af927a67dc3b3d65f09b8c956afa005271f625c55cab54a98"
+    },
+    "test/features/players/player_career_controller_test.dart": {
+      "role": "index",
+      "sha256": "8b584e34758135f1102f5e62a32283c8edefbf0b18fbc394c347786923125c84",
+      "size": 2374,
+      "normalized_sha256": "f267e0a7a371365da6f9efbea3b7d769f80dba42f554ba0da3f0e3b775c8ac7a"
+    },
+    "test/features/players/player_career_page_test.dart": {
+      "role": "index",
+      "sha256": "27078b056237761e6d8440c664894f0e6b1f53c3f5b0e2c5a46f1a1288250363",
+      "size": 18742,
+      "normalized_sha256": "d91383d9140eff34c29fd8de85c1f96e14b2e031b564478324f96f2eec050de5"
+    },
+    "test/features/players/player_career_v2_test.dart": {
+      "role": "index",
+      "sha256": "f17a827e37a4d1f6a54926f2defed9a3314d32385a306ef4b1f4ae1f950f82ca",
+      "size": 8437,
+      "normalized_sha256": "2ab2c58f1bb36148010acf02a5aa183a305e6d636565228de3b346f694b5dcea"
+    },
+    "test/features/players/player_comparison_controller_test.dart": {
+      "role": "index",
+      "sha256": "bd490a0bd224a01d2b774ab6eb85ca8bfcf3db7a5bb62ff19b8131b965ffcbe3",
+      "size": 7218,
+      "normalized_sha256": "be96ca819bc7201e465c9ac597b08916248a1c426b357064289a37d83474814c"
+    },
+    "test/features/players/player_comparison_page_test.dart": {
+      "role": "index",
+      "sha256": "f783ad2cde5615f68c09fb4a56de267ef0870c0def6e90a0e0c6360092563f28",
+      "size": 10120,
+      "normalized_sha256": "6c5d2ee2fb50fccbcb4769b54716eb6bfc2ce17543af966314696dde9683d96a"
+    },
+    "test/features/players/player_pages_test.dart": {
+      "role": "index",
+      "sha256": "fb8ed43f6fa0a432338e36ff77b5ccf724d01aac9ec76611f8a22ca78dcb3186",
+      "size": 20937,
+      "normalized_sha256": "c02b65b57a72b46f9ea2c4ef5a7e8a26b1f827a6ca20feef0b09912a4dbddba7"
+    },
+    "test/features/pregame/match_setup_preset_test.dart": {
+      "role": "index",
+      "sha256": "ba16ff1a9a0cd7ce76ea4ca0a48566f463dcd3d65cb3b71d2074d5405af99921",
+      "size": 9230,
+      "normalized_sha256": "11138d6a5692ff5831d5461729118590aeaf26e818a4fa86614bbc7be7a3e6ff"
+    },
+    "test/features/pregame/pregame_controller_test.dart": {
+      "role": "index",
+      "sha256": "305c7a65f2c71085bbfa601eaf84f7fce2a0c57775bd5b1d573b68366049a645",
+      "size": 9193,
+      "normalized_sha256": "6036f0e6f39185eed871efda6156c22d2ba8e7adea50d84c80e1a8fd81695441"
+    },
+    "test/features/pregame/pregame_page_test.dart": {
+      "role": "index",
+      "sha256": "c4d660efa00ea072b0692c762fdcb5684b1fa91e878cddff0dab7d954dab9db6",
+      "size": 19147,
+      "normalized_sha256": "cba45b25999771534f90c21f259e35bf60c7423dc0556b327372dd4902bb203e"
+    },
+    "test/features/pregame/pregame_phase_d_test.dart": {
+      "role": "index",
+      "sha256": "8fc4c5549010951b480c313959d3dfee1ecb31d9f83b612fea5db6b697beb7f5",
+      "size": 7907,
+      "normalized_sha256": "cb167dae1a23fadaf3273f34b0e5f919ba3c279453bd9ff3b62037b397a187d5"
+    },
+    "test/features/pregame/pregame_summary_visibility_test.dart": {
+      "role": "index",
+      "sha256": "0519060e61db56f31397672df5334e017389917a98bfe4c2a2facfef6eb51a7c",
+      "size": 6616,
+      "normalized_sha256": "a185cfd0b9d8926194213b43f7bda929543ec0c76f9042fff93e36bfcc98b34e"
+    },
+    "test/features/pregame/pregame_target_score_layout_test.dart": {
+      "role": "index",
+      "sha256": "3bc70af8e778fd0ed50f0370fc8672b9835067c321b2413347f72105b63f3b5d",
+      "size": 8416,
+      "normalized_sha256": "df1c49fe5d69c2b868e9136a6dfc6fdff9234d20edbedcb5c72245f2d33ae456"
+    },
+    "test/features/pregame/pregame_target_score_test.dart": {
+      "role": "index",
+      "sha256": "ce052987405eea158bfa9c7c3e69284a5779e1c87e2c9838a0246c3a42634e74",
+      "size": 10991,
+      "normalized_sha256": "7359a334dcb77e664efc57260cc2dacf32c273aadc3ae9d515636669b4fb18ae"
+    },
+    "test/features/pregame/pregame_v2_test.dart": {
+      "role": "index",
+      "sha256": "d528e3d4afb908c43d6d5285b0e674569a29eedd9e58026f44f512daad0028e5",
+      "size": 7710,
+      "normalized_sha256": "237163012e905880aeaa6032aa466cfe2af795b780e928e2ffa459d0262dcb0b"
+    },
+    "test/features/pregame/start_match_mapper_test.dart": {
+      "role": "index",
+      "sha256": "0ed3fefe73aa8b8d017837690ffc3f6dbc8837ed5171bfdbf3e823b8e7f7190a",
+      "size": 7631,
+      "normalized_sha256": "0240a85835842d3c5c1958a37077b68947fdebac4df90d846bda3399df7d5190"
+    },
+    "test/features/pregame/template_removal_test.dart": {
+      "role": "index",
+      "sha256": "599dbfce95899de83f24d8e53f3141bb5251e34d3435e2487da478cb4c83c4f9",
+      "size": 1191,
+      "normalized_sha256": "a44ad19060f2d05644419c7db1308bc3b1fde1a901ceb646ef384b61948a3605"
+    },
+    "test/features/project/project_details_page_test.dart": {
+      "role": "index",
+      "sha256": "1012dc97de78227f4c22e6f751539228a0e6402918d19fc80e19b63857ea59c3",
+      "size": 7369,
+      "normalized_sha256": "66b17d831722e196d9df27a5bb4c2a5fe1b4f0e4ae8d316698b82659b5a453f3"
+    },
+    "test/features/replay/edit_mode_test.dart": {
+      "role": "index",
+      "sha256": "415fb0d0edb4edf32970958ea660809197a6cd9e79d3964517546fc0318316a2",
+      "size": 4942,
+      "normalized_sha256": "430db4fceed9d94a1bf67df6327ec09fc98cdcb1cf0af34ccfb7dd58f53f3c64"
+    },
+    "test/features/replay/editorial_replay_page_test.dart": {
+      "role": "index",
+      "sha256": "4ce4a457ea8cf61698de550e656151a0683e60841dfb38a4aeb8c6f197c4bd6c",
+      "size": 8140,
+      "normalized_sha256": "0a42dda701ee317998cd26b595c55639ae64acddb7c812128a45f0d11f96e870"
+    },
+    "test/features/replay/replay_analytics_test.dart": {
+      "role": "index",
+      "sha256": "910241de44383574079aa4e46acbec15884a5cb90fcfc86d708f049b79508a60",
+      "size": 5538,
+      "normalized_sha256": "4966abb017c37286ca08dfb1e61e115a393422380922679df0e03141f11fbc27"
+    },
+    "test/features/replay/replay_contrast_test.dart": {
+      "role": "index",
+      "sha256": "ec80eb7898719cce941144b7deee15abc2387532414fc339f3195452f96590c3",
+      "size": 3815,
+      "normalized_sha256": "a3acbbf203708c77865cd33a2cf56ebbf9183171cfb6c8ed1283fe20429d32c3"
+    },
+    "test/features/replay/replay_controller_test.dart": {
+      "role": "index",
+      "sha256": "552f47effc76c7e5586c375f603dbeca2001f2985edd2b637849a01a18d4343f",
+      "size": 6043,
+      "normalized_sha256": "988a1b82937ecf0d5ed1f1f6ca8f90ac51ea64c4c5f8106a009feb439ea0dd2d"
+    },
+    "test/features/replay/replay_export_visibility_test.dart": {
+      "role": "index",
+      "sha256": "e2ed516e9fd74cac98a9bb31bd8d15b3ab13191c1e362cda5c9bc23899e58a48",
+      "size": 16699,
+      "normalized_sha256": "57501924bd52ddc2fae1b989822a1f13f069b3483294665d8e80c4a4b4f3505c"
+    },
+    "test/features/replay/replay_location_coverage_test.dart": {
+      "role": "index",
+      "sha256": "2b547e6e2338a9007724538acc3cafc511a9d874ae639c5b5dc5d330f27c72d5",
+      "size": 11847,
+      "normalized_sha256": "cc14e79bb63e94000cac7fa7046d0d890fcb393cea77c523b079b6a079f5943a"
+    },
+    "test/features/replay/replay_page_test.dart": {
+      "role": "index",
+      "sha256": "4db5ca0a3aca305bf447e4ad50fee67c4792e6beb3f094b8d5296dfa0ee4005c",
+      "size": 10996,
+      "normalized_sha256": "8596c8f807554c0cf8cd2dc4b640ade28922a99ac920c9865b308e45e4257a7c"
+    },
+    "test/features/replay/task11_replay_audit_repository_test.dart": {
+      "role": "index",
+      "sha256": "a33011fab0ddcbc61be02025f2ef51bffd20aed105ca05b850eacfec6f2360fc",
+      "size": 3509,
+      "normalized_sha256": "ed2209c88cd2000abab0ef2868734c2056519d4d4c0437a8dde338183dac6970"
+    },
+    "test/features/replay/task11_replay_ui_test.dart": {
+      "role": "index",
+      "sha256": "c70fbac99ab0833e3fde1b625ed98e011e6df4bf6ee7c9f50537a8e7cd3988c9",
+      "size": 8629,
+      "normalized_sha256": "f85404c06542dd48a1dcda5239a4d4e0160d67a48d06b9d303eb829939668e08"
+    },
+    "test/features/replay/task12_analytics_ui_test.dart": {
+      "role": "index",
+      "sha256": "9cd5e6e59cc8b3abc248f085a1866a10522c9284b95719ae5182b2d0eca124e2",
+      "size": 4673,
+      "normalized_sha256": "d0ec959755aa64483250966a800d85f8521f0c62d35784a5c1f72c9821589398"
+    },
+    "test/features/replay/task12_replay_responsive_test.dart": {
+      "role": "index",
+      "sha256": "c03c3b0d4ec3cd109e4c2dbebc0cf6eb7752c8df714ee780515e0396a4611c52",
+      "size": 2460,
+      "normalized_sha256": "2a6dbd18cf93bf39f245d769128bfcd917aa14ad7f03aff0cd1bc6a4061479c4"
+    },
+    "test/features/replay/task12_timeline_filter_test.dart": {
+      "role": "index",
+      "sha256": "7d5a3592c5e6093c7fc0afc739f595257047f583e4600d8b3ae39ad555f32b93",
+      "size": 8952,
+      "normalized_sha256": "5c659a1deb9daf31cc4c77549b86a203c7e49444bc705c121c7aa9dca9292f05"
+    },
+    "test/features/replay/task6_replay_history_test.dart": {
+      "role": "index",
+      "sha256": "b89f59f80f5fb44d785fa144d3d51b1e58c3bde84d1a89b5d3ee8b951f74dcbe",
+      "size": 4440,
+      "normalized_sha256": "67fb15b9760b607b92dee2d9f03a4d60a54eb6f220801c991dabd73bec657542"
+    },
+    "test/features/rules/rule_template_page_test.dart": {
+      "role": "index",
+      "sha256": "faa329918b59b35618f18c4ce9ed2348b10ac4488b4ea4702605734544ef61d6",
+      "size": 18693,
+      "normalized_sha256": "3d2b008c46fa16ef98f285a75b70378e8be013a5904b15cdb615cfbd5fa52148"
+    },
+    "test/features/scoring/court_view_test.dart": {
+      "role": "index",
+      "sha256": "c87c649296d3b339b8878482bbf83a3b81a78169a318fe1b45fd90d87a1f2cf8",
+      "size": 12969,
+      "normalized_sha256": "1a00a174f69f760f4b3425e3efde6d6bc650ced808feac47a892ff5337de2b67"
+    },
+    "test/features/scoring/score_side_panel_visual_test.dart": {
+      "role": "index",
+      "sha256": "a1ea171cf2fd8bd739e5f352e85fb9a1d790c7f9ccc9443f7f712672ac1c765f",
+      "size": 5845,
+      "normalized_sha256": "009e40b1cc6fd5df7865eed075da1b37f37224d2d834656c9ab36fc982e399ee"
+    },
+    "test/features/scoring/scoring_controller_test.dart": {
+      "role": "index",
+      "sha256": "7b314dd11b9101acece155a4eeca9543fe4ac36976187a5926e5e14176e1367a",
+      "size": 50202,
+      "normalized_sha256": "134ecbae5971e9fcfeb72854a7c3c53aa03eed9fe801646d41207198e77f0953"
+    },
+    "test/features/scoring/scoring_guide_test.dart": {
+      "role": "index",
+      "sha256": "66c48f2db8149669b7543ea56e94239c88a2438a15bd0a896f24a42241ac9e76",
+      "size": 6650,
+      "normalized_sha256": "e41a0bd5632c12aa5f5549e879da0ec6228665742a950c0cd1d027bc049abed6"
+    },
+    "test/features/scoring/scoring_motion_test.dart": {
+      "role": "index",
+      "sha256": "01828ac0a8bfb7be7ad193ce940e3f49c812c5152cdaec4a22f1113d41c5ae7a",
+      "size": 35153,
+      "normalized_sha256": "7a1557d33bb06ce487ac465935ebf2ed0c8651d68732090a8d83a4f0d2253102"
+    },
+    "test/features/scoring/scoring_page_test.dart": {
+      "role": "index",
+      "sha256": "4c0df6641fd257f3a4760e5c28ed6899cfac8dc3b1870c8797ef19e7c4292928",
+      "size": 153830,
+      "normalized_sha256": "1c238bc0504588ab95553a7ee93d11626998103395153ce9a62260bd34fedaa6"
+    },
+    "test/features/scoring/task8_scoring_controller_test.dart": {
+      "role": "index",
+      "sha256": "e9287ce74a044269feb1a9039ddbecb12b65de4d01d489048628783743165347",
+      "size": 48719,
+      "normalized_sha256": "6d0ec7354bd53fc8d6a3e0dd838939c65165bc9c94bbe56a7cda1a7c0cd49090"
+    },
+    "test/features/settings/data_management_page_test.dart": {
+      "role": "index",
+      "sha256": "3c7c99e6c215c4178bdba5ea42f2d261dc21dfc856966f57b42d723da3d5f489",
+      "size": 16426,
+      "normalized_sha256": "0a961bffa27b5c0bc3414e6ce8dd3074d24753ab8417a917570657ef446c12fb"
+    },
+    "test/features/settings/safety_backup_settings_test.dart": {
+      "role": "index",
+      "sha256": "482d76e52f1201391f2c0094bd646482e328dba01d0f32e9828dcf142c6271e5",
+      "size": 10780,
+      "normalized_sha256": "0687c42a8fa3c2f7edacdbbdc52d8cc04457bd0a1650486ae52da1b90cfb0273"
+    },
+    "test/features/settings/settings_controller_test.dart": {
+      "role": "index",
+      "sha256": "c1b1ea021aca043463db5f1b8eee6c31bd18fe523529d43b1783b7cc64c8b3c8",
+      "size": 6217,
+      "normalized_sha256": "2dbc61f520c8407a3ac22548111626a04afa00b1051c6e5e339f44c60a2af797"
+    },
+    "test/features/settings/settings_page_test.dart": {
+      "role": "index",
+      "sha256": "26cb2f1aa7b2a13219b7837acaebe3b079965e5decdb6eec872bd13fe1f884a8",
+      "size": 26167,
+      "normalized_sha256": "724d50db9662cb019726a79dd466bfb1cdfa2408add58e4150a75228fd829b8a"
+    },
+    "test/features/settings/task14_theme_locale_test.dart": {
+      "role": "index",
+      "sha256": "c576f377e5669ba6811dafc82728380a4fa6d17d17a4cb93efb7bd1fe8998560",
+      "size": 4110,
+      "normalized_sha256": "5bbf16c0009d69ad4f91d3cab752ae68b22279f83e91c6a5ffe6dc14d09a2aac"
+    },
+    "test/features/summary/match_summary_page_test.dart": {
+      "role": "index",
+      "sha256": "2709048876bde004ce0babc97d02f6885503e4451cb519fe750e9382f27cfcfb",
+      "size": 3923,
+      "normalized_sha256": "eb30f330ed3667987c84f3c152b969d0d4ccd06e3cad837f31fab64859b3e313"
+    },
+    "test/generated_migrations/schema.dart": {
+      "role": "index",
+      "sha256": "d21cb801afd44b68e50f515da60604a2db3321123b7b4500fbd57788bef8fa24",
+      "size": 677,
+      "normalized_sha256": "57310db32f786a9860ef789b3f462f21d2cbd4a27d607a0fda585fe9c1191a80"
+    },
+    "test/generated_migrations/schema_v2.dart": {
+      "role": "index",
+      "sha256": "226d60b90aae21bc6bfe0f856c55278c7a55693be16c752f6baeb35dd27d6cd9",
+      "size": 35365,
+      "normalized_sha256": "a65960f56ad2dd409a447e3033fdd27ac91fe90e5cfd0118d20ddda5f1dc86e9"
+    },
+    "test/generated_migrations/schema_v3.dart": {
+      "role": "index",
+      "sha256": "f4f25be7be222148a1b64c845084e0caa101e9c448707b58916d12f5e841d37c",
+      "size": 42033,
+      "normalized_sha256": "35ba1836f4c1c72b4f46cd88fadfb7adb6ea7547ae562066405bd06e26604dc5"
+    },
+    "test/performance/player_analytics_snapshot_benchmark_test.dart": {
+      "role": "index",
+      "sha256": "4f600b440b2008780b0f57052124c3041211f33d79ca46887688bbcb2182c841",
+      "size": 3643,
+      "normalized_sha256": "0d52599a9543e5750b19fb3a0586ffbc800d96cb2090e0eab7e876ef7075b7bc"
+    },
+    "test/performance/player_comparison_benchmark_test.dart": {
+      "role": "index",
+      "sha256": "687982e14a23b9bdc1977be732e5b2ed0cab8fb2a46dbb4fcd62461be230c598",
+      "size": 3891,
+      "normalized_sha256": "4f36308d4a4171ad032a55737fbc37b8e345361cb4467b91400142d91d8ffaf3"
+    },
+    "test/performance/task15_query_benchmarks_test.dart": {
+      "role": "index",
+      "sha256": "7fc6d2614ef6b9fdff6cc6a467acab8d947ddfe88a75830dffec7ba03804d3d3",
+      "size": 4319,
+      "normalized_sha256": "c0548208ba994e565b2e46a7676f885b36d39aa1adbf52ff9f374ef32816078c"
+    },
+    "test/platform/android_platform_contract_test.dart": {
+      "role": "index",
+      "sha256": "0a3f22486ef74d4ccd14bf29ffb18073a7cfe6ffdb6c7e17ae471f6f7903b2ae",
+      "size": 3833,
+      "normalized_sha256": "859098506ebd0491bc579f1215045df3045fa88745b90c24454e0c6e6657b5d2"
+    },
+    "test/smoke_test.dart": {
+      "role": "index",
+      "sha256": "844241dc78da67c63284d3f89507858aa998f8084b084cfd62045e3e73459384",
+      "size": 163,
+      "normalized_sha256": "d3768b153179939012d96ffa5e1c8d479ac725f486680811038ac9f6d7c1457f"
+    },
+    "test/support/golden_fonts.dart": {
+      "role": "index",
+      "sha256": "459d7b2537fb26e96c6bf5175f33937d719ef918475f05d88125fb0aac73169e",
+      "size": 2195,
+      "normalized_sha256": "11679a434cbcb5bca4e941e7894d8f4d3dd8e58acdb2b5621d052b0c9bb8d107"
+    },
+    "test/test_helpers/safety_backup_storage.dart": {
+      "role": "index",
+      "sha256": "5d1422eeaba14c900751e2a5f717c7386ddb566effe31072ebfc8c72ec8a73e7",
+      "size": 1410,
+      "normalized_sha256": "bc8841511d664f4cc44155a3c4001cc8fa77e3c7040d135e6c364e0767b0758b"
+    },
+    "test/test_helpers/test_database.dart": {
+      "role": "index",
+      "sha256": "12c8450613f89c9b82ba2fd9ab487404febb8e4e59ce01835f1d54916cff216a",
+      "size": 665,
+      "normalized_sha256": "3aaa254e5e700224e8d967a1f73837ba3693120760bf403ae07a4e37c967433f"
+    },
+    "test/test_helpers/test_database_test.dart": {
+      "role": "index",
+      "sha256": "6719289e70e4ea8d530520e6a9a34ebed341ffd4bf7c7bfead7b98343576626b",
+      "size": 693,
+      "normalized_sha256": "266291916e56b98e05a4eac4b67b92d9ef382fd9a2bba1f40e2928e16366da20"
+    },
+    "test/tool/release/verify_unsigned_reproducible_android_test.ps1": {
+      "role": "observe",
+      "sha256": "aa02a86a51a4b1ea44f15e38f60997cfcb9c677c4b14d000e193fdee4759d913",
+      "size": 9372,
+      "normalized_sha256": "6b666529cf86a4d777fe53919a0ed1e2cdea74f7dc6783c102837880bdeae458"
+    },
+    "third_party/android_runtime/README.md": {
+      "role": "index",
+      "sha256": "ba8a0c15534542a321db355306315ae5c96214c5992a68732374074519d75bbc",
+      "size": 1869,
+      "normalized_sha256": "9ea2f59c2ab04d08f7bf1d410d7ee1a40f5a4af8ab5ae4429cc3ef9c714eccbc"
+    },
+    "third_party/android_runtime/coordinates.txt": {
+      "role": "index",
+      "sha256": "de6845d44dd8aadebc95ce93521552fcb5a2da1490a230932c2aedb855c2281a",
+      "size": 2886,
+      "normalized_sha256": "af32d63257ccab67f5058cef89b561abb605580ef0458ab7c3971e46c8ed327e"
+    },
+    "third_party/sqlite/README.md": {
+      "role": "index",
+      "sha256": "c9152a3887dbb29ef1ad5afafa92179f89babe36ad10e336093e077c532d3e83",
+      "size": 855,
+      "normalized_sha256": "4cdfec2b796f29a1d7e67d9230764e11cbdff5e01bba5dd7fbf1ec538181ef29"
+    },
+    "third_party/sqlite/sqlite3.c": {
+      "role": "index",
+      "sha256": "b1dd5d74ec7f29055a6684fa06fb3c2f6821c87dd38f9a458dfd2e8a1db28189",
+      "size": 9515341
+    },
+    "third_party/sqlite/sqlite3.h": {
+      "role": "index",
+      "sha256": "919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d",
+      "size": 690838,
+      "normalized_sha256": "919e7f2e8ed1d8f56ac17b412b8971c76aa5d1a879752cc6058f75e7d5910e1d"
+    },
+    "tool/release/build_android_release.ps1": {
+      "role": "index",
+      "sha256": "8a9fb991353f4d0b64b703f8fd2a0ed9138ac261228b8743a8fb72a4c6396ded",
+      "size": 12448,
+      "normalized_sha256": "707d26fb76a791d9ae74880f4f908bfb6a1989a6a0e9f9a9fe3aef3a4a9f2f9a"
+    },
+    "tool/release/compare_entry_startup_runs.py": {
+      "role": "index",
+      "sha256": "7282adaeb14d3bdc00e803863cfdb9752deef676eb9dd5791e9d801d5a03d88c",
+      "size": 10285,
+      "normalized_sha256": "a432dd1f578ea52946a5da4bddd92a625359989e77c2da22ffc15a541cab6f9d"
+    },
+    "tool/release/generate_entry_assets.py": {
+      "role": "index",
+      "sha256": "b63f98316dd9576e70bf1459b47575cbed06459ad6bcbef531044768bcaea723",
+      "size": 3715,
+      "normalized_sha256": "f7e284b07fcef64c67fa060185ff9511c11f9a5ff7f4790f72d0c4f7a77dbe24"
+    },
+    "tool/release/generate_launcher_icons.py": {
+      "role": "index",
+      "sha256": "ce13e9c2ddf621c6e432c6a21a4774be85cb6c09ca0640d25a1a36c68e920763",
+      "size": 15245,
+      "normalized_sha256": "eca577884ec342cfe2f6fc8248169efa4f5813ce255b59cf3da457233c55c5b8"
+    },
+    "tool/release/generate_third_party_notices.dart": {
+      "role": "index",
+      "sha256": "4b855173d0e19a9a425f6563fa0bd3f7786ce90968bac320655c576128852b56",
+      "size": 7850,
+      "normalized_sha256": "2ba307a5fc8a907734efc0b5742f58d6c382a1deab19e22e8f1b564b0a672f51"
+    },
+    "tool/release/generate_v1_upgrade_fixture.dart": {
+      "role": "index",
+      "sha256": "d52bb6b215c23a69e2b887629111849e78d6076fced689232d4fe7ef598b0eba",
+      "size": 8553,
+      "normalized_sha256": "4498b652c9dc0a62f62eb8916ddaf7367561969366b97acec0f01780d86cc95b"
+    },
+    "tool/release/measure_entry_startup.py": {
+      "role": "index",
+      "sha256": "3b5d9a720876be483a51269a93f42eeaf802f7bb6ce05609c2b61d68ab374f4c",
+      "size": 18650,
+      "normalized_sha256": "df742e8c8e59257d67e56b5e76a4bf804bc03a99a317398ae71282d88d001934"
+    },
+    "tool/release/observe_automatic_backup.py": {
+      "role": "index",
+      "sha256": "e3bc0ba0f7cd3aae8c2eb2241f3857e91bbe6da6e54d132e9c06246fdbad9152",
+      "size": 28334,
+      "normalized_sha256": "2801e6d8c052617b04658d3042b2321c2ed7c9bb09b4978dbecc67391947fe54"
+    },
+    "tool/release/prepare_android_toolchain.sh": {
+      "role": "index",
+      "sha256": "849fae29221e061ccb7994f67a247866aaad8433af9603119bd36c7852186609",
+      "size": 2799,
+      "normalized_sha256": "849fae29221e061ccb7994f67a247866aaad8433af9603119bd36c7852186609"
+    },
+    "tool/release/prepare_v1_upgrade_fixture.py": {
+      "role": "index",
+      "sha256": "df7f1c8ac96b05bf6d8e0fcf5034e577000052c75096053c02c198d7d9532e72",
+      "size": 9441,
+      "normalized_sha256": "d9b6b9fa5aa3a3ae06bca3d91140ce9d1cea1d837d0bd606969f8010f0f619d7"
+    },
+    "tool/release/release_helpers.ps1": {
+      "role": "index",
+      "sha256": "5f537945ebce4533550c20edb1ceb770f95f0dc18a6041758f2bc9d6aff64bff",
+      "size": 1215,
+      "normalized_sha256": "6cd8fc998e1337d7819d81a57b7f453fac953db7d4a659149a8c6af31c2561c1"
+    },
+    "tool/release/run_android_integration_ci.sh": {
+      "role": "index",
+      "sha256": "c36d6a9113b4b82cb90f05910e4932fe6cecab0f7bea4a6f411c7dbdaaab7265",
+      "size": 768,
+      "normalized_sha256": "c36d6a9113b4b82cb90f05910e4932fe6cecab0f7bea4a6f411c7dbdaaab7265"
+    },
+    "tool/release/setup_android_signing.ps1": {
+      "role": "index",
+      "sha256": "df3f73c6f06ea529837c7dd12e4bc3f8533ec27d9f3e4e1db3c4b579562dcc67",
+      "size": 3806,
+      "normalized_sha256": "f234f169431bde804cf3a5eb6891eca310c46fa4c1e3d63cc7962f30c6fb6106"
+    },
+    "tool/release/tests/test_ci_android_integration.py": {
+      "role": "observe",
+      "sha256": "7c0b65631900381cd4c62b3c1402ead1457f7247e7375bae82f04523254f94dd",
+      "size": 4625,
+      "normalized_sha256": "c25c01fe79c5a72d57d3c58fb96d25f781cf7c5c6cb965b3679f2db40f3a29ab"
+    },
+    "tool/release/tests/test_compare_entry_startup_runs.py": {
+      "role": "observe",
+      "sha256": "9f203996e2f7f560329e93238d083dfab5017d8f064fd41289b449f8419df1bf",
+      "size": 10789,
+      "normalized_sha256": "22013237a3d90e193b507c40be367cfb87de5361897eefb222db18ba16731801"
+    },
+    "tool/release/tests/test_generate_launcher_icons.py": {
+      "role": "observe",
+      "sha256": "3d68400500f64540860fd40925f8a23c59e77bae69ab3721d217d4dd622a546a",
+      "size": 1719,
+      "normalized_sha256": "2b9e63c32db90211426441c1a8ec1594335b8d2bbc9c2abce71a0b6e7537d63e"
+    },
+    "tool/release/tests/test_measure_entry_startup.py": {
+      "role": "observe",
+      "sha256": "d669c69266f62b117a993af9bb84b97744f165fb677101f947ba661b4d5db0c0",
+      "size": 25798,
+      "normalized_sha256": "282ba6dbf74c5829cbbdbcb7896c538d99d8afcda70a29a3dcad9b55f6f90f71"
+    },
+    "tool/release/tests/test_observe_automatic_backup.py": {
+      "role": "observe",
+      "sha256": "91feef7b0c7689984cc589502767f3f24d1459cb50b3cdb3a2812581f5f64b45",
+      "size": 13253,
+      "normalized_sha256": "20a901a87f967c14881abdef7979be1526c8300d2b64983facfe476b4d690606"
+    },
+    "tool/release/tests/test_prepare_v1_upgrade_fixture.py": {
+      "role": "observe",
+      "sha256": "644c3343d7990f22be94fc8badf3114348b7e419c27d0ae7fb6dd179f22c09ff",
+      "size": 7208,
+      "normalized_sha256": "d31957581f61b0f5fcb1102f0af75f7df67bc5304f27cc3d26618d905c19790b"
+    },
+    "tool/release/validate_metadata.dart": {
+      "role": "index",
+      "sha256": "1d349ae06671f092f1937349ad62e5aa5f5fff0a6cfec6ecc3ae52c1c4d68591",
+      "size": 10373,
+      "normalized_sha256": "e8480930e634360b3db92a52dde0973571eda38170b6ba77f91924069d676799"
+    },
+    "tool/release/verify_sqlite_source.dart": {
+      "role": "index",
+      "sha256": "86eb4e0f6f2d8a86f7091853ba13c8d25fc15c2190d2af6ae81ebeb8f20055a2",
+      "size": 2389,
+      "normalized_sha256": "90bca3662134eaae866ca10d325b57ae04c04551a73ba742334e9f7ad5336866"
+    },
+    "tool/release/verify_unsigned_reproducible_android.ps1": {
+      "role": "index",
+      "sha256": "4fdae87a954c6ab0243f4580a338362a0eeba859d8d9508758427859e5bfeeff",
+      "size": 22914,
+      "normalized_sha256": "09f7a6a400a22c8251e6cd2f55490d4cf659cb82195ad93b2d1c7721cc2ae884"
+    },
+    "tool/release/verify_unsigned_reproducible_android.sh": {
+      "role": "index",
+      "sha256": "99d041b01b8076982c470f4570db52ca7f79d1a410df6d2b1d62e0aa2678557c",
+      "size": 9948,
+      "normalized_sha256": "99d041b01b8076982c470f4570db52ca7f79d1a410df6d2b1d62e0aa2678557c"
+    }
+  },
+  "managed_scope": {
+    "version": "managed-scope-baseline/v1",
+    "policy_identity": "c81414aa1ad20edc6cdd8c9d904678ca476240ca1a991b5d31759dcae114efd1",
+    "observe_change_policy": "review_required",
+    "budget_policy_identity": "15e9b37a6c57e9bf03c9df3d0d049eb5b9a7f5540f9d34960408114e2538a32d",
+    "budget_policy": {
+      "version": "cognition-budget-policy/v1",
+      "mode": "enforce",
+      "whole_index": {
+        "target_tokens": 200000,
+        "warning_tokens": 300000,
+        "max_tokens": 400000
+      },
+      "r": [
+        {
+          "min_c": 1,
+          "max_c": 4,
+          "target_tokens": 25,
+          "max_tokens": 50
+        },
+        {
+          "min_c": 5,
+          "max_c": 7,
+          "target_tokens": 45,
+          "max_tokens": 90
+        },
+        {
+          "min_c": 8,
+          "max_c": 8,
+          "target_tokens": 70,
+          "max_tokens": 140
+        },
+        {
+          "min_c": 9,
+          "max_c": 9,
+          "target_tokens": 90,
+          "max_tokens": 180
+        }
+      ],
+      "s": [
+        {
+          "min_c": 1,
+          "max_c": 4,
+          "target_tokens": 20,
+          "max_tokens": 40
+        },
+        {
+          "min_c": 5,
+          "max_c": 7,
+          "target_tokens": 40,
+          "max_tokens": 80
+        },
+        {
+          "min_c": 8,
+          "max_c": 8,
+          "target_tokens": 70,
+          "max_tokens": 140
+        },
+        {
+          "min_c": 9,
+          "max_c": 9,
+          "target_tokens": 100,
+          "max_tokens": 200
+        }
+      ]
+    },
+    "apply_authorization_mode": "auto"
+  }
+}

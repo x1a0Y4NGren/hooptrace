@@ -1,6 +1,6 @@
 # HoopTrace 文档入口
 
-先按当前 Git 分支查看 [HANDOFF.md](../HANDOFF.md)。main 的 1.1 源码与 2.0 候选工作树各自保留真实版本和验收来源；本地候选完成不代表已经合并或发布。
+项目已发布 v2.0.0，主工作区统一维护 `main` 的 2.0 源码。当前状态见 [HANDOFF.md](../HANDOFF.md)；历史候选记录保留各自源码、设备和验收来源，不代表当前仍有独立候选工作区。
 
 ## 项目级说明
 
@@ -13,10 +13,11 @@
 
 ## 构建与发行
 
-- [发行清单](release/release-checklist.md)：正式发行时使用的模板，当前完成状态以交接和候选记录为准。
+- [发行清单](release/release-checklist.md)：正式发行时使用的模板，当前完成状态以交接和实际发行记录为准。
 - [可复现构建](release/reproducible-builds.md)与[性能证据](release/performance.md)
 - [F-Droid 准备](release/fdroid-notes.md)：按对应渠道任务范围使用。
 - [已发布 v1.0 说明](release/v1.0.0-release-notes.md)
+- [已发布 v2.0 说明](release/v2.0.0-release-notes.md)
 
 ## 设计与历史
 
@@ -27,7 +28,7 @@
 
 历史计划中的基线、代理波次、技能要求及发布命令属于当时任务；只在追溯相关决策时查阅，不构成当前待办或授权。
 
-## 2.0 候选
+## 2.0 发行与历史验收
 
 - [本次 GitHub 发行执行、签名恢复与公开产物核验](release/v2.0.0-release-record.md)
 - [面向用户的双语 2.0 发行说明](release/v2.0.0-release-notes.md)

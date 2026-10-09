@@ -66,7 +66,7 @@ HoopTrace 是一款为篮球爱好者准备的离线单挑记录与复盘工具�
 ## 当前阵容
 
 - 当前版本：[HoopTrace `v2.0.0`](https://github.com/x1a0Y4NGren/hooptrace/releases/tag/v2.0.0)，Android `2.0.0+4`，使用新的正式签名；历史 v1 不能直接覆盖安装。
-- 应用源码 `c99a443`，数据库 schema 3、JSON 格式 2；构建与验收来源见[发行记录](docs/release/v2.0.0-release-record.md)。
+- 发行应用源码 `dd1a315`，主分支持续维护 2.0；数据库 schema 3、JSON 格式 2。后续文档与 AOCI 提交不改变发行 APK 来源，构建与验收记录见[发行记录](docs/release/v2.0.0-release-record.md)。
 - 当前平台：Android 优先，最低 Android API 24，目标 Android API 36。
 - Android Application ID：`io.github.x1a0y4ngren.hooptrace`。
 - iOS 无签名编译已纳入 CI，但尚未完成真机验收和正式发布。
